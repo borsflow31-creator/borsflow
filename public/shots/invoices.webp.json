@@ -1,0 +1,4 @@
+{
+  "prompt": "Screenshot of the BorsFlow application itself. Captured 2026-09-26 from a local production build (next build + next start) at 1440x900 CSS px, deviceScaleFactor 2, dark theme, signed in as a temporary demo account. Subsequently cropped to where the interface content ends (crm to 2880x1240, invoices to 2880x1410, pages uncropped), then scaled to 2160px wide and encoded to WebP. The interface is the real shipped UI, not a mock. The records shown (Northwind Studio workspace, its leads, quote Q-2026-0104 and invoices INV-2026-0042/0043) were authored solely for this capture and deleted from the database immediately afterwards. No retouching beyond the crop; the only interaction was dismissing the Stripe setup banner on the invoices screen.",
+  "createdAt": "2026-09-26T21:07:57.676Z"
+}

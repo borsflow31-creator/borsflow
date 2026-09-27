@@ -1,0 +1,1406 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                   String            @id @default(cuid())
+  email                String            @unique
+  name                 String?
+  password             String?
+  emailVerified        DateTime?
+  theme                String            @default("system") // 'light', 'dark', 'system'
+  notificationsEmail    Boolean           @default(true)
+  notificationsPush     Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  workspaces           Workspace[]
+  sessions             Session[]
+  workspaceMembers      WorkspaceMember[]
+  messages             Message[]
+  comments             Comment[]
+  sentInvitations      Invitation[]      @relation("InvitationSender")
+  // Meeting relationships
+  hostedMeetings     Meeting[]         @relation("MeetingHost")
+  createdMeetingNotes MeetingNote[]     @relation("MeetingNoteCreator")
+  activities         Activity[]        @relation("ActivityUser")
+  pageAccessRecords  PageAccess[]
+  // Created by relations
+  createdPages              Page[]                  @relation("PageCreator")
+  createdBlocks             Block[]                 @relation("BlockCreator")
+  createdKanbanProjects     KanbanProject[]         @relation("KanbanProjectCreator")
+  createdKanbanCards        KanbanCard[]            @relation("KanbanCardCreator")
+  createdPipelines          Pipeline[]              @relation("PipelineCreator")
+  createdLeads              Lead[]                  @relation("LeadCreator")
+  createdLeadLists          LeadList[]              @relation("LeadListCreator")
+  createdQuotes             Quote[]                 @relation("QuoteCreator")
+  createdQuoteNotes         QuoteNote[]             @relation("QuoteNoteCreator")
+  createdInvoices           Invoice[]               @relation("InvoiceCreator")
+  createdInvoiceNotes       InvoiceNote[]           @relation("InvoiceNoteCreator")
+  createdPayments           Payment[]               @relation("PaymentCreator")
+  createdEmailCampaigns     EmailCampaign[]         @relation("EmailCampaignCreator")
+  createdEmailTemplates     EmailTemplate[]         @relation("EmailTemplateCreator")
+  createdEmailAutomations   EmailAutomation[]       @relation("EmailAutomationCreator")
+  createdSegmentationRules  SegmentationRule[]      @relation("SegmentationRuleCreator")
+  createdEmailProviders     EmailProvider[]         @relation("EmailProviderCreator")
+  createdCalendarIntegrations CalendarIntegration[] @relation("CalendarIntegrationCreator")
+  createdMeetings           Meeting[]               @relation("MeetingCreator")
+  createdVideoConferenceConfigs VideoConferenceConfig[] @relation("VideoConferenceConfigCreator")
+  createdChannels   Channel[]
+  createdProducts           Product[]               @relation("ProductCreator")
+  createdUniversalTemplates UniversalTemplate[] @relation("UniversalTemplateCreator")
+}
+
+model Channel {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  workspaceId String
+  createdById String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  messages    Message[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Workspace {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  icon        String?
+  ownerId     String
+  owner       User              @relation(fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+  pages       Page[]
+  kanbanCards    KanbanCard[]
+  kanbanProjects  KanbanProject[]
+  pipelines   Pipeline[]
+  leadLists   LeadList[]
+  channels    Channel[]
+  messages    Message[]
+  comments    Comment[]
+  invitations Invitation[]
+  quotes      Quote[]
+  invoices    Invoice[]
+  products    Product[]
+  universalTemplates UniversalTemplate[]
+  emailCampaigns    EmailCampaign[]
+  emailTemplates    EmailTemplate[]
+  emails            Email[]
+  emailAutomations  EmailAutomation[]
+  segmentationRules SegmentationRule[]
+  emailProviders    EmailProvider[]
+  emailSuppressions EmailSuppression[]
+  emailUnsubscribes EmailUnsubscribe[]
+  emailBounces      EmailBounce[]
+  // Stripe Connect (OAuth)
+  stripeAccountId       String?  // Connected Stripe account ID
+  stripeAccountEnabled  Boolean  @default(false) // charges_enabled from Stripe
+  // Stripe Direct API Keys (per-workspace, AES-256-CBC encrypted)
+  stripeSecretKey       String?  // Encrypted sk_live_ / sk_test_ key
+  stripePublishableKey  String?  // Plain pk_live_ / pk_test_ key
+  // Scheduling relationships
+  calendarIntegrations CalendarIntegration[]
+  meetings            Meeting[]
+  videoConferenceConfigs VideoConferenceConfig[]
+  activities           Activity[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String   // 'owner', 'admin', 'member', 'viewer'
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([workspaceId, userId])
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  title       String
+  icon        String?
+  coverImage  String?
+  workspaceId String
+  parentId    String?
+  order       Int      @default(0)
+  content     String   @default("{}") // Block-based content (stored as JSON string)
+  isPublic    Boolean  @default(false) // When true, accessible via /share/[id] without auth
+  createdById String?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent      Page?    @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Page[]   @relation("PageHierarchy")
+  createdBy   User?    @relation("PageCreator", fields: [createdById], references: [id])
+  blocks        Block[]
+  comments      Comment[]
+  accessRecords PageAccess[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Block {
+  id          String   @id @default(cuid())
+  pageId      String
+  type        String   // 'text', 'heading', 'list', 'todo', 'divider', 'image', 'code', etc.
+  content     String   @default("{}") // Stored as JSON string
+  order       Int
+  createdById String?
+  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("BlockCreator", fields: [createdById], references: [id])
+  comments    Comment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  content     String
+  blockId     String?
+  pageId      String?
+  userId      String
+  workspaceId String
+  parentId    String?  // For threaded replies
+  resolved    Boolean  @default(false)
+  block       Block?    @relation(fields: [blockId], references: [id])
+  page        Page?     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([blockId])
+  @@index([pageId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model KanbanProject {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  color       String?      // e.g. "#6366f1"
+  workspaceId String
+  order       Int          @default(0)
+  createdById String?
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?        @relation("KanbanProjectCreator", fields: [createdById], references: [id])
+  cards       KanbanCard[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([createdById])
+}
+
+model KanbanCard {
+  id          String         @id @default(cuid())
+  title       String
+  description String?
+  status      String         @default("todo") // 'todo', 'inprogress', 'done'
+  priority    String         @default("medium") // 'low', 'medium', 'high'
+  tags        String?        // JSON array of tags
+  workspaceId String
+  projectId   String?
+  order       Int            @default(0)
+  dueDate     DateTime?
+  assignees   String?        // JSON array of user IDs
+  attachments Int            @default(0)
+  comments    Int            @default(0)
+  checklistCompleted Int     @default(0)
+  checklistTotal   Int       @default(0)
+  createdById String?
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     KanbanProject? @relation(fields: [projectId], references: [id])
+  createdBy   User?          @relation("KanbanCardCreator", fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([createdById])
+}
+
+model Pipeline {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // Hex color for pipeline visualization
+  workspaceId String
+  order       Int      @default(0)
+  stages      String   @default("[]") // JSON array of stage names
+  createdById String?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("PipelineCreator", fields: [createdById], references: [id])
+  leads       Lead[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([createdById])
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  company     String?
+  position    String?
+  status      String   @default("new") // 'new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'
+  stage       String   @default("new") // Current stage in pipeline
+  value       Float?   // Estimated deal value
+  source      String?  // How they found you
+  notes       String?  // Additional notes
+  tags        String?  // JSON array of tags
+  pipelineId  String
+  order       Int      @default(0)
+  createdById String?
+  leadLists   LeadListLead[]
+  pipeline    Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("LeadCreator", fields: [createdById], references: [id])
+  quotes      Quote[]
+  invoices    Invoice[]
+  emailRecipients  EmailRecipient[]
+  segmentMembers   SegmentMember[]
+  automationEnrollments AutomationEnrollment[]
+  // Meeting relationships
+  meetings            Meeting[]         @relation("LeadMeetings")
+  meetingAttendees    MeetingAttendee[] @relation("LeadAttendees")
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([pipelineId])
+  @@index([email])
+  @@index([status])
+  @@index([stage])
+  @@index([createdById])
+}
+
+model LeadList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // Hex color for list visualization
+  workspaceId String
+  order       Int      @default(0)
+  createdById String?
+  leads       LeadListLead[]
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?    @relation("LeadListCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdById])
+}
+
+model LeadListLead {
+  id        String   @id @default(cuid())
+  leadId    String
+  leadListId String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadList  LeadList @relation(fields: [leadListId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([leadId, leadListId])
+  @@index([leadListId])
+}
+
+model Product {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  sku           String?
+  price         Float     @default(0)
+  unit          String?
+  category      String?
+  taxRate       Float     @default(0)
+  stockQuantity Int?
+  isActive      Boolean   @default(true)
+  createdById   String?
+  createdBy     User?     @relation("ProductCreator", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([workspaceId, sku], map: "Product_workspaceId_sku_key")
+  @@index([workspaceId])
+  @@index([workspaceId, updatedAt])
+  @@index([category])
+  @@index([isActive])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  content     String
+  workspaceId String
+  userId      String
+  channelId   String?
+  fileUrl     String?
+  fileName    String?
+  fileType    String?
+  // Ably Chat message serial. Dedupe key between the live Ably stream and this archive,
+  // and the idempotency key for the archive upsert. NULL for pre-Ably rows.
+  ablySerial  String?   @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+  channel     Channel?  @relation(fields: [channelId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, channelId, createdAt])
+}
+
+model Invitation {
+  id          String   @id @default(cuid())
+  email       String
+  role        String   // 'admin', 'member', 'viewer'
+  status      String   @default("pending") // 'pending', 'accepted', 'declined', 'expired'
+  token       String   @unique // Secure token for invitation acceptance
+  workspaceId String
+  senderId    String
+  expiresAt   DateTime
+  respondedAt DateTime?
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sender      User      @relation("InvitationSender", fields: [senderId], references: [id])
+  // receiver lookup is done at accept-time, not stored as FK (supports invites to non-registered users)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, email])
+  @@index([email])
+  @@index([token])
+  @@index([status])
+}
+
+model Quote {
+  id                String      @id @default(cuid())
+  quoteNumber       String
+  // Unguessable token for the public client view at /view/quote/[token]. Null until
+  // the quote is shared; rotating it revokes the old link.
+  publicToken          String?  @unique
+  publicTokenCreatedAt DateTime?
+  workspaceId       String
+  leadId            String?
+  lead              Lead?       @relation(fields: [leadId], references: [id])
+  clientName        String
+  clientEmail       String?
+  clientPhone       String?
+  clientCompany     String?
+  clientAddress     String?     // JSON object with address fields
+  status            String      @default("draft") // 'draft', 'sent', 'viewed', 'accepted', 'rejected', 'expired'
+  issueDate         DateTime    @default(now())
+  validUntil        DateTime?
+  currency          String      @default("USD")
+  subtotal          Float       @default(0)
+  taxRate           Float       @default(0)
+  taxAmount         Float       @default(0)
+  discountType      String?     // 'percentage', 'fixed'
+  discountValue     Float       @default(0)
+  discountAmount    Float       @default(0)
+  total             Float       @default(0)
+  notes             String?
+  terms             String?
+  internalNotes     String?     // Private notes for team
+  sentAt            DateTime?
+  viewedAt          DateTime?
+  acceptedAt        DateTime?
+  rejectedAt        DateTime?
+  createdById       String?
+  updatedBy         String?
+  items             QuoteItem[]
+  quoteNotes        QuoteNote[]
+  invoices          Invoice[]
+  workspace         Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy         User?       @relation("QuoteCreator", fields: [createdById], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([workspaceId])
+  @@index([leadId])
+  @@index([status])
+  @@index([quoteNumber])
+  @@unique([workspaceId, quoteNumber])
+  @@index([createdById])
+}
+
+model QuoteItem {
+  id          String   @id @default(cuid())
+  quoteId     String
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float    @default(0)
+  discount    Float    @default(0)
+  taxRate     Float    @default(0)
+  total       Float    @default(0)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([quoteId])
+}
+
+model QuoteNote {
+  id          String   @id @default(cuid())
+  quoteId     String
+  quote       Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  content     String
+  isPrivate   Boolean  @default(false) // true = internal notes, false = client-visible
+  createdById String?
+  createdBy   User?    @relation("QuoteNoteCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([quoteId])
+  @@index([createdById])
+}
+
+model Invoice {
+  id                String        @id @default(cuid())
+  invoiceNumber     String
+  // Unguessable token for the public client view at /view/invoice/[token]. Null
+  // until the invoice is shared; rotating it revokes the old link.
+  publicToken          String?    @unique
+  publicTokenCreatedAt DateTime?
+  workspaceId       String
+  leadId            String?
+  lead              Lead?         @relation(fields: [leadId], references: [id])
+  quoteId           String?
+  quote             Quote?        @relation(fields: [quoteId], references: [id])
+  clientName        String
+  clientEmail       String?
+  clientPhone       String?
+  clientCompany     String?
+  clientAddress     String?       // JSON object with address fields
+  status            String        @default("draft") // 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'
+  issueDate         DateTime      @default(now())
+  dueDate           DateTime?
+  paidDate          DateTime?
+  currency          String        @default("USD")
+  subtotal          Float         @default(0)
+  taxRate           Float         @default(0)
+  taxAmount         Float         @default(0)
+  discountType      String?       // 'percentage', 'fixed'
+  discountValue     Float         @default(0)
+  discountAmount    Float         @default(0)
+  total             Float         @default(0)
+  amountPaid        Float         @default(0)
+  amountDue         Float         @default(0)
+  paymentMethod     String?       // For manual payment tracking
+  paymentReference  String?      // Reference number for payments
+  stripeCustomerId      String?  // Stripe Customer ID
+  stripePaymentLink     String?  // Stripe Payment Link URL
+  stripePaymentLinkId   String?  // Stripe Payment Link ID (for expiry)
+  stripePaymentIntentId String?  // Stripe Payment Intent ID
+  stripeSessionId       String?  // Stripe Checkout Session ID
+  notes             String?
+  terms             String?
+  internalNotes     String?       // Private notes for team
+  sentAt            DateTime?
+  viewedAt          DateTime?
+  createdById       String?
+  updatedBy         String?
+  items             InvoiceItem[]
+  invoiceNotes      InvoiceNote[]
+  payments          Payment[]
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy         User?         @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([workspaceId])
+  @@index([leadId])
+  @@index([quoteId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@unique([workspaceId, invoiceNumber])
+  @@index([dueDate])
+  @@index([createdById])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Float    @default(0)
+  discount    Float    @default(0)
+  taxRate     Float    @default(0)
+  total       Float    @default(0)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+}
+
+model InvoiceNote {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  content     String
+  isPrivate   Boolean  @default(false) // true = internal notes, false = client-visible
+  createdById String?
+  createdBy   User?    @relation("InvoiceNoteCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([createdById])
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount          Float
+  paymentDate     DateTime @default(now())
+  paymentMethod   String   // 'cash', 'bank_transfer', 'check', 'credit_card', 'other'
+  referenceNumber String?
+  notes           String?
+  createdById     String?
+  createdBy       User?    @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@index([createdById])
+}
+
+model EmailCampaign {
+  id                String            @id @default(cuid())
+  name              String
+  description       String?
+  type              String            @default("broadcast") // 'broadcast', 'drip', 'triggered', 'behavioral', 'transactional'
+  status            String            @default("draft") // 'draft', 'scheduled', 'sending', 'sent', 'paused', 'cancelled'
+  workspaceId       String
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  templateId        String?
+  template          EmailTemplate?    @relation(fields: [templateId], references: [id])
+  subject           String
+  fromName          String?
+  fromEmail         String?
+  replyTo           String?
+  segmentationRuleId String?
+  segmentationRule  SegmentationRule? @relation(fields: [segmentationRuleId], references: [id])
+  scheduledAt       DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  totalRecipients   Int               @default(0)
+  sentCount         Int               @default(0)
+  deliveredCount    Int               @default(0)
+  openedCount       Int               @default(0)
+  clickedCount      Int               @default(0)
+  bouncedCount      Int               @default(0)
+  unsubscribedCount Int               @default(0)
+  tags              String?           // JSON array of tags
+  metadata          String?           // JSON object for additional data
+  createdById       String?
+  updatedBy         String?
+  emails            Email[]
+  createdBy         User?             @relation("EmailCampaignCreator", fields: [createdById], references: [id])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([type])
+  @@index([createdById])
+}
+
+model EmailTemplate {
+  id          String          @id @default(cuid())
+  name        String
+  description String?
+  type        String          @default("marketing") // 'marketing', 'transactional', 'automation'
+  workspaceId String
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  subject     String
+  htmlContent String
+  textContent String?
+  variables   String?         // JSON array of available variables
+  isDefault   Boolean         @default(false)
+  isActive    Boolean         @default(true)
+  tags        String?         // JSON array of tags
+  campaigns   EmailCampaign[]
+  automationSteps AutomationStep[]
+  createdById String?
+  updatedBy   String?
+  createdBy   User?           @relation("EmailTemplateCreator", fields: [createdById], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model Email {
+  id                String            @id @default(cuid())
+  campaignId        String?
+  campaign          EmailCampaign?    @relation(fields: [campaignId], references: [id])
+  automationStepId  String?
+  automationStep    AutomationStep?   @relation(fields: [automationStepId], references: [id])
+  automationEnrollmentId String?
+  automationEnrollment   AutomationEnrollment? @relation(fields: [automationEnrollmentId], references: [id], onDelete: SetNull)
+  workspaceId       String
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  subject           String
+  fromName          String?
+  fromEmail         String?
+  replyTo           String?
+  htmlContent       String
+  textContent       String?
+  status            String            @default("pending") // 'pending', 'queued', 'sending', 'sent', 'failed', 'cancelled'
+  providerMessageId String?           // External provider message ID
+  providerType      String?           // 'sendgrid', 'ses', 'resend', etc.
+  error             String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  recipients        EmailRecipient[]
+  tracking          EmailTracking?
+  queue             EmailQueue?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([sentAt])
+  @@index([automationEnrollmentId])
+}
+
+model EmailRecipient {
+  id              String         @id @default(cuid())
+  emailId         String
+  email           Email          @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  leadId          String?
+  lead            Lead?          @relation(fields: [leadId], references: [id])
+  recipientEmail  String
+  recipientName   String?
+  status          String         @default("pending") // 'pending', 'sent', 'delivered', 'opened', 'clicked', 'bounced', 'unsubscribed', 'failed'
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  openedAt        DateTime?
+  clickCount      Int            @default(0)
+  lastClickAt     DateTime?
+  bouncedAt       DateTime?
+  bounceReason    String?
+  unsubscribedAt  DateTime?
+  unsubscribeReason String?
+  metadata        String?        // JSON object for additional data
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([emailId])
+  @@index([leadId])
+  @@index([status])
+  @@index([recipientEmail])
+}
+
+model EmailTracking {
+  id              String         @id @default(cuid())
+  emailId         String         @unique
+  email           Email          @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  trackingId      String         @unique // Unique tracking identifier
+  openCount       Int            @default(0)
+  firstOpenAt     DateTime?
+  lastOpenAt      DateTime?
+  clickCount      Int            @default(0)
+  firstClickAt    DateTime?
+  lastClickAt     DateTime?
+  links           String?        // JSON array of tracked links with click counts
+  deviceInfo      String?        // JSON object with device/browser info
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([trackingId])
+}
+
+model EmailAutomation {
+  id              String            @id @default(cuid())
+  name            String
+  description     String?
+  type            String            @default("drip") // 'drip', 'trigger', 'behavioral'
+  status          String            @default("draft") // 'draft', 'active', 'paused', 'completed'
+  workspaceId     String
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  triggers        AutomationTrigger[]
+  steps           AutomationStep[]
+  enrollments     AutomationEnrollment[]
+  entryCriteria   String?           // JSON array of criteria for entering automation
+  exitCriteria    String?           // JSON array of criteria for exiting automation
+  totalEnrolled   Int               @default(0)
+  activeEnrolled  Int               @default(0)
+  completedCount  Int               @default(0)
+  tags            String?           // JSON array of tags
+  metadata        String?           // JSON object for additional data
+  createdById       String?
+  updatedBy         String?
+  createdBy         User?             @relation("EmailAutomationCreator", fields: [createdById], references: [id])
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([type])
+  @@index([createdById])
+}
+
+model AutomationTrigger {
+  id              String            @id @default(cuid())
+  automationId    String
+  automation      EmailAutomation    @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  type            String            // 'lead_created', 'stage_changed', 'status_changed', 'tag_added', 'custom_event', 'time_based'
+  conditions      String            // JSON array of trigger conditions
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([automationId])
+  @@index([type])
+}
+
+model AutomationStep {
+  id              String            @id @default(cuid())
+  automationId    String
+  automation      EmailAutomation    @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  templateId      String?
+  template        EmailTemplate?     @relation(fields: [templateId], references: [id])
+  order           Int
+  name            String
+  description     String?
+  delayMinutes    Int               @default(0) // Delay before sending this step
+  sendCondition   String?           // JSON array of conditions for sending
+  emails          Email[]
+  totalSent       Int               @default(0)
+  totalOpened     Int               @default(0)
+  totalClicked    Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([automationId, order])
+  @@index([automationId])
+}
+
+/// One lead's progress through one automation. The unique pair gives dedupe for
+/// free: re-entering a stage upserts the existing row back to step 0 instead of
+/// creating a parallel enrollment.
+model AutomationEnrollment {
+  id               String          @id @default(cuid())
+  automationId     String
+  automation       EmailAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  leadId           String
+  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workspaceId      String
+  status           String          @default("active") // 'active', 'completed', 'exited', 'cancelled'
+  currentStepOrder Int             @default(0)
+  nextStepAt       DateTime?       // null unless active
+  triggerContext   String?         // JSON { fromStage, toStage, pipelineId, triggerId }
+  enrolledAt       DateTime        @default(now())
+  completedAt      DateTime?
+  exitedAt         DateTime?
+  exitReason       String?
+  emails           Email[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([automationId, leadId])
+  @@index([status, nextStepAt])
+  @@index([leadId])
+  @@index([workspaceId])
+}
+
+model SegmentationRule {
+  id              String            @id @default(cuid())
+  name            String
+  description     String?
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  criteria        String            // JSON array of criteria
+  logicOperator   String            @default("AND") // 'AND' or 'OR'
+  isActive        Boolean           @default(true)
+  estimatedSize   Int?              // Cached estimate of segment size
+  lastCalculated  DateTime?
+  members         SegmentMember[]
+  campaigns       EmailCampaign[]
+  tags            String?           // JSON array of tags
+  createdById     String?
+  updatedBy       String?
+  createdBy       User?             @relation("SegmentationRuleCreator", fields: [createdById], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model SegmentMember {
+  id                String            @id @default(cuid())
+  segmentationRuleId String
+  segmentationRule  SegmentationRule  @relation(fields: [segmentationRuleId], references: [id], onDelete: Cascade)
+  leadId            String
+  lead              Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  matchedAt         DateTime          @default(now())
+  score             Float?            // Lead score within segment
+  metadata          String?           // JSON object for additional data
+
+  @@unique([segmentationRuleId, leadId])
+  @@index([segmentationRuleId])
+  @@index([leadId])
+}
+
+model EmailProvider {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name            String
+  type            String            // 'sendgrid', 'ses', 'resend', 'mailgun', 'postmark', 'custom'
+  apiKey          String?
+  apiKeyEncrypted String?
+  region          String?
+  fromEmail       String
+  fromName        String?
+  replyTo         String?
+  config          String?           // JSON object for provider-specific config
+  domain          String?           // Mailgun sending domain, found from the From address on save
+  // Bounce/complaint webhook that BorsFlow creates on the client's own provider
+  // account when the provider is saved, so clients never copy a URL or a secret.
+  webhookId       String?           // the provider's id for it (Mailgun: JSON list of event types)
+  webhookSecret   String?           // encrypted signing secret, verification key or basic-auth password
+  webhookStatus   String?           // 'active', 'error', 'unsupported', 'waiting_public_url'
+  webhookError    String?           // plain-language reason shown to the client when not active
+  webhookUpdatedAt DateTime?
+  isActive        Boolean           @default(true)
+  isDefault       Boolean           @default(false)
+  dailyLimit      Int?
+  monthlyLimit    Int?
+  lastUsedAt      DateTime?
+  createdById     String?
+  updatedBy       String?
+  createdBy       User?             @relation("EmailProviderCreator", fields: [createdById], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model EmailQueue {
+  id              String            @id @default(cuid())
+  emailId         String            @unique
+  email           Email             @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  priority        Int               @default(5) // 1-10, 1 is highest
+  scheduledFor    DateTime          @default(now())
+  attempts        Int               @default(0)
+  maxAttempts     Int               @default(3)
+  lastAttemptAt   DateTime?
+  nextAttemptAt   DateTime?
+  status          String            @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  error           String?
+  providerId      String?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([scheduledFor])
+  @@index([status])
+  @@index([priority])
+}
+
+// Bounces, unsubscribes and suppressions belong to the workspace whose mail
+// produced them: one client's bounce or opt-out must not stop another client from
+// emailing that address. Rows written before this was scoped have no workspace
+// and no longer affect any send.
+model EmailBounce {
+  id              String            @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email           String
+  recipientEmail  String
+  recipientId     String?
+  type            String            // 'hard', 'soft', 'spam', 'blocked'
+  subType         String?
+  reason          String?
+  providerType    String?
+  providerMessage String?
+  occurredAt      DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+
+  @@index([workspaceId])
+  @@index([email])
+  @@index([recipientEmail])
+  @@index([type])
+  @@index([occurredAt])
+}
+
+model EmailUnsubscribe {
+  id              String            @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email           String
+  leadId          String?
+  campaignId      String?
+  reason          String?
+  source          String            // 'link', 'reply', 'admin', 'api'
+  unsubscribedAt  DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+
+  @@unique([workspaceId, email])
+  @@index([email])
+  @@index([leadId])
+  @@index([campaignId])
+}
+
+model EmailSuppression {
+  id              String            @id @default(cuid())
+  workspaceId     String?
+  workspace       Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email           String
+  type            String            // 'bounce', 'complaint', 'manual', 'spam'
+  reason          String?
+  source          String?
+  isActive        Boolean           @default(true)
+  suppressedAt    DateTime          @default(now())
+  expiresAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([workspaceId, email, type])
+  @@index([workspaceId])
+  @@index([email])
+  @@index([type])
+  @@index([isActive])
+}
+
+model CalendarIntegration {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type              String   // 'calcom', 'google_calendar', 'outlook_calendar'
+  name              String   // User-defined name for this integration
+  isActive          Boolean  @default(true)
+  
+  // OAuth 2.0 Credentials (encrypted)
+  accessToken       String?  // Encrypted access token
+  refreshToken      String?  // Encrypted refresh token
+  tokenExpiresAt    DateTime?
+  scope             String?  // Granted OAuth scopes
+  
+  // Provider-specific configuration
+  providerUserId    String?  // External user ID from provider
+  providerEmail     String?  // Email from provider
+  calendarId        String?  // Specific calendar ID to sync
+  
+  // Sync configuration
+  syncEnabled       Boolean  @default(true)
+  syncDirection     String   @default("bidirectional") // 'import_only', 'export_only', 'bidirectional'
+  lastSyncAt        DateTime?
+  syncFrequency     String   @default("hourly") // 'realtime', 'hourly', 'daily', 'manual'
+  
+  // Sync status tracking
+  syncStatus        String   @default("active") // 'active', 'error', 'paused', 'disabled'
+  lastSyncError     String?
+  lastSyncErrorAt   DateTime?
+
+  // Booking webhook that BorsFlow creates on the client's Cal.com account on connect
+  webhookId         String?
+  webhookSecret     String?  // Encrypted
+  webhookStatus     String?  // 'active', 'error', 'unsupported', 'waiting_public_url'
+  webhookError      String?
+
+  // Audit
+  createdById       String?
+  updatedBy         String?
+  createdBy         User?    @relation("CalendarIntegrationCreator", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  meetings          Meeting[]
+  syncLogs          CalendarSyncLog[]
+  
+  @@unique([workspaceId, type, providerUserId])
+  @@index([workspaceId])
+  @@index([type])
+  @@index([isActive])
+  @@index([syncEnabled])
+  @@index([createdById])
+}
+
+model Meeting {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Meeting details
+  title                 String
+  description           String?
+  startTime             DateTime
+  endTime               DateTime
+  duration              Int      // Duration in minutes
+  timezone              String   @default("UTC")
+  
+  // Meeting location/platform
+  meetingType           String   // 'in_person', 'online', 'phone'
+  location              String?  // Physical address or phone number
+  
+  // Platform-specific data
+  platform              String   // 'calcom', 'zoom', 'google_meet', 'microsoft_teams'
+  platformMeetingId     String?  // External meeting ID
+  platformEventId       String?  // External event ID (for Cal.com events)
+  calendarIntegrationId String?
+  calendarIntegration   CalendarIntegration? @relation(fields: [calendarIntegrationId], references: [id], onDelete: SetNull)
+  
+  // Meeting links
+  meetingUrl            String?  // Join URL
+  hostUrl               String?  // Host/Start URL
+  password              String?  // Meeting password (encrypted)
+  
+  // Conference details
+  conferenceProvider    String?  // 'zoom', 'google_meet', 'microsoft_teams'
+  conferenceId          String?  // Conference ID
+  conferencePhone       String?  // Dial-in numbers
+  
+  // Meeting status
+  status                String   @default("scheduled") // 'scheduled', 'in_progress', 'completed', 'cancelled', 'no_show'
+  cancellationReason    String?
+  cancelledAt           DateTime?
+  
+  // CRM Integration
+  leadId                String?
+  lead                  Lead?    @relation("LeadMeetings", fields: [leadId], references: [id], onDelete: SetNull)
+  userId                String?  // Internal user who is the meeting host
+  user                  User?    @relation("MeetingHost", fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Attendees
+  attendees             MeetingAttendee[]
+  
+  // Recurrence
+  isRecurring           Boolean  @default(false)
+  recurringPattern      String?  // JSON object with recurrence rules
+  recurringEventId      String?  // ID of the parent recurring event
+  recurringInstanceId   String?  // ID for this specific instance
+  
+  // Reminders
+  reminderEnabled       Boolean  @default(true)
+  reminderTimes         String?  // JSON array of minutes before meeting (e.g., [15, 60, 1440])
+  
+  // Sync tracking
+  externalSyncId        String?  // External sync identifier
+  lastSyncedAt          DateTime?
+  isExternal            Boolean  @default(false) // True if created externally (Cal.com)
+  syncStatus            String   @default("synced") // 'synced', 'pending', 'error', 'conflict'
+  syncError             String?
+  
+  // Audit
+  createdById       String?
+  updatedBy         String?
+  createdBy         User?    @relation("MeetingCreator", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  notes                 MeetingNote[]
+  activities            Activity[]
+
+  @@unique([platformEventId, platform])
+  @@index([workspaceId])
+  @@index([leadId])
+  @@index([userId])
+  @@index([startTime])
+  @@index([status])
+  @@index([platform])
+  @@index([calendarIntegrationId])
+  @@index([isExternal])
+  @@index([createdById])
+}
+
+model MeetingAttendee {
+  id                String   @id @default(cuid())
+  meetingId         String
+  meeting           Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  // Attendee details
+  name              String
+  email             String
+  phone             String?
+  
+  // Attendee type
+  type              String   @default("external") // 'internal', 'external', 'lead', 'contact'
+  userId            String?  // If internal user
+  leadId            String?  // If lead
+  lead              Lead?    @relation("LeadAttendees", fields: [leadId], references: [id], onDelete: SetNull)
+  
+  // Attendance status
+  status            String   @default("invited") // 'invited', 'accepted', 'declined', 'tentative', 'attended', 'no_show'
+  responseAt        DateTime?
+  
+  // External attendee ID
+  externalAttendeeId String?  // ID from calendar provider
+  
+  // Join tracking
+  joinedAt          DateTime?
+  leftAt            DateTime?
+  joinUrl           String?  // Personal join URL if available
+  
+  // Reminder status
+  reminderSent      Boolean  @default(false)
+  reminderSentAt    DateTime?
+  
+  // Audit
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([meetingId, email])
+  @@index([meetingId])
+  @@index([email])
+  @@index([status])
+}
+
+model MeetingNote {
+  id                String   @id @default(cuid())
+  meetingId         String
+  meeting           Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  // Note content
+  content           String
+  noteType          String   @default("general") // 'general', 'action_item', 'decision', 'follow_up'
+  
+  // Visibility
+  isPrivate         Boolean  @default(false)
+  
+  // Author
+  createdById       String
+  createdBy         User     @relation("MeetingNoteCreator", fields: [createdById], references: [id])
+
+  // Audit
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([meetingId])
+  @@index([createdById])
+}
+
+model CalendarSyncLog {
+  id                    String   @id @default(cuid())
+  calendarIntegrationId String
+  calendarIntegration   CalendarIntegration @relation(fields: [calendarIntegrationId], references: [id], onDelete: Cascade)
+  
+  // Sync operation details
+  operationType         String   // 'full_sync', 'incremental_sync', 'event_create', 'event_update', 'event_delete'
+  status                String   // 'started', 'completed', 'failed', 'partial'
+  
+  // Sync statistics
+  eventsProcessed       Int      @default(0)
+  eventsCreated         Int      @default(0)
+  eventsUpdated         Int      @default(0)
+  eventsDeleted         Int      @default(0)
+  eventsSkipped         Int      @default(0)
+  
+  // Error handling
+  errorMessage          String?
+  errorDetails          String?  // JSON object with detailed error info
+  
+  // Performance metrics
+  durationMs            Int?
+  startedAt             DateTime @default(now())
+  completedAt           DateTime?
+  
+  // Sync range
+  syncStartDate         DateTime?
+  syncEndDate           DateTime?
+  
+  @@index([calendarIntegrationId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model VideoConferenceConfig {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Platform configuration
+  platform          String   // 'zoom', 'google_meet', 'microsoft_teams'
+  name              String   // User-friendly name
+  
+  // OAuth credentials
+  accessToken       String?  // Encrypted
+  refreshToken      String?  // Encrypted
+  tokenExpiresAt    DateTime?
+  
+  // Provider-specific settings
+  providerUserId    String?
+  providerEmail     String?
+  
+  // Default meeting settings
+  defaultSettings   String?  // JSON object with default meeting settings
+  
+  // Status
+  isActive          Boolean  @default(true)
+  isDefault         Boolean  @default(false) // Is this the default platform?
+  
+  // Audit
+  createdById       String?
+  updatedBy         String?
+  createdBy         User?    @relation("VideoConferenceConfigCreator", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([workspaceId, platform])
+  @@index([workspaceId])
+  @@index([platform])
+  @@index([isActive])
+  @@index([createdById])
+}
+
+model Activity {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Activity details
+  type              String   // 'meeting_created', 'meeting_updated', 'meeting_cancelled', 'meeting_completed', 'attendee_added', 'note_added'
+  entityType        String   // 'meeting', 'attendee', 'note'
+  entityId          String
+  
+  // Activity description
+  description       String
+  metadata          String?  // JSON object with additional context
+  
+  // User who performed the action
+  userId            String
+  user              User     @relation("ActivityUser", fields: [userId], references: [id])
+  
+  // Related entities
+  meetingId         String?
+  meeting           Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  leadId            String?
+  
+  // Audit
+  createdAt         DateTime @default(now())
+  
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([meetingId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model PageAccess {
+  id        String   @id @default(cuid())
+  pageId    String
+  userId    String
+  level     String   // 'VIEW' | 'EDIT'
+  grantedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, userId])
+  @@index([userId])
+  @@index([pageId])
+}
+
+model TemplateCategory {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  icon        String?
+  order       Int                 @default(0)
+  templates   UniversalTemplate[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+model UniversalTemplate {
+  id           String             @id @default(cuid())
+  name         String
+  description  String?
+  type         String             // 'page' | 'quote' | 'invoice' | 'kanban'
+  categoryId   String?
+  category     TemplateCategory?  @relation(fields: [categoryId], references: [id])
+  workspaceId  String?            // null = system/global template
+  workspace    Workspace?         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  isSystem     Boolean            @default(false)
+  isPublic     Boolean            @default(false)
+  content      String             @default("{}") // JSON blob (shape per type)
+  previewImage String?
+  icon         String?
+  tags         String?            // JSON array
+  version      Int                @default(1)
+  parentId     String?
+  parent       UniversalTemplate? @relation("TemplateVersions", fields: [parentId], references: [id])
+  versions     UniversalTemplate[] @relation("TemplateVersions")
+  usageCount   Int                @default(0)
+  createdById  String?
+  createdBy    User?              @relation("UniversalTemplateCreator", fields: [createdById], references: [id])
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([type])
+  @@index([workspaceId])
+  @@index([isSystem])
+  @@index([categoryId])
+}
+
+// Generic sliding-window event log backing src/lib/api/rate-limit.ts.
+// One row per limited action; `cost` lets a bulk request count as N.
+model RateLimitEvent {
+  id        String   @id @default(cuid())
+  bucket    String   // what is being limited, e.g. 'invitation:send'
+  subject   String   // who it is counted against, e.g. 'user:<id>' or 'workspace:<id>'
+  cost      Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([bucket, subject, createdAt])
+  @@index([createdAt]) // pruning
+}

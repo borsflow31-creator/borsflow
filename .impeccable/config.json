@@ -1,0 +1,128 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/app/dashboard/page.tsx"
+        ],
+        "createdAt": "2026-09-25T11:24:05.590Z",
+        "reason": "Claude: not a card - animate-spin rounded-full border-b-2 is the repo-wide spinner idiom (17 files); a circle has no corners for the border to clash with"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/pages/[id]/page.tsx"
+        ],
+        "createdAt": "2026-09-25T11:24:05.719Z",
+        "reason": "Claude: QuoteBlock border-l-4 is the standard blockquote rule; PrintBlock renders this same block type as a real <blockquote> (line 133)"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/app/pages/[id]/page.tsx"
+        ],
+        "createdAt": "2026-09-25T11:24:37.171Z",
+        "reason": "Claude: ternary mis-pairing - bg-blue-50/50 pairs with text-blue-600 in the selected branch; text-gray-700 is the mutually exclusive unselected branch and never sits on the blue bg. Only occurrence in the file."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "material symbols outlined",
+        "createdAt": "2026-09-26T17:05:24.585Z",
+        "reason": "Claude: app-layer icon webfont used by 20 signed-in app files (AppShell, Toast, editor); DESIGN.md documents the landing surface only and records the app as an unreconciled condition. Not used anywhere on the landing page."
+      },
+      {
+        "rule": "design-system-font",
+        "value": "monaco",
+        "createdAt": "2026-09-26T17:05:24.707Z",
+        "reason": "Claude: .code-block font stack for code rendering in the app editor. Domain-appropriate (code needs a code face) and out of DESIGN.md's landing scope."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "brag-output/work/brag.html"
+        ],
+        "createdAt": "2026-09-26T21:01:42.451Z",
+        "reason": "Claude: fixed 1920x1080 video render canvas, not the responsive landing surface DESIGN.md scopes"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "brag-output/work/brag.html"
+        ],
+        "createdAt": "2026-09-26T21:01:42.543Z",
+        "reason": "Claude: fixed 1920x1080 video render canvas, not the responsive landing surface DESIGN.md scopes"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "brag-output/work/brag.html"
+        ],
+        "createdAt": "2026-09-26T21:05:46.071Z",
+        "reason": "Claude: fixed-size glyph tiles and pixel-matched screenshot overlays in a video render canvas; padding would misalign them"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "brag-output-social-2026-09-27-033327/work/social.html"
+        ],
+        "createdAt": "2026-09-27T02:05:17.976Z",
+        "reason": "Claude: fixed 1080x1920 video render canvas (3-video social series), not the responsive landing surface DESIGN.md scopes"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "brag-output-social-2026-09-27-033327/work/social.html"
+        ],
+        "createdAt": "2026-09-27T02:05:18.079Z",
+        "reason": "Claude: fixed 1080x1920 video render canvas (3-video social series), not the responsive landing surface DESIGN.md scopes"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "brag-output-social-2026-09-27-033327/work/social.html"
+        ],
+        "createdAt": "2026-09-27T02:05:18.182Z",
+        "reason": "Claude: fixed 1080x1920 video render canvas (3-video social series), not the responsive landing surface DESIGN.md scopes"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#6b6f7c",
+        "files": [
+          "brag-output-social-2026-09-27-033327/work/social.html"
+        ],
+        "createdAt": "2026-09-27T02:11:44.426Z",
+        "reason": "Claude: pixel-matched overlay color copied from the real pages.webp screenshot's strikethrough text, not a new design choice"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#1a73e8",
+        "files": [
+          "brag-output-social-2026-09-27-033327/work/social.html"
+        ],
+        "createdAt": "2026-09-27T02:11:44.539Z",
+        "reason": "Claude: pixel-matched overlay color copied from the real pages.webp screenshot's checkbox blue, not a new design choice"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/components/email-marketing/ProviderModal.tsx"
+        ],
+        "createdAt": "2026-09-27T12:34:25.803Z",
+        "reason": "Claude: not a card - both hits (L496, L521) are the repo-wide animate-spin rounded-full border-b-2 loading spinner, pre-existing before this session; a circle has no corners for the border to clash with"
+      }
+    ]
+  }
+}

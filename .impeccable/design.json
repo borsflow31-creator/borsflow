@@ -1,0 +1,622 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-27T00:00:00.000Z",
+  "title": "Design System: BorsFlow Landing Surface",
+  "scope": "Two surfaces on one system: the public landing page (src/app/page.tsx, src/components/landing/*) and the authentication pages (src/app/login/page.tsx, src/app/register/page.tsx), tokens in src/app/globals.css. Auth is in scope because auth is where a visitor converts, and it was the seam where an emerald obsidian landing page handed off to an indigo Material-3 card; closing that gap at the conversion moment was the point. Both auth pages carry zero legacy classes (no surface-container*, no bg-secondary, no material-symbols-outlined), render on the obsidian ground, and set landing-surface. The signed-in application beyond auth carries an older Material-3 vocabulary, Material Symbols glyphs alongside lucide, and a different accent (indigo #4f46e5 / #6366f1) that is visible inside the real captures embedded on the landing page; it is not described by this system. No PRODUCT.md exists for this project; that absence is deliberate and disclosed.",
+  "extensions": {
+    "colorMeta": {
+      "signal-emerald": {
+        "role": "primary",
+        "displayName": "Signal Emerald",
+        "canonical": "#10b981",
+        "lightThemeValue": "#047857",
+        "note": "The only chromatic hue on the surface. Light theme is emerald-700 because emerald-600 (#059669) measured 3.6:1 on #f7f7fa and failed AA for small text.",
+        "tonalRamp": [
+          "#022c22",
+          "#064e3b",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#6ee7b7",
+          "#d1fae5"
+        ]
+      },
+      "signal-emerald-dim": {
+        "role": "primary",
+        "displayName": "Signal Emerald Veil",
+        "canonical": "rgba(16, 185, 129, 0.12)",
+        "lightThemeValue": "rgba(4, 120, 87, 0.10)",
+        "note": "The only tinted fill: permission chips and text selection. Never a card background.",
+        "tonalRamp": [
+          "rgba(16,185,129,0.04)",
+          "rgba(16,185,129,0.08)",
+          "rgba(16,185,129,0.12)",
+          "rgba(16,185,129,0.18)",
+          "rgba(16,185,129,0.26)",
+          "rgba(16,185,129,0.4)",
+          "rgba(16,185,129,0.6)",
+          "rgba(16,185,129,0.85)"
+        ]
+      },
+      "obsidian-base": {
+        "role": "neutral",
+        "displayName": "Obsidian Base",
+        "canonical": "#0a0b0e",
+        "lightThemeValue": "#f7f7fa",
+        "note": "Page ground, scrollbar track, and the text colour used on the emerald field (7.76:1 dark, 5.13:1 light).",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#121318",
+          "#181a20",
+          "#20232b",
+          "#3a3e4a",
+          "#8b8f9e",
+          "#d7d9e0",
+          "#f7f7fa"
+        ]
+      },
+      "obsidian-surface": {
+        "role": "neutral",
+        "displayName": "Obsidian Surface",
+        "canonical": "#121318",
+        "lightThemeValue": "#ffffff",
+        "note": "Plinth interiors, the journey band, and at 40% opacity the two quiet bands (Built on, footer).",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#121318",
+          "#181a20",
+          "#20232b",
+          "#3a3e4a",
+          "#8b8f9e",
+          "#e5e7ee",
+          "#ffffff"
+        ]
+      },
+      "obsidian-elevated": {
+        "role": "neutral",
+        "displayName": "Obsidian Elevated",
+        "canonical": "#181a20",
+        "lightThemeValue": "#f0f1f5",
+        "note": "Hover ground for nav pills, ghost buttons and journey steps.",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#121318",
+          "#181a20",
+          "#20232b",
+          "#3a3e4a",
+          "#8b8f9e",
+          "#e5e7ee",
+          "#f0f1f5"
+        ]
+      },
+      "obsidian-elevated-2": {
+        "role": "neutral",
+        "displayName": "Obsidian Elevated Two",
+        "canonical": "#20232b",
+        "lightThemeValue": "#e5e7ee",
+        "note": "Top of the tonal ladder. Used sparingly.",
+        "tonalRamp": [
+          "#0a0b0e",
+          "#121318",
+          "#181a20",
+          "#20232b",
+          "#3a3e4a",
+          "#8b8f9e",
+          "#d7d9e0",
+          "#e5e7ee"
+        ]
+      },
+      "obsidian-text": {
+        "role": "neutral",
+        "displayName": "Obsidian Text",
+        "canonical": "#f5f5f7",
+        "lightThemeValue": "#0d0e15",
+        "note": "Headings, emphasis rows, and the fill of the primary button. The brightest neutral is the button, which is why the accent does not have to be.",
+        "tonalRamp": [
+          "#0d0e15",
+          "#20232b",
+          "#3a3e4a",
+          "#52566b",
+          "#8b8f9e",
+          "#c9ccd6",
+          "#e9eaef",
+          "#f5f5f7"
+        ]
+      },
+      "obsidian-muted": {
+        "role": "neutral",
+        "displayName": "Obsidian Muted",
+        "canonical": "#8b8f9e",
+        "lightThemeValue": "#52566b",
+        "note": "All body prose, secondary rows, nav at rest, footer links. Measured 6.11:1 dark, 6.77:1 light.",
+        "tonalRamp": [
+          "#14161c",
+          "#252833",
+          "#3a3e4a",
+          "#52566b",
+          "#6f7386",
+          "#8b8f9e",
+          "#b4b7c2",
+          "#dcdee5"
+        ]
+      },
+      "obsidian-border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "rgba(255, 255, 255, 0.08)",
+        "lightThemeValue": "rgba(13, 14, 21, 0.08)",
+        "note": "Every rule, divider and card outline. Always 1px.",
+        "tonalRamp": [
+          "rgba(255,255,255,0.02)",
+          "rgba(255,255,255,0.04)",
+          "rgba(255,255,255,0.08)",
+          "rgba(255,255,255,0.12)",
+          "rgba(255,255,255,0.16)",
+          "rgba(255,255,255,0.24)",
+          "rgba(255,255,255,0.4)",
+          "rgba(255,255,255,0.64)"
+        ]
+      },
+      "obsidian-border-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Strong",
+        "canonical": "rgba(255, 255, 255, 0.16)",
+        "lightThemeValue": "rgba(13, 14, 21, 0.18)",
+        "note": "Reserved for the top edge of a set and for hover on an outlined surface. Also the scrollbar thumb.",
+        "tonalRamp": [
+          "rgba(255,255,255,0.04)",
+          "rgba(255,255,255,0.08)",
+          "rgba(255,255,255,0.12)",
+          "rgba(255,255,255,0.16)",
+          "rgba(255,255,255,0.24)",
+          "rgba(255,255,255,0.36)",
+          "rgba(255,255,255,0.52)",
+          "rgba(255,255,255,0.72)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The h1 and the closing h2 only, the open and the close. Balanced wrap; the h1 splits into two block spans, each inside an overflow-hidden mask, so each sentence balances independently and can be masked in by the opening sequence."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page-level section h2s, the argument headings."
+      },
+      "sub": {
+        "displayName": "Sub",
+        "purpose": "The rank between headline and title, added because the scale jumped 46px straight to 21px and forced .t-h3 to serve as card title, column label and section-internal heading at once. Both Evidence captions use it."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card h3 only. Column and set labels no longer borrow this step."
+      },
+      "lead": {
+        "displayName": "Lead",
+        "purpose": "The single paragraph under a section heading, clamped to a 68ch measure."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Card prose and list bodies. 14px rising to 16px at sm."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Column and set labels above a border-strong hairline: 12px, 500, uppercase, ~0.05em tracking."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Numeric and identifier content only, JetBrains Mono 400 with no weight modifier. Four usages on the surface: the two mono columns of the assistant tool table, the journey step numerals, and the closing list numerals."
+      }
+    },
+    "shadows": [
+      {
+        "name": "plate-ambient-light",
+        "value": "0 1px 3px rgba(0,0,0,0.04), 0 8px 24px -4px rgba(0,0,0,0.06)",
+        "purpose": "The plinth at rest in the light theme; separates a white plate from a near-white ground."
+      },
+      {
+        "name": "plate-ambient-light-hover",
+        "value": "0 1px 3px rgba(0,0,0,0.06), 0 14px 34px -8px rgba(0,0,0,0.12)",
+        "purpose": "Plinth hover in light, paired with a hairline step to border-strong."
+      },
+      {
+        "name": "raster-plate-light",
+        "value": "0 1px 3px rgba(13,14,21,.10), 0 18px 44px -14px rgba(13,14,21,.28)",
+        "purpose": "The .plate-raster pair, light theme only, paired with border-color: var(--n-border-strong). All three captures are of the dark app; the ordinary ambient pair separates a white plinth from a near-white page and does nothing behind a near-black raster, which then lands as an unmediated slab."
+      },
+      {
+        "name": "plate-ambient-dark",
+        "value": "inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 36px -10px rgba(0,0,0,0.55)",
+        "purpose": "Plinth at rest in dark. The inset top highlight is the visible cue; the drop only deepens the surrounding ground."
+      },
+      {
+        "name": "plate-ambient-dark-hover",
+        "value": "inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 44px -10px rgba(0,0,0,0.7)",
+        "purpose": "Plinth hover in dark."
+      },
+      {
+        "name": "definition",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.06)",
+        "purpose": "The shadow-xs token: header pill CTA and footer mark. Declared in tailwind.config.ts because it is a v4 name used under v3."
+      },
+      {
+        "name": "button-lift",
+        "value": "0 4px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18)",
+        "purpose": "Primary CTA at rest."
+      },
+      {
+        "name": "button-lift-hover",
+        "value": "0 8px 24px -4px rgba(0,0,0,0.22)",
+        "purpose": "Primary CTA hover, with a 1px rise."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-house",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The only easing on the surface: state transitions, theme transition, sheen, and the journey fill."
+      },
+      {
+        "name": "ease-obsidian-gsap",
+        "value": "CustomEase.create('obsidian', '0.16, 1, 0.3, 1')",
+        "purpose": "The house curve registered in GSAP, the documented cubic-bezier exactly rather than power3.out. One easing survives the new library."
+      },
+      {
+        "name": "duration-state",
+        "value": "200ms",
+        "purpose": "Button, nav and colour state transitions."
+      },
+      {
+        "name": "duration-surface",
+        "value": "300ms",
+        "purpose": "Plate border/shadow and journey step ground transitions."
+      },
+      {
+        "name": "duration-journey-fill",
+        "value": "450ms",
+        "purpose": "The emerald 1px rule scaling across the active journey step. Zero under useReducedMotion."
+      },
+      {
+        "name": "duration-sheen",
+        "value": "750ms",
+        "purpose": "The skewed highlight sweep, reserved for the single primary conversion path."
+      },
+      {
+        "name": "plate-reveal",
+        "value": "animation-timeline: view(); animation-range: entry 10% entry 70%",
+        "purpose": "Scroll-driven CSS reveal on product plates: 24px rise from opacity .35 and 6px blur. Guarded by @supports and prefers-reduced-motion: no-preference so an unsupporting browser shows the finished state."
+      },
+      {
+        "name": "reduced-motion-floor",
+        "value": "animation-duration: 0.01ms; transition-duration: 0.01ms",
+        "purpose": "Global collapse under prefers-reduced-motion: reduce."
+      },
+      {
+        "name": "hero-sequence",
+        "value": "gsap.timeline({ defaults: { ease: 'obsidian', duration: 0.7 } }) inside gsap.matchMedia('(prefers-reduced-motion: no-preference)')",
+        "purpose": "The third authored moment. Every tween is gsap.from(), so a bundle that never loads leaves the hero complete; the timeline never registers under reduce. +31 kB first-load JS (161 to 192 kB)."
+      },
+      {
+        "name": "hero-lcp-wipe",
+        "value": "clipPath: 'inset(0% 0% 100% 0%)', y: 10, duration: 0.9",
+        "purpose": "The hero capture is the LCP element and never animates opacity: fading it would defer the metric by the length of the tween. A clip-path wipe leaves it painted from the first frame."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "container-max",
+        "value": "1280px"
+      },
+      {
+        "name": "narrow-max",
+        "value": "768px"
+      }
+    ],
+    "focusRing": {
+      "value": "outline: 2px solid var(--n-emerald); outline-offset: 2px; border-radius: 4px",
+      "purpose": "Scoped to .landing-surface so app chrome keeps its own. Inherited by every control, including auth fields; components may layer onto it but never suppress it."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary conversion path. The brightest neutral is the fill; it also carries the reserved sheen sweep.",
+      "html": "<a class=\"ds-btn-primary ds-sheen\" href=\"#\"><span>Start free</span><svg class=\"ds-btn-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/></svg></a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--n-text, #f5f5f7); color: var(--n-base, #0a0b0e); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; padding: 0.875rem 1.75rem; border: none; border-radius: 9999px; text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.18); transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s cubic-bezier(0.16,1,0.3,1), filter 0.2s ease; } .ds-btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); box-shadow: 0 8px 24px -4px rgba(0,0,0,0.22); } .ds-btn-primary:hover .ds-btn-icon { transform: translateX(2px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--n-emerald, #10b981); outline-offset: 2px; } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-icon { transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); } .ds-sheen { position: relative; overflow: hidden; } .ds-sheen::after { content: ''; position: absolute; top: 0; left: -120%; width: 70%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-20deg); transition: transform 0.75s cubic-bezier(0.16,1,0.3,1); pointer-events: none; } .ds-sheen:hover::after { transform: translateX(360%) skewX(-20deg); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "The secondary path. Surface ground on a hairline; never carries the sheen.",
+      "html": "<a class=\"ds-btn-ghost\" href=\"#\">Sign in</a>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; background: var(--n-surface, #121318); color: var(--n-text, #f5f5f7); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; padding: 0.875rem 1.5rem; border: 1px solid var(--n-border, rgba(255,255,255,0.08)); border-radius: 9999px; text-decoration: none; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: background 0.25s cubic-bezier(0.16,1,0.3,1), border-color 0.25s ease, transform 0.2s cubic-bezier(0.16,1,0.3,1); } .ds-btn-ghost:hover { background: var(--n-elevated, #181a20); border-color: var(--n-border-strong, rgba(255,255,255,0.16)); transform: translateY(-1px); } .ds-btn-ghost:focus-visible { outline: 2px solid var(--n-emerald, #10b981); outline-offset: 2px; } .ds-btn-ghost:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "On-Field Button Pair",
+      "kind": "button",
+      "refersTo": "button-on-field",
+      "description": "The buttons inside a committed emerald region. The page ground becomes the button; no shadow, because on a saturated field a drop shadow reads as dirt. The ghost border is alpha (/40 resolving to full) because a border is not text; the label beside it is never alpha.",
+      "html": "<div class=\"ds-field\"><a class=\"ds-btn-onfield\" href=\"#\">Create a workspace</a><a class=\"ds-btn-onfield-ghost\" href=\"#\">Sign in</a></div>",
+      "css": ".ds-field { display: flex; flex-wrap: wrap; gap: 0.75rem; background: var(--n-emerald, #10b981); padding: 2rem; } .ds-btn-onfield { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background: var(--n-base, #0a0b0e); color: var(--n-text, #f5f5f7); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; font-weight: 600; padding: 0.875rem 1.75rem; border-radius: 9999px; text-decoration: none; transition: transform 0.2s cubic-bezier(0.16,1,0.3,1); } .ds-btn-onfield:hover { transform: translateY(-2px); } .ds-btn-onfield:active { transform: scale(0.98); } .ds-btn-onfield-ghost { display: inline-flex; align-items: center; justify-content: center; color: var(--n-base, #0a0b0e); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; padding: 0.875rem 1.5rem; border: 1px solid rgba(10,11,14,0.40); border-radius: 9999px; text-decoration: none; transition: border-color 0.2s ease; } .ds-btn-onfield-ghost:hover { border-color: var(--n-base, #0a0b0e); }"
+    },
+    {
+      "name": "Plinth Card",
+      "kind": "card",
+      "refersTo": "card-plinth",
+      "description": "The plate: an outlined surface with soft ambient atmosphere. A 20px emerald icon, then a title, then prose. Never nested.",
+      "html": "<article class=\"ds-plinth\"><svg class=\"ds-plinth-icon\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></svg><h3 class=\"ds-plinth-title\">A pipeline you can read at a glance</h3><p class=\"ds-plinth-body\">Custom stages, deal values, sources and lead scoring. Drag the board or work the table, whichever is faster.</p></article>",
+      "css": ".ds-plinth { display: block; background: var(--n-surface, #121318); border: 1px solid var(--n-border, rgba(255,255,255,0.08)); border-radius: 1.25rem; padding: 2rem; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 36px -10px rgba(0,0,0,0.55); transition: border-color 0.25s ease, box-shadow 0.3s cubic-bezier(0.16,1,0.3,1); } .ds-plinth:hover { border-color: var(--n-border-strong, rgba(255,255,255,0.16)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 44px -10px rgba(0,0,0,0.7); } .ds-plinth-icon { display: block; color: var(--n-emerald, #10b981); } .ds-plinth-title { margin: 1rem 0 0; font-family: var(--font-albert), system-ui, sans-serif; font-size: clamp(1.0625rem, 1.5vw, 1.3125rem); font-weight: 600; line-height: 1.3; letter-spacing: -0.02em; color: var(--n-text, #f5f5f7); } .ds-plinth-body { margin: 0.75rem 0 0; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; line-height: 1.625; color: var(--n-muted, #8b8f9e); }"
+    },
+    {
+      "name": "Hairline Definition List",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The default way to present a set of facts: border-separated rows on bare material, with a strong top edge marking the top of the set. Used instead of a card wherever a card would nest.",
+      "html": "<dl class=\"ds-deflist\"><div class=\"ds-deflist-row\"><dt class=\"ds-deflist-term\">PostgreSQL via Prisma</dt><dd class=\"ds-deflist-detail\">One typed schema, every workspace scoped at the query.</dd></div><div class=\"ds-deflist-row\"><dt class=\"ds-deflist-term\">NextAuth sessions</dt><dd class=\"ds-deflist-detail\">Email and password with verification, or Google sign-in.</dd></div></dl>",
+      "css": ".ds-deflist { margin: 0; border-top: 1px solid var(--n-border-strong, rgba(255,255,255,0.16)); } .ds-deflist-row { padding: 0.875rem 0; border-bottom: 1px solid var(--n-border, rgba(255,255,255,0.08)); } .ds-deflist-term { margin: 0; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--n-text, #f5f5f7); } .ds-deflist-detail { margin: 0.25rem 0 0; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; line-height: 1.625; color: var(--n-muted, #8b8f9e); }"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Sticky translucent bar. Section anchors as muted pills, a circular theme toggle, and one inverted pill CTA. Anchors rather than routes, because every product page sits behind the auth middleware.",
+      "html": "<header class=\"ds-nav\"><a class=\"ds-nav-brand\" href=\"#\"><span class=\"ds-nav-mark\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z\"/><path d=\"m6.08 11-3.5 1.6a1 1 0 0 0 0 1.81l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9a1 1 0 0 0 0-1.83L19.92 11\"/></svg></span><span class=\"ds-nav-word\">BorsFlow</span></a><nav class=\"ds-nav-links\"><a class=\"ds-nav-link\" href=\"#\">Product</a><a class=\"ds-nav-link\" href=\"#\">Journey</a><a class=\"ds-nav-link\" href=\"#\">Team</a></nav><div class=\"ds-nav-actions\"><button class=\"ds-nav-toggle\" type=\"button\" aria-label=\"Switch theme\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41\"/></svg></button><a class=\"ds-nav-cta ds-sheen\" href=\"#\">Start free</a></div></header>",
+      "css": ".ds-nav { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 0.75rem 1.25rem; background: color-mix(in srgb, var(--n-base, #0a0b0e) 80%, transparent); backdrop-filter: blur(16px); border-bottom: 1px solid var(--n-border, rgba(255,255,255,0.08)); } .ds-nav-brand { display: inline-flex; align-items: center; gap: 0.625rem; text-decoration: none; } .ds-nav-mark { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 1rem; background: var(--n-text, #f5f5f7); color: var(--n-base, #0a0b0e); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.06); } .ds-nav-word { font-family: var(--font-albert), system-ui, sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: -0.02em; color: var(--n-text, #f5f5f7); } .ds-nav-links { display: flex; align-items: center; gap: 0.25rem; } .ds-nav-link { padding: 0.375rem 0.875rem; border-radius: 9999px; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--n-muted, #8b8f9e); text-decoration: none; transition: color 0.2s ease, background 0.2s ease; } .ds-nav-link:hover { color: var(--n-text, #f5f5f7); background: var(--n-elevated, #181a20); } .ds-nav-link:focus-visible { outline: 2px solid var(--n-emerald, #10b981); outline-offset: 2px; border-radius: 9999px; } .ds-nav-actions { display: flex; align-items: center; gap: 0.625rem; } .ds-nav-toggle { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 9999px; background: var(--n-surface, #121318); color: var(--n-muted, #8b8f9e); border: 1px solid var(--n-border, rgba(255,255,255,0.08)); cursor: pointer; transition: color 0.2s ease, border-color 0.2s ease; } .ds-nav-toggle:hover { color: var(--n-text, #f5f5f7); border-color: var(--n-border-strong, rgba(255,255,255,0.16)); } .ds-nav-cta { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.375rem 0.875rem; border-radius: 9999px; background: var(--n-text, #f5f5f7); color: var(--n-base, #0a0b0e); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 600; text-decoration: none; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.06); transition: opacity 0.2s ease; } .ds-nav-cta:hover { opacity: 0.9; } .ds-sheen { position: relative; overflow: hidden; } .ds-sheen::after { content: ''; position: absolute; top: 0; left: -120%; width: 70%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); transform: skewX(-20deg); transition: transform 0.75s cubic-bezier(0.16,1,0.3,1); pointer-events: none; } .ds-sheen:hover::after { transform: translateX(360%) skewX(-20deg); }"
+    },
+    {
+      "name": "Permission Chip",
+      "kind": "chip",
+      "refersTo": "chip-permission",
+      "description": "Presence-only chip in the roles matrix: the surface's single tinted fill. No unselected or filter variant.",
+      "html": "<span class=\"ds-chip\">Edit</span>",
+      "css": ".ds-chip { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 0.75rem; background: var(--n-emerald-dim, rgba(16,185,129,0.12)); color: var(--n-emerald, #10b981); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.6875rem; line-height: 1.5; }"
+    },
+    {
+      "name": "Tool Data Table",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "The assistant section's table of the five tool identifiers and the Prisma models each queries, verified against src/app/api/ai/chat/route.ts. It sits on a plinth, the one place mid-page carrying material rather than hairlines, and it is what gives the mono face a legitimate job. No min-width: wide tabular data stacks rather than scrolling.",
+      "html": "<div class=\"ds-tooltable\"><table><caption class=\"ds-sr\">Assistant tools and the records each one reads.</caption><thead><tr><th scope=\"col\">Tool</th><th scope=\"col\">Model</th><th scope=\"col\">What it reads</th></tr></thead><tbody><tr><td class=\"ds-tool\">search_pages</td><td class=\"ds-model\">Page</td><td class=\"ds-what\">Document bodies and titles in the workspace.</td></tr><tr><td class=\"ds-tool\">get_financials</td><td class=\"ds-model\">Quote, Invoice</td><td class=\"ds-what\">Totals, statuses and payments recorded against them.</td></tr></tbody></table></div>",
+      "css": ".ds-tooltable { background: var(--n-surface, #121318); border: 1px solid var(--n-border, rgba(255,255,255,0.08)); border-radius: 1.25rem; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 36px -10px rgba(0,0,0,0.55); overflow-x: auto; } .ds-tooltable table { width: 100%; text-align: left; border-collapse: collapse; } .ds-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .ds-tooltable thead tr { border-bottom: 1px solid var(--n-border-strong, rgba(255,255,255,0.16)); } .ds-tooltable th { padding: 1rem 1rem; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--n-text, #f5f5f7); } .ds-tooltable th:first-child { padding-left: 2rem; } .ds-tooltable tbody tr { border-bottom: 1px solid var(--n-border, rgba(255,255,255,0.08)); } .ds-tooltable tbody tr:last-child { border-bottom: 0; } .ds-tooltable td { padding: 1rem 1rem; vertical-align: top; font-size: 0.75rem; } .ds-tool, .ds-model { font-family: var(--font-jetbrains), ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; } .ds-tool { padding-left: 2rem; color: var(--n-emerald, #10b981); } .ds-model { color: var(--n-text, #f5f5f7); } .ds-what { font-family: var(--font-dm-sans), system-ui, sans-serif; line-height: 1.625; color: var(--n-muted, #8b8f9e); }"
+    },
+    {
+      "name": "Journey Step",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature stepper cell, now sitting on the mid-page emerald field. A 2px rule in the ground colour fills from the left across the full width of the step once reached, because an emerald rule on an emerald field is invisible. All text is full-opacity --n-base; only the divider (/20) and the hover ground (/10) are alpha. In the build the fill is framer-motion driven and collapses to zero duration under useReducedMotion.",
+      "html": "<ol class=\"ds-journey\"><li class=\"ds-journey-item\"><button class=\"ds-journey-step ds-journey-step--active\" type=\"button\" aria-current=\"step\"><span class=\"ds-journey-fill\" aria-hidden=\"true\"></span><span class=\"ds-journey-num\">01</span><span class=\"ds-journey-title\">The lead lands in the pipeline</span><span class=\"ds-journey-body\">Add it by hand or import the list from CSV. Stage, value and source live on the lead.</span></button></li><li class=\"ds-journey-item\"><button class=\"ds-journey-step\" type=\"button\"><span class=\"ds-journey-fill\" aria-hidden=\"true\"></span><span class=\"ds-journey-num\">02</span><span class=\"ds-journey-title\">The scope is written against it</span><span class=\"ds-journey-body\">Draft deliverables as blocks and give the client a read-only link.</span></button></li></ol>",
+      "css": ".ds-journey { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin: 0; padding: 0; list-style: none; background: rgba(10,11,14,0.20); } .ds-journey-item { background: var(--n-emerald, #10b981); } .ds-journey-step { position: relative; display: block; width: 100%; height: 100%; padding: 1.75rem; text-align: left; background: transparent; border: none; cursor: pointer; transition: background 0.3s cubic-bezier(0.16,1,0.3,1); } .ds-journey-step:hover, .ds-journey-step:focus-visible { background: rgba(10,11,14,0.10); } .ds-journey-fill { position: absolute; inset-inline: 0; top: 0; height: 2px; background: var(--n-base, #0a0b0e); transform: scaleX(0); transform-origin: left; transition: transform 0.45s cubic-bezier(0.16,1,0.3,1); } .ds-journey-step--active .ds-journey-fill, .ds-journey-step:hover .ds-journey-fill { transform: scaleX(1); } .ds-journey-num { font-family: var(--font-jetbrains), ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 0.75rem; letter-spacing: -0.01em; color: var(--n-base, #0a0b0e); } .ds-journey-title { display: block; margin-top: 0.75rem; font-family: var(--font-albert), system-ui, sans-serif; font-size: 1rem; font-weight: 600; line-height: 1.375; color: var(--n-base, #0a0b0e); } .ds-journey-body { display: block; margin-top: 0.625rem; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; line-height: 1.625; color: var(--n-base, #0a0b0e); } @media (prefers-reduced-motion: reduce) { .ds-journey-fill { transition-duration: 0.01ms; } }"
+    },
+    {
+      "name": "Product Plate",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "A plinth matted around a real capture of the running application, inner radius 0.9rem so the raster sits inside the frame. All three captures are of the dark app, so all three carry .plate-raster: an --n-elevated backing plus, in light only, a border-strong edge and a deeper shadow. Each is cropped to where its interface content ends (2160x930, 2160x1058, 2160x1350; 53-69 KB) and framed differently from the other two. The hero plate is the LCP element and is not revealed; the editor plate carries the scroll-driven reveal, guarded so an unsupporting browser shows the finished state.",
+      "html": "<figure class=\"ds-plate ds-plate-reveal\"><div class=\"ds-plate-raster\" role=\"img\" aria-label=\"The BorsFlow pipeline: deals grouped by stage across Lead, Discovery, Proposal and Won, each card showing the contact, company and deal value.\"></div></figure>",
+      "css": ".ds-plate { margin: 0; padding: 0.5rem; background: var(--n-elevated, #181a20); border: 1px solid var(--n-border-strong, rgba(255,255,255,0.16)); border-radius: 1.25rem; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 12px 36px -10px rgba(0,0,0,0.55); } .ds-plate-raster { width: 100%; aspect-ratio: 2160 / 930; border-radius: 0.9rem; background: linear-gradient(180deg, #121318, #20232b); } @supports (animation-timeline: view()) { @media (prefers-reduced-motion: no-preference) { .ds-plate-reveal { animation: ds-plate-rise linear both; animation-timeline: view(); animation-range: entry 10% entry 70%; } } } @keyframes ds-plate-rise { from { opacity: 0.35; transform: translateY(24px) scale(0.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Auth form field: one ground step up from the plinth interior, label above, the surface's emerald :focus-visible ring plus an emerald border as a secondary cue.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-email\">Email</label><input class=\"ds-field\" id=\"ds-email\" type=\"email\" placeholder=\"you@example.com\" />",
+      "css": ".ds-field { display: block; width: 100%; box-sizing: border-box; background: var(--n-elevated, #181a20); color: var(--n-text, #f5f5f7); font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; padding: 0.75rem 1rem; border: 1px solid var(--n-border, rgba(255,255,255,0.08)); border-radius: 0.75rem; transition: border-color 0.2s ease; } .ds-field::placeholder { color: var(--n-muted, #8b8f9e); } .ds-field:hover { border-color: var(--n-border-strong, rgba(255,255,255,0.16)); } .ds-field:focus { border-color: var(--n-emerald, #10b981); } .ds-field:focus-visible { border-color: var(--n-emerald, #10b981); outline: 2px solid var(--n-emerald, #10b981); outline-offset: 2px; } .ds-field:disabled { opacity: 0.5; } .ds-field-label { display: block; margin-bottom: 0.5rem; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; color: var(--n-text, #f5f5f7); }"
+    },
+    {
+      "name": "Inline Alert",
+      "kind": "custom",
+      "refersTo": "alert-inline",
+      "description": "Colourless error state: elevated ground, strong hairline, icon and full-contrast text, role=alert. No status hue anywhere.",
+      "html": "<div class=\"ds-alert\" role=\"alert\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 8v4\"/><path d=\"M12 16h.01\"/></svg><p>That email and password do not match an account.</p></div>",
+      "css": ".ds-alert { display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem; background: var(--n-elevated, #181a20); border: 1px solid var(--n-border-strong, rgba(255,255,255,0.16)); border-radius: 0.75rem; } .ds-alert svg { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: 0.125rem; color: var(--n-text, #f5f5f7); } .ds-alert p { margin: 0; font-family: var(--font-dm-sans), system-ui, sans-serif; font-size: 0.875rem; color: var(--n-text, #f5f5f7); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Obsidian Architectural Plate",
+    "overview": "A near-black ground with almost nothing on it, and what is on it is built rather than decorated: hairline-ruled definition lists, wide plates carrying real screenshots of the running product, one emerald signal, and type that tightens as it grows. The surface is quiet at rest and earns attention through structure - where the frame breaks, where a band changes ground colour, where the column narrows - not through ornament. Nothing glows, nothing floats far, and no section content animates on entry.\n\nDensity is editorial rather than dashboard-like: a two-tier vertical rhythm that gives the opening, the mid-page colour field and the close more air than the quieter middle sections, prose clamped to a 68ch measure, and heading-plus-lead openings at a consistent 3xl-wide block. Composition deliberately varies the frame per section instead of running one identical column, and it varies the framing of the three product captures against each other: the hero capture bleeds off the right edge, the editor capture is inset in a narrower max-w-5xl column, the financials capture bleeds off the left edge. Ten section elements over 8,848px at 1440, with imagery landing at roughly 7%, 28% and 63% of the scroll and the two emerald fields at 36% and 88%.\n\nThe surface refuses the standard SaaS-marketing vocabulary outright. There are no kickers or eyebrows above headings, no rows of same-size icon+heading+text cards standing in for page structure, no nested cards, no gradient text, no monospace worn as a technical costume, no simulated product UI, and no pricing, testimonials, metrics, customer names, uptime or compliance claims - all of those were removed as unverifiable. Product depiction is by real capture or not at all.",
+    "keyCharacteristics": [
+      "Obsidian ground (#0a0b0e) with a single emerald signal; every accent routes through var(--n-emerald)",
+      "Two committed emerald regions - one mid-page, one closing - kept distinct by material, not by scarcity",
+      "Hairline-first material: 1px rules and border-separated rows carry structure, not fills",
+      "One fluid clamp type scale with five ranks; three faces with one job each, and no alpha on text over a colour field",
+      "The frame varies per section, and each of the three captures is framed a different way",
+      "Real product screenshots cropped to their content, with provenance sidecars; no reconstructed interface in markup",
+      "Three authored motion moments and one easing: cubic-bezier(0.16, 1, 0.3, 1), expressed in GSAP as CustomEase.create('obsidian', '0.16, 1, 0.3, 1')",
+      "The landing page and both auth pages run on the same tokens, plinth, pill and hairline vocabulary",
+      "Hand-rolled dark/light theming, resolved before first paint"
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "section": "colors",
+        "body": "One chromatic hue on the whole surface, and every use of it resolves through var(--n-emerald); zero hardcoded emerald utilities. If a new element needs colour to be understood, it gets the emerald or it gets a hairline - never a second hue."
+      },
+      {
+        "name": "The Committed Region Rule",
+        "section": "colors",
+        "body": "The accent may own at most two full regions per page: one mid-page and one closing, and they must be materially unalike. The journey field is divided into four cells by gap-px rules - dense, interactive, hover- and focus-driven; the closing field is open, with a four-step first-run list anchoring its right half. The close still reads as the ending because of that difference, not because it is the only field. Sameness, not count, is what costs a page its ending: two fields built the same way means neither one closes."
+      },
+      {
+        "name": "The No-Alpha-On-Field-Text Rule",
+        "section": "colors",
+        "body": "Text set on an emerald field is always full-opacity --n-base. Never an alpha step. Measured on the light emerald (#047857): --n-base at 75% gives 3.63:1 and at 85% gives 4.21:1 - both fail AA - and an /80 step planned for the journey measured 3.92:1. At full opacity the same text measures 7.76:1 dark and 5.13:1 light on both fields at 12px. Hierarchy on a colour field comes from size and weight. Opacity remains correct on non-text: the journey's gap-px divider at /20, its hover and focus ground at /10, the closing list's row rules at /25, and the on-field ghost button's border at /40."
+      },
+      {
+        "name": "The Painted Colour Rule",
+        "section": "colors",
+        "body": "A region whose colour carries legibility is painted in CSS and never animated in. The journey field and the closing field are both plain painted backgrounds with no reveal of any kind. Colour at that scale has to survive with no JavaScript at all."
+      },
+      {
+        "name": "The Contrast Floor Rule",
+        "section": "colors",
+        "body": "A palette value earns its place by measurement, never by making a finding disappear. Muted body measures 6.11:1 / 6.77:1; field text measures 7.76:1 / 5.13:1. A value that reads well but fails AA at its size is replaced, not excused - that is why the light emerald is a step darker than the dark one, and why the alpha steps above were deleted rather than shipped."
+      },
+      {
+        "name": "The One Fluid Scale Rule",
+        "section": "typography",
+        "body": "Landing type uses the five clamp classes (.t-display, .t-h2, .t-sub, .t-h3, .t-lead) and nothing else - no ad-hoc breakpoint pairs (text-3xl sm:text-5xl). Steps must relate to each other, and tracking tightens as size grows. A rank is added when a real gap forces one element to do two jobs, not to give a section its own size."
+      },
+      {
+        "name": "The Measure Rule",
+        "section": "typography",
+        "body": "Running prose is clamped: 68ch by default (.measure), 46ch in a narrow column (.measure-tight). Nothing on this surface sets an unbounded paragraph width - including the assistant's lead and the FAQ answers, which are wrapped in a .measure container rather than running the full column."
+      },
+      {
+        "name": "The Mono-Earns-It Rule",
+        "section": "typography",
+        "body": "Monospace is for data, identifiers and measurement, never as a technical costume. The face now has a legitimate job: the assistant section sets a real table of the five tool identifiers and the Prisma models each queries (search_pages/Page, get_crm_leads/Lead, get_financials/Quote, Invoice, get_meetings/Meeting, list_templates/UniversalTemplate), each verified against src/app/api/ai/chat/route.ts. Mono usage on the surface is four: two columns of that table, the journey step numerals, and the closing list's numerals. If the data ever goes away again, the correct response is to drop the third family, never to reintroduce decorative mono."
+      },
+      {
+        "name": "The Frame Variation Rule",
+        "section": "layout",
+        "body": "Sections must not all run in the same column. Across a page, at least one element breaks the reading column, at least one section is a full-bleed band on a different ground, and at least one runs at text width. Nine identical columns is the failure mode this rule exists to prevent."
+      },
+      {
+        "name": "The Per-Capture Framing Rule",
+        "section": "layout",
+        "body": "Each product capture gets its own framing, and no two share one. The hero bleeds off the right edge (pl-[max(2.5rem,calc((100vw-80rem)/2+2.5rem))] with no right padding), the editor capture is inset in a narrower max-w-5xl column, the financials capture bleeds off the left. A repeated frame flattens three different kinds of claim into one, and a mirrored module reads as one component used twice rather than two ideas."
+      },
+      {
+        "name": "The No-Min-Width-Table Rule",
+        "section": "layout",
+        "body": "A min-width on a table escapes its overflow-x-auto parent in Chrome and widens the whole document - it produced a 509px document in a 390px viewport. Wide tabular data stacks into a definition list at small sizes rather than scrolling."
+      },
+      {
+        "name": "The One Anchor Per Argument Rule",
+        "section": "layout",
+        "body": "A block long enough to be linked to gets an id and scroll-mt-24. Seven anchors resolve on the surface, and the header and footer navigation use the same nouns for the same destinations."
+      },
+      {
+        "name": "The Tonal-First Rule",
+        "section": "elevation",
+        "body": "Reach for the next ground step or a hairline before reaching for a shadow. Shadows here are ambient atmosphere on plates and buttons; they never encode hierarchy, and no surface gets a shadow to look important. .plate-raster is the sanctioned exception, and it earns it by material contrast, not importance."
+      },
+      {
+        "name": "The Unspent Device Rule",
+        "section": "elevation",
+        "body": "Depth is the one device this surface has deliberately not spent. .taste-plinth does carry a real shadow vocabulary; what is unspent is that the plate reads as an outline with atmosphere rather than a genuinely lifted object. Accent-at-region-scale and frame variation are both committed and are no longer headroom. A future pass needing a new register should escalate the plate's depth rather than add a second hue or a new composition trick. Recorded so it is inherited as a decision, not rediscovered as an idea."
+      },
+      {
+        "name": "The Hairline Rule",
+        "section": "shapes",
+        "body": "Structure is drawn with 1px rules and border-separated rows. A definition list on hairlines is the default way to present a set of facts - not a card, and never a card inside a card."
+      },
+      {
+        "name": "The Bare Material Rule",
+        "section": "shapes",
+        "body": "At least one block in a card grid may sit on the page ground without a plinth (the foundations list sits inside the feature grid under a border-strong top edge and a 12px uppercase label, with no plate), so the row reads as a change of surface rather than one more card."
+      },
+      {
+        "name": "The Sheen Rule",
+        "section": "components",
+        "body": ".taste-sheen, the 750ms skewed highlight sweep, is reserved for the single primary conversion path (hero primary, header pill). A page with sheen on three buttons has no primary button."
+      },
+      {
+        "name": "The Real Capture Rule",
+        "section": "components",
+        "body": "This surface depicts the product with real captures or not at all. No reconstructed interface in markup - a hand-built mock DOM is a claim the build cannot keep, and every such mockup was deleted. A capture is cropped to its content and never retouched beyond the crop."
+      },
+      {
+        "name": "The From-Not-To Rule",
+        "section": "components",
+        "body": "Every tween in the hero uses gsap.from(), never gsap.to() out of a hidden CSS state. from() reads the DOM's own resting state and animates toward it, so a bundle that never loads, never hydrates, or throws leaves the hero complete. Verified with JavaScript disabled: h1 at opacity 1, no transform, no clip-path, CTA present. This is the Painted Colour Rule applied to motion."
+      },
+      {
+        "name": "The LCP-Never-Fades Rule",
+        "section": "components",
+        "body": "The largest contentful paint never animates opacity. The hero capture takes a clip-path wipe and a 10px y only, so it is painted from the first frame; fading it would defer the metric by the length of the tween."
+      },
+      {
+        "name": "The Never-Stranded Rule",
+        "section": "components",
+        "body": "A reveal is written in CSS with view() rather than a JavaScript scroll listener, so a browser without support simply shows the finished state. The hero timeline registers only inside gsap.matchMedia('(prefers-reduced-motion: no-preference)') and never registers under reduce - verified: no transform, opacity 1, no clip. Global prefers-reduced-motion: reduce collapses animation and transition to 0.01ms, and there are still no scroll-entrance animations on section content - only the one plate."
+      },
+      {
+        "name": "The Inherited Ring Rule",
+        "section": "components",
+        "body": "A component on this surface may add to the focus signal but may never suppress it. focus:outline-none on the auth field beat .landing-surface :focus-visible, and the outline computed to rgba(0, 0, 0, 0) while the border stayed at its resting hairline (rgba(255,255,255,0.08) dark, rgba(13,14,21,0.08) light) - a sign-in form with no keyboard focus indicator at all. The utility was removed from both auth pages; focus:outline-none appears nowhere on this surface. A border colour change is a second cue, not a replacement for the ring."
+      },
+      {
+        "name": "The Colourless Error Rule",
+        "section": "components",
+        "body": "An error state gets no hue. The One Signal Rule permits the emerald or a hairline and forbids a second colour, so the auth error block is --n-elevated ground, a --n-border-strong rule, a 16px AlertCircle and full-contrast --n-text at 14px, with role=\"alert\". Meaning is carried by icon, weight and rule, which also keeps the state from being conveyed by colour alone. The implementation this replaced referenced --error-container, a variable defined nowhere in the stylesheet - the old error styling was inert, so the red it appeared to promise never existed either."
+      },
+      {
+        "name": "The Portal-Out Rule",
+        "section": "elevation",
+        "body": "Any fixed overlay on a surface that runs GSAP must portal to document.body. This is not stylistic. A transformed ancestor becomes the containing block for position: fixed, and the hero timeline leaves a transform on its wrapper - the demo dialog rendered in place was pinned inside the hero at roughly a third of the viewport. Portalled, the overlay measures 1440x900 against a 1440x900 viewport with body as its parent."
+      },
+      {
+        "name": "The Ask-Before-You-Load Rule",
+        "section": "components",
+        "body": "Heavy media is mounted on intent, never on arrival. A megabyte-scale asset that every visitor pays for and few visitors watch is a cost this surface refuses; the dialog is the sanctioned pattern for it."
+      },
+      {
+        "name": "The Copy-Tracks-Behaviour Rule",
+        "section": "components",
+        "body": "State copy names what the build actually does next. Registration sends a mandatory verification email and sign-in refuses an unverified address, so the success state reads \"Check your email.\" and names the address. The previous \"Account created! Redirecting you to login...\" was accurate about the redirect and walked people into a wall at the end of it."
+      }
+    ],
+    "dos": [
+      "Do route every accent through var(--n-emerald), and add colour only as a mark, a 1px rule, a focus ring, or a committed region.",
+      "Do spend the accent at region scale at most twice per page - one mid-page, one closing - and make the two materially unalike: one divided and interactive, one open. Paint both in CSS.",
+      "Do set every piece of text on a colour field at full-opacity --n-base, and get hierarchy from size and weight. Alpha is for dividers, hover grounds and borders only.",
+      "Do use the five clamp classes (.t-display, .t-h2, .t-sub, .t-h3, .t-lead) for landing type, and clamp prose to .measure (68ch) or .measure-tight (46ch) - including FAQ answers and section leads.",
+      "Do drop column and set labels to 12px uppercase tracked on a border-strong rule rather than borrowing the card-title step.",
+      "Do vary the frame across a page, and give each product capture its own framing: one bleeding right, one inset in a narrower column, one bleeding left.",
+      "Do back a dark raster with .plate-raster so it gets an edge and a deeper shadow on the light ground.",
+      "Do crop a capture to where its interface content ends, then scale; record the crop in its provenance sidecar at public/shots/<name>.webp.json alongside an exact descriptive alt sentence and a sizes hint matched to its column.",
+      "Do animate with gsap.from() toward the DOM's resting state, register timelines only inside gsap.matchMedia('(prefers-reduced-motion: no-preference)'), and verify the surface with JavaScript disabled.",
+      "Do keep one easing (cubic-bezier(0.16, 1, 0.3, 1) / CustomEase 'obsidian') and pair any framer-motion entrance with useReducedMotion.",
+      "Do verify every factual claim against prisma/schema.prisma, the API tree, or src/lib before it ships as copy - the assistant table's tool identifiers and models are checked against src/app/api/ai/chat/route.ts.",
+      "Do give any block long enough to be linked an id and scroll-mt-24, and keep header and footer navigation on the same nouns.",
+      "Do measure contrast before committing a colour value, and take the darker step when the lighter one fails AA at its size.",
+      "Do mount heavy media on intent: a video lives inside a dialog whose <video> element exists only while the dialog is open, autoplays muted and looping with an explicit sound control, and unmounts on close so playback stops.",
+      "Do portal any fixed overlay to document.body on a surface that runs GSAP, and verify the overlay measures the full viewport.",
+      "Do ship a dialog complete: role=\"dialog\", aria-modal, a label, focus moved in, Tab trapped, Escape and backdrop close, body scroll locked and restored, focus returned to the trigger.",
+      "Do let every control inherit the surface's :focus-visible ring (2px emerald at 2px offset) and layer any border or ground change on top of it.",
+      "Do build error and success states without a hue - --n-elevated ground, a --n-border-strong rule, an icon and full-contrast text, with role=\"alert\" - so state is never carried by colour alone.",
+      "Do keep the pill classes' own gap: 0.5rem and let icons space from the component layer rather than from per-button utilities.",
+      "Do write state copy that names what the build does next, including the address a verification link was sent to.",
+      "Do state the byte cost when a new library lands."
+    ],
+    "donts": [
+      "Don't put a kicker or eyebrow above a heading. A heading opens a section on its own.",
+      "Don't set text over a colour field at any opacity below 100% - /75 measured 3.63:1, /85 measured 4.21:1, /80 measured 3.92:1, and all three fail AA.",
+      "Don't build two committed regions that look alike; if the mid-page field and the close use the same material, the page has no ending.",
+      "Don't build page structure as rows of same-size icon + heading + text cards, and don't nest a card inside a card.",
+      "Don't introduce a second hue, a gradient text fill, or a coloured left border above 1px.",
+      "Don't use monospace as a technical costume, and don't put a weight modifier on font-mono or .t-data - the mono face ships at 400 only.",
+      "Don't load a font weight no element uses; the loaded set is DM Sans 400/500/600, Albert Sans 600/700, JetBrains Mono 400, and font-light appears nowhere in src/.",
+      "Don't simulate product UI in markup, and don't pad a capture to fit a frame instead of cropping it.",
+      "Don't animate in a region whose colour carries its text's legibility, and don't animate opacity on the LCP element.",
+      "Don't write gsap.to() out of a hidden CSS state; a hero that needs JavaScript to become visible is the same failure as a colour field that needs a scroll listener.",
+      "Don't add scroll-entrance animation to section content; one plate is the only revealed element.",
+      "Don't reuse one framing for every capture - a repeated frame flattens three different claims into one.",
+      "Don't put min-width on a table inside overflow-x-auto - stack to a definition list below sm instead.",
+      "Don't ship pricing, testimonials, metrics, customer names, or compliance and uptime assertions on this surface; all of those were removed as fabrications.",
+      "Don't ship a strip of muted 12px text that restates a footer column in different words - that block was deleted, not reworded.",
+      "Don't use a shadow to make something look important, and don't reach for a hard offset shadow - this is not a neobrutalist world.",
+      "Don't put a video inline on the fold or load one before the visitor asks for it, and don't let audio start unrequested.",
+      "Don't render a fixed overlay inside a transformed subtree - it will be pinned to that subtree's box instead of the viewport.",
+      "Don't thin an overlay scrim until the layer beneath reads through it; /85 with blur-sm left the hero's display type and the dialog's caption fighting each other.",
+      "Don't write focus:outline-none (or any outline suppression) on a control - it beats the global :focus-visible ring and can leave a form with no keyboard focus indicator whatsoever.",
+      "Don't reach for red, amber or any other status hue for an error, and don't reference a token the stylesheet never defines - --error-container is undefined here, and styling that cited it did nothing.",
+      "Don't import the app's Material-3 tokens, Material Symbols glyphs, or indigo accent into this surface, and don't export this surface's tokens into the app without a scoped migration."
+    ]
+  }
+}

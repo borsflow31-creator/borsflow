@@ -1,0 +1,43 @@
+node_modules/
+.env
+*.db
+.prisma/
+.next
+/public/uploads/
+
+# PWA build artifacts
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js
+/public/swe-worker-*.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/fallback-*.js
+/public/fallback-*.js.map
+
+# Cloudflare Worker local secrets
+.dev.vars
+.wrangler/
+
+# Local env backups (contain credentials)
+.env.bak*
+
+# /brag launch video renders
+brag-output*/
+
+# Impeccable verification captures — throwaway evidence, regenerated on demand.
+# The rest of .impeccable/ (config, surface briefs, the DESIGN.md sidecar) is
+# project state and belongs in the repo.
+.impeccable/review/
+
+# Local demo media (recordings and exports), kept out of the repo
+/public/demo/
+/videos/
+
+# AI tooling installed locally (like node_modules: reinstall, don't commit)
+/.agents/
+/skills-lock.json
+
+# Claude Code folder: skills, agents and per-machine settings. The settings hold
+# allowed commands, which have included database credentials and local paths.
+/.claude/

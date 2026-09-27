@@ -1,0 +1,405 @@
+# Task List: NOTION-ALT Stitch → Perfect Functional App
+
+## Context
+The `NOTION-ALT` project is a Next.js 14 app with:
+- **Backend**: Prisma + SQLite, NextAuth (email/password), full REST API for workspaces/pages/blocks/search
+- **Frontend**: Basic functional pages using gray/blue Tailwind styles — completely diverged from the "mono_prism" design system
+- **Stitch folder**: 4 high-fidelity HTML prototypes (`dashboard_light_mode`, `document_editor_dark_mode`, `kanban_board_view`, `rich_document_editor`) demonstrating the target design — "The Digital Architect" soft minimalism system
+
+**Goal**: Convert every page of the Next.js app to match the stitch prototypes pixel-perfectly, fix all non-functional interactive elements, wire up real data, and ensure everything works end-to-end.
+
+---
+
+## PHASE 1 — Design System Foundation
+
+### Task 1.1 — Audit & Fix Tailwind Config
+**File**: `tailwind.config.ts`
+- Verify all 60+ Material Design 3 CSS variables are correctly mapped to Tailwind class names
+- Ensure `surface`, `surface-container-low`, `surface-container-lowest`, `surface-container-highest`, `secondary` (#4a4bd7), `on-surface` (#2b3437), `outline-variant`, `primary` (#5f5e5e), `error-container`, `on-secondary` colors all exist as utility classes
+- Add missing `border-radius` tokens: `DEFAULT` = 0.5rem (buttons), `md` = 0.75rem (cards)
+- Confirm `dark:` class-based dark mode strategy is correct
+
+### Task 1.2 — Create Global CSS Variables
+**File**: `src/app/globals.css`
+- Add CSS custom properties for all color tokens (light mode + dark mode under `.dark` class)
+- Add Material Symbols Outlined font import (replace CDN usage in stitch files)
+- Add `.custom-scrollbar` styles (Webkit scrollbar, thin + secondary-colored)
+- Add `.cursor-name` class for collaboration cursor labels
+- Remove any Tailwind CDN references (already uses local Tailwind, confirm consistency)
+
+### Task 1.3 — Create Shared Layout Component
+**New file**: `src/components/AppShell.tsx`
+- Fixed left sidebar (256px, `surface-container-low` background, no borders)
+  - Workspace switcher at top with icon + name
+  - Nav items: Home, Pages, Kanban, Settings
+  - Active state: `surface-container-highest` pill + 2px `secondary` left-accent bar
+  - "New Page" button at bottom
+- Fixed top header bar (56px, `surface-container-lowest` background, no borders)
+  - Breadcrumb trail (workspace → page)
+  - Collaboration avatars (overlapping circles with 2px surface halo)
+  - "Ask AI" ghost button + "Share" primary button
+- Main content slot
+- Accepts `children`, `workspace`, `currentPage`, `breadcrumbs` props
+- Used by: dashboard, workspace, page editor, kanban, settings
+
+---
+
+## PHASE 2 — Authentication Pages
+
+### Task 2.1 — Redesign Login Page
+**File**: `src/app/login/page.tsx`
+- Replace generic gray center card with "The Digital Architect" aesthetic
+- Background: `surface` (#f8f9fa)
+- Card: `surface-container-lowest` (#fff), 0.75rem radius, ambient shadow only
+- App name/logo in `secondary` (#4a4bd7)
+- Input fields: ghost style (no border, `surface-container-high` background → `surface-container-highest` on focus)
+- "Sign in" button: `secondary` background, `on-secondary` text, 0.5rem radius
+- "Create account" link: `secondary` color
+- Error state: `error-container` background with `on-error-container` text
+- Functional: already works, just restyled
+
+### Task 2.2 — Redesign Register Page
+**File**: `src/app/register/page.tsx`
+- Same aesthetic as login
+- Password validation feedback with subtle inline error states
+- Already functional, just restyled
+
+---
+
+## PHASE 3 — Dashboard Page
+
+### Task 3.1 — Rebuild Dashboard with AppShell
+**File**: `src/app/dashboard/page.tsx`
+- Replace current `<header>` + flat layout with `<AppShell>` wrapper
+- Main content area (8-col wide, 4-col team activity sidebar) — bento grid layout
+- **Workspace cards** (bento tiles):
+  - `surface-container-lowest` background, `md` radius (0.75rem), no shadow
+  - Workspace icon (emoji or generated letter), name, description, page count
+  - Hover: subtle `surface-container-low` background shift (no box-shadow added)
+- **Recent activity feed** (right 4-col):
+  - Team member avatars + action descriptions + relative timestamps
+  - Section header with breathing room (3.5rem padding above)
+- **Quick capture input** at top: ghost input, `surface-container-high` background
+- Search: inline in header via AppShell
+- "New Workspace" FAB: `secondary` colored, bottom-right or in header
+- **New Workspace modal**: glassmorphism overlay (80% opacity + 20px backdrop blur), form with ghost inputs
+- Wire: `fetchWorkspaces()` already works, bind data to new UI
+- Wire: `handleCreateWorkspace()` already works
+
+---
+
+## PHASE 4 — Workspace Page
+
+### Task 4.1 — Rebuild Workspace Page with AppShell + Tree Sidebar
+**File**: `src/app/workspaces/[id]/page.tsx`
+- Use `<AppShell>` with workspace name in breadcrumb
+- Left sidebar renders hierarchical page tree (already exists as `renderPageTree`)
+- Style page tree items: no borders, `surface-container-low` on hover, `secondary` dot for active page
+- Expand/collapse nested page children with chevron icon
+- Right panel: page list as bento cards or simple list depending on depth
+- "New Page" button: opens inline form in sidebar or modal
+- Functional: `fetchWorkspace()`, `handleCreatePage()` already work
+
+---
+
+## PHASE 5 — Document Editor (Rich Text)
+
+### Task 5.1 — Redesign Page Editor Layout
+**File**: `src/app/pages/[id]/page.tsx`
+- Use `<AppShell>` with document title in breadcrumb
+- Editor canvas: `surface-container-lowest` (#fff), wide asymmetric margins (wider left)
+- Document title: `display-md` (2.75rem), `font-black`, `tracking-tight`, inline editable input styled as plain text
+- Body blocks: `body-lg` (1rem), 1.6 line height
+- Remove sticky top toolbar; replace with floating block menu
+
+### Task 5.2 — Rebuild Block Editor Components
+**New file**: `src/components/editor/Block.tsx`
+- Wrap each block in `group relative` div
+- On hover: show drag handle icon (left side, `outline-variant` color, opacity-0 → opacity-100)
+- On hover: show block type menu button (right of drag handle)
+- Drag handle: visual only for now (actual DnD in Task 5.4)
+- Block types rendered with correct typography:
+  - `text`: `body-lg`, plain textarea auto-resizing
+  - `heading`: `headline-sm` or larger, bold
+  - `subheading`: slightly smaller heading
+  - `bullet`: bullet with indentation
+  - `todo`: checkbox + strikethrough when checked
+  - `code`: monospace, `surface-container-highest` bg, copy-to-clipboard button (functional)
+  - `quote`: left border 2px `secondary`, italic, indented
+
+### Task 5.3 — Implement Slash Command Menu
+**New file**: `src/components/editor/SlashMenu.tsx`
+- Trigger: type `/` in any text block → menu appears below cursor
+- Menu: glassmorphism card (80% opacity, 20px blur), ambient shadow
+- Options: Heading 1, Heading 2, Text, Bullet List, To-do, Code, Quote, Image (future)
+- Keyboard navigation: arrow keys + Enter to select
+- Escape: dismiss
+- Selection: inserts block of chosen type at current position
+
+### Task 5.4 — Implement Block Drag & Drop Reorder
+**Dependency**: `react-beautiful-dnd` already installed
+- Wrap block list in `<DragDropContext>` and `<Droppable>`
+- Each `<Block>` becomes a `<Draggable>`
+- On drag: subtle `shadow-lg` appears on dragged card (only time shadows are used)
+- On drop: update block order state + call `PATCH /api/pages/[id]` to persist new order
+- Drag handle activates cursor-grab / cursor-grabbing
+
+### Task 5.5 — Implement Auto-Save
+- Replace manual "Save" button with debounced auto-save (1500ms after last change)
+- Show "Saving..." / "Saved" status indicator in header (small text, `on-surface-variant` color)
+- Keep manual Ctrl+S shortcut as backup trigger
+
+### Task 5.6 — Add Comments Panel (Right Sidebar)
+**New file**: `src/components/editor/CommentsPanel.tsx`
+- Right side panel (collapsible, 280px)
+- Comment threads with user avatar, timestamp, text
+- Reply input: ghost textarea + send button
+- "Resolve" button per thread (marks thread as resolved, grays out)
+- Connect to existing `Block` model — add `comments` JSON field or new Comment model in Prisma
+
+---
+
+## PHASE 6 — Kanban Board View
+
+### Task 6.1 — Create Kanban Page Route
+**File**: `src/app/kanban-board-view/page.tsx` (prototype exists, wire it up)
+- Replace static prototype HTML with React components
+- Use `<AppShell>` wrapper
+
+### Task 6.2 — Create KanbanBoard Component
+**New file**: `src/components/kanban/KanbanBoard.tsx`
+- Three columns: "To Do", "In Progress", "Done" (match stitch design)
+- Column headers: name + task count badge
+- Column background: `surface-container-low`
+- "Add card" button per column: opens inline form
+
+### Task 6.3 — Create KanbanCard Component
+**New file**: `src/components/kanban/KanbanCard.tsx`
+- Card: `surface-container-lowest`, `md` radius, no shadow (shadow only while dragging)
+- Priority badge: `error-container` bg + label
+- Category tags: pill badges with muted background
+- Assigned user avatars (overlapping, 2px halo)
+- Due date, attachment count, comment count, checklist progress
+- `cursor-grab` class, `active:cursor-grabbing`
+
+### Task 6.4 — Implement Kanban Drag & Drop
+**Dependency**: `react-beautiful-dnd` already installed
+- Drag cards between columns → update card status in state
+- On drop: persist to API (need `KanbanCard` model in Prisma or store in page blocks)
+- Column reorder not needed for MVP
+
+### Task 6.5 — Implement Kanban Filtering & Search
+- Filter button: dropdown to filter by priority / assignee / tag
+- Sort button: sort by date / priority / name
+- Search input: filter cards by title text
+- View switcher: "Board" (current), "Table" (list of cards), "Calendar" (future)
+- Wire filter/sort/search to actual state changes (currently non-functional in prototype)
+
+### Task 6.6 — Kanban API & Database
+- Add `KanbanCard` model to `prisma/schema.prisma`:
+  - `id`, `title`, `description`, `status` (todo/inprogress/done), `priority`, `tags[]`, `workspaceId`, `order`, `dueDate`, `assignees`
+- Create API routes: `GET/POST /api/kanban`, `PATCH/DELETE /api/kanban/[id]`
+- Run `prisma migrate dev`
+
+---
+
+## PHASE 7 — Document Editor Dark Mode Page
+
+### Task 7.1 — Wire Dark Mode Editor
+**File**: `src/app/document-editor-dark-mode/page.tsx`
+- The stitch prototype shows this as a separate "dark mode" view
+- Rather than a separate page, integrate dark mode into the main editor
+- In `RootLayout`, add `dark` class toggling based on theme preference stored in localStorage / user settings
+- Ensure all editor components use `dark:` Tailwind variants correctly
+- Test that code blocks, sidebars, and panels render correctly in dark mode
+
+### Task 7.2 — Implement Theme Toggle
+- Settings page > Appearance section: wire the Light / Dark / System buttons to actually toggle the `dark` class on `<html>` element
+- Persist preference in localStorage and in the User model (add `theme` field to Prisma User)
+- API endpoint: `PATCH /api/user/preferences` to save `{ theme: 'light' | 'dark' | 'system' }`
+
+---
+
+## PHASE 8 — Settings Page
+
+### Task 8.1 — Redesign Settings Page with AppShell
+**File**: `src/app/settings/page.tsx`
+- Fix the `useEffect` import bug (currently `useEffect` is used but not imported — line 12 will crash)
+- Use `<AppShell>` wrapper
+- Redesign section cards with mono_prism aesthetic (no box-shadows, tonal separation)
+- Section tabs: vertical nav with `secondary` active indicator
+
+### Task 8.2 — Wire Profile Save
+- "Save Changes" button: call `PATCH /api/user` endpoint (needs to be created)
+- Add `PATCH /api/user/route.ts`: update name in Prisma, return updated session
+- Show success feedback (inline toast or text confirmation)
+
+### Task 8.3 — Wire Password Change
+- Validate current password using bcrypt.compare
+- Hash and save new password via `PATCH /api/user/password`
+- Validate new password = confirm password client-side before submit
+- Show success/error feedback
+
+### Task 8.4 — Wire Notifications Toggle
+- Currently unconnected toggle switches
+- Add `notificationsEmail` and `notificationsPush` fields to User in Prisma
+- Save via `PATCH /api/user/preferences`
+
+---
+
+## PHASE 9 — Navigation & Cross-Page Wiring
+
+### Task 9.1 — Implement App Navigation
+- AppShell sidebar nav items must navigate:
+  - Home → `/dashboard`
+  - Pages → `/workspaces/[current]` (or last visited workspace)
+  - Kanban → `/kanban-board-view?workspace=[id]`
+  - Settings → `/settings`
+- Store "current workspace" in Zustand store (already installed)
+- Breadcrumb in top nav: clickable path (Workspace name → Page title)
+
+### Task 9.2 — Create Zustand App Store
+**New file**: `src/store/appStore.ts`
+- State: `currentWorkspaceId`, `currentPageId`, `theme`, `sidebarOpen`
+- Actions: `setWorkspace`, `setPage`, `setTheme`, `toggleSidebar`
+- Persist `currentWorkspaceId` and `theme` to localStorage
+- Used by AppShell and theme toggle
+
+### Task 9.3 — Global Search
+**File**: `src/app/api/search/route.ts` — already exists, verify it works
+- Connect search input in AppShell header to `/api/search` endpoint
+- Display results in a dropdown (glassmorphism card) with page titles + workspace names
+- Click result: navigate to that page
+
+---
+
+## PHASE 10 — API & Database Fixes
+
+### Task 10.1 — Fix Blocks API
+**File**: `src/app/api/pages/[id]/blocks/route.ts`
+- Verify `GET` returns blocks sorted by `order`
+- Verify `PUT/PATCH` accepts bulk block updates (for reorder after drag & drop)
+- Ensure block content stored as JSON handles all block types correctly
+
+### Task 10.2 — Add Missing User API
+**New file**: `src/app/api/user/route.ts`
+- `PATCH`: update name, theme preference, notification settings
+- Authenticate via session (reject unauthenticated)
+
+**New file**: `src/app/api/user/password/route.ts`
+- `PATCH`: verify current password, hash + save new password
+
+### Task 10.3 — Environment Setup Verification
+**File**: `.env` (or `.env.local`)
+- Ensure `DATABASE_URL` points to SQLite file
+- Ensure `NEXTAUTH_SECRET` is set
+- Ensure `NEXTAUTH_URL` = `http://localhost:3000`
+- Run `npx prisma migrate dev` to apply any new schema changes
+
+---
+
+## PHASE 11 — Component Quality & Bug Fixes
+
+### Task 11.1 — Fix settings/page.tsx Import Bug
+**File**: `src/app/settings/page.tsx`
+- Line 1: add `import { useEffect } from 'react'` — currently missing, will crash at runtime
+
+### Task 11.2 — Eliminate Font Duplication
+- Stitch prototype pages import Material Symbols Outlined CDN font twice each
+- For pages converted to React: load font once via `globals.css` @import
+- Remove all duplicate `<link>` tags from any converted pages
+
+### Task 11.3 — Replace Blue-600 Brand Color
+- All current pages use `bg-blue-600`, `text-blue-600`, `ring-blue-500` etc.
+- Replace throughout with `bg-secondary`, `text-secondary`, `ring-secondary` to align with design system
+- Use find+replace across all src/app/**/*.tsx files
+
+### Task 11.4 — Accessibility Pass
+- Add `aria-label` to all icon-only buttons in AppShell and Kanban
+- Ensure all form inputs have associated `<label>` elements
+- Add `role="navigation"` to sidebar
+- Keyboard navigation: Tab order flows logically through sidebar → main content
+
+### Task 11.5 — Remove Redundant Prototype Pages
+- `src/app/dashboard-light-mode/page.tsx` — replace with converted dashboard
+- `src/app/kanban-board-view/page.tsx` — replace with wired Kanban
+- `src/app/document-editor-dark-mode/page.tsx` — remove (integrated via dark mode toggle)
+- `src/app/rich-document-editor/page.tsx` — remove (merged into `/pages/[id]`)
+
+---
+
+## PHASE 12 — Polish & Final Details
+
+### Task 12.1 — Loading States
+- Replace all `animate-spin border-blue-600` spinners with on-brand skeleton loaders
+- Skeleton blocks: `surface-container-low` bg with subtle pulse animation, matching the shape of real content
+- Use in: dashboard workspace cards, workspace page list, editor blocks
+
+### Task 12.2 — Empty States
+- Dashboard (no workspaces): illustrative empty state with `display-md` heading + secondary CTA button
+- Workspace (no pages): similar empty state
+- Editor (no blocks): "Start writing or type '/' for commands" placeholder in `on-surface-variant` color
+- Kanban (empty column): dashed border card placeholder
+
+### Task 12.3 — Error Handling
+- API errors: show toast notification (new `Toast` component) at bottom-right
+  - Success: green indicator, 3s auto-dismiss
+  - Error: `error-container` background, `on-error-container` text, manual dismiss
+- Network failures: retry button in error states
+
+### Task 12.4 — Responsive Behavior
+- Sidebar: collapses to icon-only at `< md` breakpoint (matches stitch `w-16 md:w-64`)
+- Editor: full-width at mobile, asymmetric margins at desktop
+- Kanban: `grid-cols-1` at mobile → `grid-cols-3` at md+
+- Dashboard: `grid-cols-1` → `grid-cols-2` → `grid-cols-3` at breakpoints
+
+---
+
+## Critical Files to Modify
+
+| File | Change Type |
+|------|-------------|
+| `src/app/globals.css` | Add CSS vars, font imports, utility classes |
+| `tailwind.config.ts` | Verify/fix color tokens |
+| `src/app/layout.tsx` | Add dark class toggling |
+| `src/app/login/page.tsx` | Full redesign |
+| `src/app/register/page.tsx` | Full redesign |
+| `src/app/dashboard/page.tsx` | Full redesign with AppShell |
+| `src/app/workspaces/[id]/page.tsx` | Full redesign with AppShell |
+| `src/app/pages/[id]/page.tsx` | Full redesign, new block components |
+| `src/app/settings/page.tsx` | Fix import bug + redesign |
+| `prisma/schema.prisma` | Add KanbanCard, user preferences fields |
+
+## New Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/AppShell.tsx` | Shared sidebar + header layout |
+| `src/components/editor/Block.tsx` | Block component with drag handle |
+| `src/components/editor/SlashMenu.tsx` | Slash command menu |
+| `src/components/editor/CommentsPanel.tsx` | Right-side comments |
+| `src/components/kanban/KanbanBoard.tsx` | Board container |
+| `src/components/kanban/KanbanCard.tsx` | Card component |
+| `src/components/Toast.tsx` | Notification toasts |
+| `src/store/appStore.ts` | Zustand state store |
+| `src/app/api/user/route.ts` | User profile API |
+| `src/app/api/user/password/route.ts` | Password change API |
+| `src/app/api/kanban/route.ts` | Kanban cards API |
+| `src/app/api/kanban/[id]/route.ts` | Single card API |
+| `src/app/kanban-board-view/page.tsx` | Wired Kanban page |
+
+---
+
+## Verification
+
+After implementation, verify end-to-end:
+1. `npm run dev` → no TypeScript errors, no build errors
+2. Register new user → redirected to dashboard with correct design
+3. Create workspace → appears as bento card with mono_prism styling
+4. Open workspace → page tree renders in sidebar
+5. Create page → editor opens, type `/` → slash menu appears
+6. Add blocks of each type → all render correctly
+7. Drag block → reorders, auto-saves
+8. Open Kanban → cards visible, drag between columns persists
+9. Settings → save profile (name updates), change password, toggle theme (dark mode applies)
+10. Search in header → returns results, clicking navigates to page

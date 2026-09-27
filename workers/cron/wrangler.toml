@@ -1,0 +1,27 @@
+name = "borsflow-cron"
+main = "src/index.ts"
+compatibility_date = "2026-09-25"
+
+# One trigger drives both jobs. Cron Triggers are limited per account (5 on the
+# free plan, 250 on paid), so keeping this to a single expression leaves room.
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# Base URL of the deployed app, no trailing slash. Override per environment below.
+APP_URL = "https://example.vercel.app"
+
+# CRON_SECRET is NOT set here - it is a secret:
+#   wrangler secret put CRON_SECRET
+# It must match CRON_SECRET in the app's own environment.
+
+[observability]
+enabled = true
+
+# Optional: a staging worker pointed at a preview deployment.
+# [env.staging]
+# name = "borsflow-cron-staging"
+# [env.staging.vars]
+# APP_URL = "https://staging.example.vercel.app"
+# [env.staging.triggers]
+# crons = ["*/5 * * * *"]

@@ -1,0 +1,4 @@
+{
+  "prompt": "Screenshot of the BorsFlow application itself. Captured 2026-09-27 from a local production build (next build + next start) at 1440x900 CSS px, deviceScaleFactor 2, dark theme, signed in as a temporary demo account. The interface is the real shipped UI, not a mock. The records shown (Northwind Studio workspace, lead Sarah Lin, quote Q-2026-0104 and the invoice INV-2026-0001 produced by the real Convert to Invoice action) were authored solely for this capture and deleted from the database immediately afterwards. No retouching; the only interaction was dismissing the mobile navigation drawer.",
+  "createdAt": "2026-09-27T01:59:20.000Z"
+}

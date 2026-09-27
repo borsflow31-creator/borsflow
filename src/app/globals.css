@@ -1,0 +1,726 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ── Impeccable High-Craft Tokens: Obsidian Architectural Palette ── */
+  --n-base:       #0a0b0e;
+  --n-surface:    #121318;
+  --n-elevated:   #181a20;
+  --n-elevated2:  #20232b;
+  --n-accent:     #ffffff;
+  --n-indigo:     #4f46e5;
+  --n-indigo-lt:  #6366f1;
+  --n-emerald:    #10b981;
+  --n-emerald-dim:rgba(16, 185, 129, 0.12);
+  --n-mint:       #10b981;
+  --n-mint-dim:   rgba(16, 185, 129, 0.12);
+  --n-text:       #f5f5f7;
+  --n-muted:      #8b8f9e;
+  --n-border:     rgba(255, 255, 255, 0.08);
+  --n-border-strong: rgba(255, 255, 255, 0.16);
+  --n-footer-bg:  #07080a;
+  --n-card-bg:    #121318;
+
+  /* Grid / grain opacity in dark */
+  --n-grid-opacity: 0.14;
+  --n-grain-opacity: 0.03;
+
+  /* Theme transition */
+  --n-transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Legacy Mixpanel-inspired tokens (kept for app internals) */
+  --mix-purple: #7856FF;
+  --mix-black: #1A1A1A;
+  --mix-dark: #0D0D0D;
+  --mix-grey: #F5F5F7;
+  --mix-white: #FFFFFF;
+  --mix-border: rgba(0, 0, 0, 0.1);
+  --mix-border-dark: rgba(255, 255, 255, 0.1);
+
+  /* Existing Light mode colors - updated to integrate */
+  --tertiary: 111 87 111;
+  --inverse-primary: 255 255 255;
+  --primary: 74 75 215;
+  --on-primary: 255 255 255;
+  --secondary: 74 75 215; /* BorsFlow primary accent */
+  --on-secondary: 255 255 255;
+  --on-tertiary: 255 255 255;
+  --background: 255 255 255;
+  --surface: 248 249 255;
+  --on-surface: 26 26 26;
+  --on-surface-variant: 69 71 89;
+  --surface-container-lowest: 255 255 255;
+  --surface-container-low: 247 242 250;
+  --surface-container: 243 237 247;
+  --surface-container-high: 236 230 240;
+  --surface-container-highest: 230 224 233;
+  --outline-variant: 191 196 211;
+}
+
+/* ── Landing light mode overrides ── */
+[data-theme="light"], .light {
+  --n-base:       #f7f7fa;
+  --n-surface:    #ffffff;
+  --n-elevated:   #f0f1f5;
+  --n-elevated2:  #e5e7ee;
+  --n-indigo:     #4f46e5;
+  --n-indigo-lt:  #4338ca;
+  --n-emerald:    #047857;
+  --n-emerald-dim:rgba(4, 120, 87, 0.10);
+  --n-mint:       #047857;
+  --n-mint-dim:   rgba(4, 120, 87, 0.10);
+  --n-text:       #0d0e15;
+  --n-muted:      #52566b;
+  --n-border:     rgba(13, 14, 21, 0.08);
+  --n-border-strong: rgba(13, 14, 21, 0.18);
+  --n-border-acc: rgba(79, 70, 229, 0.28);
+  --n-footer-bg:  #0e1017;
+  --n-card-bg:    #ffffff;
+  --n-grid-opacity: 0.07;
+  --n-grain-opacity: 0.015;
+}
+
+/* App-level light/dark tokens for non-landing pages */
+.dark {
+  /* Dark mode colors - synchronized with Mixpanel High Contrast */
+  --background: 13 13 13;
+  --surface: 26 26 26;
+  --on-surface: 255 255 255;
+  --primary: 120 86 255;
+  --on-primary: 255 255 255;
+  --secondary: 120 86 255; /* Use Mixpanel purple in dark mode */
+  --on-secondary: 255 255 255;
+  --on-surface-variant: 142 142 160;
+  --surface-container-lowest: 10 10 10;
+  --surface-container-low: 20 20 20;
+  --surface-container: 26 26 26;
+  --surface-container-high: 36 36 36;
+  --surface-container-highest: 46 46 46;
+  --outline-variant: 58 58 64;
+}
+
+body {
+  color: var(--on-surface);
+  background: var(--background);
+  font-family: var(--font-dm-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: 'tnum' 1, 'cv02' 1, 'cv03' 1;
+}
+
+/* Material Symbols Outlined */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined' !important;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--secondary);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--secondary-dim);
+}
+
+/* Collaboration cursor label */
+.cursor-name {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: white;
+  pointer-events: none;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .glass {
+  background-color: rgba(27, 32, 34, 0.8);
+}
+
+/* Premium Shadow & Depth */
+.mix-shadow {
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.mix-card {
+  background: var(--mix-white);
+  border: 1px solid var(--mix-border);
+  border-radius: 24px;
+  padding: 32px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mix-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+}
+
+/* ── Landing utilities (Taste Skill & Impeccable Design System) ── */
+.taste-plinth {
+  background: var(--n-surface);
+  border: 1px solid var(--n-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 8px 24px -4px rgba(0, 0, 0, 0.06);
+  border-radius: 1.25rem;
+  transition: var(--n-transition), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+.taste-plinth:hover {
+  border-color: var(--n-border-strong);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 14px 34px -8px rgba(0, 0, 0, 0.12);
+}
+.dark .taste-plinth {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 12px 36px -10px rgba(0, 0, 0, 0.55);
+}
+.dark .taste-plinth:hover {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 18px 44px -10px rgba(0, 0, 0, 0.7);
+}
+
+/* Micro-sheen hover effect inspired by taste-skill */
+.taste-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.taste-sheen::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+  transform: skewX(-20deg);
+  transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.taste-sheen:hover::after {
+  transform: translateX(360%) skewX(-20deg);
+}
+
+.n-card {
+  background: var(--n-surface);
+  border: 1px solid var(--n-border);
+  border-radius: 1.25rem;
+  transition: var(--n-transition), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.n-card:hover {
+  border-color: var(--n-border-strong);
+  transform: translateY(-2px);
+}
+
+.n-glass {
+  background: color-mix(in srgb, var(--n-surface) 80%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--n-border);
+  transition: var(--n-transition);
+}
+
+/* High-agency Primary CTA */
+.taste-btn-primary {
+  background: var(--n-text);
+  color: var(--n-base);
+  font-weight: 600;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+}
+.taste-btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.22);
+}
+.taste-btn-primary:active {
+  transform: scale(0.98);
+}
+
+/* Taste Ghost CTA */
+.taste-btn-ghost {
+  background: var(--n-surface);
+  color: var(--n-text);
+  font-weight: 500;
+  border: 1px solid var(--n-border);
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: var(--n-transition), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.taste-btn-ghost:hover {
+  background: var(--n-elevated);
+  border-color: var(--n-border-strong);
+  transform: translateY(-1px);
+}
+.taste-btn-ghost:active {
+  transform: scale(0.98);
+}
+
+.n-btn-primary {
+  background: var(--n-indigo);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.n-btn-primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.35);
+}
+.n-btn-primary:active { transform: scale(0.98); }
+
+.n-btn-ghost {
+  background: var(--n-surface);
+  color: var(--n-text);
+  font-weight: 500;
+  border: 1px solid var(--n-border);
+  border-radius: 9999px;
+  transition: var(--n-transition);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.n-btn-ghost:hover {
+  background: var(--n-elevated);
+  border-color: var(--n-border-strong);
+}
+
+/* Noise grain overlay */
+.n-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--n-grain-opacity, 0.035);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  border-radius: inherit;
+  z-index: 0;
+}
+
+/* Crisp modern display typography */
+.font-display {
+  font-family: var(--font-albert), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.03em;
+}
+/* Landing body typography */
+.font-landing {
+  font-family: var(--font-albert), var(--font-dm-sans), system-ui, sans-serif;
+}
+
+/* Premium Input & Select */
+.premium-input {
+  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid var(--outline-variant);
+  background-color: var(--surface-container-high);
+  color: var(--on-surface);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-input:focus {
+  background-color: var(--surface-container-highest);
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 4px var(--secondary-opacity-10);
+  outline: none;
+}
+
+.premium-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238E8EA0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem !important;
+}
+
+.dark .premium-input {
+  --secondary-opacity-10: rgba(120, 86, 255, 0.15);
+}
+
+:root {
+  --secondary-opacity-10: rgba(74, 75, 215, 0.1);
+}
+
+/* Existing ghost input */
+.ghost-input {
+  background-color: var(--surface-container-high);
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.ghost-input:focus {
+  background-color: var(--surface-container-highest);
+  outline: none;
+}
+
+/* Active nav item */
+.nav-item-active {
+  background-color: var(--surface-container-highest);
+  border-left: 2px solid var(--secondary);
+}
+
+/* Drag handle */
+.drag-handle {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  cursor: grab;
+}
+
+.group:hover .drag-handle {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Block editor styles */
+.block-content {
+  min-height: 1.5rem;
+  line-height: 1.6;
+}
+
+.block-content:empty:before {
+  content: attr(data-placeholder);
+  color: var(--on-surface-variant);
+  pointer-events: none;
+}
+
+/* Code block */
+.code-block {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background-color: var(--surface-container-highest);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+/* Quote block */
+.quote-block {
+  border-left: 2px solid var(--secondary);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--on-surface-variant);
+}
+
+/* Todo checkbox */
+.todo-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--outline-variant);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.todo-checkbox:checked {
+  background-color: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.todo-checkbox:checked+span {
+  text-decoration: line-through;
+  color: var(--on-surface-variant);
+}
+
+/* Avatar halo */
+.avatar-halo {
+  border: 2px solid var(--surface-container-lowest);
+}
+
+/* Skeleton loader */
+.skeleton {
+  background-color: var(--surface-container-low);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  animation: slideIn 0.3s ease;
+  z-index: 9999;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast-success {
+  background-color: var(--surface-container-lowest);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.toast-error {
+  background-color: var(--error-container);
+  color: var(--on-error-container);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Typography scale */
+.display-md {
+  font-size: 2.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+}
+
+.headline-sm {
+  font-size: 1.5rem;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.body-lg {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.body-md {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.body-sm {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.label-sm {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+}
+
+/* ─── Landing type scale ─────────────────────────────────────
+   One fluid scale, so the surface stops jumping between ad-hoc
+   breakpoint pairs (text-3xl sm:text-5xl) with no relationship
+   between the steps. Tracking tightens as size grows. */
+.t-display {
+  font-size: clamp(2.25rem, 4.4vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.t-h2 {
+  font-size: clamp(1.875rem, 3.4vw, 2.875rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+/* The rank between headline and title. Without it the scale jumps 46px to
+   21px and section-internal headings borrow the card-title step. */
+.t-sub {
+  font-size: clamp(1.375rem, 2.1vw, 1.75rem);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.t-h3 {
+  font-size: clamp(1.0625rem, 1.5vw, 1.3125rem);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.t-lead {
+  font-size: clamp(1rem, 1.25vw, 1.1875rem);
+  line-height: 1.6;
+  letter-spacing: -0.011em;
+}
+
+/* Mono earns its place on data and measurement, never as a costume. */
+.t-data {
+  font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Body measure. 68ch keeps prose inside the comfortable 65-75ch band. */
+.measure      { max-width: 68ch; }
+.measure-tight { max-width: 46ch; }
+
+/* ─── Browser surfaces ───────────────────────────────────────
+   The parts we did not draw still carry the design. Scoped to the
+   landing surface via :has() so the app chrome keeps its own. */
+.landing-surface ::selection {
+  background: var(--n-emerald-dim);
+  color: var(--n-text);
+}
+
+.landing-surface {
+  caret-color: var(--n-emerald);
+}
+
+.landing-surface a:not([class*="rounded"]) {
+  text-underline-offset: 0.2em;
+}
+
+.landing-surface :focus-visible {
+  outline: 2px solid var(--n-emerald);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+html:has(.landing-surface) {
+  scrollbar-color: var(--n-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+html:has(.landing-surface)::-webkit-scrollbar {
+  width: 10px;
+}
+
+html:has(.landing-surface)::-webkit-scrollbar-track {
+  background: var(--n-base);
+}
+
+html:has(.landing-surface)::-webkit-scrollbar-thumb {
+  background: var(--n-border-strong);
+  border: 3px solid var(--n-base);
+  border-radius: 999px;
+}
+
+html:has(.landing-surface)::-webkit-scrollbar-thumb:hover {
+  background: var(--n-muted);
+}
+
+/* Dark application captures need an edge on the light ground. The plate's
+   ambient shadow separates a white plinth from a near-white page; behind a
+   near-black raster it does nothing at all. */
+.plate-raster {
+  background: var(--n-elevated);
+}
+
+[data-theme="light"] .plate-raster,
+.light .plate-raster {
+  border-color: var(--n-border-strong);
+  box-shadow: 0 1px 3px rgba(13, 14, 21, 0.10), 0 18px 44px -14px rgba(13, 14, 21, 0.28);
+}
+
+/* ─── Plate reveal ───────────────────────────────────────────
+   The page's second authored moment. Scroll-driven in CSS rather
+   than JavaScript, so a browser without support simply shows the
+   finished state: the plate can never be left invisible by a
+   listener that did not fire. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .plate-reveal {
+      animation: plate-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 70%;
+    }
+  }
+}
+
+@keyframes plate-rise {
+  from {
+    opacity: 0.35;
+    transform: translateY(24px) scale(0.985);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────
+   Honour the OS setting across every animated surface. The framer
+   components pair this with useReducedMotion() so their entrances
+   resolve to a visible resting state rather than a fast one. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Print / PDF export ─────────────────────────────────── */
+@media print {
+  body > * { display: none !important; }
+  .print-area {
+    display: block !important;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    padding: 2.5rem;
+    background: white;
+    color: black;
+    font-family: 'Albert Sans', -apple-system, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+  }
+  .print-area h1 { font-size: 2rem; font-weight: 800; margin: 0 0 0.5rem; }
+  .print-area h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.4rem; }
+  .print-area h3 { font-size: 1.15rem; font-weight: 600; margin: 1.2rem 0 0.3rem; }
+  .print-area p  { margin: 0.3rem 0; }
+  .print-area ul, .print-area ol { margin: 0.3rem 0 0.3rem 1.5rem; }
+  .print-area blockquote { border-left: 2px solid #ccc; padding-left: 1rem; font-style: italic; margin: 0.5rem 0; color: #444; }
+  .print-area pre { background: #f4f4f4; padding: 0.75rem 1rem; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; margin: 0.5rem 0; }
+  .print-area hr { border: none; border-top: 1px solid #ddd; margin: 1rem 0; }
+  .print-area table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+  .print-area th, .print-area td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+  .print-area th { background: #f0f0f0; font-weight: 600; }
+  .print-area img { max-width: 100%; height: auto; }
+  .print-area .callout-block { background: #fffbea; border: 1px solid #fcd34d; padding: 0.5rem 1rem; margin: 0.5rem 0; border-radius: 4px; }
+}
