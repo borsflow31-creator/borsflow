@@ -37,30 +37,38 @@ export async function GET(request: NextRequest) {
       unsubscribedAt: new Date()
     })
 
+    // DESIGN.md's paper palette, laid out like the sign-up success state: a 48px
+    // emerald-dim disc holding one emerald glyph, the heading, one muted line.
+    // The opt-out is recorded for the sending workspace only, and the copy says so.
     return new NextResponse(`
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
         <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
           <title>Unsubscribed</title>
           <style>
-            body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f9fafb; }
-            .container { text-align: center; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-            h1 { color: #111827; margin-bottom: 0.5rem; }
-            p { color: #4b5563; }
+            body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; background: #f7f7fa; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+            .card { max-width: 420px; text-align: center; background: #ffffff; border: 1px solid #e5e7ee; border-radius: 20px; padding: 32px; }
+            .disc { width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 9999px; background: rgba(4, 120, 87, 0.10); color: #047857; display: flex; align-items: center; justify-content: center; }
+            h1 { margin: 0 0 8px; font-family: 'Albert Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.025em; color: #0d0e15; }
+            p { margin: 0; font-size: 14px; line-height: 1.625; color: #52566b; }
           </style>
         </head>
         <body>
-          <div class="container">
-            <svg style="width: 48px; height: 48px; color: #10B981; margin: 0 auto 1rem;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <h1>You have been unsubscribed</h1>
-            <p>You will no longer receive these emails.</p>
+          <div class="card">
+            <div class="disc">
+              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1>You’re unsubscribed.</h1>
+            <p>You won’t get these emails from this sender again.</p>
           </div>
         </body>
       </html>
     `, {
-      headers: { 'Content-Type': 'text/html' }
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     })
   } catch (error) {
     console.error('Error tracking unsubscribe:', error)

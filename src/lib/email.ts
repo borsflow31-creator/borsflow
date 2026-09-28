@@ -43,6 +43,87 @@ interface InvitationEmailData {
   recipientEmail: string
 }
 
+// ─── Email layout ────────────────────────────────────────────────────────────
+// BorsFlow's own mail (verification, invitations) wears DESIGN.md's paper
+// palette and its one emerald signal. Paper, not obsidian: email is read on light
+// grounds, and mail clients invert dark backgrounds unpredictably. Everything is
+// inline and table-based because clients drop CSS variables, clamp(), flexbox and
+// most <style> rules, so sizes are fixed steps from the documented type ramp.
+const EMAIL = {
+  ground: '#f7f7fa', // paper-base
+  surface: '#ffffff', // paper-surface
+  raised: '#f0f1f5', // paper-elevated
+  hairline: '#e5e7ee', // paper-elevated-2, solid so Outlook draws it
+  ink: '#0d0e15', // paper-text
+  muted: '#52566b', // paper-muted
+  signal: '#047857', // signal-emerald-paper
+  display: "'Albert Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  text: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+}
+
+/** One paragraph of body copy (the "lead" role at its email size). */
+function emailParagraph(html: string): string {
+  return `<p style="margin:0 0 12px;font-family:${EMAIL.text};font-size:16px;line-height:1.6;color:${EMAIL.ink};">${html}</p>`
+}
+
+/**
+ * The shared frame: wordmark, one card with a heading, the body, a single action
+ * and a note, then a small footer saying why the mail arrived. Every argument
+ * must already be escaped.
+ */
+function renderEmail(layout: {
+  title: string
+  preheader: string
+  heading: string
+  body: string
+  action: { label: string; url: string }
+  note: string
+  footer: string
+}): string {
+  const { ground, surface, hairline, ink, muted, signal, display, text } = EMAIL
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>${layout.title}</title>
+</head>
+<body style="margin:0;padding:0;background:${ground};">
+  <div style="display:none;max-height:0;overflow:hidden;">${layout.preheader}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${ground};">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+          <tr>
+            <td style="padding:0 4px 20px;font-family:${display};font-size:17px;line-height:1.3;font-weight:700;letter-spacing:-0.02em;color:${ink};">BorsFlow</td>
+          </tr>
+          <tr>
+            <td style="background:${surface};border:1px solid ${hairline};border-radius:20px;padding:32px;">
+              <h1 style="margin:0 0 16px;font-family:${display};font-size:28px;line-height:1.25;font-weight:600;letter-spacing:-0.025em;color:${ink};">${layout.heading}</h1>
+              ${layout.body}
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+                <tr>
+                  <td style="border-radius:9999px;background:${signal};">
+                    <a href="${layout.action.url}" style="display:inline-block;padding:14px 28px;font-family:${text};font-size:14px;line-height:1.4;font-weight:600;color:${surface};text-decoration:none;border-radius:9999px;">${layout.action.label}</a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-family:${text};font-size:14px;line-height:1.625;color:${muted};">${layout.note}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 4px 0;font-family:${text};font-size:12px;line-height:1.4;color:${muted};">${layout.footer}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
 function generateInvitationEmailTemplate(data: InvitationEmailData): string {
   // Every value is escaped: the workspace name, icon and sender name are user
   // input and were interpolated raw, so a workspace named with HTML injected
@@ -50,82 +131,30 @@ function generateInvitationEmailTemplate(data: InvitationEmailData): string {
   const senderName = escapeHtml(data.senderName)
   const workspaceName = escapeHtml(data.workspaceName)
   const workspaceIcon = data.workspaceIcon ? escapeHtml(data.workspaceIcon) : undefined
-  const role = escapeHtml(data.role)
+  const role = escapeHtml(data.role.charAt(0).toUpperCase() + data.role.slice(1))
   const acceptUrl = escapeHtml(data.acceptUrl)
+  const recipient = escapeHtml(data.recipientEmail)
+  const { raised, hairline, ink, signal, display, text } = EMAIL
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>You're invited to join ${workspaceName}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-    .content { padding: 30px 20px; background: #f9fafb; border-radius: 0 0 8px 8px; }
-    .invitation-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-    .workspace-info { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
-    .workspace-icon { font-size: 32px; }
-    .workspace-name { font-size: 20px; font-weight: 600; color: #1f2937; }
-    .role-badge { display: inline-block; padding: 4px 12px; background: #e0e7ff; color: #4338ca; border-radius: 9999px; font-size: 14px; font-weight: 500; }
-    .button {
-      display: inline-block;
-      padding: 12px 32px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: 600;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
-    }
-    .button:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(99, 102, 241, 0.4); }
-    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 13px; }
-    .divider { height: 1px; background: #e5e7eb; margin: 20px 0; }
-    .text-muted { color: #6b7280; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 You're Invited!</h1>
-    </div>
-    <div class="content">
-      <div class="invitation-card">
-        <p style="margin-top: 0;">Hi there,</p>
-        <p><strong>${senderName}</strong> has invited you to join the <strong>${workspaceName}</strong> workspace.</p>
+  const workspaceRow = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 0;border:1px solid ${hairline};border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    ${workspaceIcon ? `<span style="font-size:22px;line-height:1;vertical-align:middle;padding-right:8px;">${workspaceIcon}</span>` : ''}
+                    <span style="font-family:${display};font-size:17px;line-height:1.3;font-weight:600;letter-spacing:-0.02em;color:${ink};vertical-align:middle;">${workspaceName}</span>
+                    <span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:9999px;background:${raised};font-family:${text};font-size:12px;line-height:1.4;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:${signal};vertical-align:middle;">${role}</span>
+                  </td>
+                </tr>
+              </table>`
 
-        <div class="workspace-info">
-          ${workspaceIcon ? `<span class="workspace-icon">${workspaceIcon}</span>` : ''}
-          <div>
-            <div class="workspace-name">${workspaceName}</div>
-            <span class="role-badge">${role.charAt(0).toUpperCase() + role.slice(1)}</span>
-          </div>
-        </div>
-
-        <div style="text-align: center;">
-          <a href="${acceptUrl}" class="button">Accept Invitation</a>
-        </div>
-
-        <p class="text-muted" style="margin-bottom: 0;">
-          This invitation will expire in 7 days. If you don't have an account yet, you'll be able to create one when you accept the invitation.
-        </p>
-      </div>
-
-      <div class="divider"></div>
-
-      <p class="text-muted" style="margin-bottom: 0;">
-        If you didn't expect this invitation, you can safely ignore this email.
-      </p>
-    </div>
-    <div class="footer">
-      <p style="margin: 0;">© 2026 BorsFlow. All rights reserved.</p>
-    </div>
-  </div>
-</body>
-</html>`
+  return renderEmail({
+    title: `Join ${workspaceName} on BorsFlow`,
+    preheader: `${senderName} invited you to ${workspaceName} on BorsFlow.`,
+    heading: `Join ${workspaceName}.`,
+    body: emailParagraph(`<strong>${senderName}</strong> invited you to work together in BorsFlow.`) + workspaceRow,
+    action: { label: 'Accept invitation', url: acceptUrl },
+    note: 'The invitation expires in 7 days. No account yet? You’ll create one when you accept.',
+    footer: `Sent to ${recipient} because ${senderName} invited you. Not expecting it? You can ignore this email.`,
+  })
 }
 
 // ─── Send invitation ─────────────────────────────────────────────────────────
@@ -178,43 +207,17 @@ export async function sendVerificationEmail(
   // from the query string and POSTs it for us.
   const verifyUrl = `${appUrl}/verify-email?token=${encodeURIComponent(token)}`
 
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify your email address</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
-    .content { padding: 30px 20px; background: #f9fafb; border-radius: 0 0 8px 8px; text-align: center; }
-    .button {
-      display: inline-block;
-      padding: 12px 32px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: 600;
-      margin: 20px 0;
-      box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Welcome to BorsFlow!</h1>
-    </div>
-    <div class="content">
-      <p>Please click the button below to verify your email address and get started.</p>
-      <a href="${verifyUrl}" class="button">Verify Email</a>
-    </div>
-  </div>
-</body>
-</html>`
+  // The copy says what happens next: the link verifies the address, then the
+  // user signs in; it lasts as long as the token does (24 hours, see register).
+  const html = renderEmail({
+    title: 'Confirm your email',
+    preheader: 'Confirm your email to finish creating your BorsFlow account.',
+    heading: 'Confirm your email.',
+    body: emailParagraph('Confirm this address to finish creating your BorsFlow account, then sign in.'),
+    action: { label: 'Verify email', url: escapeHtml(verifyUrl) },
+    note: 'The link works for 24 hours.',
+    footer: `Sent to ${escapeHtml(email)} because it was used to sign up for BorsFlow. Didn’t sign up? You can ignore this email.`,
+  })
 
   const from = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
   const subject = `Verify your email address`
