@@ -44,9 +44,7 @@ export const HeroSection = () => {
                                 <span>Start free</span>
                                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                             </Link>
-                            <span data-hero="action">
-                                <DemoVideo />
-                            </span>
+                            <DemoVideo data-hero="action" />
                         </div>
 
                         <ul className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2">

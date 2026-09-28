@@ -11,7 +11,17 @@ import { Play, Volume2, VolumeX, X } from 'lucide-react'
  *
  * It then autoplays muted and loops — autoplay is only permitted muted — with
  * an explicit control for sound, so audio never arrives unasked. */
-export const DemoVideo = () => {
+interface DemoVideoProps {
+    /** Extra classes for the trigger. */
+    className?: string
+    /* The hero's entrance animation targets [data-hero="action"]. It is applied
+       to the trigger itself rather than a wrapper, so the button stays a direct
+       flex child of the CTA row - a wrapping <span> would absorb items-stretch
+       and leave this button at content width beside a full-width primary. */
+    'data-hero'?: string
+}
+
+export const DemoVideo = ({ className = '', ...triggerProps }: DemoVideoProps) => {
     const [open, setOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
     const [muted, setMuted] = useState(true)
@@ -23,8 +33,8 @@ export const DemoVideo = () => {
     const close = useCallback(() => setOpen(false), [])
 
     // Portalled to <body> because the hero's GSAP timeline leaves a transform on
-    // this button's wrapper, and a transformed ancestor becomes the containing
-    // block for position:fixed — which pinned the dialog inside the hero.
+    // the trigger, and a transformed ancestor becomes the containing block for
+    // position:fixed — which would pin the dialog inside the hero.
     useEffect(() => setMounted(true), [])
 
     useEffect(() => {
@@ -80,11 +90,12 @@ export const DemoVideo = () => {
             <button
                 ref={triggerRef}
                 type="button"
+                {...triggerProps}
                 onClick={() => {
                     setMuted(true)
                     setOpen(true)
                 }}
-                className="taste-btn-ghost px-6 py-3.5 text-sm"
+                className={`taste-btn-ghost px-6 py-3.5 text-sm ${className}`.trim()}
             >
                 <Play className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Watch the demo</span>
@@ -137,8 +148,8 @@ export const DemoVideo = () => {
                         <div className="taste-plinth overflow-hidden p-1.5 sm:p-2">
                             <video
                                 ref={videoRef}
-                                src="/demo/borsflow-demo.mp4"
-                                poster="/demo/poster.webp"
+                                src="/brag.mp4"
+                                poster="/brag-poster.webp"
                                 autoPlay
                                 muted
                                 loop
