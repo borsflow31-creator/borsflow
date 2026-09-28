@@ -72,7 +72,10 @@ export const metadata: Metadata = {
     },
     formatDetection: { telephone: false },
     icons: {
+        // SVG first: browsers that support it use it for the tab, so the mark
+        // stays sharp at 16px instead of being downscaled from a 192px raster.
         icon: [
+            { url: '/icons/icon.svg', type: 'image/svg+xml' },
             { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
             { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
         ],
