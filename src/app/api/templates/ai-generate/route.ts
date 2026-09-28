@@ -2,10 +2,8 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import Groq from 'groq-sdk'
 import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+import { getGroq, type GroqCompletion } from '@/lib/groq'
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   page: `You are an expert document architect for a professional workspace platform.
@@ -162,9 +160,9 @@ export async function POST(request: NextRequest) {
       ? `${prompt}\n\nAdditional context: ${context}`
       : prompt
 
-    let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
+    let stream: GroqCompletion
     try {
-      stream = await groq.chat.completions.create({
+      stream = await getGroq().chat.completions.create({
         model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: systemPrompt },

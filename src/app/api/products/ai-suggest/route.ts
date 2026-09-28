@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Groq from 'groq-sdk';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspacePermission } from '@/lib/api/workspace';
 import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits';
+import { getGroq } from '@/lib/groq';
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const model = 'llama-3.3-70b-versatile';
 
 type ProductSuggestion = {
@@ -148,7 +147,7 @@ export async function POST(request: NextRequest) {
         : 'Current product draft to refine: none',
     ].join('\n\n');
 
-    const completion = await groq.chat.completions.create({
+    const completion = await getGroq().chat.completions.create({
       model,
       temperature: 0.4,
       messages: [

@@ -1,10 +1,8 @@
 import { NextRequest } from 'next/server'
-import Groq from 'groq-sdk'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+import { getGroq, type GroqCompletion } from '@/lib/groq'
 
 export async function POST(req: NextRequest) {
   // Every other AI route requires a session. Without one this endpoint was an
@@ -34,9 +32,9 @@ export async function POST(req: NextRequest) {
     return charge.response
   }
 
-  let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
+  let stream: GroqCompletion
   try {
-    stream = await groq.chat.completions.create({
+    stream = await getGroq().chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         {

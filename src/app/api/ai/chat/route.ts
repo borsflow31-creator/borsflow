@@ -1,12 +1,10 @@
 import { NextRequest } from 'next/server'
-import Groq from 'groq-sdk'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess } from '@/lib/api/workspace'
 import { AI_CREDIT_COSTS, addAiCredits, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+import { getGroq, type GroqCompletion } from '@/lib/groq'
 
 const tools = [
     {
@@ -199,7 +197,7 @@ Rules you must follow at all times:
 
     if (useTools) {
         try {
-            const initialResponse = await groq.chat.completions.create({
+            const initialResponse = await getGroq().chat.completions.create({
                 model,
                 messages: conversation,
                 tools: tools,
@@ -230,9 +228,9 @@ Rules you must follow at all times:
     }
 
     // Final streaming generation
-    let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
+    let stream: GroqCompletion
     try {
-        stream = await groq.chat.completions.create({
+        stream = await getGroq().chat.completions.create({
             model,
             messages: conversation,
             stream: true,
