@@ -1,12 +1,10 @@
 /**
  * Scheduler Worker
  *
- * Vercel Cron on the Hobby plan cannot run more than once a day, but the email
- * queue and the automation engine both need minute-level granularity. This
- * Worker owns those two schedules and calls the app's existing cron endpoints
- * over HTTP; nothing about the app itself moves to Cloudflare.
- *
- * The other jobs (refresh-tokens, sync-calendars) stay in vercel.json.
+ * Vercel Cron on the Hobby plan cannot run more than once a day, but this app's
+ * jobs need minute, half-hour and hourly granularity. This Worker owns every
+ * one of them and calls the app's existing cron endpoints over HTTP; nothing
+ * about the app itself moves to Cloudflare. vercel.json carries no crons.
  */
 
 export interface Env {
@@ -27,12 +25,23 @@ const JOBS = [
 ] as const
 
 /**
- * Housekeeping that only needs to run once an hour. The trigger fires every
- * minute (see wrangler.toml), so these are appended only when the tick lands on
- * minute 0 - keeping a single cron expression instead of spending a second
+ * OAuth tokens are refreshed 45 minutes before they expire (see the route), so
+ * a 30-minute check comfortably beats that window. The trigger fires every
+ * minute (see wrangler.toml), so this only runs when the tick lands on minute
+ * 0 or 30 - keeping a single cron expression instead of spending a second
  * trigger from the account's limit.
  */
-const HOURLY_JOBS = ['/api/cron/expire-invitations', '/api/cron/mark-overdue'] as const
+const HALF_HOURLY_JOBS = ['/api/cron/refresh-tokens'] as const
+
+/**
+ * Housekeeping and syncing that only needs to run once an hour. Appended only
+ * when the tick lands on minute 0, for the same reason as HALF_HOURLY_JOBS.
+ */
+const HOURLY_JOBS = [
+  '/api/cron/expire-invitations',
+  '/api/cron/mark-overdue',
+  '/api/cron/sync-calendars',
+] as const
 
 interface JobResult {
   path: string
@@ -109,8 +118,15 @@ async function runAll(env: Env, jobs: readonly string[]): Promise<JobResult[]> {
 
 export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const isTopOfHour = new Date(controller.scheduledTime).getUTCMinutes() === 0
-    const jobs = isTopOfHour ? [...JOBS, ...HOURLY_JOBS] : JOBS
+    const minute = new Date(controller.scheduledTime).getUTCMinutes()
+    const isTopOfHour = minute === 0
+    // minute 0 satisfies both checks; only add HALF_HOURLY_JOBS once, via the
+    // hourly branch, so refresh-tokens isn't called twice on the hour.
+    const jobs = isTopOfHour
+      ? [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS]
+      : minute % 30 === 0
+        ? [...JOBS, ...HALF_HOURLY_JOBS]
+        : JOBS
 
     // waitUntil keeps the invocation alive until every job settles. Waiting on
     // fetch does not count toward CPU time, so this is fine on the free plan;
@@ -129,8 +145,8 @@ export default {
       return new Response('Unauthorized', { status: 401 })
     }
 
-    // A manual run exercises every job, hourly ones included.
-    const results = await runAll(env, [...JOBS, ...HOURLY_JOBS])
+    // A manual run exercises every job, half-hourly and hourly ones included.
+    const results = await runAll(env, [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS])
 
     return Response.json({
       ran: results.length,

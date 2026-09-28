@@ -6,9 +6,9 @@
  * reported on, or reacted to server-side, and the `@@index([dueDate])` on Invoice
  * went unused.
  *
- * Registered in the Cloudflare scheduler Worker's hourly jobs (workers/cron), which
- * is what drives this app's minute- and hour-granularity cron; only refresh-tokens
- * and sync-calendars live in vercel.json.
+ * Registered in the Cloudflare scheduler Worker's hourly jobs (workers/cron),
+ * which is what drives every cron job in this app now - Vercel Hobby caps a
+ * cron schedule at once a day, so nothing lives in vercel.json anymore.
  */
 
 export const dynamic = 'force-dynamic'

@@ -7,10 +7,12 @@ import { CalComOAuthService } from '@/lib/scheduling/calcom-service';
 import { encrypt, decrypt } from '@/lib/encryption';
 
 /**
- * A Next.js API route that handles token refreshing across all providers
- * Intended to be run periodically (e.g., every 30 minutes)
+ * A Next.js API route that handles token refreshing across all providers.
+ * Driven every 30 minutes by the Cloudflare scheduler Worker (workers/cron),
+ * which is what every cron job in this app runs on now that Vercel Hobby
+ * caps a cron schedule at once a day.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   // Check for cron token security if needed
   // Shared cron check: requires CRON_SECRET (Bearer or x-cron-secret) and refuses
   // every call when the secret is unset. This route used to skip the check
@@ -99,4 +101,9 @@ export async function GET(request: NextRequest) {
     console.error('CRON: Global token refresh failure:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+// Kept for triggering by hand from a browser; the Worker itself sends POST.
+export async function GET(request: NextRequest) {
+  return POST(request);
 }

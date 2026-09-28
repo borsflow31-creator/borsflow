@@ -57,30 +57,27 @@ openssl rand -base64 32
 
 The invitation expiration feature requires a cron job to periodically expire pending invitations.
 
-### Option 1: Using a Cron Job Service (Recommended for Production)
+### Already configured: the Cloudflare scheduler Worker
+
+**In this project you don't need to set anything up.** `/api/cron/expire-invitations`
+is already scheduled hourly by the Cloudflare Worker in [`workers/cron`](../workers/cron/README.md),
+which drives every cron job for the app. You only need `CRON_SECRET` to match
+between the app's environment and the Worker's secret — see that README.
+
+Vercel Cron is **not** used: on the Hobby plan a schedule can run at most once a
+day, which is why the jobs moved to Cloudflare. Don't add these paths back to
+`vercel.json` while the Worker is deployed, or both schedulers will fire them and
+the job will run twice an hour.
+
+The alternatives below are kept only for reference, in case this app is ever run
+outside the Worker setup.
+
+### Option 1: Using another cron service
 
 Use services like:
-- [Vercel Cron Jobs](https://vercel.com/docs/cron-jobs)
 - [GitHub Actions](https://docs.github.com/en/actions)
 - [EasyCron](https://www.easycron.com/)
 - [Cron-job.org](https://cron-job.org/)
-
-#### Vercel Cron Jobs
-
-Create a `vercel.json` file in your project root:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron/expire-invitations",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
-```
-
-This will run the cron job every hour.
 
 #### GitHub Actions
 

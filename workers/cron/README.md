@@ -1,32 +1,36 @@
 # Cron Worker
 
-A Cloudflare Worker that drives the two minute-level cron jobs for the app.
+A Cloudflare Worker that drives every cron job for the app.
 
-Vercel Cron on the Hobby plan runs at most once per day, but the email queue and
-the automation engine both need to tick every minute. This Worker owns those two
-schedules and calls the app's existing HTTP cron endpoints. **Nothing about the
-app itself moves to Cloudflare** — this is a scheduler, not a host.
+Vercel Cron on the Hobby plan runs at most once per day, but this app's jobs need
+minute, half-hour and hourly granularity. This Worker owns all six schedules and
+calls the app's existing HTTP cron endpoints. **Nothing about the app itself
+moves to Cloudflare** — this is a scheduler, not a host. `vercel.json` carries no
+crons; this Worker is the only scheduler for the app.
 
-| Job | Owner | Schedule |
-|---|---|---|
-| `/api/cron/process-automations` | this Worker | `* * * * *` |
-| `/api/cron/process-email-queue` | this Worker | `* * * * *` |
-| `/api/cron/expire-invitations` | this Worker | hourly (minute `0` of the `* * * * *` tick) |
-| `/api/cron/refresh-tokens` | `vercel.json` | `*/30 * * * *` |
-| `/api/cron/sync-calendars` | `vercel.json` | `0 * * * *` |
+| Job | Schedule |
+|---|---|
+| `/api/cron/process-automations` | every minute |
+| `/api/cron/process-email-queue` | every minute |
+| `/api/cron/refresh-tokens` | every 30 minutes (minutes `0` and `30` of the tick) |
+| `/api/cron/expire-invitations` | hourly (minute `0` of the tick) |
+| `/api/cron/mark-overdue` | hourly (minute `0` of the tick) |
+| `/api/cron/sync-calendars` | hourly (minute `0` of the tick) |
 
-The two jobs run **sequentially, automations first**: automations materialize
-emails into the queue, so draining the queue second means a step created this
-minute goes out this minute instead of waiting for the next tick.
+The every-minute jobs run **sequentially, automations first**: automations
+materialize emails into the queue, so draining the queue second means a step
+created this minute goes out this minute instead of waiting for the next tick.
 
-`expire-invitations` is hourly housekeeping. The Worker has a single every-minute
-trigger (Cron Triggers are limited per account), so the job is appended to the run
-only when the tick lands on minute `0`. It also prunes old rate-limit events.
-The manual `fetch` trigger runs every job, hourly ones included.
+The Worker has a single every-minute trigger (Cron Triggers are limited per
+account), so the half-hourly and hourly jobs are appended to that same tick only
+when the minute matches, rather than spending a second trigger from the
+account's limit. `expire-invitations` also prunes old rate-limit events while
+it's at it. The manual `fetch` trigger runs every job regardless of the clock.
 
-> The two email jobs were removed from `vercel.json` as part of this change. Do
-> not add them back while this Worker is deployed — `process-email-queue` has no
-> DB-level lock, so two schedulers hitting it concurrently can double-send.
+> Do not add any of these six paths back to `vercel.json` while this Worker is
+> deployed — `process-email-queue` has no DB-level lock, so two schedulers
+> hitting it concurrently can double-send, and the others aren't idempotent
+> against overlap either.
 
 ## Setup
 
@@ -99,6 +103,9 @@ A healthy minute looks like:
 [cron-worker] /api/cron/process-email-queue ok in 380ms {"success":true,...}
 ```
 
+On the hour, `refresh-tokens`, `expire-invitations`, `mark-overdue` and
+`sync-calendars` log the same way right after those two.
+
 You can also trigger a run by hand — the Worker exposes a `fetch` handler gated
 on the same secret:
 
@@ -132,7 +139,9 @@ This design fits comfortably in the Workers **free** plan:
   Worker spends almost all its time idle on the network.
 - **Wall clock**: cron invocations get 15 minutes. Both jobs together finish in
   well under that.
-- **Subrequests**: 50 per invocation on free. This Worker makes **two**.
+- **Subrequests**: 50 per invocation on free. This Worker makes **two** on a
+  normal minute, and **six** on the hour (two every-minute jobs, plus
+  `refresh-tokens`, plus three more hourly jobs) — still far under the limit.
 
 The real ceiling is on the Vercel side, not here: `process-email-queue` declares
 `maxDuration = 300`, which requires a Vercel Pro/Enterprise plan. On Hobby the

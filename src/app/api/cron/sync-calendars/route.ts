@@ -4,11 +4,13 @@ import { SyncService } from '@/lib/scheduling/sync-service';
 import { prisma } from '@/lib/prisma';
 
 /**
- * GET /api/cron/sync-calendars
+ * POST /api/cron/sync-calendars
  * Runs a full sync for all active calendar integrations.
- * Secured with CRON_SECRET header.
+ * Secured with CRON_SECRET header. Driven hourly by the Cloudflare scheduler
+ * Worker (workers/cron), which is what every cron job in this app runs on now
+ * that Vercel Hobby caps a cron schedule at once a day.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   // Shared cron check: requires CRON_SECRET (Bearer or x-cron-secret) and refuses
   // every call when the secret is unset. This route used to skip the check
   // entirely in that case, leaving it open to anyone.
@@ -35,4 +37,9 @@ export async function GET(request: NextRequest) {
     message: `Queued sync for ${queued} integration(s)`,
     queued
   });
+}
+
+// Kept for triggering by hand from a browser; the Worker itself sends POST.
+export async function GET(request: NextRequest) {
+  return POST(request);
 }
