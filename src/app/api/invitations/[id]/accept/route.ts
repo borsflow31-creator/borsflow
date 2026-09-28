@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isInvitationExpired } from '@/lib/workspace'
+import { getMemberUsage, planLimitResponse } from '@/lib/billing/entitlements'
 
 /**
  * POST /api/invitations/[id]/accept
@@ -108,6 +109,30 @@ export async function POST(
         },
         { status: 200 }
       )
+    }
+
+    // The cap was checked when the invitation was sent, but the plan may have
+    // changed since (a downgrade, or packs removed). This invitation is itself
+    // pending, so only existing members count against the cap here.
+    const alreadyMember = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: invitation.workspaceId,
+          userId: session.user.id,
+        },
+      },
+      select: { id: true },
+    })
+    if (!alreadyMember) {
+      const usage = await getMemberUsage(invitation.workspaceId)
+      if (usage.capacity !== null && usage.members >= usage.capacity) {
+        return planLimitResponse({
+          kind: 'members',
+          limit: usage.capacity,
+          used: usage.members,
+          message: `${invitation.workspace.name} has reached its plan's limit of ${usage.capacity} members. Ask the workspace owner to make room.`,
+        })
+      }
     }
 
     // Create the membership and close out the invitation atomically, so a

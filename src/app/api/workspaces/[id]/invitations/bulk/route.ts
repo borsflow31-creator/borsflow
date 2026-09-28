@@ -17,6 +17,7 @@ import {
 import { normalizeEmail } from '@/lib/email/normalize'
 import { filterSendableTransactional } from '@/lib/email/suppression'
 import { deliverInvitationEmail } from '@/lib/invitation-delivery'
+import { getMemberUsage, memberCapacityError } from '@/lib/billing/entitlements'
 
 // Every accepted row can fire an outbound email, and they are sent one at a time.
 export const maxDuration = 60
@@ -107,6 +108,15 @@ export async function POST(
       new Set(entries.map(e => e.email).filter(email => email && isValidEmail(email)))
     )
 
+    // A workspace that is already at its plan's member cap gets the 402 for the
+    // whole request; one with some room left fills it row by row below.
+    if (candidates.length > 0) {
+      const capacityError = await memberCapacityError(workspaceId, 1)
+      if (capacityError) {
+        return capacityError
+      }
+    }
+
     // Charge the whole batch up front, as one unit of cost per distinct valid
     // address, and refuse the request as a whole if it does not fit. Counting
     // requests instead would make this endpoint a way around the per-invitation
@@ -123,7 +133,7 @@ export async function POST(
     }
 
     // One round of lookups up front instead of several queries per row.
-    const [members, existingInvitations, sendable] = await Promise.all([
+    const [members, existingInvitations, sendable, memberUsage] = await Promise.all([
       // The whole member list rather than `email IN (...)`: Prisma has no
       // case-insensitive `in`, and stored user emails may not be lowercase yet.
       // Comparing in JS is exact whether or not the normalisation migration has run.
@@ -135,7 +145,11 @@ export async function POST(
         where: { workspaceId, email: { in: candidates } },
       }),
       filterSendableTransactional(candidates, workspaceId),
+      getMemberUsage(workspaceId),
     ])
+
+    let seatsLeft =
+      memberUsage.capacity === null ? Infinity : memberUsage.capacity - memberUsage.used
 
     const memberEmails = new Set(members.map(m => normalizeEmail(m.user.email)))
     const ownerEmail = normalizeEmail(workspace.owner.email)
@@ -206,6 +220,15 @@ export async function POST(
           continue
         }
 
+        if (seatsLeft <= 0) {
+          reject(
+            index,
+            email,
+            `Your plan includes ${memberUsage.capacity} members, and every seat is taken`
+          )
+          continue
+        }
+
         const token = generateSecureToken()
         const expiresAt = getInvitationExpiration(7)
 
@@ -235,6 +258,7 @@ export async function POST(
           },
         })
         result.created++
+        seatsLeft--
 
         const delivery = await deliverInvitationEmail(invitation, sendable.has(email))
         if (delivery.emailSent) {

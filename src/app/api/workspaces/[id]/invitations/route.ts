@@ -16,6 +16,7 @@ import {
 } from '@/lib/api/rate-limit'
 import { isSendableTransactional } from '@/lib/email/suppression'
 import { deliverInvitationEmail } from '@/lib/invitation-delivery'
+import { memberCapacityError } from '@/lib/billing/entitlements'
 
 /**
  * POST /api/workspaces/[id]/invitations
@@ -128,6 +129,13 @@ export async function POST(
         { error: 'Invitation already sent to this email' },
         { status: 400 }
       )
+    }
+
+    // The plan's member cap counts pending invitations, so check it before
+    // sending another one rather than when it is accepted.
+    const capacityError = await memberCapacityError(workspaceId, 1)
+    if (capacityError) {
+      return capacityError
     }
 
     // Charge this against the sender's and the workspace's invitation budgets.

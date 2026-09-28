@@ -113,6 +113,14 @@ model Workspace {
   meetings            Meeting[]
   videoConferenceConfigs VideoConferenceConfig[]
   activities           Activity[]
+  // SaaS billing: the workspace's own subscription to BorsFlow. Separate from the
+  // Stripe Connect fields above, which are for collecting the workspace's invoices.
+  plan                    PlanTier  @default(FREE)
+  stripeBillingCustomerId String?   @unique
+  trialEndsAt             DateTime?
+  extraMemberPacks        Int       @default(0) // each pack adds 10 members to the plan's cap
+  subscription            Subscription?
+  usageCounters           UsageCounter[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 }
@@ -1403,4 +1411,59 @@ model RateLimitEvent {
 
   @@index([bucket, subject, createdAt])
   @@index([createdAt]) // pruning
+}
+
+// ─── SaaS billing ────────────────────────────────────────────────────────────
+// Pricing is flat per workspace, never per user. Limits live in src/lib/billing/plans.ts.
+
+enum PlanTier {
+  FREE
+  STARTER
+  PRO
+  BUSINESS
+  ENTERPRISE
+}
+
+// The workspace's Stripe Billing subscription. Unused until paid plans launch
+// (NEXT_PUBLIC_BILLING_ENABLED); Workspace.plan is what limits are read from.
+model Subscription {
+  id                   String    @id @default(cuid())
+  workspaceId          String    @unique
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  stripeSubscriptionId String    @unique
+  status               String    // Stripe status: 'trialing', 'active', 'past_due', 'canceled', ...
+  priceId              String
+  interval             String    // 'month' | 'year'
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+// Pooled monthly usage per workspace, e.g. AI credits. One row per metric per
+// calendar month (UTC), so a new month starts from zero without a reset job.
+model UsageCounter {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  metric      String    // 'ai_credits' | 'email_sends' | 'invoices'
+  period      String    // 'YYYY-MM'
+  used        Int       @default(0)
+  bonus       Int       @default(0) // purchased packs on top of the plan's allowance
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, metric, period])
+}
+
+// "Notify me" sign-ups for paid plans while only Free is available.
+model PlanWaitlist {
+  id               String   @id @default(cuid())
+  email            String
+  tier             PlanTier
+  userId           String?
+  workspaceId      String?
+  foundingDiscount Boolean  @default(true) // beta testers keep the founding price
+  createdAt        DateTime @default(now())
+
+  @@unique([email, tier])
 }

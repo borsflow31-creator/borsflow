@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import AppShell from '@/components/AppShell'
 import { useAppStore } from '@/store/appStore'
 import Toast from '@/components/Toast'
+import { PlanUsageSettings } from '@/components/billing/PlanUsageSettings'
 import {
     User, Bell, Shield, Palette, Check, X, Save,
     ExternalLink, Loader2, CheckCircle, AlertCircle,
@@ -43,7 +44,7 @@ function SettingsPageInner() {
     const searchParams = useSearchParams()
     const { theme, setTheme, currentWorkspaceId } = useAppStore()
 
-    const validSections = ['profile', 'notifications', 'appearance', 'security', 'integrations']
+    const validSections = ['profile', 'notifications', 'appearance', 'security', 'integrations', 'billing']
     const sectionParam = searchParams.get('section')
     const [activeSection, setActiveSection] = useState(
         sectionParam && validSections.includes(sectionParam) ? sectionParam : 'profile'
@@ -410,6 +411,7 @@ function SettingsPageInner() {
         { id: 'appearance', label: 'Appearance', icon: Palette },
         { id: 'security', label: 'Security', icon: Shield },
         { id: 'integrations', label: 'Integrations', icon: Plug },
+        { id: 'billing', label: 'Plan & usage', icon: CreditCard },
     ]
 
     if (status === 'loading') {
@@ -455,6 +457,8 @@ function SettingsPageInner() {
 
                     {/* Content */}
                     <main className="flex-1 max-w-2xl">
+
+                        {activeSection === 'billing' && <PlanUsageSettings workspaceId={currentWorkspaceId} />}
 
                         {/* ── Profile ─────────────────────────────────────────── */}
                         {activeSection === 'profile' && (

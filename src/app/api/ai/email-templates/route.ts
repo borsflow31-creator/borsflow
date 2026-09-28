@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Groq from 'groq-sdk'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -27,6 +28,12 @@ export async function POST(req: NextRequest) {
 
   const prompt = buildPrompt(templateType, campaignContext)
 
+  // The campaign modal does not send a workspace, so this bills the caller's own.
+  const charge = await chargeAiCredits(session.user.id, null, AI_CREDIT_COSTS.emailTemplate)
+  if (!charge.ok) {
+    return charge.response
+  }
+
   let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
   try {
     stream = await groq.chat.completions.create({
@@ -46,6 +53,7 @@ Return ONLY the HTML — no markdown, no code blocks, no explanation.`,
   } catch (error) {
     // An upstream failure (bad key, quota, outage) used to escape as an empty 500.
     console.error('AI email template generation failed:', error)
+    await refundAiCredits(charge)
     return new Response(JSON.stringify({ error: 'The AI service could not generate a template. Try again later.' }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' },

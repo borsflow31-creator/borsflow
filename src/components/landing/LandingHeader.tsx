@@ -8,10 +8,11 @@ import { useSession } from 'next-auth/react'
 import { useAppStore } from '@/store/appStore'
 
 const NAV = [
-    { label: 'Pipeline', href: '#features' },
-    { label: 'How it works', href: '#journey' },
-    { label: 'Assistant', href: '#assistant' },
-    { label: 'Team', href: '#team' },
+    { label: 'Pipeline', href: '/#features' },
+    { label: 'How it works', href: '/#journey' },
+    { label: 'Assistant', href: '/#assistant' },
+    { label: 'Team', href: '/#team' },
+    { label: 'Pricing', href: '/pricing' },
 ]
 
 export const LandingHeader = () => {

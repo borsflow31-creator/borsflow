@@ -10,6 +10,7 @@ import { AIIntegration } from '@/components/landing/AIIntegration'
 import { TeamWorkspace } from '@/components/landing/TeamWorkspace'
 import { WhyChoose } from '@/components/landing/WhyChoose'
 import { SupportSection } from '@/components/landing/SupportSection'
+import { PricingSection } from '@/components/landing/PricingSection'
 import { FinalCTA } from '@/components/landing/FinalCTA'
 
 /* Anchors rather than routes: every product page is behind the auth
@@ -21,6 +22,7 @@ const PRODUCT_LINKS = [
     { label: 'Assistant', href: '#assistant' },
     { label: 'Roles and team', href: '#team' },
     { label: 'Quotes and invoices', href: '#financials' },
+    { label: 'Pricing', href: '/pricing' },
 ]
 
 const STACK_LINES = [
@@ -45,6 +47,7 @@ export default function Home() {
             <TeamWorkspace />
             <Evidence variant="financials" />
             <WhyChoose />
+            <PricingSection />
             <SupportSection />
             <FinalCTA />
 

@@ -3,6 +3,7 @@ import Groq from 'groq-sdk';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspacePermission } from '@/lib/api/workspace';
+import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const model = 'llama-3.3-70b-versatile';
@@ -52,6 +53,7 @@ function sanitizeSuggestion(value: any): ProductSuggestion {
 }
 
 export async function POST(request: NextRequest) {
+  let charge: { workspaceId: string; cost: number } | null = null;
   try {
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: 'GROQ_API_KEY is not configured' }, { status: 500 });
@@ -73,6 +75,16 @@ export async function POST(request: NextRequest) {
     if ('error' in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
+
+    const credits = await chargeAiCredits(
+      access.session.user.id,
+      workspaceId,
+      AI_CREDIT_COSTS.productSuggest
+    );
+    if (!credits.ok) {
+      return credits.response;
+    }
+    charge = credits;
 
     const [categoryRows, recentProducts] = await Promise.all([
       prisma.$queryRaw<Array<{ category: string | null }>>(Prisma.sql`
@@ -155,6 +167,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ suggestion });
   } catch (error) {
     console.error('Error generating product suggestion:', error);
+    // No usable suggestion came back, so the credits go back.
+    if (charge) await refundAiCredits(charge);
     return NextResponse.json(
       {
         error:

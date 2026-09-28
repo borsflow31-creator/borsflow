@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess } from '@/lib/api/workspace'
+import { AI_CREDIT_COSTS, addAiCredits, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -168,6 +169,11 @@ export async function POST(req: NextRequest) {
         }
     }
 
+    const charge = await chargeAiCredits(session.user.id, workspaceId, AI_CREDIT_COSTS.chat)
+    if (!charge.ok) {
+        return charge.response
+    }
+
     const basePrompt = `You are the built-in AI assistant for this platform. Your sole purpose is to help users get the most out of this product — its documents, pages, CRM, meetings, invoices, quotes, and workspace features.
 
 Rules you must follow at all times:
@@ -205,6 +211,7 @@ Rules you must follow at all times:
 
             if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
                 conversation.push(responseMessage); // Add assistant's tool call request
+                await addAiCredits(charge.workspaceId, AI_CREDIT_COSTS.chatToolCall);
 
                 for (const toolCall of responseMessage.tool_calls) {
                     const toolResult = await executeToolCall(toolCall, workspaceId);
@@ -223,11 +230,19 @@ Rules you must follow at all times:
     }
 
     // Final streaming generation
-    const stream = await groq.chat.completions.create({
-        model,
-        messages: conversation,
-        stream: true,
-    })
+    let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
+    try {
+        stream = await groq.chat.completions.create({
+            model,
+            messages: conversation,
+            stream: true,
+        })
+    } catch (error) {
+        // Nothing was generated, so the credit goes back.
+        console.error('AI chat generation failed:', error)
+        await refundAiCredits(charge)
+        return jsonError('The AI service could not answer. Try again later.', 502)
+    }
 
     const readableStream = new ReadableStream({
         async start(controller) {

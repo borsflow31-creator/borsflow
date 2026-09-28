@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Groq from 'groq-sdk'
+import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
@@ -151,21 +152,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const charge = await chargeAiCredits(session.user.id, workspaceId, AI_CREDIT_COSTS.templateGenerate)
+    if (!charge.ok) {
+      return charge.response
+    }
+
     const systemPrompt = SYSTEM_PROMPTS[type]
     const userMessage = context
       ? `${prompt}\n\nAdditional context: ${context}`
       : prompt
 
-    const stream = await groq.chat.completions.create({
-      model: 'llama-3.1-8b-instant',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
-      ],
-      stream: true,
-      temperature: 0.7,
-      max_tokens: 2048,
-    })
+    let stream: Awaited<ReturnType<typeof groq.chat.completions.create>>
+    try {
+      stream = await groq.chat.completions.create({
+        model: 'llama-3.1-8b-instant',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 2048,
+      })
+    } catch (error) {
+      await refundAiCredits(charge)
+      throw error
+    }
 
     const readableStream = new ReadableStream({
       async start(controller) {
