@@ -25,14 +25,6 @@ const PRODUCT_LINKS = [
     { label: 'Pricing', href: '/pricing' },
 ]
 
-const STACK_LINES = [
-    'Next.js 14 App Router',
-    'PostgreSQL via Prisma',
-    'NextAuth sessions',
-    'Stripe payments and Connect',
-    'Google Calendar, Cal.com, Zoom',
-]
-
 export default function Home() {
     return (
         <main className="landing-surface min-h-screen bg-[var(--n-base)] text-[var(--n-text)]">
@@ -53,7 +45,7 @@ export default function Home() {
 
             <footer className="pt-16 pb-12 border-t border-[var(--n-border)] bg-[var(--n-surface)]/40">
                 <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-10 sm:gap-12">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-10 sm:gap-12">
                         <div className="col-span-2">
                             <Link href="/" className="inline-flex items-center gap-2.5">
                                 <span className="w-8 h-8 rounded-lg bg-[var(--n-text)] text-[var(--n-base)] flex items-center justify-center shadow-xs">
@@ -89,19 +81,6 @@ export default function Home() {
                                 ))}
                             </ul>
                         </nav>
-
-                        <div>
-                            <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--n-text)]">
-                                Built with
-                            </h2>
-                            <ul className="mt-4 flex flex-col gap-2.5">
-                                {STACK_LINES.map((line) => (
-                                    <li key={line} className="text-xs text-[var(--n-muted)]">
-                                        {line}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
                     </div>
 
                     <div className="mt-14 pt-8 border-t border-[var(--n-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
