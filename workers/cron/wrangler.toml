@@ -9,7 +9,7 @@ crons = ["* * * * *"]
 
 [vars]
 # Base URL of the deployed app, no trailing slash. Override per environment below.
-APP_URL = "https://example.vercel.app"
+APP_URL = "https://borsflow-oprg.vercel.app"
 
 # CRON_SECRET is NOT set here - it is a secret:
 #   wrangler secret put CRON_SECRET
