@@ -74,13 +74,15 @@ export const metadata: Metadata = {
     icons: {
         // SVG first: browsers that support it use it for the tab, so the mark
         // stays sharp at 16px instead of being downscaled from a 192px raster.
+        // ?v= busts the favicon cache, which browsers keep across deploys; bump
+        // it whenever the artwork changes. The PNG fallback is a circular size:
+        // 192 and 512 are full-bleed maskable squares meant for the OS to crop.
         icon: [
-            { url: '/icons/icon.svg', type: 'image/svg+xml' },
-            { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-            { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+            { url: '/icons/icon.svg?v=2', type: 'image/svg+xml' },
+            { url: '/icons/icon-96x96.png?v=2', sizes: '96x96', type: 'image/png' },
         ],
-        apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
-        shortcut: '/icons/icon-192x192.png',
+        apple: [{ url: '/icons/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' }],
+        shortcut: '/icons/icon.svg?v=2',
     },
 }
 
