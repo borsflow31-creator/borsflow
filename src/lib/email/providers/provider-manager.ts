@@ -5,14 +5,13 @@
  * load balancing, and failover mechanisms.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { SendGridProvider } from './sendgrid-provider'
 import { SESProvider } from './ses-provider'
 import { ResendProvider } from './resend-provider'
 import { MailgunProvider } from './mailgun-provider'
 import { PostmarkProvider } from './postmark-provider'
 
-const prisma = new PrismaClient()
 
 // Provider interface
 export interface EmailProvider {

@@ -6,6 +6,25 @@ import crypto from 'crypto'
 import { isValidEmail, sendVerificationEmail } from '@/lib/email'
 import { normalizeEmail } from '@/lib/email/normalize'
 import { findUserByEmail } from '@/lib/api/user'
+import { consumeRateLimits, rateLimitHeaders, type RateLimitRule } from '@/lib/api/rate-limit'
+
+/**
+ * Sign-ups per IP, so accounts cannot be created in bulk, and per address,
+ * because every attempt on an unverified address re-sends a verification
+ * email - without a cap this endpoint could be used to flood someone's inbox.
+ */
+const SIGNUP_PER_IP: RateLimitRule = {
+    bucket: 'auth:signup',
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+    windowLabel: 'hour',
+}
+const SIGNUP_PER_EMAIL: RateLimitRule = {
+    bucket: 'auth:signup',
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+    windowLabel: 'hour',
+}
 
 /** Same minimum the change-password route enforces. */
 const MIN_PASSWORD_LENGTH = 8
@@ -52,6 +71,23 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` },
                 { status: 400 }
+            )
+        }
+
+        // After validation, so a malformed request costs nothing; before any
+        // lookup or email, so a blocked one does no work.
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+        const limit = await consumeRateLimits(
+            [
+                { subject: `ip:${ip}`, rule: SIGNUP_PER_IP },
+                { subject: `email:${email}`, rule: SIGNUP_PER_EMAIL },
+            ],
+            1
+        )
+        if (!limit.allowed) {
+            return NextResponse.json(
+                { error: 'Too many sign-up attempts. Please try again later.' },
+                { status: 429, headers: rateLimitHeaders(limit) }
             )
         }
 

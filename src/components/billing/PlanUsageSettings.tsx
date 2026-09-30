@@ -35,7 +35,7 @@ function Meter({
                     <Icon className="h-4 w-4 text-on-surface-variant" aria-hidden="true" />
                     {label}
                 </span>
-                <span className={full ? 'font-medium text-red-600 dark:text-red-400' : 'text-on-surface-variant'}>
+                <span className={full ? 'font-medium text-error' : 'text-on-surface-variant'}>
                     {used.toLocaleString()} / {limit === null ? 'Unlimited' : limit.toLocaleString()}
                 </span>
             </div>
@@ -49,7 +49,7 @@ function Meter({
                     aria-valuenow={used}
                 >
                     <div
-                        className={`h-full rounded-full ${full ? 'bg-red-500' : 'bg-secondary'}`}
+                        className={`h-full rounded-full ${full ? 'bg-error' : 'bg-secondary'}`}
                         style={{ width: `${pct}%` }}
                     />
                 </div>
@@ -89,7 +89,7 @@ export function PlanUsageSettings({ workspaceId }: { workspaceId: string | null 
             {!workspaceId ? (
                 <p className="text-sm text-on-surface-variant">Select a workspace to see its plan.</p>
             ) : error ? (
-                <p role="alert" className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p role="alert" className="text-sm text-error">{error}</p>
             ) : !data ? (
                 <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" aria-label="Loading" />

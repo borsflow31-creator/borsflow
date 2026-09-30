@@ -45,6 +45,10 @@
   --on-primary: 255 255 255;
   --secondary: 74 75 215; /* BorsFlow primary accent */
   --on-secondary: 255 255 255;
+  --error: 186 26 26;
+  --on-error: 255 255 255;
+  --error-container: 255 218 214;
+  --on-error-container: 65 0 2;
   --on-tertiary: 255 255 255;
   --background: 255 255 255;
   --surface: 248 249 255;
@@ -91,6 +95,10 @@
   --on-primary: 255 255 255;
   --secondary: 120 86 255; /* Use Mixpanel purple in dark mode */
   --on-secondary: 255 255 255;
+  --error: 255 180 171;
+  --on-error: 105 0 5;
+  --error-container: 147 0 10;
+  --on-error-container: 255 218 214;
   --on-surface-variant: 142 142 160;
   --surface-container-lowest: 10 10 10;
   --surface-container-low: 20 20 20;

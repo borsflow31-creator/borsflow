@@ -28,6 +28,12 @@ const config: Config = {
         "outline-variant": "rgb(var(--outline-variant) / <alpha-value>)",
         "tertiary": "rgb(var(--tertiary) / <alpha-value>)",
         "on-tertiary": "rgb(var(--on-tertiary) / <alpha-value>)",
+        /* Used by ~200 error states (text-error, bg-error-container, ...) that
+           rendered colourless before these tokens existed. */
+        "error": "rgb(var(--error) / <alpha-value>)",
+        "on-error": "rgb(var(--on-error) / <alpha-value>)",
+        "error-container": "rgb(var(--error-container) / <alpha-value>)",
+        "on-error-container": "rgb(var(--on-error-container) / <alpha-value>)",
       },
       borderRadius: {
         "DEFAULT": "0.5rem",

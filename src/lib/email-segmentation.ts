@@ -5,9 +5,8 @@
  * for targeted email marketing campaigns.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 
-const prisma = new PrismaClient()
 
 // Criteria structure
 export interface Criteria {

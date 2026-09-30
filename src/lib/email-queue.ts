@@ -200,14 +200,22 @@ export class EmailQueueService {
    * Process a single queue item
    */
   private async processQueueItem(queueItem: QueueItem): Promise<void> {
-    // Mark as processing
-    await prisma.emailQueue.update({
-      where: { id: queueItem.id },
+    // Claim the item atomically. Two overlapping runs (a scheduled tick and a
+    // manual trigger, or two lambdas) can both read the same row as pending;
+    // the conditional update lets only one of them flip it to processing, so
+    // the email is sent once. The in-memory `processing` set cannot do this -
+    // it does not survive across serverless invocations.
+    const claimed = await prisma.emailQueue.updateMany({
+      where: { id: queueItem.id, status: 'pending' },
       data: {
         status: 'processing',
         lastAttemptAt: new Date()
       }
     })
+
+    if (claimed.count === 0) {
+      return
+    }
 
     this.processing.add(queueItem.id)
 
