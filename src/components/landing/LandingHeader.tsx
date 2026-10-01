@@ -7,6 +7,7 @@ import { ArrowRight, Layers, Menu, Moon, Sun, X } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n/I18nProvider'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export const LandingHeader = () => {
     const { t } = useI18n()
@@ -78,6 +79,8 @@ export const LandingHeader = () => {
                     </nav>
 
                     <div className="flex items-center gap-2.5">
+                        <LanguageSwitcher variant="icon" />
+
                         <button
                             type="button"
                             onClick={toggleTheme}

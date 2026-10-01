@@ -12,6 +12,9 @@ interface LanguageSwitcherProps {
 const locales: { code: Locale; label: string; flag: string }[] = [
   { code: 'en', label: 'EN', flag: '🇬🇧' },
   { code: 'fr', label: 'FR', flag: '🇫🇷' },
+  { code: 'es', label: 'ES', flag: '🇪🇸' },
+  { code: 'de', label: 'DE', flag: '🇩🇪' },
+  { code: 'ar', label: 'AR', flag: '🇸🇦' },
 ];
 
 export default function LanguageSwitcher({ variant = 'pill', className = '' }: LanguageSwitcherProps) {

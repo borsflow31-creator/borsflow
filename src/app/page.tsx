@@ -88,7 +88,7 @@ export default function Home() {
                     </div>
 
                     <div className="mt-14 pt-8 border-t border-[var(--n-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-xs text-[var(--n-muted)]">{t('landing.footer.copyright')}</p>
+                        <p className="text-xs text-[var(--n-muted)]">{t('landing.footer.copyright', { year: new Date().getFullYear() })}</p>
                         <div className="flex items-center gap-6">
                             <Link
                                 href="/login"

@@ -16,6 +16,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import Toast from '@/components/Toast';
 import NotificationBell from '@/components/notifications/NotificationBell';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import WorkspaceList from '@/components/workspace/WorkspaceList';
 import CreateWorkspaceModal from '@/components/workspace/CreateWorkspaceModal';
 import InviteUsersModal from '@/components/workspace/InviteUsersModal';
@@ -749,6 +750,9 @@ export default function AppShell({
 
                         {/* Divider */}
                         <div className="h-5 w-px bg-outline-variant/30" />
+
+                        {/* Language */}
+                        <LanguageSwitcher variant="icon" />
 
                         {/* Notifications */}
                         <NotificationBell />
