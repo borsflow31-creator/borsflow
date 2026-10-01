@@ -1,9 +1,14 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
-import { getGroq, type GroqCompletion } from '@/lib/groq'
+import { requireWorkspacePermission } from '@/lib/api/workspace'
+import { reserveAiCredits } from '@/lib/billing/ai-credits'
+import { estimateMessageTokens } from '@/lib/billing/ai-pricing'
+import { completeBilled } from '@/lib/ai/billed-completion'
+import { UTILITY_MODEL } from '@/lib/ai/models'
+
+const MAX_OUTPUT_TOKENS = 2048
+const MAX_INPUT_CHARS = 4000
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   page: `You are an expert document architect for a professional workspace platform.
@@ -131,66 +136,64 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Verify workspace access if workspaceId provided
-    if (workspaceId) {
-      const workspace = await prisma.workspace.findFirst({
-        where: {
-          id: workspaceId,
-          OR: [
-            { ownerId: session.user.id },
-            { members: { some: { userId: session.user.id } } },
-          ],
-        },
+    // The workspace's credit pool pays, so the caller must be able to create
+    // content there; a viewer can't spend it.
+    if (typeof workspaceId !== 'string' || !workspaceId) {
+      return new Response(JSON.stringify({ error: 'workspaceId is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
       })
-      if (!workspace) {
-        return new Response(JSON.stringify({ error: 'Access denied' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }
     }
-
-    const charge = await chargeAiCredits(session.user.id, workspaceId, AI_CREDIT_COSTS.templateGenerate)
-    if (!charge.ok) {
-      return charge.response
+    const access = await requireWorkspacePermission(workspaceId, 'content:create')
+    if ('error' in access) {
+      return new Response(JSON.stringify({ error: access.error }), {
+        status: access.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const systemPrompt = SYSTEM_PROMPTS[type]
+    const trimmedPrompt = String(prompt).slice(0, MAX_INPUT_CHARS)
     const userMessage = context
-      ? `${prompt}\n\nAdditional context: ${context}`
-      : prompt
+      ? `${trimmedPrompt}\n\nAdditional context: ${String(context).slice(0, MAX_INPUT_CHARS)}`
+      : trimmedPrompt
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userMessage },
+    ]
 
-    let stream: GroqCompletion
-    try {
-      stream = await getGroq().chat.completions.create({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 2048,
-      })
-    } catch (error) {
-      await refundAiCredits(charge)
-      throw error
+    const reserve = await reserveAiCredits({
+      userId: session.user.id,
+      workspaceId,
+      feature: 'template',
+      model: UTILITY_MODEL,
+      estimate: { inputTokens: estimateMessageTokens(messages), outputTokens: MAX_OUTPUT_TOKENS },
+    })
+    if (!reserve.ok) {
+      return reserve.response
     }
 
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder()
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content ?? ''
-          if (text) {
-            controller.enqueue(encoder.encode(text))
-          }
-        }
-        controller.close()
-      },
-    })
+    // Not streamed: JSON mode guarantees a parseable object, and the panel only
+    // parses once the whole answer is in anyway.
+    let text: string
+    try {
+      ;({ text } = await completeBilled({
+        reservation: reserve.reservation,
+        messages,
+        maxTokens: MAX_OUTPUT_TOKENS,
+        temperature: 0.7,
+        json: true,
+        signal: request.signal,
+      }))
+    } catch (error) {
+      console.error('AI template generation failed:', error)
+      return new Response(JSON.stringify({ error: 'The AI service could not generate a template. Try again later.' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
-    return new Response(readableStream, {
+    return new Response(text, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     })
   } catch (error) {

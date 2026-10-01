@@ -9,10 +9,15 @@ import React, {
 } from 'react';
 import en, { type Messages } from './messages/en';
 import fr from './messages/fr';
+import es from './messages/es';
+import ar from './messages/ar';
+import de from './messages/de';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type Locale = 'en' | 'fr';
+export type Locale = 'en' | 'fr' | 'es' | 'ar' | 'de';
+
+const RTL_LOCALES: ReadonlySet<Locale> = new Set(['ar']);
 
 type DeepKeys<T, Prefix extends string = ''> = {
   [K in keyof T]: T[K] extends Record<string, unknown>
@@ -34,7 +39,7 @@ interface I18nContextValue {
 
 // ─── Message catalogs ─────────────────────────────────────────────────────────
 
-const catalogs: Record<Locale, Messages> = { en, fr };
+const catalogs: Record<Locale, Messages> = { en, fr, es, ar, de };
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -54,7 +59,7 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 const LOCALE_STORAGE_KEY = 'app_locale';
-const DEFAULT_LOCALE: Locale = 'fr'; // Default to French for Algerian legal platform
+const DEFAULT_LOCALE: Locale = 'en';
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
@@ -62,15 +67,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   // Load persisted locale on mount
   useEffect(() => {
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-    if (saved && (saved === 'en' || saved === 'fr')) {
+    if (saved && saved in catalogs) {
       setLocaleState(saved);
     }
   }, []);
 
-  // Update html lang attribute when locale changes
+  // Update html lang/dir attributes when locale changes. The initial paint's
+  // attributes are set synchronously by the inline script in layout.tsx (same
+  // pattern as the dark-mode theme script) so there is no RTL flash — this
+  // effect only handles changes made after mount via the language switcher.
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.documentElement.dir = 'ltr'; // Arabic RTL would be added here when supported
+    document.documentElement.dir = RTL_LOCALES.has(locale) ? 'rtl' : 'ltr';
   }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
@@ -134,7 +142,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
    * Format a currency amount using the given ISO currency code.
    */
   const formatCurrency = useCallback(
-    (amount: number, currency: string = 'DZD'): string => {
+    (amount: number, currency: string = 'USD'): string => {
       return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency,

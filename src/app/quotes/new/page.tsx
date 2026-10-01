@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import { useAppStore } from '@/store/appStore';
 import { useDocumentStore } from '@/store/documentStore';
+import { useI18n } from '@/i18n/I18nProvider';
 import LineItemsTable, { LineItem } from '@/components/documents/LineItemsTable';
 import { calculateDocumentTotals } from '@/lib/documents/calculations';
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
@@ -27,22 +28,23 @@ interface Lead {
   company: string | null;
 }
 
-const CURRENCIES = [
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'DZD', label: 'DZD — Algerian Dinar' },
-  { value: 'MAD', label: 'MAD — Moroccan Dirham' },
-  { value: 'TND', label: 'TND — Tunisian Dinar' },
-];
-
 function NewQuotePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentWorkspaceId } = useAppStore();
   const { addQuote } = useDocumentStore();
+  const { t } = useI18n();
+
+  const CURRENCIES = [
+    { value: 'USD', label: t('quotes.currency.usd') },
+    { value: 'EUR', label: t('quotes.currency.eur') },
+    { value: 'GBP', label: t('quotes.currency.gbp') },
+    { value: 'CAD', label: t('quotes.currency.cad') },
+    { value: 'AUD', label: t('quotes.currency.aud') },
+    { value: 'DZD', label: t('quotes.currency.dzd') },
+    { value: 'MAD', label: t('quotes.currency.mad') },
+    { value: 'TND', label: t('quotes.currency.tnd') },
+  ];
 
   const workspaceId = searchParams.get('workspace') || currentWorkspaceId || '';
 
@@ -123,11 +125,11 @@ function NewQuotePageInner() {
 
   const handleSave = async () => {
     if (!clientName.trim()) {
-      setError('Client name is required');
+      setError(t('quotes.newForm.clientNameRequired'));
       return;
     }
     if (items.every((i) => !i.description.trim())) {
-      setError('At least one line item with a description is required');
+      setError(t('quotes.newForm.lineItemRequired'));
       return;
     }
 
@@ -170,14 +172,14 @@ function NewQuotePageInner() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create quote');
+        throw new Error(data.error || t('quotes.newForm.createFailed'));
       }
 
       const data = await response.json();
       addQuote(data.quote);
       router.push(`/quotes/${data.quote.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setSaving(false);
     }
@@ -192,13 +194,13 @@ function NewQuotePageInner() {
             <button
               onClick={() => router.back()}
               className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors"
-              aria-label="Go back"
+              aria-label={t('quotes.newForm.backAria')}
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-on-surface">New Quote</h1>
-              <p className="text-sm text-on-surface-variant mt-0.5">Create a new quote for a client</p>
+              <h1 className="text-2xl font-bold text-on-surface">{t('quotes.newForm.title')}</h1>
+              <p className="text-sm text-on-surface-variant mt-0.5">{t('quotes.newForm.subtitle')}</p>
             </div>
           </div>
           <button
@@ -211,7 +213,7 @@ function NewQuotePageInner() {
             ) : (
               <Save className="h-4 w-4" strokeWidth={1.75} />
             )}
-            <span>{saving ? 'Creating...' : 'Create Quote'}</span>
+            <span>{saving ? t('quotes.newForm.creating') : t('quotes.newForm.createQuote')}</span>
           </button>
         </div>
 
@@ -224,11 +226,11 @@ function NewQuotePageInner() {
 
         {/* Document Settings */}
         <div className="bg-surface rounded-lg p-6 mb-6">
-          <h2 className="text-base font-semibold text-on-surface mb-4">Document Settings</h2>
+          <h2 className="text-base font-semibold text-on-surface mb-4">{t('quotes.newForm.documentSettings')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                Issue Date
+                {t('quotes.newForm.issueDate')}
               </label>
               <input
                 type="date"
@@ -239,7 +241,7 @@ function NewQuotePageInner() {
             </div>
             <div>
               <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                Valid Until
+                {t('quotes.newForm.validUntil')}
               </label>
               <input
                 type="date"
@@ -250,7 +252,7 @@ function NewQuotePageInner() {
             </div>
             <div>
               <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                Currency
+                {t('quotes.newForm.currency')}
               </label>
               <select
                 value={currency}
@@ -270,17 +272,17 @@ function NewQuotePageInner() {
             {/* Client Information */}
             <div className="bg-surface rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-on-surface">Client Information</h2>
+                <h2 className="text-base font-semibold text-on-surface">{t('quotes.newForm.clientInformation')}</h2>
                 {selectedLead ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/10 rounded-lg">
                     <User className="h-3.5 w-3.5 text-secondary" strokeWidth={1.75} />
                     <span className="text-xs text-secondary font-medium">
-                      Linked: {selectedLead.firstName} {selectedLead.lastName}
+                      {t('quotes.newForm.linkedContact', { name: `${selectedLead.firstName} ${selectedLead.lastName}` })}
                     </span>
                     <button
                       onClick={handleClearLead}
                       className="text-secondary hover:text-on-surface transition-colors"
-                      aria-label="Remove linked contact"
+                      aria-label={t('quotes.newForm.removeLinkedContactAria')}
                     >
                       <X className="h-3 w-3" strokeWidth={2} />
                     </button>
@@ -292,7 +294,7 @@ function NewQuotePageInner() {
                       className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container-high rounded-lg transition-colors text-xs font-medium text-on-surface-variant"
                     >
                       <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      Link CRM Contact
+                      {t('quotes.newForm.linkCrmContact')}
                     </button>
 
                     {showLeadPicker && (
@@ -309,7 +311,7 @@ function NewQuotePageInner() {
                                 type="text"
                                 value={leadSearch}
                                 onChange={(e) => setLeadSearch(e.target.value)}
-                                placeholder="Search contacts..."
+                                placeholder={t('quotes.newForm.searchContactsPlaceholder')}
                                 className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
                                 autoFocus
                               />
@@ -317,7 +319,7 @@ function NewQuotePageInner() {
                           </div>
                           <div className="max-h-64 overflow-y-auto">
                             {filteredLeads.length === 0 ? (
-                              <p className="text-center text-sm text-on-surface-variant py-6">No contacts found</p>
+                              <p className="text-center text-sm text-on-surface-variant py-6">{t('quotes.newForm.noContactsFound')}</p>
                             ) : (
                               filteredLeads.map((lead) => (
                                 <button
@@ -345,54 +347,54 @@ function NewQuotePageInner() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                    Client Name <span className="text-error">*</span>
+                    {t('quotes.newForm.clientName')} <span className="text-error">*</span>
                   </label>
                   <input
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Full name"
+                    placeholder={t('quotes.newForm.clientNamePlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Email</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.email')}</label>
                   <input
                     type="email"
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
-                    placeholder="client@example.com"
+                    placeholder={t('quotes.newForm.emailPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.phone')}</label>
                   <input
                     type="tel"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder={t('quotes.newForm.phonePlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Company</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.company')}</label>
                   <input
                     type="text"
                     value={clientCompany}
                     onChange={(e) => setClientCompany(e.target.value)}
-                    placeholder="Company name"
+                    placeholder={t('quotes.newForm.companyPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Address</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.address')}</label>
                   <textarea
                     value={clientAddress}
                     onChange={(e) => setClientAddress(e.target.value)}
                     rows={2}
-                    placeholder="123 Street, City, Country"
+                    placeholder={t('quotes.newForm.addressPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
@@ -401,7 +403,7 @@ function NewQuotePageInner() {
 
             {/* Line Items */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Line Items</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('quotes.newForm.lineItems')}</h2>
               <LineItemsTable
                 items={items}
                 currency={currency}
@@ -413,38 +415,38 @@ function NewQuotePageInner() {
 
             {/* Notes & Terms */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Notes & Terms</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('quotes.newForm.notesAndTerms')}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Notes</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.notes')}</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    placeholder="Additional notes for the client..."
+                    placeholder={t('quotes.newForm.notesPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Terms</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.newForm.terms')}</label>
                   <textarea
                     value={terms}
                     onChange={(e) => setTerms(e.target.value)}
                     rows={3}
-                    placeholder="Payment terms and conditions..."
+                    placeholder={t('quotes.newForm.termsPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                    Internal Notes
-                    <span className="ml-2 text-xs text-on-surface-variant/60 font-normal">(private)</span>
+                    {t('quotes.newForm.internalNotes')}
+                    <span className="ml-2 text-xs text-on-surface-variant/60 font-normal">{t('quotes.newForm.internalNotesPrivate')}</span>
                   </label>
                   <textarea
                     value={internalNotes}
                     onChange={(e) => setInternalNotes(e.target.value)}
                     rows={2}
-                    placeholder="Notes for internal use only..."
+                    placeholder={t('quotes.newForm.internalNotesPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
@@ -480,7 +482,7 @@ function NewQuotePageInner() {
               ) : (
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
               )}
-              <span>{saving ? 'Creating...' : 'Create Quote'}</span>
+              <span>{saving ? t('quotes.newForm.creating') : t('quotes.newForm.createQuote')}</span>
             </button>
           </div>
         </div>

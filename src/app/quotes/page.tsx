@@ -16,23 +16,7 @@ import {
 import NoWorkspace from '@/components/NoWorkspace';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import type { Quote } from '@/types';
-
-const statusOptions = [
-  { value: 'all', label: 'All Status' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'sent', label: 'Sent' },
-  { value: 'viewed', label: 'Viewed' },
-  { value: 'accepted', label: 'Accepted' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'expired', label: 'Expired' },
-];
-
-const sortOptions = [
-  { value: 'date', label: 'Date' },
-  { value: 'client', label: 'Client' },
-  { value: 'total', label: 'Total' },
-  { value: 'status', label: 'Status' },
-];
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 interface Toast { id: number; message: string; type: 'success' | 'error' }
@@ -67,8 +51,9 @@ function SendEmailModal({
   onClose: () => void;
   onSent: () => void;
 }) {
+  const { t } = useI18n();
   const [to, setTo] = useState(clientEmail);
-  const [subject, setSubject] = useState('Your Quote');
+  const [subject, setSubject] = useState(t('quotes.list.sendModal.subjectDefault'));
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
@@ -84,7 +69,7 @@ function SendEmailModal({
       onSent();
       onClose();
     } catch {
-      alert('Failed to send email.');
+      alert(t('quotes.list.sendModal.failed'));
     } finally {
       setSending(false);
     }
@@ -93,19 +78,19 @@ function SendEmailModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-surface rounded-xl p-6 w-full max-w-md shadow-xl">
-        <h2 className="text-lg font-semibold text-on-surface mb-4">Send Quote by Email</h2>
+        <h2 className="text-lg font-semibold text-on-surface mb-4">{t('quotes.list.sendModal.title')}</h2>
         <div className="space-y-3 mb-4">
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">To</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.sendModal.to')}</label>
             <input
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="client@email.com"
+              placeholder={t('quotes.list.sendModal.toPlaceholder')}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Subject</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.sendModal.subject')}</label>
             <input
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
               value={subject}
@@ -113,13 +98,13 @@ function SendEmailModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Message (optional)</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.sendModal.message')}</label>
             <textarea
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm resize-none"
               rows={3}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Add a personal note..."
+              placeholder={t('quotes.list.sendModal.messagePlaceholder')}
             />
           </div>
         </div>
@@ -128,14 +113,14 @@ function SendEmailModal({
             onClick={onClose}
             className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high transition-colors text-sm font-medium"
           >
-            Cancel
+            {t('quotes.list.sendModal.cancel')}
           </button>
           <button
             onClick={handleSend}
             disabled={sending || !to}
             className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-50 transition-colors text-sm font-medium"
           >
-            {sending ? 'Sending…' : 'Send'}
+            {sending ? t('quotes.list.sendModal.sending') : t('quotes.list.sendModal.send')}
           </button>
         </div>
       </div>
@@ -153,6 +138,7 @@ function ConvertModal({
   onClose: () => void;
   onConverted: (invoiceId: string) => void;
 }) {
+  const { t } = useI18n();
   const [dueDate, setDueDate] = useState('');
   const [converting, setConverting] = useState(false);
 
@@ -169,7 +155,7 @@ function ConvertModal({
       onConverted(data.invoice.id);
       onClose();
     } catch {
-      alert('Failed to convert to invoice.');
+      alert(t('quotes.list.convertModal.failed'));
     } finally {
       setConverting(false);
     }
@@ -178,12 +164,12 @@ function ConvertModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-surface rounded-xl p-6 w-full max-w-sm shadow-xl">
-        <h2 className="text-lg font-semibold text-on-surface mb-2">Convert to Invoice</h2>
+        <h2 className="text-lg font-semibold text-on-surface mb-2">{t('quotes.list.convertModal.title')}</h2>
         <p className="text-sm text-on-surface-variant mb-4">
-          A new invoice will be created from this quote.
+          {t('quotes.list.convertModal.description')}
         </p>
         <div className="mb-4">
-          <label className="block text-xs font-medium text-on-surface-variant mb-1">Due Date (optional)</label>
+          <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.convertModal.dueDate')}</label>
           <input
             type="date"
             className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
@@ -196,14 +182,14 @@ function ConvertModal({
             onClick={onClose}
             className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high transition-colors text-sm font-medium"
           >
-            Cancel
+            {t('quotes.list.convertModal.cancel')}
           </button>
           <button
             onClick={handleConvert}
             disabled={converting}
             className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-50 transition-colors text-sm font-medium"
           >
-            {converting ? 'Converting…' : 'Convert'}
+            {converting ? t('quotes.list.convertModal.converting') : t('quotes.list.convertModal.convert')}
           </button>
         </div>
       </div>
@@ -229,6 +215,7 @@ function QuoteActions({
   onPdf: () => void;
   onShare: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -245,7 +232,7 @@ function QuoteActions({
       <button
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((o) => !o); }}
         className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-        aria-label="Quote actions"
+        aria-label={t('quotes.list.actionsAria')}
       >
         <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
       </button>
@@ -257,35 +244,35 @@ function QuoteActions({
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <Mail className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Send by Email
+            {t('quotes.list.sendByEmail')}
           </button>
           <button
             onClick={() => { onPdf(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <FileDown className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            View PDF
+            {t('quotes.list.viewPdf')}
           </button>
           <button
             onClick={() => { onShare(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <Link className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Copy client link
+            {t('quotes.list.copyClientLink')}
           </button>
           <button
             onClick={() => { onConvert(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <ArrowRight className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Convert to Invoice
+            {t('quotes.list.convertToInvoice')}
           </button>
           <button
             onClick={() => { onDuplicate(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <Copy className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Duplicate
+            {t('quotes.list.duplicate')}
           </button>
           <div className="border-t border-outline-variant/10 my-1" />
           <button
@@ -293,7 +280,7 @@ function QuoteActions({
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors"
           >
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-            Delete
+            {t('quotes.list.delete')}
           </button>
         </div>
       )}
@@ -307,6 +294,24 @@ function QuotesPageInner() {
   const router = useRouter();
   const workspaceId = searchParams.get('workspace') || '';
   const { currentWorkspaceId } = useAppStore();
+  const { t, formatDate, formatCurrency } = useI18n();
+
+  const statusOptions = [
+    { value: 'all', label: t('quotes.status.all') },
+    { value: 'draft', label: t('quotes.status.draft') },
+    { value: 'sent', label: t('quotes.status.sent') },
+    { value: 'viewed', label: t('quotes.status.viewed') },
+    { value: 'accepted', label: t('quotes.status.accepted') },
+    { value: 'rejected', label: t('quotes.status.rejected') },
+    { value: 'expired', label: t('quotes.status.expired') },
+  ];
+
+  const sortOptions = [
+    { value: 'date', label: t('quotes.list.sortDate') },
+    { value: 'client', label: t('quotes.list.sortClient') },
+    { value: 'total', label: t('quotes.list.sortTotal') },
+    { value: 'status', label: t('quotes.list.sortStatus') },
+  ];
 
   const {
     quotes,
@@ -360,26 +365,26 @@ function QuotesPageInner() {
       if (quotesSortBy) params.append('sortBy', quotesSortBy);
 
       const res = await fetch(`/api/quotes?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch quotes');
+      if (!res.ok) throw new Error(t('quotes.list.fetchFailed'));
       const data = await res.json();
       setQuotes(data.quotes || []);
       setTotalPages(data.pagination?.totalPages || 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (quote: Quote) => {
-    if (!confirm(`Delete ${quote.quoteNumber}? This cannot be undone.`)) return;
+    if (!confirm(t('quotes.list.deleteConfirm', { number: quote.quoteNumber }))) return;
     try {
       const res = await fetch(`/api/quotes/${quote.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       deleteQuote(quote.id);
-      addToast(`${quote.quoteNumber} deleted`);
+      addToast(t('quotes.list.toastDeleted', { number: quote.quoteNumber }));
     } catch {
-      addToast('Failed to delete quote', 'error');
+      addToast(t('quotes.list.toastDeleteFailed'), 'error');
     }
   };
 
@@ -405,10 +410,10 @@ function QuotesPageInner() {
       if (!res.ok) throw new Error('Failed to duplicate');
       const data = await res.json();
       addQuote(data.quote);
-      addToast(`Duplicated as ${data.quote.quoteNumber}`);
+      addToast(t('quotes.list.toastDuplicated', { number: data.quote.quoteNumber }));
       router.push(`/quotes/${data.quote.id}`);
     } catch {
-      addToast('Failed to duplicate quote', 'error');
+      addToast(t('quotes.list.toastDuplicateFailed'), 'error');
     }
   };
 
@@ -422,11 +427,11 @@ function QuotesPageInner() {
     try {
       const res = await fetch(`/api/quotes/${quoteId}/share`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create link');
+      if (!res.ok) throw new Error(data.error || t('quotes.list.toastLinkFailed'));
       await navigator.clipboard.writeText(data.url);
-      addToast('Client link copied to clipboard');
+      addToast(t('quotes.list.toastLinkCopied'));
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Failed to create link', 'error');
+      addToast(err instanceof Error ? err.message : t('quotes.list.toastLinkFailed'), 'error');
     }
   };
 
@@ -449,8 +454,8 @@ function QuotesPageInner() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-on-surface mb-2">Quotes</h1>
-          <p className="text-on-surface-variant">Manage your quotes and track their status</p>
+          <h1 className="text-3xl font-bold text-on-surface mb-2">{t('quotes.list.title')}</h1>
+          <p className="text-on-surface-variant">{t('quotes.list.subtitle')}</p>
         </div>
 
         {/* Filters */}
@@ -478,14 +483,14 @@ function QuotesPageInner() {
               className="flex items-center gap-2 px-3 py-2.5 bg-surface border border-outline-variant text-on-surface-variant rounded-lg hover:bg-surface-container transition-colors text-sm font-medium"
             >
               <LayoutTemplate className="h-4 w-4" strokeWidth={1.75} />
-              From Template
+              {t('quotes.list.fromTemplate')}
             </button>
             <button
               onClick={() => router.push('/quotes/new')}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim transition-colors text-sm font-medium"
             >
               <Plus className="h-4 w-4" strokeWidth={1.75} />
-              New Quote
+              {t('quotes.list.newQuote')}
             </button>
           </div>
         </div>
@@ -502,7 +507,7 @@ function QuotesPageInner() {
           <div className="bg-error-container/10 border border-error/20 rounded-lg p-6 text-center">
             <p className="text-error mb-4">{error}</p>
             <button onClick={fetchQuotes} className="px-4 py-2 bg-error text-on-error rounded-lg hover:opacity-90 text-sm font-medium">
-              Try Again
+              {t('quotes.list.tryAgain')}
             </button>
           </div>
         )}
@@ -511,9 +516,9 @@ function QuotesPageInner() {
         {!loading && !error && quotes.length === 0 && (
           <div className="bg-surface-container-low rounded-lg p-12 text-center">
             <FileText className="h-16 w-16 mx-auto mb-4 text-on-surface-variant" strokeWidth={1.5} />
-            <h3 className="text-lg font-semibold text-on-surface mb-2">No quotes found</h3>
+            <h3 className="text-lg font-semibold text-on-surface mb-2">{t('quotes.list.emptyTitle')}</h3>
             <p className="text-on-surface-variant mb-6">
-              {hasActiveFilters ? 'Try adjusting your filters or search query' : 'Get started by creating your first quote'}
+              {hasActiveFilters ? t('quotes.list.emptyFilteredSubtitle') : t('quotes.list.emptySubtitle')}
             </p>
             {!hasActiveFilters && (
               <button
@@ -521,7 +526,7 @@ function QuotesPageInner() {
                 className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim text-sm font-medium"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                Create Quote
+                {t('quotes.list.createQuote')}
               </button>
             )}
           </div>
@@ -546,7 +551,14 @@ function QuotesPageInner() {
             <table className="w-full">
               <thead className="bg-surface-container-low">
                 <tr>
-                  {['Quote #', 'Client', 'Status', 'Date', 'Total', 'Actions'].map((h, i) => (
+                  {[
+                    t('quotes.list.tableQuoteNumber'),
+                    t('quotes.list.tableClient'),
+                    t('quotes.list.tableStatus'),
+                    t('quotes.list.tableDate'),
+                    t('quotes.list.tableTotal'),
+                    t('quotes.list.tableActions'),
+                  ].map((h, i) => (
                     <th
                       key={h}
                       className={`px-6 py-3 text-xs font-medium text-on-surface-variant uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'}`}
@@ -575,10 +587,10 @@ function QuotesPageInner() {
                       <StatusBadge status={quote.status as QuoteStatus} type="quote" size="sm" />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant" onClick={() => router.push(`/quotes/${quote.id}`)}>
-                      {new Date(quote.issueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {formatDate(quote.issueDate, { month: 'short', day: 'numeric', year: 'numeric' })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface text-right font-medium" onClick={() => router.push(`/quotes/${quote.id}`)}>
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: quote.currency }).format(quote.total)}
+                      {formatCurrency(quote.total, quote.currency)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <QuoteActions {...actionProps(quote)} />
@@ -598,7 +610,7 @@ function QuotesPageInner() {
               disabled={page === 1}
               className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
             >
-              Previous
+              {t('quotes.list.previous')}
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
               <button
@@ -616,7 +628,7 @@ function QuotesPageInner() {
               disabled={page === totalPages}
               className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
             >
-              Next
+              {t('quotes.list.next')}
             </button>
           </div>
         )}
@@ -628,7 +640,7 @@ function QuotesPageInner() {
           quoteId={sendModal.id}
           clientEmail={sendModal.clientEmail || ''}
           onClose={() => setSendModal(null)}
-          onSent={() => addToast('Quote sent by email')}
+          onSent={() => addToast(t('quotes.list.toastSent'))}
         />
       )}
       {convertModal && (
@@ -636,7 +648,7 @@ function QuotesPageInner() {
           quoteId={convertModal.id}
           onClose={() => setConvertModal(null)}
           onConverted={(invoiceId) => {
-            addToast('Converted to invoice');
+            addToast(t('quotes.list.toastConverted'));
             router.push(`/invoices/${invoiceId}`);
           }}
         />
@@ -673,6 +685,7 @@ function QuoteCard({
   onPdf: () => void;
   onShare: () => void;
 }) {
+  const { t, formatDate, formatCurrency } = useI18n();
   return (
     <div
       onClick={onCardClick}
@@ -684,7 +697,7 @@ function QuoteCard({
             {quote.quoteNumber}
           </h3>
           <p className="text-sm text-on-surface-variant">
-            {new Date(quote.issueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {formatDate(quote.issueDate, { month: 'short', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -711,9 +724,9 @@ function QuoteCard({
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
-        <span className="text-sm text-on-surface-variant">Total</span>
+        <span className="text-sm text-on-surface-variant">{t('quotes.list.cardTotal')}</span>
         <span className="text-xl font-bold text-on-surface">
-          {new Intl.NumberFormat('en-US', { style: 'currency', currency: quote.currency }).format(quote.total)}
+          {formatCurrency(quote.total, quote.currency)}
         </span>
       </div>
     </div>

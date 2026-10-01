@@ -15,6 +15,7 @@ import {
   Trash2, Copy, ExternalLink, Check, Send,
 } from 'lucide-react';
 import type { Quote } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Send Email Modal ─────────────────────────────────────────────────────────
 function SendEmailModal({
@@ -26,16 +27,17 @@ function SendEmailModal({
   onClose: () => void;
   onSent: () => void;
 }) {
+  const { t } = useI18n();
   const [to, setTo] = useState(quote.clientEmail || '');
-  const [subject, setSubject] = useState(`Quote ${quote.quoteNumber}`);
+  const [subject, setSubject] = useState(t('quotes.detail.sendModal.subjectDefault', { number: quote.quoteNumber }));
   const [message, setMessage] = useState(
-    `Dear ${quote.clientName},\n\nPlease find your quote below. This quote is valid and we look forward to your response.\n\nBest regards`
+    t('quotes.detail.sendModal.messageDefault', { clientName: quote.clientName })
   );
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
-    if (!to) { setError('Recipient email is required'); return; }
+    if (!to) { setError(t('quotes.detail.sendModal.recipientRequired')); return; }
     setSending(true);
     setError(null);
     try {
@@ -46,12 +48,12 @@ function SendEmailModal({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || 'Failed to send');
+        throw new Error(d.error || t('quotes.detail.sendModal.failed'));
       }
       onSent();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to send email');
+      setError(e instanceof Error ? e.message : t('quotes.detail.sendModal.failed'));
     } finally {
       setSending(false);
     }
@@ -62,7 +64,7 @@ function SendEmailModal({
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-surface rounded-xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/10">
-          <h2 className="text-lg font-semibold text-on-surface">Send Quote</h2>
+          <h2 className="text-lg font-semibold text-on-surface">{t('quotes.detail.sendModal.title')}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-container-low transition-colors">
             <X className="h-5 w-5 text-on-surface-variant" strokeWidth={1.75} />
           </button>
@@ -70,29 +72,29 @@ function SendEmailModal({
         <div className="p-6 space-y-4">
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">To</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.detail.sendModal.to')}</label>
             <input type="email" value={to} onChange={(e) => setTo(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Subject</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.detail.sendModal.subject')}</label>
             <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Message</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('quotes.detail.sendModal.message')}</label>
             <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none" />
           </div>
         </div>
         <div className="flex justify-end gap-3 p-6 border-t border-outline-variant/10">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors">
-            Cancel
+            {t('quotes.detail.sendModal.cancel')}
           </button>
           <button onClick={handleSend} disabled={sending}
             className="flex items-center gap-2 px-5 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 transition-colors text-sm font-medium">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Send className="h-4 w-4" strokeWidth={1.75} />}
-            <span>{sending ? 'Sending...' : 'Send'}</span>
+            <span>{sending ? t('quotes.detail.sendModal.sending') : t('quotes.detail.sendModal.send')}</span>
           </button>
         </div>
       </div>
@@ -110,6 +112,7 @@ function ConvertModal({
   onClose: () => void;
   onConverted: (invoiceId: string) => void;
 }) {
+  const { t } = useI18n();
   const [dueDate, setDueDate] = useState('');
   const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,12 +128,12 @@ function ConvertModal({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || 'Conversion failed');
+        throw new Error(d.error || t('quotes.detail.convertModal.failed'));
       }
       const data = await res.json();
       onConverted(data.invoice.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Conversion failed');
+      setError(e instanceof Error ? e.message : t('quotes.detail.convertModal.failed'));
     } finally {
       setConverting(false);
     }
@@ -141,7 +144,7 @@ function ConvertModal({
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-surface rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/10">
-          <h2 className="text-lg font-semibold text-on-surface">Convert to Invoice</h2>
+          <h2 className="text-lg font-semibold text-on-surface">{t('quotes.detail.convertModal.title')}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-container-low transition-colors">
             <X className="h-5 w-5 text-on-surface-variant" strokeWidth={1.75} />
           </button>
@@ -149,11 +152,11 @@ function ConvertModal({
         <div className="p-6 space-y-4">
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
           <p className="text-sm text-on-surface-variant">
-            A new invoice will be created from <strong className="text-on-surface">{quote.quoteNumber}</strong> for {quote.clientName}. The quote will be marked as accepted.
+            {t('quotes.detail.convertModal.description', { number: quote.quoteNumber, clientName: quote.clientName })}
           </p>
           <div>
             <label className="block text-sm font-medium text-on-surface-variant mb-2">
-              Due Date <span className="text-on-surface-variant/60 font-normal">(optional)</span>
+              {t('quotes.detail.convertModal.dueDate')} <span className="text-on-surface-variant/60 font-normal">{t('quotes.detail.convertModal.optional')}</span>
             </label>
             <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
@@ -161,12 +164,12 @@ function ConvertModal({
         </div>
         <div className="flex justify-end gap-3 p-6 border-t border-outline-variant/10">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors">
-            Cancel
+            {t('quotes.detail.convertModal.cancel')}
           </button>
           <button onClick={handleConvert} disabled={converting}
             className="flex items-center gap-2 px-5 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 transition-colors text-sm font-medium">
             {converting ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <FileText className="h-4 w-4" strokeWidth={1.75} />}
-            <span>{converting ? 'Converting...' : 'Convert'}</span>
+            <span>{converting ? t('quotes.detail.convertModal.converting') : t('quotes.detail.convertModal.convert')}</span>
           </button>
         </div>
       </div>
@@ -183,6 +186,7 @@ export default function QuoteDetailPage() {
 
   const { currentQuote, setCurrentQuote, updateQuote, deleteQuote, addQuote } = useDocumentStore();
   const { currentWorkspaceId } = useAppStore();
+  const { t } = useI18n();
 
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -231,7 +235,7 @@ export default function QuoteDetailPage() {
     setError(null);
     try {
       const response = await fetch(`/api/quotes/${quoteId}`);
-      if (!response.ok) throw new Error('Failed to fetch quote');
+      if (!response.ok) throw new Error(t('quotes.detail.fetchFailed'));
       const data = await response.json();
       const quote = data.quote;
       setCurrentQuote(quote);
@@ -261,11 +265,11 @@ export default function QuoteDetailPage() {
       setTaxRate(quote.taxRate || 0);
       setIsEditing(quote.status === 'draft');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setLoading(false);
     }
-  }, [quoteId, isNew, setCurrentQuote]);
+  }, [quoteId, isNew, setCurrentQuote, t]);
 
   useEffect(() => {
     if (!isNew) fetchQuote();
@@ -301,22 +305,22 @@ export default function QuoteDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to save quote');
+      if (!response.ok) throw new Error(t('quotes.detail.saveFailed'));
       const data = await response.json();
       setCurrentQuote(data.quote);
       updateQuote(quoteId, data.quote);
       setHasChanges(false);
-      showToast('Quote saved successfully');
+      showToast(t('quotes.detail.savedToast'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleCreate = async () => {
-    if (!clientName.trim()) { setError('Client name is required'); return; }
-    if (!currentWorkspaceId) { setError('No active workspace selected'); return; }
+    if (!clientName.trim()) { setError(t('quotes.detail.clientNameRequired')); return; }
+    if (!currentWorkspaceId) { setError(t('quotes.detail.workspaceRequired')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -342,27 +346,27 @@ export default function QuoteDetailPage() {
       });
       if (!response.ok) {
         const d = await response.json();
-        throw new Error(d.error || 'Failed to create quote');
+        throw new Error(d.error || t('quotes.detail.createFailed'));
       }
       const data = await response.json();
       addQuote(data.quote);
       router.replace(`/quotes/${data.quote.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${currentQuote?.quoteNumber}? This cannot be undone.`)) return;
+    if (!confirm(t('quotes.detail.deleteConfirm', { number: currentQuote?.quoteNumber || '' }))) return;
     try {
       const response = await fetch(`/api/quotes/${quoteId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete quote');
+      if (!response.ok) throw new Error(t('quotes.detail.deleteFailed'));
       deleteQuote(quoteId);
       router.push('/quotes');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
+      setError(err instanceof Error ? err.message : t('quotes.detail.deleteFailed'));
     }
   };
 
@@ -397,11 +401,11 @@ export default function QuoteDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to duplicate');
+      if (!response.ok) throw new Error(t('quotes.detail.duplicateFailed'));
       const data = await response.json();
       router.push(`/quotes/${data.quote.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to duplicate');
+      setError(err instanceof Error ? err.message : t('quotes.detail.duplicateFailed'));
     }
   };
 
@@ -426,7 +430,7 @@ export default function QuoteDetailPage() {
           <div className="bg-error-container/10 border border-error/20 rounded-lg p-6 text-center">
             <p className="text-error mb-4">{error}</p>
             <button onClick={() => router.back()} className="px-4 py-2 bg-error text-on-error rounded-lg hover:opacity-90 text-sm font-medium">
-              Go Back
+              {t('quotes.detail.goBackButton')}
             </button>
           </div>
         </div>
@@ -502,7 +506,7 @@ export default function QuoteDetailPage() {
                 <button onClick={() => setShowSendModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-surface-container-low text-on-surface hover:bg-surface-container-high rounded-lg transition-colors text-sm font-medium">
                   <Mail className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Send</span>
+                  <span className="hidden sm:inline">{t('misc.actionSend')}</span>
                 </button>
                 <button onClick={handleDownloadPDF}
                   className="flex items-center gap-2 px-4 py-2 bg-surface-container-low text-on-surface hover:bg-surface-container-high rounded-lg transition-colors text-sm font-medium">
@@ -561,15 +565,15 @@ export default function QuoteDetailPage() {
           <div className="bg-surface rounded-lg p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-2">Status</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('misc.statusLabel')}</label>
                 <select value={status} onChange={(e) => { setStatus(e.target.value as QuoteStatus); setHasChanges(true); }}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm">
-                  <option value="draft">Draft</option>
-                  <option value="sent">Sent</option>
-                  <option value="viewed">Viewed</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="expired">Expired</option>
+                  <option value="draft">{t('misc.statusDraft')}</option>
+                  <option value="sent">{t('misc.statusSent')}</option>
+                  <option value="viewed">{t('misc.statusViewed')}</option>
+                  <option value="accepted">{t('misc.statusAccepted')}</option>
+                  <option value="rejected">{t('misc.statusRejected')}</option>
+                  <option value="expired">{t('misc.statusExpired')}</option>
                 </select>
               </div>
               <div>

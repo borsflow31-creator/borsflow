@@ -11,31 +11,13 @@ import StatusBadge, { InvoiceStatus } from '@/components/documents/StatusBadge';
 import {
   Plus, FileText, MoreVertical, Loader2, AlertCircle,
   Trash2, Copy, Mail, FileDown, CreditCard,
-  CheckCircle, XCircle, Link, ExternalLink, X, LayoutTemplate,
+  CheckCircle, XCircle, ExternalLink, X, LayoutTemplate,
 } from 'lucide-react';
 import NoWorkspace from '@/components/NoWorkspace';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import type { Invoice } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 // Loader2 is used in SendInvoiceModal
-
-const statusOptions = [
-  { value: 'all', label: 'All Status' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'sent', label: 'Sent' },
-  { value: 'viewed', label: 'Viewed' },
-  { value: 'partially_paid', label: 'Partially Paid' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'overdue', label: 'Overdue' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
-
-const sortOptions = [
-  { value: 'date', label: 'Date' },
-  { value: 'client', label: 'Client' },
-  { value: 'total', label: 'Total' },
-  { value: 'status', label: 'Status' },
-  { value: 'dueDate', label: 'Due Date' },
-];
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 interface Toast { id: number; message: string; type: 'success' | 'error' }
@@ -68,6 +50,7 @@ function QuickPaymentModal({
   onClose: () => void;
   onRecorded: () => void;
 }) {
+  const { t } = useI18n();
   const [amount, setAmount] = useState(String(invoice.amountDue ?? invoice.total));
   const [method, setMethod] = useState('bank_transfer');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -88,12 +71,12 @@ function QuickPaymentModal({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error || 'Failed to record payment');
+        throw new Error(body?.error || t('invoices.quickPaymentModal.genericFailure'));
       }
       onRecorded();
       onClose();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to record payment.');
+      alert(err instanceof Error ? err.message : t('invoices.quickPaymentModal.genericFailure'));
     } finally {
       setSaving(false);
     }
@@ -102,11 +85,11 @@ function QuickPaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-surface rounded-xl p-6 w-full max-w-sm shadow-xl">
-        <h2 className="text-lg font-semibold text-on-surface mb-4">Record Payment</h2>
+        <h2 className="text-lg font-semibold text-on-surface mb-4">{t('invoices.quickPaymentModal.title')}</h2>
         <p className="text-sm text-on-surface-variant mb-4">{invoice.invoiceNumber}</p>
         <div className="space-y-3 mb-4">
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Amount</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.quickPaymentModal.amount')}</label>
             <input
               type="number"
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
@@ -116,22 +99,22 @@ function QuickPaymentModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Method</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.quickPaymentModal.method')}</label>
             <select
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
               value={method}
               onChange={(e) => setMethod(e.target.value)}
             >
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cash">Cash</option>
-              <option value="check">Check</option>
-              <option value="credit_card">Credit Card</option>
-              <option value="paypal">PayPal</option>
-              <option value="other">Other</option>
+              <option value="bank_transfer">{t('invoices.paymentMethod.bankTransfer')}</option>
+              <option value="cash">{t('invoices.paymentMethod.cash')}</option>
+              <option value="check">{t('invoices.paymentMethod.check')}</option>
+              <option value="credit_card">{t('invoices.paymentMethod.creditCard')}</option>
+              <option value="paypal">{t('invoices.paymentMethod.paypal')}</option>
+              <option value="other">{t('invoices.paymentMethod.other')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Date</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.quickPaymentModal.date')}</label>
             <input
               type="date"
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant rounded-lg text-sm"
@@ -145,14 +128,14 @@ function QuickPaymentModal({
             onClick={onClose}
             className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high text-sm font-medium"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !amount}
             className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-50 text-sm font-medium"
           >
-            {saving ? 'Saving…' : 'Record'}
+            {saving ? t('invoices.quickPaymentModal.recording') : t('invoices.quickPaymentModal.record')}
           </button>
         </div>
       </div>
@@ -160,21 +143,19 @@ function QuickPaymentModal({
   );
 }
 
-// ─── Send Invoice Modal (two-mode) ───────────────────────────────────────────
+// ─── Send Invoice Modal ───────────────────────────────────────────────────────
 function SendInvoiceModal({
   invoice,
-  stripeConnected,
   onClose,
   onSent,
 }: {
   invoice: Invoice;
-  stripeConnected: boolean;
   onClose: () => void;
   onSent: (updatedInvoice?: Partial<Invoice>) => void;
 }) {
-  const [mode, setMode] = useState<'invoice' | 'paylink'>('invoice');
+  const { t } = useI18n();
   const [to, setTo] = useState(invoice.clientEmail || '');
-  const [subject, setSubject] = useState(`Invoice ${invoice.invoiceNumber}`);
+  const [subject, setSubject] = useState(t('invoices.sendModal.subjectTemplate', { number: invoice.invoiceNumber }));
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -183,37 +164,21 @@ function SendInvoiceModal({
     setError(null);
     setSending(true);
     try {
-      let paymentLink: string | undefined;
-
-      // If pay-link mode, generate the link first. The send endpoint reads the link
-      // off the invoice itself rather than taking it from us, so this only has to
-      // run before the send — the URL is not passed along.
-      if (mode === 'paylink') {
-        const plRes = await fetch(`/api/invoices/${invoice.id}/payment-link`, { method: 'POST' });
-        const plData = await plRes.json();
-        if (!plRes.ok) {
-          setError(plData.error || 'Failed to generate payment link');
-          setSending(false);
-          return;
-        }
-        paymentLink = plData.paymentLink;
-      }
-
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, message, includePaymentLink: mode === 'paylink' }),
+        body: JSON.stringify({ to, subject, message }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Failed to send invoice');
+        setError(data.error || t('invoices.sendModal.failedToSend'));
         return;
       }
 
-      onSent({ ...data.invoice, stripePaymentLink: paymentLink });
+      onSent(data.invoice);
       onClose();
     } catch {
-      setError('An error occurred. Please try again.');
+      setError(t('invoices.sendModal.genericError'));
     } finally {
       setSending(false);
     }
@@ -224,7 +189,7 @@ function SendInvoiceModal({
       <div className="bg-surface rounded-2xl p-6 w-full max-w-lg shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-on-surface">Send Invoice</h2>
+            <h2 className="text-lg font-bold text-on-surface">{t('invoices.sendModal.title')}</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">{invoice.invoiceNumber}</p>
           </div>
           <button onClick={onClose} className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors">
@@ -232,62 +197,19 @@ function SendInvoiceModal({
           </button>
         </div>
 
-        {/* Mode selector */}
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          {/* Invoice only */}
-          <button
-            onClick={() => setMode('invoice')}
-            className={`relative text-left p-4 rounded-xl border-2 transition-all ${
-              mode === 'invoice'
-                ? 'border-secondary bg-secondary/5'
-                : 'border-outline-variant/20 hover:border-outline-variant/40'
-            }`}
-          >
-            <Mail className="h-5 w-5 text-secondary mb-2" strokeWidth={1.75} />
-            <p className="text-sm font-semibold text-on-surface">Invoice Only</p>
-            <p className="text-xs text-on-surface-variant mt-0.5">Send invoice details by email</p>
-            {mode === 'invoice' && (
-              <CheckCircle className="absolute top-3 right-3 h-4 w-4 text-secondary" />
-            )}
-          </button>
-
-          {/* Invoice + Pay Link */}
-          <button
-            onClick={() => stripeConnected && setMode('paylink')}
-            disabled={!stripeConnected}
-            title={!stripeConnected ? 'Configure Stripe API keys in Settings → Integrations to enable payment links' : undefined}
-            className={`relative text-left p-4 rounded-xl border-2 transition-all ${
-              !stripeConnected
-                ? 'border-outline-variant/10 opacity-50 cursor-not-allowed'
-                : mode === 'paylink'
-                ? 'border-violet-500 bg-violet-500/5'
-                : 'border-outline-variant/20 hover:border-outline-variant/40'
-            }`}
-          >
-            <CreditCard className="h-5 w-5 text-violet-500 mb-2" strokeWidth={1.75} />
-            <p className="text-sm font-semibold text-on-surface">Invoice + Pay Link</p>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              {stripeConnected ? 'Includes a Pay Now button' : 'Requires Stripe setup'}
-            </p>
-            {mode === 'paylink' && (
-              <CheckCircle className="absolute top-3 right-3 h-4 w-4 text-violet-500" />
-            )}
-          </button>
-        </div>
-
         {/* Fields */}
         <div className="space-y-3 mb-5">
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">To</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.sendModal.to')}</label>
             <input
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/50"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="client@email.com"
+              placeholder={t('invoices.sendModal.toPlaceholder')}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Subject</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.sendModal.subject')}</label>
             <input
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/50"
               value={subject}
@@ -295,13 +217,13 @@ function SendInvoiceModal({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1">Message (optional)</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.sendModal.message')}</label>
             <textarea
               className="w-full px-3 py-2 bg-surface-container-low border border-outline-variant/30 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-secondary/50"
               rows={3}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Add a personal note..."
+              placeholder={t('invoices.sendModal.messagePlaceholder')}
             />
           </div>
         </div>
@@ -315,19 +237,15 @@ function SendInvoiceModal({
 
         <div className="flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high text-sm font-medium">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSend}
             disabled={sending || !to}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors ${
-              mode === 'paylink'
-                ? 'bg-violet-600 hover:bg-violet-700 text-white'
-                : 'bg-secondary text-on-secondary hover:bg-secondary-dim'
-            }`}
+            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors bg-secondary text-on-secondary hover:bg-secondary-dim"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-            {sending ? 'Sending…' : mode === 'paylink' ? 'Send with Pay Link' : 'Send Invoice'}
+            {sending ? t('invoices.sendModal.sending') : t('invoices.sendModal.send')}
           </button>
         </div>
       </div>
@@ -343,7 +261,6 @@ function InvoiceActions({
   onSend,
   onPayment,
   onPdf,
-  onPaymentLink,
   onShare,
 }: {
   invoice: Invoice;
@@ -352,13 +269,12 @@ function InvoiceActions({
   onSend: () => void;
   onPayment: () => void;
   onPdf: () => void;
-  onPaymentLink: () => void;
   onShare: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isPaid = invoice.status === 'paid' || invoice.status === 'cancelled';
-  const hasPaymentLink = !!(invoice as any).stripePaymentLink;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -373,7 +289,7 @@ function InvoiceActions({
       <button
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((o) => !o); }}
         className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-        aria-label="Invoice actions"
+        aria-label={t('invoices.actions.menuAria')}
       >
         <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
       </button>
@@ -385,36 +301,15 @@ function InvoiceActions({
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <ExternalLink className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Copy client link
+            {t('invoices.actions.copyClientLink')}
           </button>
-          {!isPaid && (
-            <button
-              onClick={() => { onPaymentLink(); setOpen(false); }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
-            >
-              <Link className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-              {hasPaymentLink ? 'Regenerate Payment Link' : 'Generate Payment Link'}
-            </button>
-          )}
-          {hasPaymentLink && !isPaid && (
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText((invoice as any).stripePaymentLink);
-                setOpen(false);
-              }}
-              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
-            >
-              <Copy className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-              Copy Payment Link
-            </button>
-          )}
           {!isPaid && (
             <button
               onClick={() => { onPayment(); setOpen(false); }}
               className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
             >
               <CreditCard className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-              Record Payment
+              {t('invoices.actions.recordPayment')}
             </button>
           )}
           <button
@@ -422,21 +317,21 @@ function InvoiceActions({
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <Mail className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Send by Email
+            {t('invoices.actions.sendByEmail')}
           </button>
           <button
             onClick={() => { onPdf(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <FileDown className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            View PDF
+            {t('invoices.actions.viewPdf')}
           </button>
           <button
             onClick={() => { onDuplicate(); setOpen(false); }}
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-on-surface hover:bg-surface-container-low transition-colors"
           >
             <Copy className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-            Duplicate
+            {t('invoices.actions.duplicate')}
           </button>
           <div className="border-t border-outline-variant/10 my-1" />
           <button
@@ -444,7 +339,7 @@ function InvoiceActions({
             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-error hover:bg-error/5 transition-colors"
           >
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-            Delete
+            {t('invoices.actions.delete')}
           </button>
         </div>
       )}
@@ -458,6 +353,26 @@ function InvoicesPageInner() {
   const router = useRouter();
   const workspaceId = searchParams.get('workspace') || '';
   const { currentWorkspaceId } = useAppStore();
+  const { t, formatDate, formatCurrency } = useI18n();
+
+  const statusOptions = [
+    { value: 'all', label: t('invoices.status.all') },
+    { value: 'draft', label: t('invoices.status.draft') },
+    { value: 'sent', label: t('invoices.status.sent') },
+    { value: 'viewed', label: t('invoices.status.viewed') },
+    { value: 'partially_paid', label: t('invoices.status.partiallyPaid') },
+    { value: 'paid', label: t('invoices.status.paid') },
+    { value: 'overdue', label: t('invoices.status.overdue') },
+    { value: 'cancelled', label: t('invoices.status.cancelled') },
+  ];
+
+  const sortOptions = [
+    { value: 'date', label: t('invoices.sort.date') },
+    { value: 'client', label: t('invoices.sort.client') },
+    { value: 'total', label: t('invoices.sort.total') },
+    { value: 'status', label: t('invoices.sort.status') },
+    { value: 'dueDate', label: t('invoices.sort.dueDate') },
+  ];
 
   const {
     invoices,
@@ -484,10 +399,6 @@ function InvoicesPageInner() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const toastId = useRef(0);
 
-  // Stripe Connect banner state
-  const [stripeConnected, setStripeConnected] = useState<boolean | null>(null);
-  const [stripeBannerDismissed, setStripeBannerDismissed] = useState(false);
-
   const effectiveWorkspaceId = workspaceId || currentWorkspaceId || '';
 
   const addToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -499,19 +410,6 @@ function InvoicesPageInner() {
   useEffect(() => {
     if (effectiveWorkspaceId) fetchInvoices();
   }, [effectiveWorkspaceId, page, invoicesStatusFilter, invoicesSearchQuery, invoicesSortBy]);
-
-  useEffect(() => {
-    if (!effectiveWorkspaceId) return;
-    // Fetch both Stripe Connect status and direct API key settings in parallel
-    Promise.all([
-      fetch(`/api/stripe/connect/status?workspaceId=${effectiveWorkspaceId}`).then(r => r.ok ? r.json() : null),
-      fetch(`/api/stripe/settings?workspaceId=${effectiveWorkspaceId}`).then(r => r.ok ? r.json() : null),
-    ]).then(([connectData, settingsData]) => {
-      const connectOk = connectData?.chargesEnabled === true;
-      const directOk = settingsData?.directKeysEnabled === true;
-      setStripeConnected(connectOk || directOk);
-    }).catch(() => {});
-  }, [effectiveWorkspaceId]);
 
   const fetchInvoices = async () => {
     if (!effectiveWorkspaceId) return;
@@ -528,26 +426,26 @@ function InvoicesPageInner() {
       if (invoicesSortBy) params.append('sortBy', invoicesSortBy);
 
       const res = await fetch(`/api/invoices?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to fetch invoices');
+      if (!res.ok) throw new Error(t('invoices.list.failedToFetch'));
       const data = await res.json();
       setInvoices(data.invoices || []);
       setTotalPages(data.pagination?.totalPages || 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('common.unexpectedError'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (invoice: Invoice) => {
-    if (!confirm(`Delete ${invoice.invoiceNumber}? This cannot be undone.`)) return;
+    if (!confirm(t('invoices.list.deleteConfirm', { number: invoice.invoiceNumber }))) return;
     try {
       const res = await fetch(`/api/invoices/${invoice.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
+      if (!res.ok) throw new Error(t('invoices.list.failedToDelete'));
       deleteInvoice(invoice.id);
-      addToast(`${invoice.invoiceNumber} deleted`);
+      addToast(t('invoices.list.toastDeleted', { number: invoice.invoiceNumber }));
     } catch {
-      addToast('Failed to delete invoice', 'error');
+      addToast(t('invoices.list.failedToDelete'), 'error');
     }
   };
 
@@ -570,37 +468,18 @@ function InvoicesPageInner() {
           items: (invoice as any).items || [],
         }),
       });
-      if (!res.ok) throw new Error('Failed to duplicate');
+      if (!res.ok) throw new Error(t('invoices.list.failedToDuplicate'));
       const data = await res.json();
       addInvoice(data.invoice);
-      addToast(`Duplicated as ${data.invoice.invoiceNumber}`);
+      addToast(t('invoices.list.toastDuplicated', { number: data.invoice.invoiceNumber }));
       router.push(`/invoices/${data.invoice.id}`);
     } catch {
-      addToast('Failed to duplicate invoice', 'error');
+      addToast(t('invoices.list.failedToDuplicate'), 'error');
     }
   };
 
   const handlePdf = (invoiceId: string) => {
     window.open(`/api/invoices/${invoiceId}/pdf`, '_blank');
-  };
-
-  const handlePaymentLink = async (invoice: Invoice) => {
-    try {
-      const res = await fetch(`/api/invoices/${invoice.id}/payment-link`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) {
-        addToast(data.error || 'Failed to generate payment link', 'error');
-        return;
-      }
-      // Update the invoice in the list with the new payment link
-      setInvoices(invoices.map((inv) =>
-        inv.id === invoice.id ? { ...inv, ...(data.invoice ?? {}), stripePaymentLink: data.paymentLink } : inv
-      ));
-      await navigator.clipboard.writeText(data.paymentLink);
-      addToast('Payment link generated and copied to clipboard');
-    } catch {
-      addToast('Failed to generate payment link', 'error');
-    }
   };
 
   const isOverdue = (dueDate: Date | string | null, status: string) => {
@@ -616,11 +495,11 @@ function InvoicesPageInner() {
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/share`, { method: 'POST' });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create link');
+      if (!res.ok) throw new Error(data.error || t('invoices.list.failedToCreateLink'));
       await navigator.clipboard.writeText(data.url);
-      addToast('Client link copied to clipboard');
+      addToast(t('invoices.list.toastLinkCopied'));
     } catch (err) {
-      addToast(err instanceof Error ? err.message : 'Failed to create link', 'error');
+      addToast(err instanceof Error ? err.message : t('invoices.list.failedToCreateLink'), 'error');
     }
   };
 
@@ -631,7 +510,6 @@ function InvoicesPageInner() {
     onSend: () => setSendModal(invoice),
     onPayment: () => setPaymentModal(invoice),
     onPdf: () => handlePdf(invoice.id),
-    onPaymentLink: () => handlePaymentLink(invoice),
     onShare: () => handleShare(invoice.id),
   });
 
@@ -642,48 +520,9 @@ function InvoicesPageInner() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-on-surface mb-2">Invoices</h1>
-          <p className="text-on-surface-variant">Manage your invoices and track payments</p>
+          <h1 className="text-3xl font-bold text-on-surface mb-2">{t('invoices.list.title')}</h1>
+          <p className="text-on-surface-variant">{t('invoices.list.subtitle')}</p>
         </div>
-
-        {/* Stripe Status Banners */}
-        {stripeConnected === true && !stripeBannerDismissed && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-success/10 border border-success/30 rounded-lg text-sm">
-            <CheckCircle className="h-4 w-4 text-success flex-shrink-0" />
-            <span className="flex-1 text-on-surface">
-              Stripe is connected — payment links are enabled on your invoices.
-            </span>
-            <button
-              onClick={() => setStripeBannerDismissed(true)}
-              className="p-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-        {stripeConnected === false && !stripeBannerDismissed && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-warning/10 border border-warning/30 rounded-lg text-sm">
-            <AlertCircle className="h-4 w-4 text-warning flex-shrink-0" />
-            <span className="flex-1 text-on-surface">
-              Connect Stripe to accept online payments and generate payment links on invoices.
-            </span>
-            <button
-              onClick={() => router.push('/settings?section=integrations')}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-xs font-medium hover:bg-secondary-dim transition-colors whitespace-nowrap"
-            >
-              <CreditCard className="h-3.5 w-3.5" />
-              Set Up Stripe
-            </button>
-            <button
-              onClick={() => setStripeBannerDismissed(true)}
-              className="p-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
 
         {/* Filters */}
         <div className="mb-6">
@@ -710,14 +549,14 @@ function InvoicesPageInner() {
               className="flex items-center gap-2 px-3 py-2.5 bg-surface border border-outline-variant text-on-surface-variant rounded-lg hover:bg-surface-container transition-colors text-sm font-medium"
             >
               <LayoutTemplate className="h-4 w-4" strokeWidth={1.75} />
-              From Template
+              {t('invoices.list.fromTemplate')}
             </button>
             <button
               onClick={() => router.push('/invoices/new')}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim transition-colors text-sm font-medium"
             >
               <Plus className="h-4 w-4" strokeWidth={1.75} />
-              New Invoice
+              {t('invoices.list.newInvoice')}
             </button>
           </div>
         </div>
@@ -734,7 +573,7 @@ function InvoicesPageInner() {
           <div className="bg-error-container/10 border border-error/20 rounded-lg p-6 text-center">
             <p className="text-error mb-4">{error}</p>
             <button onClick={fetchInvoices} className="px-4 py-2 bg-error text-on-error rounded-lg hover:opacity-90 text-sm font-medium">
-              Try Again
+              {t('invoices.list.tryAgain')}
             </button>
           </div>
         )}
@@ -743,9 +582,9 @@ function InvoicesPageInner() {
         {!loading && !error && invoices.length === 0 && (
           <div className="bg-surface-container-low rounded-lg p-12 text-center">
             <FileText className="h-16 w-16 mx-auto mb-4 text-on-surface-variant" strokeWidth={1.5} />
-            <h3 className="text-lg font-semibold text-on-surface mb-2">No invoices found</h3>
+            <h3 className="text-lg font-semibold text-on-surface mb-2">{t('invoices.list.emptyTitle')}</h3>
             <p className="text-on-surface-variant mb-6">
-              {hasActiveFilters ? 'Try adjusting your filters or search query' : 'Get started by creating your first invoice'}
+              {hasActiveFilters ? t('invoices.list.emptyFiltered') : t('invoices.list.emptyGetStarted')}
             </p>
             {!hasActiveFilters && (
               <button
@@ -753,7 +592,7 @@ function InvoicesPageInner() {
                 className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim text-sm font-medium"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                Create Invoice
+                {t('invoices.list.createInvoice')}
               </button>
             )}
           </div>
@@ -779,7 +618,15 @@ function InvoicesPageInner() {
             <table className="w-full">
               <thead className="bg-surface-container-low">
                 <tr>
-                  {['Invoice #', 'Client', 'Status', 'Due Date', 'Total', 'Paid', 'Actions'].map((h, i) => (
+                  {[
+                    t('invoices.list.colNumber'),
+                    t('invoices.list.colClient'),
+                    t('invoices.list.colStatus'),
+                    t('invoices.list.colDueDate'),
+                    t('invoices.list.colTotal'),
+                    t('invoices.list.colPaid'),
+                    t('invoices.list.colActions'),
+                  ].map((h, i) => (
                     <th
                       key={h}
                       className={`px-6 py-3 text-xs font-medium text-on-surface-variant uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'}`}
@@ -814,18 +661,18 @@ function InvoicesPageInner() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface-variant" onClick={() => router.push(`/invoices/${invoice.id}`)}>
                         {invoice.dueDate
-                          ? new Date(invoice.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          ? formatDate(invoice.dueDate, { month: 'short', day: 'numeric', year: 'numeric' })
                           : '—'}
-                        {overdue && <span className="ml-2 text-xs text-error font-medium">(Overdue)</span>}
+                        {overdue && <span className="ml-2 text-xs text-error font-medium">{t('invoices.list.overdueTag')}</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface text-right font-medium" onClick={() => router.push(`/invoices/${invoice.id}`)}>
-                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(invoice.total)}
+                        {formatCurrency(invoice.total, invoice.currency)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-on-surface text-right" onClick={() => router.push(`/invoices/${invoice.id}`)}>
-                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(invoice.amountPaid)}
+                        {formatCurrency(invoice.amountPaid, invoice.currency)}
                         {invoice.amountDue > 0 && (
                           <span className="block text-xs text-warning">
-                            Due: {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(invoice.amountDue)}
+                            {t('invoices.card.dueAmount', { amount: formatCurrency(invoice.amountDue, invoice.currency) })}
                           </span>
                         )}
                       </td>
@@ -848,7 +695,7 @@ function InvoicesPageInner() {
               disabled={page === 1}
               className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
             >
-              Previous
+              {t('invoices.list.previous')}
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
               <button
@@ -866,7 +713,7 @@ function InvoicesPageInner() {
               disabled={page === totalPages}
               className="px-4 py-2 bg-surface-container-low text-on-surface rounded-lg hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
             >
-              Next
+              {t('invoices.list.next')}
             </button>
           </div>
         )}
@@ -876,7 +723,6 @@ function InvoicesPageInner() {
       {sendModal && (
         <SendInvoiceModal
           invoice={sendModal}
-          stripeConnected={stripeConnected === true}
           onClose={() => setSendModal(null)}
           onSent={(updated) => {
             if (updated) {
@@ -884,7 +730,7 @@ function InvoicesPageInner() {
                 inv.id === sendModal.id ? { ...inv, ...updated } : inv
               ));
             }
-            addToast('Invoice sent by email');
+            addToast(t('invoices.list.toastInvoiceSent'));
           }}
         />
       )}
@@ -893,7 +739,7 @@ function InvoicesPageInner() {
           invoice={paymentModal}
           onClose={() => setPaymentModal(null)}
           onRecorded={() => {
-            addToast('Payment recorded');
+            addToast(t('invoices.list.toastPaymentRecorded'));
             fetchInvoices();
           }}
         />
@@ -920,7 +766,6 @@ function InvoiceCard({
   onSend,
   onPayment,
   onPdf,
-  onPaymentLink,
   onShare,
 }: {
   invoice: Invoice;
@@ -931,11 +776,10 @@ function InvoiceCard({
   onSend: () => void;
   onPayment: () => void;
   onPdf: () => void;
-  onPaymentLink: () => void;
   onShare: () => void;
 }) {
+  const { t, formatDate, formatCurrency } = useI18n();
   const paymentPercentage = invoice.total > 0 ? Math.min(100, (invoice.amountPaid / invoice.total) * 100) : 0;
-  const fmt = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(n);
 
   return (
     <div
@@ -949,7 +793,7 @@ function InvoiceCard({
           </h3>
           <div className="flex items-center gap-2">
             <p className="text-sm text-on-surface-variant">
-              {new Date(invoice.issueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {formatDate(invoice.issueDate, { month: 'short', day: 'numeric', year: 'numeric' })}
             </p>
             {isOverdue && <AlertCircle className="h-4 w-4 text-error" strokeWidth={1.75} />}
           </div>
@@ -964,7 +808,6 @@ function InvoiceCard({
               onSend={onSend}
               onPayment={onPayment}
               onPdf={onPdf}
-              onPaymentLink={onPaymentLink}
               onShare={onShare}
             />
           </div>
@@ -980,8 +823,8 @@ function InvoiceCard({
 
       {invoice.dueDate && (
         <p className="text-sm text-on-surface-variant mb-4">
-          Due: {new Date(invoice.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          {isOverdue && <span className="ml-2 text-error font-medium">(Overdue)</span>}
+          {t('invoices.card.dueDateText', { date: formatDate(invoice.dueDate, { month: 'short', day: 'numeric', year: 'numeric' }) })}
+          {isOverdue && <span className="ml-2 text-error font-medium">{t('invoices.list.overdueTag')}</span>}
         </p>
       )}
 
@@ -990,35 +833,24 @@ function InvoiceCard({
           <div className="h-2 bg-surface-container-low rounded-full overflow-hidden">
             <div className="h-full bg-success transition-all duration-300" style={{ width: `${paymentPercentage}%` }} />
           </div>
-          <div className="mt-1 text-xs text-on-surface-variant text-right">{Math.round(paymentPercentage)}% paid</div>
+          <div className="mt-1 text-xs text-on-surface-variant text-right">
+            {t('invoices.card.paidPercent', { percent: Math.round(paymentPercentage) })}
+          </div>
         </div>
       )}
 
       <div className="flex items-center justify-between pt-4 border-t border-outline-variant/10">
-        <span className="text-sm text-on-surface-variant">Total</span>
-        <span className="text-xl font-bold text-on-surface">{fmt(invoice.total)}</span>
+        <span className="text-sm text-on-surface-variant">{t('invoices.card.total')}</span>
+        <span className="text-xl font-bold text-on-surface">{formatCurrency(invoice.total, invoice.currency)}</span>
       </div>
 
       {invoice.amountDue > 0 && (
         <div className="flex items-center justify-between mt-2">
-          <span className="text-sm text-warning">Amount Due</span>
-          <span className="text-base font-semibold text-warning">{fmt(invoice.amountDue)}</span>
+          <span className="text-sm text-warning">{t('invoices.card.amountDue')}</span>
+          <span className="text-base font-semibold text-warning">{formatCurrency(invoice.amountDue, invoice.currency)}</span>
         </div>
       )}
 
-      {(invoice as any).stripePaymentLink && invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-        <div className="mt-3 pt-3 border-t border-outline-variant/10" onClick={(e) => e.stopPropagation()}>
-          <a
-            href={(invoice as any).stripePaymentLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 transition-colors text-sm font-medium"
-          >
-            <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
-            Pay Now
-          </a>
-        </div>
-      )}
     </div>
   );
 }

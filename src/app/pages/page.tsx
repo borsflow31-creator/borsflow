@@ -13,6 +13,7 @@ import { Plus, FileText, MoreVertical, Loader2, Trash2, LayoutTemplate } from 'l
 import NoWorkspace from '@/components/NoWorkspace';
 import { ToastContainer, type ToastType } from '@/components/Toast';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ const dateFormat: Intl.DateTimeFormatOptions = {
  * on narrow screens.
  */
 function PageActions({ onDelete }: { onDelete: () => void }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -118,7 +120,7 @@ function PageActions({ onDelete }: { onDelete: () => void }) {
           setOpen((o) => !o);
         }}
         className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50"
-        aria-label="Page actions"
+        aria-label={t('pages.table.pageActions')}
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -244,6 +246,7 @@ function PageRow({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 function PagesPageInner() {
+  const { t } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -401,8 +404,8 @@ function PagesPageInner() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-on-surface mb-2">Pages</h1>
-          <p className="text-on-surface-variant">Create and manage your pages</p>
+          <h1 className="text-3xl font-bold text-on-surface mb-2">{t('pages.header.title')}</h1>
+          <p className="text-on-surface-variant">{t('pages.header.description')}</p>
         </div>
 
         {/* Filter Bar */}
@@ -530,7 +533,7 @@ function PagesPageInner() {
                         i >= 2 ? 'text-right' : 'text-left'
                       }`}
                     >
-                      {h || <span className="sr-only">Actions</span>}
+                      {h || <span className="sr-only">{t('pages.table.actions')}</span>}
                     </th>
                   ))}
                 </tr>

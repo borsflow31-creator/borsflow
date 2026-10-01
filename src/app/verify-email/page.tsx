@@ -4,19 +4,29 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { safeCallbackUrl } from '@/lib/url';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function VerifyEmailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t } = useI18n();
     const token = searchParams.get('token');
+    // An invited user signs up mid-invitation, so the verification link carries
+    // where to go next. Guarded: the parameter is attacker-controllable.
+    const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'), '/dashboard');
+    const loginHref =
+        callbackUrl === '/dashboard'
+            ? '/login'
+            : `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-    const [message, setMessage] = useState('Verifying your email...');
+    const [message, setMessage] = useState(t('auth.verifyingEmail'));
 
     useEffect(() => {
         if (!token) {
             setStatus('error');
-            setMessage('No verification token found.');
+            setMessage(t('auth.noVerificationToken'));
             return;
         }
 
@@ -32,22 +42,22 @@ function VerifyEmailContent() {
 
                 if (res.ok) {
                     setStatus('success');
-                    setMessage('Your email has been verified successfully!');
+                    setMessage(t('auth.emailVerifiedSuccess'));
                     setTimeout(() => {
-                        router.push('/dashboard');
+                        router.push(callbackUrl);
                     }, 2000);
                 } else {
                     setStatus('error');
-                    setMessage(data.error || 'Failed to verify email.');
+                    setMessage(data.error || t('auth.verifyEmailFailed'));
                 }
             } catch (err) {
                 setStatus('error');
-                setMessage('An unexpected error occurred.');
+                setMessage(t('common.unexpectedError'));
             }
         };
 
         verify();
-    }, [token, router]);
+    }, [token, router, callbackUrl, t]);
 
     return (
         <div className="w-full max-w-md text-center bg-surface-container-low rounded-xl p-8 shadow-lg">
@@ -58,7 +68,7 @@ function VerifyEmailContent() {
             </div>
             
             <h1 className="text-3xl font-bold text-on-surface mb-4">
-                {status === 'loading' ? 'Verifying...' : status === 'success' ? 'Verified!' : 'Verification Failed'}
+                {status === 'loading' ? t('auth.verifying') : status === 'success' ? t('auth.verified') : t('auth.verificationFailed')}
             </h1>
             
             <p className="text-on-surface-variant mb-8 text-lg">
@@ -67,16 +77,18 @@ function VerifyEmailContent() {
 
             {status === 'success' && (
                 <p className="text-sm text-on-surface-variant animate-pulse">
-                    Redirecting you to the dashboard...
+                    {callbackUrl === '/dashboard'
+                        ? t('auth.redirectingToDashboard')
+                        : t('auth.takingYouToInvitation')}
                 </p>
             )}
 
             {status === 'error' && (
                 <Link
-                    href="/login"
+                    href={loginHref}
                     className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-on-secondary rounded-lg font-medium hover:bg-secondary-dim transition-colors"
                 >
-                    Back to Login
+                    {t('auth.backToLogin')}
                 </Link>
             )}
         </div>

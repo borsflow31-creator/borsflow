@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Edit2, Trash2, ArrowUpDown, MoreVertical, CheckCircle2, Clock, Circle, Table2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -55,6 +56,7 @@ export default function KanbanListView({
     filter,
     loading = false,
 }: KanbanListViewProps) {
+    const { t, formatDate } = useI18n();
     const [sortField, setSortField] = useState<SortField>('dueDate');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
     const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -128,9 +130,9 @@ export default function KanbanListView({
 
     const getStatusBadge = (status: string) => {
         const statusConfig = {
-            todo: { icon: Circle, label: 'To Do', color: 'text-on-surface-variant bg-surface-container-high' },
-            inprogress: { icon: Clock, label: 'In Progress', color: 'text-secondary bg-secondary-container' },
-            done: { icon: CheckCircle2, label: 'Done', color: 'text-success bg-success-container' },
+            todo: { icon: Circle, label: t('kanban.statusTodo'), color: 'text-on-surface-variant bg-surface-container-high' },
+            inprogress: { icon: Clock, label: t('kanban.statusInProgress'), color: 'text-secondary bg-secondary-container' },
+            done: { icon: CheckCircle2, label: t('kanban.statusDone'), color: 'text-success bg-success-container' },
         };
         const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.todo;
         const Icon = config.icon;
@@ -145,9 +147,9 @@ export default function KanbanListView({
 
     const getPriorityBadge = (priority: string) => {
         const priorityConfig = {
-            low: { label: 'Low', color: 'text-success bg-success-container' },
-            medium: { label: 'Medium', color: 'text-warning bg-warning-container' },
-            high: { label: 'High', color: 'text-error bg-error-container' },
+            low: { label: t('kanban.priorityLow'), color: 'text-success bg-success-container' },
+            medium: { label: t('kanban.priorityMedium'), color: 'text-warning bg-warning-container' },
+            high: { label: t('kanban.priorityHigh'), color: 'text-error bg-error-container' },
         };
         const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium;
 
@@ -180,10 +182,9 @@ export default function KanbanListView({
         return dueDate < new Date();
     };
 
-    const formatDate = (date?: Date) => {
+    const formatCardDate = (date?: Date) => {
         if (!date) return '-';
-        const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
-        return date.toLocaleDateString('en-US', options);
+        return formatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
     const filteredCards = getFilteredAndSortedCards();
@@ -208,11 +209,11 @@ export default function KanbanListView({
                 <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center mb-4">
                     <Table2 className="w-8 h-8 text-on-surface-variant/30" />
                 </div>
-                <h3 className="text-lg font-semibold text-on-surface mb-2">No cards found</h3>
+                <h3 className="text-lg font-semibold text-on-surface mb-2">{t('kanban.noCardsFound')}</h3>
                 <p className="text-sm text-on-surface-variant max-w-sm">
                     {filter?.search || filter?.priority || filter?.tag || filter?.assignee
-                        ? 'Try adjusting your filters or search terms'
-                        : 'Create your first card to get started'}
+                        ? t('kanban.adjustFiltersHint')
+                        : t('kanban.createFirstCardHint')}
                 </p>
             </div>
         );
@@ -223,23 +224,23 @@ export default function KanbanListView({
             {/* Table Header */}
             <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-surface-container-high border-b border-outline-variant/30 text-xs font-semibold text-on-surface-variant uppercase tracking-wide">
                 <div className="col-span-4 flex items-center gap-2 cursor-pointer hover:text-on-surface transition-colors" onClick={() => handleSort('title')}>
-                    Title
+                    {t('kanban.columnTitle')}
                     <ArrowUpDown className="w-3 h-3" />
                 </div>
                 <div className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-on-surface transition-colors" onClick={() => handleSort('status')}>
-                    Status
+                    {t('kanban.columnStatus')}
                     <ArrowUpDown className="w-3 h-3" />
                 </div>
                 <div className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-on-surface transition-colors" onClick={() => handleSort('priority')}>
-                    Priority
+                    {t('kanban.columnPriority')}
                     <ArrowUpDown className="w-3 h-3" />
                 </div>
                 <div className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-on-surface transition-colors" onClick={() => handleSort('dueDate')}>
-                    Due Date
+                    {t('kanban.columnDueDate')}
                     <ArrowUpDown className="w-3 h-3" />
                 </div>
                 <div className="col-span-1 flex items-center gap-2 cursor-pointer hover:text-on-surface transition-colors" onClick={() => handleSort('project')}>
-                    Project
+                    {t('kanban.columnProject')}
                     <ArrowUpDown className="w-3 h-3" />
                 </div>
                 <div className="col-span-1"></div>
@@ -298,7 +299,7 @@ export default function KanbanListView({
                         {/* Due Date */}
                         <div className="col-span-2 flex items-center">
                             <span className={`text-sm ${isOverdue(card.dueDate) ? 'text-error font-medium' : 'text-on-surface'}`}>
-                                {formatDate(card.dueDate)}
+                                {formatCardDate(card.dueDate)}
                             </span>
                         </div>
 
@@ -313,7 +314,7 @@ export default function KanbanListView({
                                 <button
                                     onClick={() => setMenuOpenId(menuOpenId === card.id ? null : card.id)}
                                     className="p-1.5 rounded-md hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors opacity-0 group-hover:opacity-100"
-                                    aria-label="More options"
+                                    aria-label={t('kanban.moreOptionsAria')}
                                 >
                                     <MoreVertical className="w-4 h-4" />
                                 </button>
@@ -329,7 +330,7 @@ export default function KanbanListView({
                                                 className="w-full px-3 py-2 text-sm text-left text-on-surface hover:bg-surface-container-high flex items-center gap-2"
                                             >
                                                 <Edit2 className="w-4 h-4" />
-                                                Edit
+                                                {t('common.edit')}
                                             </button>
                                         )}
                                         <button
@@ -340,7 +341,7 @@ export default function KanbanListView({
                                             className="w-full px-3 py-2 text-sm text-left text-error hover:bg-error-container flex items-center gap-2"
                                         >
                                             <Trash2 className="w-4 h-4" />
-                                            Delete
+                                            {t('common.delete')}
                                         </button>
                                     </div>
                                 )}
@@ -352,7 +353,7 @@ export default function KanbanListView({
 
             {/* Footer */}
             <div className="px-6 py-3 bg-surface-container-high border-t border-outline-variant/30 text-xs text-on-surface-variant">
-                Showing {filteredCards.length} of {cards.length} cards
+                {t('kanban.showingCardsOf', { shown: filteredCards.length, total: cards.length })}
             </div>
         </div>
     );

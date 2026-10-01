@@ -6,6 +6,7 @@ import {
   ExternalLink, MoreVertical, CheckCircle2, XCircle,
   AlertCircle, Circle
 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Attendee {
   id: string;
@@ -43,29 +44,29 @@ const PLATFORM_CONFIG: Record<string, { label: string; color: string; bg: string
   phone:        { label: 'Phone',        color: 'text-teal-700 dark:text-teal-300',  bg: 'bg-teal-50 dark:bg-teal-900/30' },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  scheduled:   { label: 'Scheduled',   icon: Circle,        color: 'text-secondary' },
-  in_progress: { label: 'In Progress', icon: AlertCircle,   color: 'text-amber-500' },
-  completed:   { label: 'Completed',   icon: CheckCircle2,  color: 'text-green-500' },
-  cancelled:   { label: 'Cancelled',   icon: XCircle,       color: 'text-error' },
-  no_show:     { label: 'No Show',     icon: XCircle,       color: 'text-on-surface-variant' },
-};
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
 export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardProps) {
+  const { t, formatDate: formatDateIntl } = useI18n();
+
+  const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+    scheduled:   { label: t('scheduling.status.scheduled'),  icon: Circle,        color: 'text-secondary' },
+    in_progress: { label: t('scheduling.status.inProgress'), icon: AlertCircle,   color: 'text-amber-500' },
+    completed:   { label: t('scheduling.status.completed'),  icon: CheckCircle2,  color: 'text-green-500' },
+    cancelled:   { label: t('scheduling.status.cancelled'),  icon: XCircle,       color: 'text-error' },
+    no_show:     { label: t('scheduling.status.noShow'),     icon: XCircle,       color: 'text-on-surface-variant' },
+  };
+
+  const formatTime = (iso: string) => formatDateIntl(iso, { hour: '2-digit', minute: '2-digit' });
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    if (d.toDateString() === today.toDateString()) return t('scheduling.card.today');
+    if (d.toDateString() === tomorrow.toDateString()) return t('scheduling.card.tomorrow');
+    return formatDateIntl(iso, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
   const platform = PLATFORM_CONFIG[meeting.platform] || PLATFORM_CONFIG['in_person'];
   const status   = STATUS_CONFIG[meeting.status]    || STATUS_CONFIG['scheduled'];
   const StatusIcon = status.icon;
@@ -84,7 +85,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
       {isNow && (
         <div className="absolute -top-2 left-4 flex items-center gap-1.5 bg-secondary text-on-secondary text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-on-secondary animate-pulse" />
-          LIVE NOW
+          {t('scheduling.card.liveNow')}
         </div>
       )}
 
@@ -112,7 +113,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
             {/* Lead */}
             {meeting.lead && (
               <p className="text-[11px] text-on-surface-variant mt-0.5">
-                with {meeting.lead.firstName} {meeting.lead.lastName}
+                {t('scheduling.card.withLead', { name: `${meeting.lead.firstName} ${meeting.lead.lastName}` })}
               </p>
             )}
           </div>
@@ -125,7 +126,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1.5 rounded-lg bg-secondary text-on-secondary hover:opacity-90 transition-opacity"
-                title="Join meeting"
+                title={t('scheduling.card.joinMeetingTitle')}
               >
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
@@ -133,7 +134,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
             <button
               onClick={() => onEdit?.(meeting.id)}
               className="p-1.5 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant hover:text-on-surface"
-              title="Options"
+              title={t('scheduling.card.optionsTitle')}
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
@@ -151,7 +152,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
             {formatTime(meeting.startTime)} – {formatTime(meeting.endTime)}
           </span>
           <span className="text-[11px] text-on-surface-variant/60">
-            {meeting.duration} min
+            {t('scheduling.card.minutesSuffix', { count: meeting.duration })}
           </span>
         </div>
 
@@ -184,7 +185,7 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
               )}
             </div>
             <span className="text-[11px] text-on-surface-variant">
-              {meeting.attendees.length} attendee{meeting.attendees.length !== 1 ? 's' : ''}
+              {t('scheduling.attendeeCount', { count: meeting.attendees.length })}
             </span>
           </div>
         )}
@@ -201,14 +202,14 @@ export default function MeetingCard({ meeting, onEdit, onCancel }: MeetingCardPr
               className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-medium bg-secondary text-on-secondary rounded-xl hover:opacity-90 transition-opacity"
             >
               <Video className="w-3.5 h-3.5" />
-              Join Meeting
+              {t('scheduling.card.joinMeeting')}
             </a>
           )}
           <button
             onClick={() => onCancel?.(meeting.id)}
             className="px-3 py-1.5 text-[12px] font-medium text-on-surface-variant hover:text-error hover:bg-error/10 rounded-xl transition-colors"
           >
-            Cancel
+            {t('scheduling.card.cancel')}
           </button>
         </div>
       )}

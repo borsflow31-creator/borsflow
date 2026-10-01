@@ -7,6 +7,7 @@ import { isValidEmail, sendVerificationEmail } from '@/lib/email'
 import { normalizeEmail } from '@/lib/email/normalize'
 import { findUserByEmail } from '@/lib/api/user'
 import { consumeRateLimits, rateLimitHeaders, type RateLimitRule } from '@/lib/api/rate-limit'
+import { safeCallbackUrl } from '@/lib/url'
 
 /**
  * Sign-ups per IP, so accounts cannot be created in bulk, and per address,
@@ -50,6 +51,10 @@ export async function POST(request: Request) {
     try {
         const body = await request.json()
         const { password, name } = body
+        // Carried across the verification hop so an invited user returns to the
+        // invitation instead of the dashboard. Re-validated here because the
+        // client's own check is not a trust boundary.
+        const callbackUrl = safeCallbackUrl(body.callbackUrl, null)
         // Stored lowercase so `Bob@x.com` and `bob@x.com` can never become two
         // accounts, and so invitations (also lowercase) always match the user.
         const email = normalizeEmail(body.email)
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
         if (existingUser) {
             const token = await issueVerificationToken(email)
             try {
-                await sendVerificationEmail(email, token)
+                await sendVerificationEmail(email, token, callbackUrl)
             } catch (error) {
                 console.error('Resend verification error:', error)
                 return NextResponse.json({ error: EMAIL_FAILED }, { status: 503 })
@@ -135,7 +140,7 @@ export async function POST(request: Request) {
         // If delivery fails the account still exists, but it is no longer stuck:
         // signing up again re-sends the email (above).
         try {
-            await sendVerificationEmail(email, token)
+            await sendVerificationEmail(email, token, callbackUrl)
         } catch (error) {
             console.error('Verification email error:', error)
             return NextResponse.json({ error: EMAIL_FAILED }, { status: 503 })

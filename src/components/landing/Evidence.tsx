@@ -1,39 +1,44 @@
+'use client'
+
 import React from 'react'
 import Image from 'next/image'
+import { useI18n } from '@/i18n/I18nProvider'
 
 type Variant = 'editor' | 'financials'
 
-/* One block per instance, so the two captures can be placed apart in the
-   scroll instead of stacked. Each carries its own framing: the editor capture
-   is inset in the reading column, the financials capture breaks the left edge.
-   Alternating a mirrored module read as one component twice, not two ideas. */
-const BLOCKS: Record<Variant, {
-    title: string
-    body: string
-    src: string
-    alt: string
-    w: number
-    h: number
-}> = {
-    editor: {
-        title: 'The scope lives where the deal lives',
-        body: 'Twenty-two block types, nested as deep as the project goes. Comment in threads, grant view or edit to one person, publish a read-only link for the client.',
-        src: '/shots/pages.webp',
-        alt: 'A project scope open in the BorsFlow editor: a callout, a Deliverables heading, and a checklist with two items completed.',
-        w: 2160,
-        h: 1350,
-    },
-    financials: {
-        title: 'Quotes become invoices, and invoices get paid',
-        body: 'Accepted quotes convert in one step and carry the client, the line items and the tax across. Take payment by Stripe link or Connect, or record a bank transfer by hand — partial payments draw the balance down as they land.',
-        src: '/shots/invoices.webp',
-        alt: 'The BorsFlow invoice list: one invoice marked Paid at 100%, another marked Sent at 30% paid with the amount still due.',
-        w: 2160,
-        h: 1058,
-    },
-}
-
 export const Evidence = ({ variant }: { variant: Variant }) => {
+    const { t } = useI18n()
+
+    /* One block per instance, so the two captures can be placed apart in the
+       scroll instead of stacked. Each carries its own framing: the editor capture
+       is inset in the reading column, the financials capture breaks the left edge.
+       Alternating a mirrored module read as one component twice, not two ideas. */
+    const BLOCKS: Record<Variant, {
+        title: string
+        body: string
+        src: string
+        alt: string
+        w: number
+        h: number
+    }> = {
+        editor: {
+            title: t('landing.evidence.editorTitle'),
+            body: t('landing.evidence.editorBody'),
+            src: '/shots/pages.webp',
+            alt: t('landing.evidence.editorAlt'),
+            w: 2160,
+            h: 1350,
+        },
+        financials: {
+            title: t('landing.evidence.financialsTitle'),
+            body: t('landing.evidence.financialsBody'),
+            src: '/shots/invoices.webp',
+            alt: t('landing.evidence.financialsAlt'),
+            w: 2160,
+            h: 1058,
+        },
+    }
+
     const b = BLOCKS[variant]
     const bleedLeft = variant === 'financials'
 

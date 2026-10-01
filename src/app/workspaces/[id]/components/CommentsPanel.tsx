@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface Comment {
     id: string
@@ -16,6 +17,7 @@ interface Comment {
 }
 
 export default function CommentsPanel() {
+    const { t } = useI18n()
     const params = useParams()
     const [comments, setComments] = useState<Comment[]>([])
     const [newComment, setNewComment] = useState('')
@@ -71,16 +73,16 @@ export default function CommentsPanel() {
         const now = new Date()
         const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-        if (seconds < 60) return 'Just now'
-        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-        return `${Math.floor(seconds / 86400)}d ago`
+        if (seconds < 60) return t('workspaces.justNow')
+        if (seconds < 3600) return t('workspaces.minutesAgo', { count: Math.floor(seconds / 60) })
+        if (seconds < 86400) return t('workspaces.hoursAgo', { count: Math.floor(seconds / 3600) })
+        return t('workspaces.daysAgo', { count: Math.floor(seconds / 86400) })
     }
 
     return (
         <aside className="w-80 border-l border-slate-100 hidden xl:flex flex-col bg-slate-50 p-6 space-y-6">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">Comments</h3>
+                <h3 className="text-sm font-bold text-on-surface uppercase tracking-wider">{t('workspaces.commentsHeading')}</h3>
                 <span className="material-symbols-outlined text-sm text-on-surface-variant cursor-pointer">filter_list</span>
             </div>
 
@@ -90,8 +92,8 @@ export default function CommentsPanel() {
                 </div>
             ) : comments.length === 0 ? (
                 <div className="text-center py-12 text-on-surface-variant">
-                    <p className="text-sm">No comments yet</p>
-                    <p className="text-xs mt-2">Be the first to comment!</p>
+                    <p className="text-sm">{t('workspaces.noCommentsYet')}</p>
+                    <p className="text-xs mt-2">{t('workspaces.beFirstToComment')}</p>
                 </div>
             ) : (
                 comments.map((comment) => (
@@ -121,10 +123,10 @@ export default function CommentsPanel() {
                         </p>
                         <div className="flex items-center space-x-3">
                             <button className="text-[10px] font-bold text-secondary uppercase tracking-tight">
-                                Reply
+                                {t('workspaces.reply')}
                             </button>
                             <button className="text-[10px] font-bold text-on-surface-variant uppercase tracking-tight">
-                                Resolve
+                                {t('workspaces.resolve')}
                             </button>
                         </div>
 
@@ -161,7 +163,7 @@ export default function CommentsPanel() {
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         className="w-full bg-white border border-outline-variant/30 rounded-lg p-3 text-xs focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none"
-                        placeholder="Add a comment..."
+                        placeholder={t('workspaces.addCommentPlaceholder')}
                         rows={3}
                     />
                     <button

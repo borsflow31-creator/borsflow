@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Columns, Table2, Calendar, GanttChart } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 type ViewMode = 'kanban' | 'list' | 'calendar' | 'timeline';
 
@@ -10,15 +11,16 @@ interface ViewToggleProps {
     onViewModeChange: (mode: ViewMode) => void;
 }
 
-const VIEW_OPTIONS = [
-    { id: 'kanban' as ViewMode, label: 'Kanban', icon: Columns, title: 'Kanban Board' },
-    { id: 'list' as ViewMode, label: 'List', icon: Table2, title: 'List View' },
-    { id: 'calendar' as ViewMode, label: 'Calendar', icon: Calendar, title: 'Calendar View' },
-    { id: 'timeline' as ViewMode, label: 'Timeline', icon: GanttChart, title: 'Timeline View' },
-];
-
 export default function ViewToggle({ viewMode, onViewModeChange }: ViewToggleProps) {
+    const { t } = useI18n();
     const [mounted, setMounted] = useState(false);
+
+    const VIEW_OPTIONS = [
+        { id: 'kanban' as ViewMode, label: t('kanban.viewKanbanLabel'), icon: Columns, title: t('kanban.viewKanbanTitle') },
+        { id: 'list' as ViewMode, label: t('kanban.viewListLabel'), icon: Table2, title: t('kanban.viewListTitle') },
+        { id: 'calendar' as ViewMode, label: t('kanban.viewCalendarLabel'), icon: Calendar, title: t('kanban.viewCalendarTitle') },
+        { id: 'timeline' as ViewMode, label: t('kanban.viewTimelineLabel'), icon: GanttChart, title: t('kanban.viewTimelineTitle') },
+    ];
 
     useEffect(() => {
         setMounted(true);

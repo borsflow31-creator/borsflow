@@ -9,8 +9,10 @@ import EmailStarterTemplateGallery, { WorkspaceEmailTemplate } from '@/component
 import { EmailStarterTemplate } from '@/lib/email-starter-templates'
 import { useAppStore } from '@/store/appStore'
 import { ArrowRight, Loader2 } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 function TemplatesPageInner() {
+  const { t } = useI18n()
   const searchParams = useSearchParams()
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -87,7 +89,7 @@ function TemplatesPageInner() {
 
     const data = await response.json()
     if (!response.ok) {
-      throw new Error(data.error || 'Failed to clone template')
+      throw new Error(data.error || t('templates.cloneFailed'))
     }
 
     await fetchTemplates()
@@ -113,10 +115,10 @@ function TemplatesPageInner() {
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="flex flex-col gap-4 rounded-[32px] border border-stone-200 bg-white/80 p-6 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">Templates route</div>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">Email layouts you can actually ship</h1>
+              <div className="text-xs font-semibold uppercase tracking-[0.28em] text-stone-500">{t('templates.eyebrow')}</div>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900 md:text-4xl">{t('templates.heading')}</h1>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-stone-600">
-                This page now acts as a dedicated email-template gallery, with BeeFree-inspired starter layouts that clone directly into your workspace library.
+                {t('templates.description')}
               </p>
             </div>
             <button
@@ -124,7 +126,7 @@ function TemplatesPageInner() {
               onClick={() => router.push('/email-marketing')}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-stone-900 bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
             >
-              Open email marketing
+              {t('templates.openEmailMarketing')}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -132,7 +134,7 @@ function TemplatesPageInner() {
           {loading ? (
             <div className="rounded-[28px] border border-stone-200 bg-white p-16 text-center text-stone-500 shadow-sm">
               <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin" />
-              Loading your template library...
+              {t('templates.loading')}
             </div>
           ) : (
             <EmailStarterTemplateGallery
@@ -141,8 +143,8 @@ function TemplatesPageInner() {
               onCloneTemplate={handleCloneTemplate}
               onCreateBlank={() => router.push('/email-marketing')}
               onEditWorkspaceTemplate={(template) => router.push(`/email-marketing?tab=templates&editTemplate=${template.id}`)}
-              title="Curated email template collection"
-              subtitle="Designed to feel close to the BeeFree browsing experience: polished preview cards, strong categorization, and ready-to-clone layouts for launches, newsletters, webinars, recovery flows, and more."
+              title={t('templates.galleryTitle')}
+              subtitle={t('templates.gallerySubtitle')}
             />
           )}
         </div>

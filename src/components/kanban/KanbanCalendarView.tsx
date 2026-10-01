@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MoreVertical } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -53,9 +54,26 @@ export default function KanbanCalendarView({
     filter,
     currentDate: initialCurrentDate = new Date(),
 }: KanbanCalendarViewProps) {
+    const { t, formatDate } = useI18n();
     const [currentDate, setCurrentDate] = useState(initialCurrentDate);
     const [viewMode, setViewMode] = useState<CalendarView>('month');
     const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+
+    const WEEKDAY_LABELS = [
+        t('kanban.weekdaySun'),
+        t('kanban.weekdayMon'),
+        t('kanban.weekdayTue'),
+        t('kanban.weekdayWed'),
+        t('kanban.weekdayThu'),
+        t('kanban.weekdayFri'),
+        t('kanban.weekdaySat'),
+    ];
+
+    const VIEW_MODE_LABELS: Record<CalendarView, string> = {
+        month: t('kanban.unitMonth'),
+        week: t('kanban.unitWeek'),
+        day: t('kanban.unitDay'),
+    };
 
     const getFilteredCards = () => {
         let filtered = [...cards];
@@ -153,14 +171,14 @@ export default function KanbanCalendarView({
                     <div className="flex items-center gap-2">
                         <CalendarIcon className="w-5 h-5 text-primary" />
                         <h2 className="text-lg font-semibold text-on-surface">
-                            {format(currentDate, 'MMMM yyyy')}
+                            {formatDate(currentDate, { month: 'long', year: 'numeric' })}
                         </h2>
                     </div>
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => navigateMonth('prev')}
                             className="p-1.5 rounded-md hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
-                            aria-label="Previous month"
+                            aria-label={t('kanban.previousMonthAria')}
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -168,12 +186,12 @@ export default function KanbanCalendarView({
                             onClick={goToToday}
                             className="px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-highest rounded-md transition-colors"
                         >
-                            Today
+                            {t('kanban.today')}
                         </button>
                         <button
                             onClick={() => navigateMonth('next')}
                             className="p-1.5 rounded-md hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
-                            aria-label="Next month"
+                            aria-label={t('kanban.nextMonthAria')}
                         >
                             <ChevronRight className="w-5 h-5" />
                         </button>
@@ -194,7 +212,7 @@ export default function KanbanCalendarView({
                                 }
                             `}
                         >
-                            {mode}
+                            {VIEW_MODE_LABELS[mode]}
                         </button>
                     ))}
                 </div>
@@ -205,7 +223,7 @@ export default function KanbanCalendarView({
                 <div className="p-4">
                     {/* Day Headers */}
                     <div className="grid grid-cols-7 gap-2 mb-2">
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                        {WEEKDAY_LABELS.map((day) => (
                             <div
                                 key={day}
                                 className="text-center text-xs font-semibold text-on-surface-variant uppercase tracking-wide py-2"
@@ -246,7 +264,7 @@ export default function KanbanCalendarView({
                                                 ${dayIsOverdue && !isToday ? 'text-error' : ''}
                                             `}
                                         >
-                                            {format(date, 'd')}
+                                            {formatDate(date, { day: 'numeric' })}
                                         </span>
                                         {dayCards.length > 0 && (
                                             <span className="text-xs text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">
@@ -287,7 +305,7 @@ export default function KanbanCalendarView({
                                         ))}
                                         {dayCards.length > 3 && (
                                             <div className="text-xs text-on-surface-variant text-center py-1">
-                                                +{dayCards.length - 3} more
+                                                {t('kanban.moreCardsCount', { count: dayCards.length - 3 })}
                                             </div>
                                         )}
                                     </div>
@@ -304,12 +322,12 @@ export default function KanbanCalendarView({
                     <div>
                         <CalendarIcon className="w-16 h-16 mx-auto mb-4 text-on-surface-variant/30" />
                         <h3 className="text-lg font-semibold text-on-surface mb-2">
-                            {viewMode === 'week' ? 'Week View' : 'Day View'}
+                            {viewMode === 'week' ? t('kanban.weekViewTitle') : t('kanban.dayViewTitle')}
                         </h3>
                         <p className="text-sm text-on-surface-variant max-w-sm">
                             {viewMode === 'week'
-                                ? 'Week view coming soon. Use month view for now.'
-                                : 'Day view coming soon. Use month view for now.'}
+                                ? t('kanban.weekViewComingSoon')
+                                : t('kanban.dayViewComingSoon')}
                         </p>
                     </div>
                 </div>
@@ -318,10 +336,10 @@ export default function KanbanCalendarView({
             {/* Footer */}
             <div className="px-6 py-3 bg-surface-container-high border-t border-outline-variant/30 text-xs text-on-surface-variant flex items-center justify-between">
                 <span>
-                    Showing {filteredCards.length} cards with due dates
+                    {t('kanban.showingCardsWithDueDates', { count: filteredCards.length })}
                 </span>
                 <span className="text-on-surface-variant/60">
-                    Drag cards to change due dates
+                    {t('kanban.dragToChangeDueDatesHint')}
                 </span>
             </div>
         </div>

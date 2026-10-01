@@ -3,18 +3,7 @@
 import { Draggable } from '@hello-pangea/dnd';
 import { useState } from 'react';
 import SelectRefined from '@/components/ui/SelectRefined';
-
-const PRIORITY_OPTIONS = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-];
-
-const STATUS_OPTIONS = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'inprogress', label: 'In Progress' },
-    { value: 'done', label: 'Done' },
-];
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanCardProps {
     id: string;
@@ -51,8 +40,27 @@ export default function KanbanCard({
     onUpdate,
     onDelete,
 }: KanbanCardProps) {
+    const { t, formatDate } = useI18n();
     const [showEditModal, setShowEditModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+
+    const PRIORITY_OPTIONS = [
+        { value: 'low', label: t('kanban.priorityLow') },
+        { value: 'medium', label: t('kanban.priorityMedium') },
+        { value: 'high', label: t('kanban.priorityHigh') },
+    ];
+
+    const STATUS_OPTIONS = [
+        { value: 'todo', label: t('kanban.statusTodo') },
+        { value: 'inprogress', label: t('kanban.statusInProgress') },
+        { value: 'done', label: t('kanban.statusDone') },
+    ];
+
+    const PRIORITY_LABEL: Record<typeof priority, string> = {
+        low: t('kanban.priorityLow'),
+        medium: t('kanban.priorityMedium'),
+        high: t('kanban.priorityHigh'),
+    };
 
     // Edit form state
     const [editTitle, setEditTitle] = useState(title);
@@ -108,11 +116,11 @@ export default function KanbanCard({
         if (!dueDate) return null;
         const diff = dueDate.getTime() - Date.now();
         const days = Math.ceil(diff / 86400000);
-        if (days < 0) return { text: `${Math.abs(days)}d overdue`, color: 'text-error' };
-        if (days === 0) return { text: 'Due today', color: 'text-error' };
-        if (days === 1) return { text: 'Due tomorrow', color: 'text-on-surface-variant' };
-        if (days <= 7) return { text: `Due in ${days}d`, color: 'text-on-surface-variant' };
-        return { text: dueDate.toLocaleDateString(), color: 'text-on-surface-variant' };
+        if (days < 0) return { text: t('kanban.overdueDays', { days: Math.abs(days) }), color: 'text-error' };
+        if (days === 0) return { text: t('kanban.dueToday'), color: 'text-error' };
+        if (days === 1) return { text: t('kanban.dueTomorrow'), color: 'text-on-surface-variant' };
+        if (days <= 7) return { text: t('kanban.dueInDays', { days }), color: 'text-on-surface-variant' };
+        return { text: formatDate(dueDate), color: 'text-on-surface-variant' };
     };
 
     const dueDateStatus = getDueDateStatus();
@@ -135,14 +143,14 @@ export default function KanbanCard({
                         {/* Priority Badge + Actions */}
                         <div className="flex items-center justify-between mb-3">
                             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${priorityColor} shadow-sm`}>
-                                {priority.charAt(0).toUpperCase() + priority.slice(1)}
+                                {PRIORITY_LABEL[priority]}
                             </span>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity">
                                 {onUpdate && (
                                     <button
                                         onClick={openEdit}
                                         className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors duration-200"
-                                        aria-label="Edit card"
+                                        aria-label={t('kanban.editCardAria')}
                                     >
                                         <span className="material-symbols-outlined text-lg text-on-surface-variant">edit</span>
                                     </button>
@@ -151,7 +159,7 @@ export default function KanbanCard({
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
                                         className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors duration-200"
-                                        aria-label="Delete card"
+                                        aria-label={t('kanban.deleteCardAria')}
                                     >
                                         <span className="material-symbols-outlined text-lg text-error">delete</span>
                                     </button>
@@ -239,7 +247,7 @@ export default function KanbanCard({
                 >
                     <div className="bg-surface-container-lowest rounded-xl p-6 w-full max-w-lg shadow-2xl">
                         <div className="flex items-center justify-between mb-5">
-                            <h3 className="text-lg font-semibold text-on-surface">Edit Card</h3>
+                            <h3 className="text-lg font-semibold text-on-surface">{t('kanban.editCardModalTitle')}</h3>
                             <button
                                 onClick={() => setShowEditModal(false)}
                                 className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors"
@@ -253,7 +261,7 @@ export default function KanbanCard({
                         <div className="space-y-4">
                             {/* Title */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Title *</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.titleFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={editTitle}
@@ -265,20 +273,20 @@ export default function KanbanCard({
 
                             {/* Description */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Description</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.descriptionFieldLabel')}</label>
                                 <textarea
                                     value={editDescription}
                                     onChange={(e) => setEditDescription(e.target.value)}
                                     rows={3}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all resize-none"
-                                    placeholder="Add a description..."
+                                    placeholder={t('kanban.descriptionPlaceholder')}
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Priority */}
                                 <SelectRefined
-                                    label="Priority"
+                                    label={t('kanban.priorityFieldLabel')}
                                     size="sm"
                                     variant="filled"
                                     value={editPriority}
@@ -288,7 +296,7 @@ export default function KanbanCard({
 
                                 {/* Status */}
                                 <SelectRefined
-                                    label="Status"
+                                    label={t('kanban.statusFieldLabel')}
                                     size="sm"
                                     variant="filled"
                                     value={editStatus}
@@ -299,7 +307,7 @@ export default function KanbanCard({
 
                             {/* Due Date */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Due Date</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.dueDateFieldLabel')}</label>
                                 <input
                                     type="date"
                                     value={editDueDate}
@@ -310,24 +318,24 @@ export default function KanbanCard({
 
                             {/* Tags */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Tags</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.tagsFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={editTagsRaw}
                                     onChange={(e) => setEditTagsRaw(e.target.value)}
-                                    placeholder="design, frontend, bug (comma-separated)"
+                                    placeholder={t('kanban.tagsPlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                 />
                             </div>
 
                             {/* Assignees */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Assignees</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.assigneesFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={editAssigneesRaw}
                                     onChange={(e) => setEditAssigneesRaw(e.target.value)}
-                                    placeholder="Alice, Bob (comma-separated)"
+                                    placeholder={t('kanban.assigneesPlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                 />
                             </div>
@@ -339,14 +347,14 @@ export default function KanbanCard({
                                 disabled={isSaving}
                                 className="px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50"
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button
                                 onClick={handleSave}
                                 disabled={!editTitle.trim() || isSaving}
                                 className="px-4 py-2 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isSaving ? 'Saving...' : 'Save Changes'}
+                                {isSaving ? t('kanban.saving') : t('kanban.saveChanges')}
                             </button>
                         </div>
                     </div>

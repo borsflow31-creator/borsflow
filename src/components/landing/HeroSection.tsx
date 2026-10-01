@@ -1,15 +1,24 @@
+'use client'
+
 import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 import { HeroStage } from './HeroStage'
 import { DemoVideo } from './DemoVideo'
 
-/* These are assurances for the call to action, so they sit with it rather than
-   a viewport below the capture. The export claim lives here and nowhere else. */
-const ASSURANCES = ['Free to start', 'Four roles, enforced on the server', 'Your data in one Postgres database']
-
 export const HeroSection = () => {
+    const { t } = useI18n()
+
+    /* These are assurances for the call to action, so they sit with it rather than
+       a viewport below the capture. The export claim lives here and nowhere else. */
+    const ASSURANCES = [
+        t('landing.hero.assuranceFree'),
+        t('landing.hero.assuranceRoles'),
+        t('landing.hero.assuranceData'),
+    ]
+
     return (
         <HeroStage>
             <section className="pt-28 pb-16 sm:pt-32 sm:pb-20 overflow-hidden">
@@ -20,19 +29,18 @@ export const HeroSection = () => {
                                 them independently without a wrapper per word. */}
                             <span className="block overflow-hidden">
                                 <span data-hero="line" className="block">
-                                    Stop switching tabs.
+                                    {t('landing.hero.titleLine1')}
                                 </span>
                             </span>
                             <span className="block overflow-hidden">
                                 <span data-hero="line" className="block">
-                                    Run docs, CRM and billing in one flow.
+                                    {t('landing.hero.titleLine2')}
                                 </span>
                             </span>
                         </h1>
 
                         <p data-hero="lead" className="mt-5 t-lead measure text-[var(--n-muted)]">
-                            One workspace for block documents, a sales pipeline, quotes, invoices, email campaigns and
-                            scheduling &mdash; all on the same database, so nothing gets retyped between them.
+                            {t('landing.hero.lead')}
                         </p>
 
                         <div className="mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -41,7 +49,7 @@ export const HeroSection = () => {
                                 href="/register"
                                 className="taste-sheen taste-btn-primary group px-7 py-3.5 text-sm"
                             >
-                                <span>Start free</span>
+                                <span>{t('landing.hero.startFree')}</span>
                                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
                             </Link>
                             <DemoVideo data-hero="action" />
@@ -71,7 +79,7 @@ export const HeroSection = () => {
                     <div className="plate-raster taste-plinth overflow-hidden p-1.5 sm:p-2">
                         <Image
                             src="/shots/crm.webp"
-                            alt="The BorsFlow pipeline: deals grouped by stage across Lead, Discovery, Proposal and Won, each card showing the contact, company and deal value."
+                            alt={t('landing.hero.plateAlt')}
                             width={2160}
                             height={930}
                             priority

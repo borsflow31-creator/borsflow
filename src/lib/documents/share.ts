@@ -93,7 +93,6 @@ export const PUBLIC_INVOICE_SELECT = {
   amountDue: true,
   notes: true,
   terms: true,
-  stripePaymentLink: true,
   payments: {
     orderBy: { paymentDate: 'desc' },
     select: {
@@ -158,19 +157,22 @@ export async function markPublicView(
   kind: 'quote' | 'invoice',
   id: string,
   current: { status: string; viewedAt: Date | null }
-): Promise<void> {
+): Promise<{ firstView: boolean }> {
   const data: Record<string, unknown> = {};
 
-  if (!current.viewedAt) data.viewedAt = new Date();
+  const firstView = !current.viewedAt;
+  if (firstView) data.viewedAt = new Date();
   if (current.status === 'sent') data.status = 'viewed';
 
-  if (Object.keys(data).length === 0) return;
-
-  if (kind === 'quote') {
-    await prisma.quote.update({ where: { id }, data });
-  } else {
-    await prisma.invoice.update({ where: { id }, data });
+  if (Object.keys(data).length > 0) {
+    if (kind === 'quote') {
+      await prisma.quote.update({ where: { id }, data });
+    } else {
+      await prisma.invoice.update({ where: { id }, data });
+    }
   }
+
+  return { firstView };
 }
 
 /** A client responding to a quote may only accept or reject it. */

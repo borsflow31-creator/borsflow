@@ -14,6 +14,7 @@
  */
 
 import { useState, useCallback, useId, useEffect, useRef, KeyboardEvent } from 'react'
+import { useI18n } from '@/i18n/I18nProvider'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import {
   Type,
@@ -104,23 +105,55 @@ export interface EmailBlock {
 
 interface PaletteItem {
   type: BlockType
-  label: string
   icon: React.ElementType
-  description: string
 }
 
 const PALETTE: PaletteItem[] = [
-  { type: 'header',     label: 'Heading',     icon: Heading1,      description: 'H1 / H2 / H3 title' },
-  { type: 'text',       label: 'Text',        icon: Type,          description: 'Body paragraph' },
-  { type: 'image',      label: 'Image',       icon: ImageIcon,     description: 'Full-width image' },
-  { type: 'button',     label: 'Button',      icon: MousePointer2, description: 'Call-to-action button' },
-  { type: 'two-column', label: 'Two columns', icon: Columns2,      description: 'Side-by-side text' },
-  { type: 'social',     label: 'Social',      icon: Share2,        description: 'Social media links' },
-  { type: 'video',      label: 'Video',       icon: Video,         description: 'Video thumbnail' },
-  { type: 'quote',      label: 'Quote',       icon: Quote,         description: 'Testimonial / blockquote' },
-  { type: 'divider',    label: 'Divider',     icon: Minus,         description: 'Horizontal rule' },
-  { type: 'spacer',     label: 'Spacer',      icon: Space,         description: 'Empty vertical gap' },
+  { type: 'header',     icon: Heading1 },
+  { type: 'text',       icon: Type },
+  { type: 'image',      icon: ImageIcon },
+  { type: 'button',     icon: MousePointer2 },
+  { type: 'two-column', icon: Columns2 },
+  { type: 'social',     icon: Share2 },
+  { type: 'video',      icon: Video },
+  { type: 'quote',      icon: Quote },
+  { type: 'divider',    icon: Minus },
+  { type: 'spacer',     icon: Space },
 ]
+
+type TFunction = (key: import('@/i18n/I18nProvider').MessageKey, values?: Record<string, string | number>) => string
+
+function paletteLabel(type: BlockType, t: TFunction): string {
+  const map: Record<BlockType, string> = {
+    header: t('emailMarketing.blockEditor.blockHeading'),
+    text: t('emailMarketing.blockEditor.blockText'),
+    image: t('emailMarketing.blockEditor.blockImage'),
+    button: t('emailMarketing.blockEditor.blockButton'),
+    'two-column': t('emailMarketing.blockEditor.blockTwoColumn'),
+    social: t('emailMarketing.blockEditor.blockSocial'),
+    video: t('emailMarketing.blockEditor.blockVideo'),
+    quote: t('emailMarketing.blockEditor.blockQuote'),
+    divider: t('emailMarketing.blockEditor.blockDivider'),
+    spacer: t('emailMarketing.blockEditor.blockSpacer'),
+  }
+  return map[type]
+}
+
+function paletteDescription(type: BlockType, t: TFunction): string {
+  const map: Record<BlockType, string> = {
+    header: t('emailMarketing.blockEditor.descHeading'),
+    text: t('emailMarketing.blockEditor.descText'),
+    image: t('emailMarketing.blockEditor.descImage'),
+    button: t('emailMarketing.blockEditor.descButton'),
+    'two-column': t('emailMarketing.blockEditor.descTwoColumn'),
+    social: t('emailMarketing.blockEditor.descSocial'),
+    video: t('emailMarketing.blockEditor.descVideo'),
+    quote: t('emailMarketing.blockEditor.descQuote'),
+    divider: t('emailMarketing.blockEditor.descDivider'),
+    spacer: t('emailMarketing.blockEditor.descSpacer'),
+  }
+  return map[type]
+}
 
 function makeBlock(type: BlockType, uid: string): EmailBlock {
   const base: EmailBlock = { id: uid, type, paddingV: 16, paddingH: 28, backgroundColor: '#ffffff' }
@@ -214,7 +247,7 @@ function blockToHtml(b: EmailBlock): string {
       const thumb = b.videoThumbnailUrl || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=640&q=80'
       const playColor = b.videoPlayColor || '#4f46e5'
       const caption = b.videoCaption ? `<p style="margin:10px 0 0;font-size:13px;color:#6b7280;text-align:center;">${b.videoCaption}</p>` : ''
-      return `<tr><td style="${cellStyle}text-align:center;"><a href="${b.videoUrl || '#'}" style="display:block;position:relative;text-decoration:none;"><img src="${thumb}" alt="Watch video" style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>${caption}</td></tr>`
+      return `<tr><td style="${cellStyle}text-align:center;"><a href="${b.videoUrl || '#'}" style="display:block;position:relative;text-decoration:none;"><img src="${thumb}" alt={t('misc.watchVideo')} style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>${caption}</td></tr>`
     }
     case 'quote': {
       const accent = b.quoteAccentColor || '#4f46e5'
@@ -230,7 +263,7 @@ function blockToHtml(b: EmailBlock): string {
 
 export function blocksToHtml(blocks: EmailBlock[]): string {
   if (!blocks.length) return ''
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">${blocks.map(blockToHtml).join('')}<tr><td style="padding:20px 28px;background:#f9fafb;text-align:center;font-size:12px;color:#9ca3af;">© {{company_name}} · <a href="{{unsubscribe_url}}" style="color:#9ca3af;">Unsubscribe</a></td></tr></table></td></tr></table></body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">${blocks.map(blockToHtml).join('')}<tr><td style="padding:20px 28px;background:#f9fafb;text-align:center;font-size:12px;color:#9ca3af;">© {{company_name}} · <a href="{{unsubscribe_url}}" style="color:#9ca3af;">{t('misc.unsubscribe')}</a></td></tr></table></td></tr></table></body></html>`
 }
 
 // Attempt to parse blocks from existing HTML (best-effort for re-editing)
@@ -444,9 +477,10 @@ function BlockPropertyPanel({
   variables: string[]
   onChange: (updated: Partial<EmailBlock>) => void
 }) {
+  const { t } = useI18n()
   const field = (label: string, el: React.ReactNode) => (
-    <label className="flex flex-col gap-1 text-xs text-stone-600">
-      <span className="font-medium text-stone-700">{label}</span>
+    <label className="flex flex-col gap-1 text-xs text-on-surface-variant">
+      <span className="font-medium text-on-surface">{label}</span>
       {el}
     </label>
   )
@@ -456,14 +490,14 @@ function BlockPropertyPanel({
       value={(block[key] as string | number) ?? ''}
       onChange={e => onChange({ [key]: type === 'number' ? Number(e.target.value) : e.target.value })}
       placeholder={placeholder}
-      className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      className="rounded-lg border border-outline-variant/40 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-secondary/50"
     />
   )
   const select = (key: keyof EmailBlock, options: { value: string; label: string }[]) => (
     <select
       value={(block[key] as string) ?? ''}
       onChange={e => onChange({ [key]: e.target.value })}
-      className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      className="rounded-lg border border-outline-variant/40 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-secondary/50"
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -474,36 +508,36 @@ function BlockPropertyPanel({
       value={(block[key] as string) ?? ''}
       onChange={e => onChange({ [key]: e.target.value })}
       placeholder={placeholder}
-      className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+      className="rounded-lg border border-outline-variant/40 px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-secondary/50 resize-none"
     />
   )
   const colorRow = (label: string, key: keyof EmailBlock) => (
-    <label className="flex items-center gap-2 text-xs text-stone-600">
-      <span className="font-medium text-stone-700 flex-1">{label}</span>
+    <label className="flex items-center gap-2 text-xs text-on-surface-variant">
+      <span className="font-medium text-on-surface flex-1">{label}</span>
       <input
         type="color"
         value={(block[key] as string) || '#ffffff'}
         onChange={e => onChange({ [key]: e.target.value })}
-        className="h-7 w-10 rounded border border-stone-200 cursor-pointer p-0.5"
+        className="h-7 w-10 rounded border border-outline-variant/40 cursor-pointer p-0.5"
       />
       <input
         type="text"
         value={(block[key] as string) || ''}
         onChange={e => onChange({ [key]: e.target.value })}
-        className="w-24 rounded border border-stone-200 px-2 py-1 text-xs font-mono"
+        className="w-24 rounded border border-outline-variant/40 px-2 py-1 text-xs font-mono"
       />
     </label>
   )
 
   const alignOptions = [
-    { value: 'left', label: 'Left' },
-    { value: 'center', label: 'Center' },
-    { value: 'right', label: 'Right' },
+    { value: 'left', label: t('emailMarketing.blockEditor.alignLeft') },
+    { value: 'center', label: t('emailMarketing.blockEditor.alignCenter') },
+    { value: 'right', label: t('emailMarketing.blockEditor.alignRight') },
   ]
 
   const varPills = variables.length > 0 && (
     <div className="space-y-1">
-      <span className="text-xs font-medium text-stone-600">Insert variable:</span>
+      <span className="text-xs font-medium text-on-surface-variant">{t('emailMarketing.blockEditor.insertVariableLabel')}</span>
       <div className="flex flex-wrap gap-1">
         {variables.map(v => (
           <button
@@ -519,7 +553,7 @@ function BlockPropertyPanel({
               const cur = (block[key] as string) || ''
               onChange({ [key]: cur + `{{${v}}}` })
             }}
-            className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-mono text-indigo-700 hover:bg-indigo-100"
+            className="rounded-full bg-secondary/15 px-2 py-0.5 text-[11px] font-mono text-secondary hover:bg-secondary/25"
           >
             {`{{${v}}}`}
           </button>
@@ -531,66 +565,66 @@ function BlockPropertyPanel({
   return (
     <div className="space-y-3 text-xs">
       {/* shared: background + padding */}
-      {colorRow('Background', 'backgroundColor')}
+      {colorRow(t('emailMarketing.blockEditor.background'), 'backgroundColor')}
       <div className="grid grid-cols-2 gap-2">
-        {field('Padding V (px)', input('paddingV', 'number'))}
-        {field('Padding H (px)', input('paddingH', 'number'))}
+        {field(t('emailMarketing.blockEditor.paddingVLabel'), input('paddingV', 'number'))}
+        {field(t('emailMarketing.blockEditor.paddingHLabel'), input('paddingH', 'number'))}
       </div>
-      <hr className="border-stone-100" />
+      <hr className="border-outline-variant/20" />
 
       {block.type === 'header' && <>
-        {field('Heading text', textarea('headingText', 2))}
-        {field('Level', select('headingLevel', [{ value: 'h1', label: 'H1 – large' }, { value: 'h2', label: 'H2 – medium' }, { value: 'h3', label: 'H3 – small' }]))}
-        {field('Align', select('headingAlign', alignOptions))}
-        {colorRow('Text colour', 'headingColor')}
+        {field(t('emailMarketing.blockEditor.headingTextLabel'), textarea('headingText', 2))}
+        {field(t('emailMarketing.blockEditor.levelLabel'), select('headingLevel', [{ value: 'h1', label: t('emailMarketing.blockEditor.h1Large') }, { value: 'h2', label: t('emailMarketing.blockEditor.h2Medium') }, { value: 'h3', label: t('emailMarketing.blockEditor.h3Small') }]))}
+        {field(t('emailMarketing.blockEditor.alignLabel'), select('headingAlign', alignOptions))}
+        {colorRow(t('emailMarketing.blockEditor.textColorLabel'), 'headingColor')}
         {varPills}
       </>}
 
       {block.type === 'text' && <>
-        {field('Body text', textarea('bodyText', 4, 'Your paragraph text…'))}
-        {field('Align', select('bodyAlign', alignOptions))}
-        {field('Font size (px)', input('fontSize', 'number'))}
-        {colorRow('Text colour', 'bodyColor')}
+        {field(t('emailMarketing.blockEditor.bodyTextLabel'), textarea('bodyText', 4, 'Your paragraph text…'))}
+        {field(t('emailMarketing.blockEditor.alignLabel'), select('bodyAlign', alignOptions))}
+        {field(t('emailMarketing.blockEditor.fontSizeLabel'), input('fontSize', 'number'))}
+        {colorRow(t('emailMarketing.blockEditor.textColorLabel'), 'bodyColor')}
         {varPills}
       </>}
 
       {block.type === 'image' && <>
-        {field('Image URL', input('imageUrl', 'text', 'https://…'))}
-        {field('Alt text', input('imageAlt', 'text', 'Describe the image'))}
-        {field('Width', input('imageWidth', 'text', '100%'))}
+        {field(t('emailMarketing.blockEditor.imageUrlLabel'), input('imageUrl', 'text', 'https://…'))}
+        {field(t('emailMarketing.blockEditor.altTextLabel'), input('imageAlt', 'text', 'Describe the image'))}
+        {field(t('emailMarketing.blockEditor.widthLabel'), input('imageWidth', 'text', '100%'))}
       </>}
 
       {block.type === 'button' && <>
-        {field('Button label', input('buttonText', 'text', 'Click here'))}
-        {field('URL / variable', input('buttonUrl', 'text', '{{cta_url}}'))}
-        {field('Align', select('buttonAlign', alignOptions))}
-        {colorRow('Button colour', 'buttonColor')}
-        {colorRow('Text colour', 'buttonTextColor')}
+        {field(t('emailMarketing.blockEditor.buttonLabelLabel'), input('buttonText', 'text', 'Click here'))}
+        {field(t('emailMarketing.blockEditor.urlVariableLabel'), input('buttonUrl', 'text', '{{cta_url}}'))}
+        {field(t('emailMarketing.blockEditor.alignLabel'), select('buttonAlign', alignOptions))}
+        {colorRow(t('emailMarketing.blockEditor.buttonColorLabel'), 'buttonColor')}
+        {colorRow(t('emailMarketing.blockEditor.textColorLabel'), 'buttonTextColor')}
         {varPills}
       </>}
 
       {block.type === 'divider' && <>
-        {colorRow('Line colour', 'dividerColor')}
+        {colorRow(t('emailMarketing.blockEditor.lineColorLabel'), 'dividerColor')}
       </>}
 
       {block.type === 'spacer' && <>
-        {field('Height (px)', input('spacerHeight', 'number'))}
+        {field(t('emailMarketing.blockEditor.heightLabel'), input('spacerHeight', 'number'))}
       </>}
 
       {block.type === 'two-column' && <>
-        {field('Left column', textarea('colLeftText', 3))}
-        {field('Right column', textarea('colRightText', 3))}
+        {field(t('emailMarketing.blockEditor.leftColumnLabel'), textarea('colLeftText', 3))}
+        {field(t('emailMarketing.blockEditor.rightColumnLabel'), textarea('colRightText', 3))}
         {varPills}
       </>}
 
       {block.type === 'social' && (
         <div className="space-y-3">
-          <p className="text-[10px] text-stone-400">Add URLs for the platforms you want to show. Leave empty to hide.</p>
+          <p className="text-[10px] text-on-surface-variant">{t('emailMarketing.blockEditor.socialHint')}</p>
           {(Object.keys(SOCIAL_CONFIG) as Array<keyof typeof SOCIAL_CONFIG>).map(platform => {
             const link = (block.socialLinks || []).find(l => l.platform === platform)
             return (
               <label key={platform} className="flex flex-col gap-1">
-                <span className="font-medium text-stone-700 text-xs">{SOCIAL_CONFIG[platform].label}</span>
+                <span className="font-medium text-on-surface text-xs">{SOCIAL_CONFIG[platform].label}</span>
                 <input
                   type="text"
                   value={link?.url || ''}
@@ -606,7 +640,7 @@ function BlockPropertyPanel({
                     onChange({ socialLinks: links })
                   }}
                   placeholder={`https://...`}
-                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="rounded-lg border border-outline-variant/40 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-secondary/50"
                 />
               </label>
             )
@@ -615,18 +649,18 @@ function BlockPropertyPanel({
       )}
 
       {block.type === 'video' && <>
-        {field('Thumbnail URL', input('videoThumbnailUrl', 'text', 'https://…'))}
-        {field('Video URL', input('videoUrl', 'text', '{{video_url}}'))}
-        {field('Caption', input('videoCaption', 'text', 'Watch our latest video'))}
-        {colorRow('Play button colour', 'videoPlayColor')}
+        {field(t('emailMarketing.blockEditor.thumbnailUrlLabel'), input('videoThumbnailUrl', 'text', 'https://…'))}
+        {field(t('emailMarketing.blockEditor.videoUrlLabel'), input('videoUrl', 'text', '{{video_url}}'))}
+        {field(t('emailMarketing.blockEditor.captionLabel'), input('videoCaption', 'text', 'Watch our latest video'))}
+        {colorRow(t('emailMarketing.blockEditor.playButtonColorLabel'), 'videoPlayColor')}
       </>}
 
       {block.type === 'quote' && <>
-        {field('Quote text', textarea('quoteText', 3, 'This product is amazing…'))}
-        {field('Author name', input('quoteAuthor', 'text', 'Jane Smith'))}
-        {field('Author title', input('quoteAuthorTitle', 'text', 'CEO, Acme Inc.'))}
-        {field('Avatar URL (optional)', input('quoteAvatarUrl', 'text', 'https://…'))}
-        {colorRow('Accent colour', 'quoteAccentColor')}
+        {field(t('emailMarketing.blockEditor.quoteTextLabel'), textarea('quoteText', 3, 'This product is amazing…'))}
+        {field(t('emailMarketing.blockEditor.authorNameLabel'), input('quoteAuthor', 'text', 'Jane Smith'))}
+        {field(t('emailMarketing.blockEditor.authorTitleLabel'), input('quoteAuthorTitle', 'text', 'CEO, Acme Inc.'))}
+        {field(t('emailMarketing.blockEditor.avatarUrlLabel'), input('quoteAvatarUrl', 'text', 'https://…'))}
+        {colorRow(t('emailMarketing.blockEditor.accentColorLabel'), 'quoteAccentColor')}
         {varPills}
       </>}
     </div>
@@ -654,11 +688,7 @@ function BlockCard({
   onDuplicate: () => void
   onChange: (updated: Partial<EmailBlock>) => void
 }) {
-  const labelMap: Record<BlockType, string> = {
-    header: 'Heading', text: 'Text', image: 'Image', button: 'Button',
-    divider: 'Divider', spacer: 'Spacer', 'two-column': 'Two columns',
-    social: 'Social Links', video: 'Video', quote: 'Quote',
-  }
+  const { t } = useI18n()
 
   const preview = () => {
     switch (block.type) {
@@ -791,24 +821,24 @@ function BlockCard({
           onClick={onSelect}
           className={`group relative rounded-xl border-2 transition-all ${
             snapshot.isDragging
-              ? 'border-indigo-400 shadow-xl rotate-1 opacity-90'
+              ? 'border-secondary shadow-xl rotate-1 opacity-90'
               : selected
-                ? 'border-indigo-400 shadow-md'
-                : 'border-transparent hover:border-stone-200'
+                ? 'border-secondary shadow-md'
+                : 'border-transparent hover:border-outline-variant/40'
           }`}
           style={{ ...provided.draggableProps.style, background: block.backgroundColor || '#fff' }}
         >
           {/* Drag handle + label + actions */}
-          <div className={`absolute -top-px left-0 right-0 flex items-center justify-between rounded-t-xl px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-opacity ${selected || snapshot.isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-indigo-500 text-white`}>
+          <div className={`absolute -top-px left-0 right-0 flex items-center justify-between rounded-t-xl px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest transition-opacity ${selected || snapshot.isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} bg-secondary text-on-secondary`}>
             <div {...provided.dragHandleProps} className="flex items-center gap-1 cursor-grab active:cursor-grabbing">
               <GripVertical className="h-3 w-3" />
-              {labelMap[block.type]}
+              {paletteLabel(block.type, t)}
             </div>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className="hover:text-indigo-200" title="Duplicate">
+              <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className="hover:text-on-secondary/70" title={t('emailMarketing.blockEditor.duplicateTooltip')}>
                 <Copy className="h-3 w-3" />
               </button>
-              <button type="button" onClick={e => { e.stopPropagation(); onDelete() }} className="hover:text-red-200" title="Delete">
+              <button type="button" onClick={e => { e.stopPropagation(); onDelete() }} className="hover:text-red-200" title={t('emailMarketing.blockEditor.deleteTooltip')}>
                 <Trash2 className="h-3 w-3" />
               </button>
             </div>
@@ -833,6 +863,7 @@ interface EmailBlockEditorProps {
 }
 
 export default function EmailBlockEditor({ initialHtml, variables = [], onChange, fullHeight = false }: EmailBlockEditorProps) {
+  const { t } = useI18n()
   const uid = useId()
   const nextId = useCallback((i: number) => `${uid}-${Date.now()}-${i}`, [uid])
 
@@ -986,17 +1017,17 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className={`flex flex-col gap-0 border-stone-200 overflow-hidden ${fullHeight ? 'h-full border-0 rounded-none' : 'rounded-2xl border shadow-sm'}`} style={fullHeight ? {} : { minHeight: 520 }}>
+      <div className={`flex flex-col gap-0 border-outline-variant/20 overflow-hidden ${fullHeight ? 'h-full border-0 rounded-none' : 'rounded-2xl border shadow-sm'}`} style={fullHeight ? {} : { minHeight: 520 }}>
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50 px-4 py-2">
+        <div className="flex items-center justify-between gap-3 border-b border-outline-variant/20 bg-surface-container-low px-4 py-2">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={undo}
               disabled={!canUndo}
-              title="Undo (Ctrl+Z)"
-              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              title={t('emailMarketing.blockEditor.undoTooltip')}
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition"
             >
               <Undo2 className="h-3.5 w-3.5" />
             </button>
@@ -1004,59 +1035,59 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
               type="button"
               onClick={redo}
               disabled={!canRedo}
-              title="Redo (Ctrl+Y)"
-              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+              title={t('emailMarketing.blockEditor.redoTooltip')}
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition"
             >
               <Redo2 className="h-3.5 w-3.5" />
             </button>
-            <span className="text-xs text-stone-400 ml-1 hidden sm:inline">
-              {blocks.length} block{blocks.length !== 1 ? 's' : ''}
+            <span className="text-xs text-on-surface-variant ml-1 hidden sm:inline">
+              {t('emailMarketing.blockEditor.blockCountLabel', { count: blocks.length })}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => { setShowHtml(false); setShowPreview(v => !v) }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${showPreview ? 'bg-indigo-600 text-white' : 'border border-stone-200 text-stone-600 hover:bg-stone-100'}`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${showPreview ? 'bg-secondary text-on-secondary' : 'border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high'}`}
             >
               {showPreview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              {showPreview ? 'Close preview' : 'Preview'}
+              {showPreview ? t('emailMarketing.blockEditor.closePreview') : t('emailMarketing.blockEditor.previewLabel')}
             </button>
             <button
               type="button"
               onClick={() => { setShowPreview(false); setShowHtml(v => !v) }}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${showHtml ? 'bg-stone-700 text-white' : 'border border-stone-200 text-stone-600 hover:bg-stone-100'}`}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${showHtml ? 'bg-on-surface text-background' : 'border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high'}`}
             >
               <Code2 className="h-3.5 w-3.5" />
-              {showHtml ? 'Close HTML' : 'View HTML'}
+              {showHtml ? t('emailMarketing.blockEditor.closeHtml') : t('emailMarketing.blockEditor.viewHtmlLabel')}
             </button>
           </div>
         </div>
 
         {/* Preview mode */}
         {showPreview && (
-          <div className="flex-1 bg-stone-100 flex flex-col">
-            <div className="flex items-center justify-center gap-2 border-b border-stone-200 bg-white py-2 px-4">
+          <div className="flex-1 bg-background flex flex-col">
+            <div className="flex items-center justify-center gap-2 border-b border-outline-variant/20 bg-surface-container-low py-2 px-4">
               <button
                 type="button"
                 onClick={() => setPreviewDevice('desktop')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${previewDevice === 'desktop' ? 'bg-stone-800 text-white' : 'border border-stone-200 text-stone-600 hover:bg-stone-100'}`}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${previewDevice === 'desktop' ? 'bg-on-surface text-background' : 'border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high'}`}
               >
-                <Monitor className="h-3.5 w-3.5" /> Desktop
+                <Monitor className="h-3.5 w-3.5" /> {t('emailMarketing.blockEditor.desktop')}
               </button>
               <button
                 type="button"
                 onClick={() => setPreviewDevice('mobile')}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${previewDevice === 'mobile' ? 'bg-stone-800 text-white' : 'border border-stone-200 text-stone-600 hover:bg-stone-100'}`}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${previewDevice === 'mobile' ? 'bg-on-surface text-background' : 'border border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-high'}`}
               >
-                <Smartphone className="h-3.5 w-3.5" /> Mobile
+                <Smartphone className="h-3.5 w-3.5" /> {t('emailMarketing.blockEditor.mobile')}
               </button>
             </div>
             <div className="flex-1 p-4 flex items-start justify-center overflow-auto">
               <iframe
                 srcDoc={html}
                 sandbox="allow-same-origin"
-                title="Email preview"
+                title={t('misc.emailPreview')}
                 className="rounded-xl border border-stone-200 shadow-md bg-white transition-all"
                 style={{ width: previewDevice === 'mobile' ? 375 : 640, height: 600, border: 'none', flexShrink: 0 }}
               />
@@ -1078,8 +1109,8 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
           <div className={`flex overflow-hidden ${fullHeight ? 'flex-1' : 'flex-1'}`} style={fullHeight ? {} : { minHeight: 480 }}>
 
             {/* Left: palette */}
-            <div className="w-44 shrink-0 border-r border-stone-200 bg-stone-50 p-3 flex flex-col gap-1 overflow-y-auto">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-stone-400">Blocks</p>
+            <div className="w-44 shrink-0 border-r border-outline-variant/20 bg-surface-container-low p-3 flex flex-col gap-1 overflow-y-auto">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{t('emailMarketing.blockEditor.blocksPanelHeading')}</p>
               <Droppable droppableId="palette" isDropDisabled>
                 {provided => (
                   <div ref={provided.innerRef} {...provided.droppableProps} className="flex flex-col gap-1">
@@ -1088,8 +1119,8 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
                         {(provided, snapshot) => (
                           <>
                             {snapshot.isDragging && (
-                              <div className="rounded-lg border border-indigo-200 bg-white p-2 opacity-50">
-                                <item.icon className="h-4 w-4 text-indigo-400" />
+                              <div className="rounded-lg border border-secondary/30 bg-surface-container-lowest p-2 opacity-50">
+                                <item.icon className="h-4 w-4 text-secondary" />
                               </div>
                             )}
                             <div
@@ -1099,13 +1130,13 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
                               onClick={() => addBlock(item.type)}
                               className={`flex items-center gap-2 rounded-lg border px-2 py-2 cursor-grab active:cursor-grabbing text-xs font-medium transition select-none ${
                                 snapshot.isDragging
-                                  ? 'border-indigo-300 bg-indigo-50 text-indigo-700 shadow-lg'
-                                  : 'border-stone-200 bg-white text-stone-600 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50'
+                                  ? 'border-secondary/40 bg-secondary/15 text-secondary shadow-lg'
+                                  : 'border-outline-variant/40 bg-surface-container-low text-on-surface-variant hover:border-secondary/40 hover:text-secondary hover:bg-secondary/10'
                               }`}
-                              title={item.description}
+                              title={paletteDescription(item.type, t)}
                             >
                               <item.icon className="h-4 w-4 shrink-0" />
-                              {item.label}
+                              {paletteLabel(item.type, t)}
                             </div>
                           </>
                         )}
@@ -1118,15 +1149,15 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
               <button
                 type="button"
                 onClick={() => addBlock('text')}
-                className="mt-2 flex items-center justify-center gap-1 rounded-lg border border-dashed border-stone-300 py-2 text-xs text-stone-400 hover:border-indigo-300 hover:text-indigo-500 transition"
+                className="mt-2 flex items-center justify-center gap-1 rounded-lg border border-dashed border-outline-variant/40 py-2 text-xs text-on-surface-variant hover:border-secondary/50 hover:text-secondary transition"
               >
                 <Plus className="h-3 w-3" />
-                Add block
+                {t('emailMarketing.blockEditor.addBlock')}
               </button>
             </div>
 
             {/* Center: canvas */}
-            <div className="flex-1 overflow-y-auto bg-stone-100 p-4">
+            <div className="flex-1 overflow-y-auto bg-background p-4">
               <div className="mx-auto max-w-[600px]">
                 <Droppable droppableId="canvas">
                   {(provided, snapshot) => (
@@ -1138,7 +1169,7 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
                       {blocks.length === 0 && !snapshot.isDraggingOver && (
                         <div className="flex flex-col items-center justify-center gap-3 py-20 text-stone-400">
                           <Columns2 className="h-10 w-10 opacity-30" />
-                          <p className="text-sm">Drag blocks from the left panel<br/>or click them to add</p>
+                          <p className="text-sm">{t('emailMarketing.blockEditor.dragHintLine1')}<br/>{t('emailMarketing.blockEditor.dragHintLine2')}</p>
                         </div>
                       )}
                       {blocks.map((block, index) => (
@@ -1162,10 +1193,10 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
             </div>
 
             {/* Right: properties panel */}
-            <div className="w-56 shrink-0 border-l border-stone-200 bg-white overflow-y-auto">
+            <div className="w-56 shrink-0 border-l border-outline-variant/20 bg-surface-container-low overflow-y-auto">
               {selectedBlock ? (
                 <div className="p-4">
-                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-stone-400">Properties</p>
+                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">{t('emailMarketing.blockEditor.propertiesPanelHeading')}</p>
                   <BlockPropertyPanel
                     block={selectedBlock}
                     variables={variables}
@@ -1173,9 +1204,9 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
                   />
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-2 p-6 text-center text-stone-400">
+                <div className="flex flex-col items-center justify-center h-full gap-2 p-6 text-center text-on-surface-variant">
                   <Type className="h-8 w-8 opacity-30" />
-                  <p className="text-xs">Select a block to edit its properties</p>
+                  <p className="text-xs">{t('emailMarketing.blockEditor.selectBlockHint')}</p>
                 </div>
               )}
             </div>

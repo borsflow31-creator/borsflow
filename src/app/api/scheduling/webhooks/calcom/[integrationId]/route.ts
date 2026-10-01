@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import crypto from 'crypto';
+import { notify } from '@/lib/notifications/notify';
 
 /**
  * POST /api/scheduling/webhooks/calcom/:integrationId
@@ -67,7 +68,7 @@ export async function POST(
         const duration  = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
         const title     = payload.title || payload.eventType?.title || 'Cal.com Meeting';
 
-        await prisma.meeting.upsert({
+        const meeting = await prisma.meeting.upsert({
           where: { platformEventId_platform: { platformEventId: uid, platform: 'calcom' } },
           update: {
             title,
@@ -97,11 +98,26 @@ export async function POST(
             createdById:           integration.createdById,
           },
         });
+
+        // There is no meeting host (userId) for an externally-booked Cal.com
+        // event, so the person who connected the integration is the closest
+        // thing to one.
+        if (integration.createdById) {
+          void notify({
+            recipients: [integration.createdById],
+            type: triggerEvent === 'BOOKING_RESCHEDULED' ? 'meetings.rescheduled' : 'meetings.booked',
+            workspaceId: integration.workspaceId,
+            title: `${triggerEvent === 'BOOKING_RESCHEDULED' ? 'Meeting rescheduled' : 'Meeting booked'}: ${title}`,
+            body: startTime.toLocaleString(),
+            href: `/meetings?workspace=${integration.workspaceId}`,
+            dedupeKey: `meeting.${triggerEvent === 'BOOKING_RESCHEDULED' ? 'rescheduled' : 'booked'}:${meeting.id}:${startTime.toISOString()}`,
+          });
+        }
         break;
       }
 
       case 'BOOKING_CANCELLED': {
-        await prisma.meeting.updateMany({
+        const cancelled = await prisma.meeting.updateMany({
           where: { platformEventId: uid, platform: 'calcom', workspaceId: integration.workspaceId },
           data: {
             status:             'cancelled',
@@ -110,6 +126,18 @@ export async function POST(
             syncStatus:         'synced',
           },
         });
+
+        if (cancelled.count > 0 && integration.createdById) {
+          void notify({
+            recipients: [integration.createdById],
+            type: 'meetings.cancelled',
+            workspaceId: integration.workspaceId,
+            title: `Meeting cancelled: ${payload.title || payload.eventType?.title || 'Cal.com Meeting'}`,
+            body: payload.cancellationReason || undefined,
+            href: `/meetings?workspace=${integration.workspaceId}`,
+            dedupeKey: `meeting.cancelled:${uid}`,
+          });
+        }
         break;
       }
     }

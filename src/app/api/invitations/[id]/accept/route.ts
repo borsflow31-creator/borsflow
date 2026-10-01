@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isInvitationExpired } from '@/lib/workspace'
 import { getMemberUsage, planLimitResponse } from '@/lib/billing/entitlements'
+import { notify } from '@/lib/notifications/notify'
+import { workspaceAdminIds } from '@/lib/notifications/recipients'
 
 /**
  * POST /api/invitations/[id]/accept
@@ -74,7 +76,7 @@ export async function POST(
     // Get user's email
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { email: true },
+      select: { email: true, name: true },
     })
 
     if (!user) {
@@ -162,6 +164,18 @@ export async function POST(
         },
       }),
     ])
+
+    // Fire-and-forget: let the inviter and the workspace's admins know someone joined.
+    const admins = await workspaceAdminIds(invitation.workspaceId)
+    void notify({
+      recipients: Array.from(new Set([invitation.senderId, ...admins])),
+      type: 'team.invitation_accepted',
+      workspaceId: invitation.workspaceId,
+      actorId: session.user.id,
+      title: `${user.name || user.email} joined ${invitation.workspace.name}`,
+      href: `/workspaces/${invitation.workspaceId}`,
+      dedupeKey: `invitation.accepted:${invitation.id}`,
+    })
 
     return NextResponse.json(
       {

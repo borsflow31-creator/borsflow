@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PUBLIC_INVOICE_SELECT, markPublicView } from '@/lib/documents/share';
+import { notify } from '@/lib/notifications/notify';
 
 export async function GET(
   request: NextRequest,
@@ -20,9 +21,11 @@ export async function GET(
       where: { publicToken: params.token },
       select: {
         ...PUBLIC_INVOICE_SELECT,
-        // For the view stamp below, not returned to the client.
+        // For the view stamp and the notification below, not returned to the client.
         id: true,
         viewedAt: true,
+        workspaceId: true,
+        createdById: true,
       },
     });
 
@@ -31,21 +34,25 @@ export async function GET(
       return NextResponse.json({ error: 'This link is no longer valid' }, { status: 404 });
     }
 
-    await markPublicView('invoice', invoice.id, {
+    const { firstView } = await markPublicView('invoice', invoice.id, {
       status: invoice.status,
       viewedAt: invoice.viewedAt,
     });
 
-    const { id, viewedAt, ...publicInvoice } = invoice;
+    if (firstView && invoice.createdById) {
+      void notify({
+        recipients: [invoice.createdById],
+        type: 'sales.invoice_viewed',
+        workspaceId: invoice.workspaceId,
+        title: `${invoice.clientName} viewed invoice ${invoice.invoiceNumber}`,
+        href: `/invoices/${invoice.id}`,
+        dedupeKey: `invoice.viewed:${invoice.id}`,
+      });
+    }
 
-    return NextResponse.json({
-      invoice: publicInvoice,
-      // A paid or cancelled invoice should not offer a payment button.
-      canPay:
-        Boolean(invoice.stripePaymentLink) &&
-        invoice.amountDue > 0 &&
-        !['paid', 'cancelled'].includes(invoice.status),
-    });
+    const { id, viewedAt, workspaceId, createdById, ...publicInvoice } = invoice;
+
+    return NextResponse.json({ invoice: publicInvoice });
   } catch (error) {
     console.error('Error loading public invoice:', error);
     return NextResponse.json({ error: 'Failed to load invoice' }, { status: 500 });

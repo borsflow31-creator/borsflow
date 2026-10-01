@@ -1,5 +1,7 @@
 'use client'
 
+import { useI18n } from '@/i18n/I18nProvider'
+
 export interface WorkspaceMemberSummary {
     id: string
     role: string
@@ -32,6 +34,7 @@ const labelFor = (m: WorkspaceMemberSummary) => m.user.name?.trim() || m.user.em
 const VISIBLE = 3
 
 export default function TopNavigationBar({ workspaceName, members = [] }: TopNavigationBarProps) {
+    const { t } = useI18n()
     const shown = members.slice(0, VISIBLE)
     const overflow = members.length - shown.length
 
@@ -39,18 +42,18 @@ export default function TopNavigationBar({ workspaceName, members = [] }: TopNav
         <header className="fixed top-0 right-0 left-16 md:left-64 h-14 z-40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between px-6">
             <div className="flex items-center space-x-4">
                 <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-                    {workspaceName || 'Workspace'}
+                    {workspaceName || t('workspaces.workspaceFallbackName')}
                 </span>
                 <div className="h-4 w-[1px] bg-outline-variant/30"></div>
                 <nav className="flex space-x-4 text-sm font-medium">
                     <a className="text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 py-4" href="#">
-                        Shared
+                        {t('workspaces.sharedTab')}
                     </a>
                     <a
                         className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-opacity py-4"
                         href="#"
                     >
-                        Private
+                        {t('workspaces.privateTab')}
                     </a>
                 </nav>
             </div>
@@ -60,7 +63,7 @@ export default function TopNavigationBar({ workspaceName, members = [] }: TopNav
                 {members.length > 1 && (
                     <ul
                         className="flex -space-x-2"
-                        aria-label={`${members.length} workspace members`}
+                        aria-label={t('workspaces.membersAriaLabel', { count: members.length })}
                         title={members.map(labelFor).join(', ')}
                     >
                         {shown.map((m) => (
@@ -74,7 +77,7 @@ export default function TopNavigationBar({ workspaceName, members = [] }: TopNav
                         ))}
                         {overflow > 0 && (
                             <li className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-950 bg-surface-container-high flex items-center justify-center text-[10px] font-bold text-on-surface-variant">
-                                <span className="sr-only">{`and ${overflow} more`}</span>
+                                <span className="sr-only">{t('workspaces.andMoreMembers', { count: overflow })}</span>
                                 <span aria-hidden="true">{`+${overflow}`}</span>
                             </li>
                         )}
@@ -83,10 +86,10 @@ export default function TopNavigationBar({ workspaceName, members = [] }: TopNav
 
                 <div className="flex items-center space-x-3">
                     <button className="px-4 py-1.5 bg-primary-container text-on-primary-container text-sm font-medium rounded transition-all hover:opacity-80">
-                        Ask AI
+                        {t('workspaces.askAi')}
                     </button>
                     <button className="px-4 py-1.5 bg-secondary text-white text-sm font-medium rounded transition-all hover:opacity-80">
-                        Share
+                        {t('workspaces.share')}
                     </button>
                     <div className="flex items-center space-x-2 text-slate-500">
                         <span className="material-symbols-outlined cursor-pointer hover:text-slate-900">history</span>

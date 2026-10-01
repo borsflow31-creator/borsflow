@@ -8,10 +8,12 @@ import NoWorkspace from '@/components/NoWorkspace';
 import ProductFormFields from '@/components/products/ProductFormFields';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function NewProductPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const { addProduct } = useProductStore();
 
@@ -90,7 +92,7 @@ function NewProductPageInner() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('Product name is required.');
+      setError(t('products.nameRequired'));
       return;
     }
 
@@ -118,13 +120,13 @@ function NewProductPageInner() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create product');
+        throw new Error(data.error || t('products.newForm.createFailed'));
       }
 
       addProduct(data.product);
       router.push(`/products?workspace=${workspaceId}`);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to create product');
+      setError(saveError instanceof Error ? saveError.message : t('products.newForm.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -132,10 +134,10 @@ function NewProductPageInner() {
 
   return (
     <AppShell
-      workspace={{ id: workspaceId, name: 'Workspace' }}
+      workspace={{ id: workspaceId, name: t('products.workspaceFallback') }}
       breadcrumbs={[
-        { label: 'Products', href: `/products?workspace=${workspaceId}` },
-        { label: 'New Product', href: `/products/new?workspace=${workspaceId}` },
+        { label: t('nav.products'), href: `/products?workspace=${workspaceId}` },
+        { label: t('products.newProduct'), href: `/products/new?workspace=${workspaceId}` },
       ]}
     >
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -145,14 +147,14 @@ function NewProductPageInner() {
               type="button"
               onClick={() => router.push(`/products?workspace=${workspaceId}`)}
               className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-              aria-label="Back to products"
+              aria-label={t('products.backToProductsAria')}
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-on-surface">New Product</h1>
+              <h1 className="text-2xl font-bold text-on-surface">{t('products.newProduct')}</h1>
               <p className="mt-1 text-sm text-on-surface-variant">
-                Add a reusable catalog item for your workspace.
+                {t('products.newForm.subtitle')}
               </p>
             </div>
           </div>
@@ -164,7 +166,7 @@ function NewProductPageInner() {
             className="flex items-center gap-2 rounded-lg bg-secondary px-5 py-2.5 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim disabled:cursor-not-allowed disabled:opacity-40"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Save className="h-4 w-4" strokeWidth={1.75} />}
-            Create Product
+            {t('products.newForm.createButton')}
           </button>
         </div>
 

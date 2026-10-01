@@ -1,142 +1,32 @@
 import { NextRequest } from 'next/server'
+import type Groq from 'groq-sdk'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { requireWorkspaceAccess } from '@/lib/api/workspace'
-import { AI_CREDIT_COSTS, addAiCredits, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits'
-import { getGroq, type GroqCompletion } from '@/lib/groq'
+import { requireWorkspaceAccess, getWorkspaceRole } from '@/lib/api/workspace'
+import { reserveAiCredits } from '@/lib/billing/ai-credits'
+import { estimateMessageTokens, estimateTokens } from '@/lib/billing/ai-pricing'
+import { linkedAbortController } from '@/lib/ai/billed-completion'
+import { AGENT_MODEL } from '@/lib/ai/models'
+import { buildSystemPrompt, safeTimeZone } from '@/lib/ai/agent/prompt'
+import { MAX_OUTPUT_TOKENS, runAgent, type AgentEvent } from '@/lib/ai/agent/run'
+import { toolDefinitions } from '@/lib/ai/agent/tools'
 
-const tools = [
-    {
-        type: 'function' as const,
-        function: {
-            name: 'search_pages',
-            description: 'Search for and return pages in the current workspace. Call this when you need context about documents, notes, or knowledge base.',
-            parameters: {
-                type: 'object',
-                properties: { query: { type: 'string', description: 'Search term to filter page titles' } },
-                required: [],
-            },
-        },
-    },
-    {
-        type: 'function' as const,
-        function: {
-            name: 'get_crm_leads',
-            description: 'Retrieve a list of CRM leads in the workspace. Useful for getting contact information, statuses, and values of ongoing deals.',
-            parameters: {
-                type: 'object',
-                properties: { status: { type: 'string', description: 'Optional status to filter leads (e.g. "new", "won", "lost")' } },
-                required: [],
-            },
-        },
-    },
-    {
-        type: 'function' as const,
-        function: {
-            name: 'get_meetings',
-            description: 'Retrieve upcoming or past meetings. Useful for checking the user\'s schedule.',
-            parameters: {
-                type: 'object',
-                properties: {},
-                required: [],
-            },
-        },
-    },
-    {
-        type: 'function' as const,
-        function: {
-            name: 'get_financials',
-            description: 'Retrieve recent quotes and invoices to answer questions about billing and financial transactions.',
-            parameters: {
-                type: 'object',
-                properties: {},
-                required: [],
-            },
-        },
-    },
-    {
-        type: 'function' as const,
-        function: {
-            name: 'list_templates',
-            description: 'List available templates for the workspace. Call when user asks what templates are available, wants to create something from a template, or asks about template options.',
-            parameters: {
-                type: 'object',
-                properties: {
-                    type: {
-                        type: 'string',
-                        description: 'Optional: filter by template type — "page", "quote", "invoice", or "kanban"',
-                    },
-                },
-                required: [],
-            },
-        },
-    },
-];
+/**
+ * The workspace assistant. Streams newline-delimited JSON events (see
+ * `AgentEvent`): text deltas, tool progress, and a final `done` with the
+ * credits the reply cost.
+ *
+ * One-shot editor edits (rewrite, outline, subject lines) use /api/ai/complete.
+ */
 
-async function executeToolCall(toolCall: any, workspaceId: string) {
-    const args = JSON.parse(toolCall.function.arguments || '{}')
-    try {
-        switch (toolCall.function.name) {
-            case 'search_pages':
-                const pages = await prisma.page.findMany({
-                    where: { workspaceId, title: { contains: args.query || '' } },
-                    select: { title: true, isPublic: true },
-                    take: 10
-                })
-                return JSON.stringify(pages)
-            
-            case 'get_crm_leads':
-                const leads = await prisma.lead.findMany({
-                    where: { pipeline: { workspaceId }, ...(args.status ? { status: args.status } : {}) },
-                    select: { firstName: true, lastName: true, company: true, status: true, value: true },
-                    take: 10
-                })
-                return JSON.stringify(leads)
+const MAX_MESSAGES = 50
+const MAX_MESSAGE_CHARS = 8000
+const MAX_CONTEXT_CHARS = 8000
+/** Conversation history kept per request, in estimated tokens. */
+const HISTORY_TOKEN_BUDGET = 6000
 
-            case 'get_meetings':
-                const meetings = await prisma.meeting.findMany({
-                    where: { workspaceId },
-                    orderBy: { startTime: 'asc' },
-                    select: { title: true, startTime: true, endTime: true, status: true },
-                    take: 5
-                })
-                return JSON.stringify(meetings)
-                
-            case 'get_financials':
-                const invoices = await prisma.invoice.findMany({
-                    where: { workspaceId },
-                    orderBy: { issueDate: 'desc' },
-                    select: { invoiceNumber: true, clientName: true, total: true, status: true },
-                    take: 5
-                })
-                const quotes = await prisma.quote.findMany({
-                    where: { workspaceId },
-                    orderBy: { issueDate: 'desc' },
-                    select: { quoteNumber: true, clientName: true, total: true, status: true },
-                    take: 5
-                })
-                return JSON.stringify({ invoices, quotes })
-
-            case 'list_templates':
-                const templates = await prisma.universalTemplate.findMany({
-                    where: {
-                        OR: [{ isSystem: true }, { workspaceId }],
-                        ...(args.type ? { type: args.type } : {}),
-                    },
-                    select: { id: true, name: true, type: true, description: true, isSystem: true },
-                    orderBy: [{ isSystem: 'desc' }, { usageCount: 'desc' }],
-                    take: 12,
-                })
-                return JSON.stringify(templates)
-
-            default:
-                return '{"error": "Unknown function"}'
-        }
-    } catch (e: any) {
-        return JSON.stringify({ error: e.message })
-    }
-}
+type ChatMessage = Groq.Chat.Completions.ChatCompletionMessageParam
 
 const jsonError = (error: string | undefined, status: number | undefined) =>
     new Response(JSON.stringify({ error: error ?? 'Request failed' }), {
@@ -144,118 +34,149 @@ const jsonError = (error: string | undefined, status: number | undefined) =>
         headers: { 'Content-Type': 'application/json' },
     })
 
+/**
+ * Only plain user/assistant turns are accepted from the client: a client-sent
+ * `system` or `tool` message could override the assistant's instructions.
+ */
+function parseHistory(value: unknown): ChatMessage[] | null {
+    if (!Array.isArray(value) || value.length === 0) return null
+    const messages = value
+        .slice(-MAX_MESSAGES)
+        .filter(
+            (m): m is { role: 'user' | 'assistant'; content: string } =>
+                !!m &&
+                (m.role === 'user' || m.role === 'assistant') &&
+                typeof m.content === 'string' &&
+                m.content.trim().length > 0
+        )
+        .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }))
+    if (messages.length === 0 || messages[messages.length - 1].role !== 'user') return null
+    return messages
+}
+
+/** Newest turns that fit the budget; the latest user message is always kept. */
+function trimHistory(messages: ChatMessage[]): ChatMessage[] {
+    const kept: ChatMessage[] = []
+    let used = 0
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const cost = estimateMessageTokens([messages[i]])
+        if (kept.length > 0 && used + cost > HISTORY_TOKEN_BUDGET) break
+        kept.unshift(messages[i])
+        used += cost
+    }
+    // Start on a user turn so the model never sees an orphaned assistant reply.
+    while (kept.length > 1 && kept[0].role !== 'user') kept.shift()
+    return kept
+}
+
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = session?.user?.id
+    if (!userId) {
         return jsonError('Unauthorized', 401)
     }
 
     if (!process.env.GROQ_API_KEY) {
-        return new Response(JSON.stringify({ error: 'GROQ_API_KEY is not configured' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        })
+        return jsonError('GROQ_API_KEY is not configured', 500)
     }
 
-    const { messages, context, workspaceId } = await req.json()
-
-    // The tools below read workspace data, so the caller must belong to that workspace.
-    if (workspaceId) {
-        const access = await requireWorkspaceAccess(workspaceId)
-        if ('error' in access) {
-            return jsonError(access.error, access.status)
-        }
-    }
-
-    const charge = await chargeAiCredits(session.user.id, workspaceId, AI_CREDIT_COSTS.chat)
-    if (!charge.ok) {
-        return charge.response
-    }
-
-    const basePrompt = `You are the built-in AI assistant for this platform. Your sole purpose is to help users get the most out of this product — its documents, pages, CRM, meetings, invoices, quotes, and workspace features.
-
-Rules you must follow at all times:
-- Only discuss features, data, and tasks that belong to this platform.
-- Never mention, recommend, compare, or link to any other SaaS product, tool, or competitor (e.g. Notion, ClickUp, Monday, Salesforce, HubSpot, or any other external service).
-- Never say anything negative about this platform or imply that another tool would be better.
-- Never engage with political topics, news, or opinions of any kind. If asked, politely decline and redirect to how you can help within this platform.
-- If a user asks you something outside the scope of this platform, respond with: "I'm only here to help you with this platform. Is there something I can assist you with here?"
-- Be helpful, concise, and focused entirely on making the user successful within this product.`
-
-    const systemMessage = {
-        role: 'system' as const,
-        content: context
-            ? `${basePrompt}\n\nCurrent document context:\n${context}`
-            : basePrompt,
-    }
-
-    const conversation: any[] = [systemMessage, ...messages]
-
-    // Pre-flight check: we call the LLM without streaming if we have tools to see if it wants to use them
-    let useTools = !!workspaceId;
-    let model = 'llama-3.1-8b-instant';
-
-    if (useTools) {
-        try {
-            const initialResponse = await getGroq().chat.completions.create({
-                model,
-                messages: conversation,
-                tools: tools,
-                tool_choice: 'auto',
-                stream: false,
-            });
-
-            const responseMessage = initialResponse.choices[0]?.message;
-
-            if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
-                conversation.push(responseMessage); // Add assistant's tool call request
-                await addAiCredits(charge.workspaceId, AI_CREDIT_COSTS.chatToolCall);
-
-                for (const toolCall of responseMessage.tool_calls) {
-                    const toolResult = await executeToolCall(toolCall, workspaceId);
-                    conversation.push({
-                        tool_call_id: toolCall.id,
-                        role: 'tool',
-                        name: toolCall.function.name,
-                        content: toolResult,
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Tool calling failed:', error);
-            // Fallback to text conversation if tool calling fails (e.g. rate limit, or model not found)
-        }
-    }
-
-    // Final streaming generation
-    let stream: GroqCompletion
+    let body: any
     try {
-        stream = await getGroq().chat.completions.create({
-            model,
-            messages: conversation,
-            stream: true,
-        })
-    } catch (error) {
-        // Nothing was generated, so the credit goes back.
-        console.error('AI chat generation failed:', error)
-        await refundAiCredits(charge)
-        return jsonError('The AI service could not answer. Try again later.', 502)
+        body = await req.json()
+    } catch {
+        return jsonError('Invalid JSON body', 400)
     }
 
-    const readableStream = new ReadableStream({
+    const workspaceId = typeof body?.workspaceId === 'string' ? body.workspaceId : ''
+    if (!workspaceId) {
+        return jsonError('workspaceId is required', 400)
+    }
+
+    const history = parseHistory(body.messages)
+    if (!history) {
+        return jsonError('messages must end with a user message', 400)
+    }
+
+    // The tools read workspace data and the workspace's pool pays, so the caller
+    // must belong to it. Create tools additionally need an editing role.
+    const access = await requireWorkspaceAccess(workspaceId)
+    if ('error' in access) {
+        return jsonError(access.error, access.status)
+    }
+
+    const [role, workspace, user] = await Promise.all([
+        getWorkspaceRole(workspaceId, userId),
+        prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+    ])
+
+    const pageContext = typeof body.context === 'string' && body.context.trim()
+        ? body.context.slice(0, MAX_CONTEXT_CHARS)
+        : undefined
+
+    const systemPrompt = buildSystemPrompt({
+        userName: user?.name ?? null,
+        workspaceName: workspace?.name ?? 'Workspace',
+        role,
+        timeZone: safeTimeZone(body.timeZone),
+        now: new Date(),
+        pageContext,
+    })
+    const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }, ...trimHistory(history)]
+
+    // Reserve one round's worth; extra tool rounds are settled on real usage.
+    const toolTokens = estimateTokens(JSON.stringify(toolDefinitions(role)))
+    const reserve = await reserveAiCredits({
+        userId,
+        workspaceId,
+        feature: 'agent',
+        model: AGENT_MODEL,
+        estimate: {
+            inputTokens: estimateMessageTokens(messages) + toolTokens,
+            outputTokens: MAX_OUTPUT_TOKENS,
+        },
+    })
+    if (!reserve.ok) {
+        return reserve.response
+    }
+
+    const abort = linkedAbortController(req.signal)
+    const encoder = new TextEncoder()
+
+    const stream = new ReadableStream<Uint8Array>({
         async start(controller) {
-            const encoder = new TextEncoder()
-            for await (const chunk of stream) {
-                const text = chunk.choices[0]?.delta?.content ?? ''
-                if (text) {
-                    controller.enqueue(encoder.encode(text))
+            let open = true
+            const send = (event: AgentEvent) => {
+                if (!open) return
+                try {
+                    controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+                } catch {
+                    open = false
                 }
             }
-            controller.close()
+            await runAgent({
+                ctx: { userId, workspaceId, role },
+                reservation: reserve.reservation,
+                messages,
+                send,
+                signal: abort.signal,
+            })
+            open = false
+            try {
+                controller.close()
+            } catch {
+                // Already closed because the client cancelled.
+            }
+        },
+        cancel() {
+            abort.abort()
         },
     })
 
-    return new Response(readableStream, {
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'application/x-ndjson; charset=utf-8',
+            'Cache-Control': 'no-store',
+        },
     })
 }

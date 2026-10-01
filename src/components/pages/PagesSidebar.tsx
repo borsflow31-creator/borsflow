@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Plus, Search, ChevronRight, FileText, ChevronDown, Lock, MoreHorizontal, Users } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 import PageAccessModal from './PageAccessModal';
 
 interface Page {
@@ -140,6 +141,7 @@ function PageTreeItem({
 }
 
 export default function PagesSidebar({ workspaceId, currentPageId, isAdmin = false, onCreatePage }: PagesSidebarProps) {
+    const { t } = useI18n();
     const [pages, setPages] = useState<Page[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expanded, setExpanded] = useState(true);
@@ -188,7 +190,7 @@ export default function PagesSidebar({ workspaceId, currentPageId, isAdmin = fal
                         className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
                     >
                         <Plus className="w-4 h-4" />
-                        <span>New Page</span>
+                        <span>{t('pages.sidebar.newPage')}</span>
                     </button>
                 )}
             </div>
@@ -200,7 +202,7 @@ export default function PagesSidebar({ workspaceId, currentPageId, isAdmin = fal
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-on-surface-variant" />
                         <input
                             type="text"
-                            placeholder="Search pages..."
+                            placeholder={t('pages.sidebar.searchPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-9 pr-3 py-1.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"

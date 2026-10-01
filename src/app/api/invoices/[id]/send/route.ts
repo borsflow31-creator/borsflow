@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
-import { escapeHtml, escapeHtmlMultiline, safeHttpUrl } from '@/lib/html';
+import { escapeHtml, escapeHtmlMultiline } from '@/lib/html';
 import { renderDocumentPdf, pdfFilename } from '@/lib/documents/pdf';
 import { shareDocument } from '@/lib/documents/share';
 import { sendTransactionalEmail } from '@/lib/email';
@@ -48,12 +48,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { to, subject, message, includePaymentLink } = body;
-
-    // The payment link is read from the invoice rather than accepted from the
-    // request. It previously went straight into an href in the recipient's mail
-    // client, so a caller could put any URL in an email that looks like ours.
-    const paymentLink = includePaymentLink ? safeHttpUrl(invoice.stripePaymentLink) : null;
+    const { to, subject, message } = body;
 
     const recipientEmail = to || invoice.clientEmail;
     if (!recipientEmail) {
@@ -96,17 +91,6 @@ export async function POST(
           </a>
         </div>`;
 
-    // Pay Now button injected into email when a payment link is included
-    const payNowButtonHtml = paymentLink
-      ? `<div style="text-align:center;margin:24px 0;">
-          <a href="${escapeHtml(paymentLink)}"
-             style="display:inline-block;padding:14px 32px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:16px;letter-spacing:.02em;">
-            💳 Pay Now
-          </a>
-          <p style="margin:8px 0 0;font-size:12px;color:#9ca3af;">Secure payment via Stripe</p>
-        </div>`
-      : '';
-
     const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -121,7 +105,6 @@ export async function POST(
       <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#374151;">
         ${message ? escapeHtmlMultiline(message) : `Dear ${escapeHtml(invoice.clientName)},<br><br>Please find your invoice details below. Payment is due by ${formatDate(invoice.dueDate)}.`}
       </p>
-      ${payNowButtonHtml}
       ${viewButtonHtml}
       <div style="background:#f8fafc;border-radius:8px;padding:20px;margin-bottom:24px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
@@ -214,7 +197,7 @@ export async function POST(
       ],
     });
 
-    // Update invoice status to 'sent' and optionally save payment link
+    // Update invoice status to 'sent'
     const updatedInvoice = await prisma.invoice.update({
       where: { id: params.id },
       data: {

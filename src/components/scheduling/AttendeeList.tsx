@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Trash2, CheckCircle2, XCircle, Clock, Loader2, Mail, Phone } from 'lucide-react';
 import AttendeeModal from './AttendeeModal';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Attendee {
   id: string;
@@ -21,15 +22,6 @@ interface AttendeeListProps {
   readonly?: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  invited:   { label: 'Invited',   icon: Clock,         color: 'text-on-surface-variant' },
-  accepted:  { label: 'Accepted',  icon: CheckCircle2,  color: 'text-green-500' },
-  declined:  { label: 'Declined',  icon: XCircle,       color: 'text-error' },
-  tentative: { label: 'Tentative', icon: Clock,         color: 'text-amber-500' },
-  attended:  { label: 'Attended',  icon: CheckCircle2,  color: 'text-green-500' },
-  no_show:   { label: 'No Show',   icon: XCircle,       color: 'text-on-surface-variant' },
-};
-
 const TYPE_BADGE: Record<string, string> = {
   external: 'bg-surface-container-high text-on-surface-variant',
   internal: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
@@ -40,6 +32,24 @@ const TYPE_BADGE: Record<string, string> = {
 const STATUSES = ['invited', 'accepted', 'declined', 'tentative', 'attended', 'no_show'] as const;
 
 export default function AttendeeList({ meetingId, workspaceId, readonly }: AttendeeListProps) {
+  const { t } = useI18n();
+
+  const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+    invited:   { label: t('scheduling.attendee.status.invited'),   icon: Clock,         color: 'text-on-surface-variant' },
+    accepted:  { label: t('scheduling.attendee.status.accepted'),  icon: CheckCircle2,  color: 'text-green-500' },
+    declined:  { label: t('scheduling.attendee.status.declined'),  icon: XCircle,       color: 'text-error' },
+    tentative: { label: t('scheduling.attendee.status.tentative'), icon: Clock,         color: 'text-amber-500' },
+    attended:  { label: t('scheduling.attendee.status.attended'),  icon: CheckCircle2,  color: 'text-green-500' },
+    no_show:   { label: t('scheduling.attendee.status.noShow'),    icon: XCircle,       color: 'text-on-surface-variant' },
+  };
+
+  const TYPE_LABEL: Record<string, string> = {
+    external: t('scheduling.attendee.type.external'),
+    internal: t('scheduling.attendee.type.internal'),
+    lead:     t('scheduling.attendee.type.lead'),
+    contact:  t('scheduling.attendee.type.contact'),
+  };
+
   const [attendees,   setAttendees]   = useState<Attendee[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [showModal,   setShowModal]   = useState(false);
@@ -65,7 +75,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
   useEffect(() => { fetchAttendees(); }, [fetchAttendees]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Remove this attendee?')) return;
+    if (!confirm(t('scheduling.attendee.removeConfirm'))) return;
     setDeleting(id);
     try {
       await fetch(`/api/scheduling/meetings/${meetingId}/attendees/${id}`, { method: 'DELETE' });
@@ -112,7 +122,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-on-surface-variant" />
           <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-            Attendees
+            {t('scheduling.attendee.heading')}
           </span>
           {attendees.length > 0 && (
             <span className="px-1.5 py-0.5 bg-surface-container-high rounded-full text-[11px] font-medium text-on-surface-variant">
@@ -126,7 +136,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
             className="flex items-center gap-1 px-2.5 py-1 bg-secondary/10 text-secondary rounded-lg text-xs font-medium hover:bg-secondary/20 transition-colors"
           >
             <Plus className="w-3 h-3" />
-            Add
+            {t('scheduling.attendee.add')}
           </button>
         )}
       </div>
@@ -137,13 +147,13 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
           <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
             <Users className="w-5 h-5 text-secondary/50" />
           </div>
-          <p className="text-xs text-on-surface-variant">No attendees yet</p>
+          <p className="text-xs text-on-surface-variant">{t('scheduling.attendee.emptyTitle')}</p>
           {!readonly && (
             <button
               onClick={() => setShowModal(true)}
               className="mt-2 text-xs text-secondary hover:underline"
             >
-              Add first attendee
+              {t('scheduling.attendee.addFirst')}
             </button>
           )}
         </div>
@@ -169,7 +179,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-medium text-on-surface truncate">{a.name}</span>
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full capitalize ${typeBadge}`}>
-                      {a.type}
+                      {TYPE_LABEL[a.type] || a.type}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
@@ -193,7 +203,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
                       disabled={!!readonly}
                       onClick={() => setOpenMenu(openMenu === a.id ? null : a.id)}
                       className={`flex items-center gap-1 text-[11px] font-medium ${sc.color} ${!readonly ? 'hover:opacity-70 cursor-pointer' : 'cursor-default'} transition-opacity`}
-                      title={readonly ? sc.label : 'Change status'}
+                      title={readonly ? sc.label : t('scheduling.attendee.changeStatusTitle')}
                     >
                       <StatusIcon className="w-3.5 h-3.5" />
                       {sc.label}
@@ -232,7 +242,7 @@ export default function AttendeeList({ meetingId, workspaceId, readonly }: Atten
                     onClick={() => handleDelete(a.id)}
                     disabled={deleting === a.id}
                     className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all flex-shrink-0"
-                    title="Remove attendee"
+                    title={t('scheduling.attendee.removeTitle')}
                   >
                     {deleting === a.id
                       ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Plus, Sparkles, Wand2, X } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ProductFormFieldsProps {
   workspaceId: string;
@@ -54,6 +55,7 @@ export default function ProductFormFields({
   disabled = false,
   openAIDefault = false,
 }: ProductFormFieldsProps) {
+  const { t } = useI18n();
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -148,13 +150,13 @@ export default function ProductFormFields({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate product details');
+        throw new Error(data.error || t('products.formFields.generateFailed'));
       }
 
       applySuggestion(data.suggestion || {});
     } catch (error) {
       setAiError(
-        error instanceof Error ? error.message : 'Failed to generate product details'
+        error instanceof Error ? error.message : t('products.formFields.generateFailed')
       );
     } finally {
       setAiLoading(false);
@@ -168,13 +170,13 @@ export default function ProductFormFields({
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
               <Sparkles className="h-3.5 w-3.5" strokeWidth={1.8} />
-              AI Product Assistant
+              {t('products.formFields.aiAssistantBadge')}
             </div>
             <h2 className="mt-3 text-lg font-semibold text-on-surface">
-              Turn a quick idea into a catalog-ready product
+              {t('products.formFields.aiAssistantHeading')}
             </h2>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Describe the item or service you want to sell and AI will draft the reusable product details for this workspace.
+              {t('products.formFields.aiAssistantSubtitle')}
             </p>
           </div>
 
@@ -185,27 +187,27 @@ export default function ProductFormFields({
             className="inline-flex items-center gap-2 self-start rounded-lg border border-outline-variant/20 bg-surface px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-50"
           >
             <Wand2 className="h-4 w-4" strokeWidth={1.75} />
-            {showAIAssistant ? 'Hide AI' : 'Use AI'}
+            {showAIAssistant ? t('products.formFields.hideAI') : t('products.formFields.useAI')}
           </button>
         </div>
 
         {showAIAssistant ? (
           <div className="mt-5 rounded-xl border border-outline-variant/10 bg-surface/80 p-4">
             <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-              What should AI generate?
+              {t('products.formFields.aiPromptLabel')}
             </label>
             <textarea
               value={aiPrompt}
               onChange={(event) => setAiPrompt(event.target.value)}
               rows={3}
               className={`${inputClassName} resize-none bg-surface-container`}
-              placeholder="Example: Create a monthly social media management package for startups with a professional tone and a mid-market price."
+              placeholder={t('products.formFields.aiPromptPlaceholder')}
               disabled={disabled || aiLoading}
             />
 
             <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <p className="text-xs text-on-surface-variant">
-                AI can suggest name, description, SKU, category, unit, price, tax, and stock values.
+                {t('products.formFields.aiCapabilitiesHint')}
               </p>
               <button
                 type="button"
@@ -218,7 +220,7 @@ export default function ProductFormFields({
                 ) : (
                   <Sparkles className="h-4 w-4" strokeWidth={1.75} />
                 )}
-                Generate details
+                {t('products.formFields.generateDetails')}
               </button>
             </div>
 
@@ -231,7 +233,7 @@ export default function ProductFormFields({
             {aiReasoning ? (
               <div className="mt-3 rounded-lg border border-outline-variant/10 bg-surface-container-low px-3 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-on-surface-variant">
-                  AI Notes
+                  {t('products.formFields.aiNotesLabel')}
                 </p>
                 <p className="mt-1 text-sm text-on-surface">{aiReasoning}</p>
               </div>
@@ -243,14 +245,14 @@ export default function ProductFormFields({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Name <span className="text-error">*</span>
+            {t('products.formFields.nameLabel')} <span className="text-error">*</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={(event) => setName(event.target.value)}
             className={inputClassName}
-            placeholder="Product name"
+            placeholder={t('products.formFields.namePlaceholder')}
             disabled={disabled}
             required
           />
@@ -258,33 +260,33 @@ export default function ProductFormFields({
 
         <div className="md:col-span-2">
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Description
+            {t('products.formFields.descriptionLabel')}
           </label>
           <textarea
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             rows={4}
             className={`${inputClassName} resize-none`}
-            placeholder="Helpful details your team will reuse in quotes and invoices"
+            placeholder={t('products.formFields.descriptionPlaceholder')}
             disabled={disabled}
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-on-surface-variant">SKU</label>
+          <label className="mb-2 block text-sm font-medium text-on-surface-variant">{t('products.formFields.skuLabel')}</label>
           <input
             type="text"
             value={sku}
             onChange={(event) => setSku(event.target.value)}
             className={inputClassName}
-            placeholder="e.g. PRO-001"
+            placeholder={t('products.formFields.skuPlaceholder')}
             disabled={disabled}
           />
         </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Category
+            {t('products.formFields.categoryLabel')}
           </label>
           <div className="space-y-2">
             <select
@@ -293,7 +295,7 @@ export default function ProductFormFields({
               className={inputClassName}
               disabled={disabled}
             >
-              <option value="">Select a category</option>
+              <option value="">{t('products.formFields.selectCategoryPlaceholder')}</option>
               {availableCategories.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -309,7 +311,7 @@ export default function ProductFormFields({
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-secondary transition-colors hover:bg-secondary/10 disabled:opacity-50"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                Add category
+                {t('products.formFields.addCategory')}
               </button>
             ) : (
               <div className="rounded-lg border border-outline-variant/10 bg-surface-container-low p-3">
@@ -318,7 +320,7 @@ export default function ProductFormFields({
                     type="text"
                     value={newCategory}
                     onChange={(event) => setNewCategory(event.target.value)}
-                    placeholder="New category name"
+                    placeholder={t('products.formFields.newCategoryPlaceholder')}
                     className={`${inputClassName} flex-1`}
                     disabled={disabled}
                   />
@@ -329,7 +331,7 @@ export default function ProductFormFields({
                       disabled={disabled || !newCategory.trim()}
                       className="rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim disabled:opacity-40"
                     >
-                      Save
+                      {t('common.save')}
                     </button>
                     <button
                       type="button"
@@ -339,7 +341,7 @@ export default function ProductFormFields({
                       }}
                       disabled={disabled}
                       className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-on-surface-variant transition-colors hover:bg-surface-container-high"
-                      aria-label="Cancel adding category"
+                      aria-label={t('products.formFields.cancelAddCategoryAria')}
                     >
                       <X className="h-4 w-4" strokeWidth={1.75} />
                     </button>
@@ -352,7 +354,7 @@ export default function ProductFormFields({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Price <span className="text-error">*</span>
+            {t('products.formFields.priceLabel')} <span className="text-error">*</span>
           </label>
           <input
             type="number"
@@ -368,20 +370,20 @@ export default function ProductFormFields({
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-on-surface-variant">Unit</label>
+          <label className="mb-2 block text-sm font-medium text-on-surface-variant">{t('products.formFields.unitLabel')}</label>
           <input
             type="text"
             value={unit}
             onChange={(event) => setUnit(event.target.value)}
             className={inputClassName}
-            placeholder="e.g. seat, hour, item"
+            placeholder={t('products.formFields.unitPlaceholder')}
             disabled={disabled}
           />
         </div>
 
         <div>
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Tax Rate (%)
+            {t('products.formFields.taxRateLabel')}
           </label>
           <input
             type="number"
@@ -397,7 +399,7 @@ export default function ProductFormFields({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            Stock Quantity
+            {t('products.formFields.stockQuantityLabel')}
           </label>
           <input
             type="number"
@@ -406,7 +408,7 @@ export default function ProductFormFields({
             value={stockQuantity}
             onChange={(event) => setStockQuantity(event.target.value)}
             className={inputClassName}
-            placeholder="Optional"
+            placeholder={t('products.formFields.stockQuantityPlaceholder')}
             disabled={disabled}
           />
         </div>
@@ -415,9 +417,9 @@ export default function ProductFormFields({
       <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-on-surface">Active product</p>
+            <p className="text-sm font-medium text-on-surface">{t('products.formFields.activeProductLabel')}</p>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Active products show up in the catalog picker for quotes and invoices.
+              {t('products.formFields.activeProductHint')}
             </p>
           </div>
           <button
@@ -428,7 +430,7 @@ export default function ProductFormFields({
               isActive ? 'bg-secondary' : 'bg-surface-container-high'
             } ${disabled ? 'opacity-50' : ''}`}
             aria-pressed={isActive}
-            aria-label="Toggle active product"
+            aria-label={t('products.formFields.toggleActiveAria')}
           >
             <span
               className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${

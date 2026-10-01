@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { Plus, Loader2, Link2, Unlink, RefreshCw, Zap, CheckCircle2, XCircle } from 'lucide-react';
 import { CalendarIntegrationCard, VideoConfigCard } from './IntegrationCards';
 import DirectConnectModal from './DirectConnectModal';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface IntegrationsPanelProps {
   workspaceId: string;
@@ -38,6 +39,7 @@ const PLATFORM_LABELS: Record<string, string> = {
 };
 
 export default function IntegrationsPanel({ workspaceId }: IntegrationsPanelProps) {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [calendarIntegrations, setCalendarIntegrations] = useState<any[]>([]);
   const [videoConfigs,         setVideoConfigs]         = useState<any[]>([]);
@@ -261,8 +263,8 @@ export default function IntegrationsPanel({ workspaceId }: IntegrationsPanelProp
           <div className="w-14 h-14 rounded-2xl bg-secondary/10 flex items-center justify-center mx-auto mb-3">
             <Zap className="w-7 h-7 text-secondary/60" />
           </div>
-          <p className="text-sm font-medium text-on-surface">All platforms connected!</p>
-          <p className="text-xs text-on-surface-variant mt-1">Your scheduling is fully set up.</p>
+          <p className="text-sm font-medium text-on-surface">{t('misc.allPlatformsConnected')}</p>
+          <p className="text-xs text-on-surface-variant mt-1">{t('misc.schedulingSetupComplete')}</p>
         </div>
       )}
 

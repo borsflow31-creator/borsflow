@@ -41,6 +41,7 @@ const HOURLY_JOBS = [
   '/api/cron/expire-invitations',
   '/api/cron/mark-overdue',
   '/api/cron/sync-calendars',
+  '/api/cron/notification-reminders',
 ] as const
 
 interface JobResult {

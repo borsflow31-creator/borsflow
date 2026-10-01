@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { PendingInvitation } from '@/lib/invitations-client';
+import { useI18n } from '@/i18n/I18nProvider';
 import PendingInvitationsList from './PendingInvitationsList';
 
 interface PendingInvitationsModalProps {
@@ -29,6 +30,7 @@ export default function PendingInvitationsModal({
     respondingId = null,
     respondingChoice = null,
 }: PendingInvitationsModalProps) {
+    const { t } = useI18n();
     const backdropRef = useRef<HTMLDivElement>(null);
     const busy = respondingId !== null;
 
@@ -71,7 +73,7 @@ export default function PendingInvitationsModal({
                         onClick={onClose}
                         disabled={busy}
                         className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Close"
+                        aria-label={t('workspace.pendingModal.closeAriaLabel')}
                     >
                         <X className="h-5 w-5" />
                     </button>

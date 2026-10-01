@@ -9,6 +9,7 @@ import LineItemsTable, { LineItem } from '@/components/documents/LineItemsTable'
 import { calculateDocumentTotals } from '@/lib/documents/calculations';
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
 import { ArrowLeft, Save, Loader2, Search, User, X, Plus } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
   id: string;
@@ -20,19 +21,20 @@ interface Lead {
 }
 
 const CURRENCIES = [
-  { value: 'USD', label: 'USD — US Dollar' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'GBP', label: 'GBP — British Pound' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar' },
-  { value: 'AUD', label: 'AUD — Australian Dollar' },
-  { value: 'DZD', label: 'DZD — Algerian Dinar' },
-  { value: 'MAD', label: 'MAD — Moroccan Dirham' },
-  { value: 'TND', label: 'TND — Tunisian Dinar' },
+  { value: 'USD', nameKey: 'usd' as const },
+  { value: 'EUR', nameKey: 'eur' as const },
+  { value: 'GBP', nameKey: 'gbp' as const },
+  { value: 'CAD', nameKey: 'cad' as const },
+  { value: 'AUD', nameKey: 'aud' as const },
+  { value: 'DZD', nameKey: 'dzd' as const },
+  { value: 'MAD', nameKey: 'mad' as const },
+  { value: 'TND', nameKey: 'tnd' as const },
 ];
 
 function NewInvoicePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const { addInvoice } = useDocumentStore();
 
@@ -114,11 +116,11 @@ function NewInvoicePageInner() {
 
   const handleSave = async () => {
     if (!clientName.trim()) {
-      setError('Client name is required');
+      setError(t('invoices.newForm.clientNameRequired'));
       return;
     }
     if (items.every((i) => !i.description.trim())) {
-      setError('At least one line item with a description is required');
+      setError(t('invoices.newForm.lineItemRequired'));
       return;
     }
 
@@ -161,14 +163,14 @@ function NewInvoicePageInner() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to create invoice');
+        throw new Error(data.error || t('invoices.newForm.createFailed'));
       }
 
       const data = await response.json();
       addInvoice(data.invoice);
       router.push(`/invoices/${data.invoice.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('invoices.newForm.genericError'));
     } finally {
       setSaving(false);
     }
@@ -183,13 +185,13 @@ function NewInvoicePageInner() {
             <button
               onClick={() => router.back()}
               className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors"
-              aria-label="Go back"
+              aria-label={t('invoices.newForm.backAria')}
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-on-surface">New Invoice</h1>
-              <p className="text-sm text-on-surface-variant mt-0.5">Create a new invoice for a client</p>
+              <h1 className="text-2xl font-bold text-on-surface">{t('invoices.newForm.title')}</h1>
+              <p className="text-sm text-on-surface-variant mt-0.5">{t('invoices.newForm.subtitle')}</p>
             </div>
           </div>
           <button
@@ -202,7 +204,7 @@ function NewInvoicePageInner() {
             ) : (
               <Save className="h-4 w-4" strokeWidth={1.75} />
             )}
-            <span>{saving ? 'Creating...' : 'Create Invoice'}</span>
+            <span>{saving ? t('invoices.newForm.creating') : t('invoices.newForm.createInvoice')}</span>
           </button>
         </div>
 
@@ -215,10 +217,10 @@ function NewInvoicePageInner() {
 
         {/* Document Settings */}
         <div className="bg-surface rounded-lg p-6 mb-6">
-          <h2 className="text-base font-semibold text-on-surface mb-4">Document Settings</h2>
+          <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.newForm.documentSettings')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-on-surface-variant mb-2">Issue Date</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.issueDate')}</label>
               <input
                 type="date"
                 value={issueDate}
@@ -227,7 +229,7 @@ function NewInvoicePageInner() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-on-surface-variant mb-2">Due Date</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.dueDate')}</label>
               <input
                 type="date"
                 value={dueDate}
@@ -237,14 +239,16 @@ function NewInvoicePageInner() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-on-surface-variant mb-2">Currency</label>
+              <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.currency')}</label>
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
               >
                 {CURRENCIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                  <option key={c.value} value={c.value}>
+                    {c.value} — {t(`invoices.currencyName.${c.nameKey}` as Parameters<typeof t>[0])}
+                  </option>
                 ))}
               </select>
             </div>
@@ -256,17 +260,17 @@ function NewInvoicePageInner() {
             {/* Client Information */}
             <div className="bg-surface rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-on-surface">Client Information</h2>
+                <h2 className="text-base font-semibold text-on-surface">{t('invoices.fields.clientInformation')}</h2>
                 {selectedLead ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/10 rounded-lg">
                     <User className="h-3.5 w-3.5 text-secondary" strokeWidth={1.75} />
                     <span className="text-xs text-secondary font-medium">
-                      Linked: {selectedLead.firstName} {selectedLead.lastName}
+                      {t('invoices.newForm.linkedContact', { name: `${selectedLead.firstName} ${selectedLead.lastName}` })}
                     </span>
                     <button
                       onClick={handleClearLead}
                       className="text-secondary hover:text-on-surface transition-colors"
-                      aria-label="Remove linked contact"
+                      aria-label={t('invoices.newForm.removeLinkedAria')}
                     >
                       <X className="h-3 w-3" strokeWidth={2} />
                     </button>
@@ -278,7 +282,7 @@ function NewInvoicePageInner() {
                       className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container-high rounded-lg transition-colors text-xs font-medium text-on-surface-variant"
                     >
                       <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      Link CRM Contact
+                      {t('invoices.newForm.linkCrmContact')}
                     </button>
 
                     {showLeadPicker && (
@@ -292,7 +296,7 @@ function NewInvoicePageInner() {
                                 type="text"
                                 value={leadSearch}
                                 onChange={(e) => setLeadSearch(e.target.value)}
-                                placeholder="Search contacts..."
+                                placeholder={t('invoices.newForm.searchContacts')}
                                 className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
                                 autoFocus
                               />
@@ -300,7 +304,7 @@ function NewInvoicePageInner() {
                           </div>
                           <div className="max-h-64 overflow-y-auto">
                             {filteredLeads.length === 0 ? (
-                              <p className="text-center text-sm text-on-surface-variant py-6">No contacts found</p>
+                              <p className="text-center text-sm text-on-surface-variant py-6">{t('invoices.newForm.noContactsFound')}</p>
                             ) : (
                               filteredLeads.map((lead) => (
                                 <button
@@ -328,54 +332,54 @@ function NewInvoicePageInner() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                    Client Name <span className="text-error">*</span>
+                    {t('invoices.fields.clientName')} <span className="text-error">*</span>
                   </label>
                   <input
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
-                    placeholder="Full name"
+                    placeholder={t('invoices.fields.clientNamePlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Email</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.email')}</label>
                   <input
                     type="email"
                     value={clientEmail}
                     onChange={(e) => setClientEmail(e.target.value)}
-                    placeholder="client@example.com"
+                    placeholder={t('invoices.fields.emailPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.phone')}</label>
                   <input
                     type="tel"
                     value={clientPhone}
                     onChange={(e) => setClientPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder={t('invoices.fields.phonePlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Company</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.company')}</label>
                   <input
                     type="text"
                     value={clientCompany}
                     onChange={(e) => setClientCompany(e.target.value)}
-                    placeholder="Company name"
+                    placeholder={t('invoices.fields.companyPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Address</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.address')}</label>
                   <textarea
                     value={clientAddress}
                     onChange={(e) => setClientAddress(e.target.value)}
                     rows={2}
-                    placeholder="123 Street, City, Country"
+                    placeholder={t('invoices.fields.addressPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
@@ -384,7 +388,7 @@ function NewInvoicePageInner() {
 
             {/* Line Items */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Line Items</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.fields.lineItems')}</h2>
               <LineItemsTable
                 items={items}
                 currency={currency}
@@ -396,38 +400,38 @@ function NewInvoicePageInner() {
 
             {/* Notes & Terms */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Notes & Terms</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.fields.notesAndTerms')}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Notes</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.notes')}</label>
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    placeholder="Additional notes for the client..."
+                    placeholder={t('invoices.fields.notesPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Terms</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.terms')}</label>
                   <textarea
                     value={terms}
                     onChange={(e) => setTerms(e.target.value)}
                     rows={3}
-                    placeholder="Payment terms and conditions..."
+                    placeholder={t('invoices.fields.termsPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-on-surface-variant mb-2">
-                    Internal Notes
-                    <span className="ml-2 text-xs text-on-surface-variant/60 font-normal">(private)</span>
+                    {t('invoices.fields.internalNotes')}
+                    <span className="ml-2 text-xs text-on-surface-variant/60 font-normal">{t('invoices.fields.internalNotesPrivate')}</span>
                   </label>
                   <textarea
                     value={internalNotes}
                     onChange={(e) => setInternalNotes(e.target.value)}
                     rows={2}
-                    placeholder="Notes for internal use only..."
+                    placeholder={t('invoices.fields.internalNotesPlaceholder')}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none"
                   />
                 </div>
@@ -462,7 +466,7 @@ function NewInvoicePageInner() {
               ) : (
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
               )}
-              <span>{saving ? 'Creating...' : 'Create Invoice'}</span>
+              <span>{saving ? t('invoices.newForm.creating') : t('invoices.newForm.createInvoice')}</span>
             </button>
           </div>
         </div>

@@ -9,6 +9,7 @@ import { chatRoomName } from '@/lib/chatRooms'
 import { ChannelView } from './ChannelView'
 import { CreateChannelModal } from './CreateChannelModal'
 import type { Channel, UserDirectory } from './types'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface WorkspaceChatProps {
   workspaceId: string
@@ -20,6 +21,7 @@ const EMPTY_DIRECTORY: UserDirectory = {}
 
 export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTORY }: WorkspaceChatProps) {
   const { data: session } = useSession()
+  const { t } = useI18n()
 
   const [channels, setChannels] = useState<Channel[]>([])
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null)
@@ -61,7 +63,7 @@ export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTOR
       <div className="w-56 flex-shrink-0 flex flex-col border-r border-outline-variant/20 bg-surface-container-low">
         {/* Sidebar header */}
         <div className="px-4 py-4 border-b border-outline-variant/20">
-          <p className="text-xs font-bold text-on-surface uppercase tracking-widest">Team Chat</p>
+          <p className="text-xs font-bold text-on-surface uppercase tracking-widest">{t('chat.title')}</p>
         </div>
 
         {/* Channels list */}
@@ -75,11 +77,11 @@ export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTOR
               {channelsOpen
                 ? <ChevronDown className="h-3 w-3 flex-shrink-0" />
                 : <ChevronRight className="h-3 w-3 flex-shrink-0" />}
-              <span className="text-[11px] font-semibold uppercase tracking-wider flex-1 text-left">Channels</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider flex-1 text-left">{t('chat.channels')}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowCreateModal(true) }}
                 className="p-0.5 rounded-md opacity-0 group-hover:opacity-100 hover:bg-surface-container-highest transition-all"
-                title="Add channel"
+                title={t('chat.addChannel')}
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -97,7 +99,7 @@ export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTOR
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container text-xs transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    Add a channel
+                    {t('chat.addAChannel')}
                   </button>
                 ) : (
                   channels.map((ch) => (
@@ -117,7 +119,7 @@ export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTOR
                           onClick={(e) => { e.stopPropagation(); deleteChannel(ch.id) }}
                           disabled={deletingId === ch.id}
                           className="opacity-0 group-hover:opacity-100 p-0.5 rounded-md hover:bg-red-500/10 hover:text-red-500 transition-all flex-shrink-0"
-                          title="Delete channel"
+                          title={t('chat.deleteChannel')}
                         >
                           {deletingId === ch.id
                             ? <Loader2 className="h-3 w-3 animate-spin" />
@@ -158,20 +160,20 @@ export function WorkspaceChat({ workspaceId, isOwner, directory = EMPTY_DIRECTOR
         ) : (
           <>
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-low shadow-sm flex-shrink-0">
-              <p className="text-sm text-on-surface-variant">Select a channel to start chatting</p>
+              <p className="text-sm text-on-surface-variant">{t('chat.selectChannel')}</p>
             </div>
             {!channelsLoading && (
               <div className="flex-1 flex flex-col items-center justify-center gap-4 text-on-surface-variant">
                 <div className="w-16 h-16 rounded-2xl bg-surface-container-high flex items-center justify-center">
                   <Hash className="h-8 w-8 opacity-30" />
                 </div>
-                <p className="text-sm font-medium">No channels yet</p>
+                <p className="text-sm font-medium">{t('chat.noChannels')}</p>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary text-on-secondary text-sm font-medium hover:opacity-90 transition-opacity"
                 >
                   <Plus className="h-4 w-4" />
-                  Create your first channel
+                  {t('chat.createFirst')}
                 </button>
               </div>
             )}

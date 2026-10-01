@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { X, Search, Loader2 } from 'lucide-react';
 import { UniversalTemplate, TemplateType } from '@/types';
 import TemplateCard from './TemplateCard';
@@ -26,6 +27,7 @@ export default function TemplatePickerModal({
   type,
   workspaceId,
 }: TemplatePickerModalProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [templates, setTemplates] = useState<UniversalTemplate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -105,7 +107,7 @@ export default function TemplatePickerModal({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" strokeWidth={1.5} />
             <input
               type="text"
-              placeholder="Search templates…"
+              placeholder={t('misc.searchTemplates')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm bg-surface-container border border-outline-variant rounded-lg text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-colors"

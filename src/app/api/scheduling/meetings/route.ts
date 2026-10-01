@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { ZoomClient } from '@/lib/scheduling/zoom-client';
-import { decrypt } from '@/lib/encryption';
-import { requireWorkspaceAccess, leadBelongsToWorkspace } from '@/lib/api/workspace';
+import { requireWorkspaceAccess } from '@/lib/api/workspace';
+import { createMeeting } from '@/lib/services/meetings';
+import { ServiceError } from '@/lib/services/errors';
 
 /**
  * GET: Lists all meetings for a workspace, optionally filtered by lead or user
@@ -56,54 +56,21 @@ export async function POST(request: NextRequest) {
     if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
     const { session } = access;
 
-    if (leadId && !(await leadBelongsToWorkspace(leadId, workspaceId))) {
-      return NextResponse.json({ error: 'Lead not found in this workspace' }, { status: 400 });
-    }
-
-    let meetingUrl = '';
-    let platformMeetingId = '';
-
-    // If Zoom is requested, create it via Zoom API
-    if (platform === 'zoom') {
-      const config = await prisma.videoConferenceConfig.findFirst({
-        where: { workspaceId, platform: 'zoom', isActive: true }
-      });
-
-      if (config?.accessToken) {
-        const zoomClient = new ZoomClient(decrypt(config.accessToken));
-        try {
-          const zoomMeeting = await zoomClient.createMeeting('me', {
-            topic: title,
-            start_time: startTime,
-            duration: duration,
-          });
-          meetingUrl = zoomMeeting.join_url;
-          platformMeetingId = String(zoomMeeting.id);
-        } catch (err: any) {
-          console.error('Zoom meeting creation failed:', err.message);
-        }
-      }
-    }
-
-    const meeting = await prisma.meeting.create({
-      data: {
-        workspaceId,
-        title,
-        startTime: new Date(startTime),
-        endTime: new Date(new Date(startTime).getTime() + duration * 60000),
-        duration,
-        platform: platform || 'in_person',
-        meetingType: platform ? 'online' : 'in_person',
-        meetingUrl,
-        platformMeetingId,
-        leadId,
-        userId: session.user.id,
-        createdById: session.user.id,
-      }
+    const meeting = await createMeeting({
+      workspaceId,
+      userId: session.user.id,
+      title,
+      startTime,
+      duration,
+      platform,
+      leadId,
     });
 
     return NextResponse.json({ meeting });
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error creating meeting:', error);
     return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 });
   }

@@ -1,68 +1,67 @@
+'use client'
+
 import React from 'react'
 import { Boxes, Calendar, Mail, Users } from 'lucide-react'
-
-/* Architecture facts, kept as a definition list rather than a fourth row of
-   cards. The compliance, uptime and audit-trail assertions this section once
-   carried had nothing behind them and were removed. */
-const FOUNDATIONS: { term: string; detail: string }[] = [
-    { term: 'PostgreSQL via Prisma', detail: 'One typed schema, every workspace scoped at the query.' },
-    { term: 'NextAuth sessions', detail: 'Email and password with verification, or Google sign-in.' },
-    {
-        term: 'Secrets encrypted before storage',
-        detail: 'Calendar tokens, Stripe keys and meeting passwords never sit in plain text.',
-    },
-    { term: 'Per-page permissions', detail: 'View or edit grants per person, plus public read-only links.' },
-]
+import { useI18n } from '@/i18n/I18nProvider'
 
 export const BentoGrid = () => {
+    const { t } = useI18n()
+
+    /* Architecture facts, kept as a definition list rather than a fourth row of
+       cards. The compliance, uptime and audit-trail assertions this section once
+       carried had nothing behind them and were removed. */
+    const FOUNDATIONS: { term: string; detail: string }[] = [
+        { term: t('landing.bentoGrid.foundationPostgresTerm'), detail: t('landing.bentoGrid.foundationPostgresDetail') },
+        { term: t('landing.bentoGrid.foundationAuthTerm'), detail: t('landing.bentoGrid.foundationAuthDetail') },
+        {
+            term: t('landing.bentoGrid.foundationSecretsTerm'),
+            detail: t('landing.bentoGrid.foundationSecretsDetail'),
+        },
+        { term: t('landing.bentoGrid.foundationPermissionsTerm'), detail: t('landing.bentoGrid.foundationPermissionsDetail') },
+    ]
+
     return (
         <section id="features" className="py-16 sm:py-24 scroll-mt-24">
             <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
                 <div className="max-w-3xl">
                     <h2 className="font-display t-h2 text-[var(--n-text)]">
-                        Everything the deal touches, on one database.
+                        {t('landing.bentoGrid.heading')}
                     </h2>
                     <p className="mt-5 t-lead measure text-[var(--n-muted)]">
-                        Documents, pipeline, money, email and calendar are not five integrations wired together. They are
-                        five views of the same rows.
+                        {t('landing.bentoGrid.lead')}
                     </p>
                 </div>
 
                 <div className="mt-14 grid grid-cols-1 lg:grid-cols-6 gap-5">
                     <article id="crm" className="taste-plinth lg:col-span-3 p-6 sm:p-8 scroll-mt-24">
                         <Users className="w-5 h-5 text-[var(--n-emerald)]" aria-hidden="true" />
-                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">A pipeline you can read at a glance</h3>
+                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">{t('landing.bentoGrid.crmTitle')}</h3>
                         <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                            Custom stages, deal values, sources and scoring. Drag the board or work the table. Import from
-                            CSV, then watch the same records drive quotes, email and meetings.
+                            {t('landing.bentoGrid.crmBody')}
                         </p>
                     </article>
 
                     <article className="taste-plinth lg:col-span-3 p-6 sm:p-8">
                         <Mail className="w-5 h-5 text-[var(--n-emerald)]" aria-hidden="true" />
-                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">Email that follows the deal</h3>
+                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">{t('landing.bentoGrid.emailTitle')}</h3>
                         <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                            Automations fire on events that already exist in your pipeline &mdash; a lead created, a stage
-                            changed, a tag added. Send through SendGrid, SES, Resend, Mailgun, Postmark or your own
-                            SMTP; bounces suppress themselves.
+                            {t('landing.bentoGrid.emailBody')}
                         </p>
                     </article>
 
                     <article className="taste-plinth lg:col-span-2 p-6 sm:p-8">
                         <Calendar className="w-5 h-5 text-[var(--n-emerald)]" aria-hidden="true" />
-                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">Meetings in the same place</h3>
+                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">{t('landing.bentoGrid.meetingsTitle')}</h3>
                         <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                            Connect Google Calendar, Cal.com or Zoom and sync both ways. Meetings attach to their lead and
-                            carry attendees and notes. Tokens refresh on a cron, so a connection never quietly expires.
+                            {t('landing.bentoGrid.meetingsBody')}
                         </p>
                     </article>
 
                     <article className="taste-plinth lg:col-span-2 p-6 sm:p-8">
                         <Boxes className="w-5 h-5 text-[var(--n-emerald)]" aria-hidden="true" />
-                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">A catalogue and a template library</h3>
+                        <h3 className="mt-4 font-display t-h3 text-[var(--n-text)]">{t('landing.bentoGrid.catalogTitle')}</h3>
                         <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                            Products carry SKUs, tax rates and stock straight into line items. Pages, quotes, invoices and
-                            boards all start from a template if you want one.
+                            {t('landing.bentoGrid.catalogBody')}
                         </p>
                     </article>
 
@@ -70,7 +69,7 @@ export const BentoGrid = () => {
                         plinth, so the row reads as a change of surface. */}
                     <div className="lg:col-span-2 self-start">
                         <h3 className="pb-3 border-b border-[var(--n-border-strong)] text-xs font-medium uppercase tracking-wider text-[var(--n-text)]">
-                            Underneath
+                            {t('landing.bentoGrid.underneathHeading')}
                         </h3>
                         <dl className="grid grid-cols-1 gap-x-8">
                         {FOUNDATIONS.map(({ term, detail }) => (

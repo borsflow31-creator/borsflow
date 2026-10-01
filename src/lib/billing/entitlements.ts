@@ -166,13 +166,17 @@ export async function consumeUsage(
   return { ...current, allowed: false }
 }
 
-/** Add usage without a limit check, e.g. the extra cost of a tool call once it happened. */
+/**
+ * Add usage without a limit check, e.g. settling a request that turned out to
+ * cost more than was reserved. `period` defaults to this month; pass the period
+ * the original charge went to so a request spanning midnight settles there.
+ */
 export async function recordUsage(
   workspaceId: string,
   metric: UsageMetric,
-  amount: number
+  amount: number,
+  period = currentPeriod()
 ): Promise<number> {
-  const period = currentPeriod()
   await ensureCounter(workspaceId, metric, period)
   const rows = await prisma.$queryRaw<Array<{ used: number }>>(Prisma.sql`
     UPDATE "UsageCounter"
@@ -183,16 +187,17 @@ export async function recordUsage(
   return rows[0]?.used ?? amount
 }
 
-/** Give back units taken for a request that then failed upstream. */
+/** Give back units taken for a request that then failed or cost less than reserved. */
 export async function releaseUsage(
   workspaceId: string,
   metric: UsageMetric,
-  amount: number
+  amount: number,
+  period = currentPeriod()
 ): Promise<void> {
   await prisma.$executeRaw(Prisma.sql`
     UPDATE "UsageCounter"
     SET "used" = GREATEST(0, "used" - ${amount}), "updatedAt" = NOW()
-    WHERE "workspaceId" = ${workspaceId} AND "metric" = ${metric} AND "period" = ${currentPeriod()}
+    WHERE "workspaceId" = ${workspaceId} AND "metric" = ${metric} AND "period" = ${period}
   `)
 }
 

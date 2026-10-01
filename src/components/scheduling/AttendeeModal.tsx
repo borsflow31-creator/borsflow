@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, User, Mail, Phone, Loader2, Search, Users, ChevronRight, Building2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface AttendeeModalProps {
   meetingId: string;
@@ -11,15 +12,17 @@ interface AttendeeModalProps {
   onSuccess: () => void;
 }
 
-const ATTENDEE_TYPES = [
-  { value: 'external', label: 'External' },
-  { value: 'lead',     label: 'Lead / Prospect' },
-  { value: 'internal', label: 'Internal (Team)' },
-];
-
 type Mode = 'crm' | 'manual';
 
 export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose, onSuccess }: AttendeeModalProps) {
+  const { t } = useI18n();
+
+  const ATTENDEE_TYPES = [
+    { value: 'external', label: t('scheduling.attendeeModal.typeExternal') },
+    { value: 'lead',     label: t('scheduling.attendeeModal.typeLead') },
+    { value: 'internal', label: t('scheduling.attendeeModal.typeInternal') },
+  ];
+
   const [mode, setMode] = useState<Mode>('crm');
 
   // CRM search state
@@ -75,7 +78,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) { setError('Name and email are required.'); return; }
+    if (!name.trim() || !email.trim()) { setError(t('scheduling.attendeeModal.requiredError')); return; }
     setLoading(true);
     setError('');
     try {
@@ -86,7 +89,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || 'Failed to add attendee');
+        throw new Error(d.error || t('scheduling.attendeeModal.addFailed'));
       }
       reset();
       onSuccess();
@@ -107,7 +110,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-0">
-          <h3 className="text-sm font-semibold text-on-surface">Add Attendee</h3>
+          <h3 className="text-sm font-semibold text-on-surface">{t('scheduling.attendeeModal.title')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -125,7 +128,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
             }`}
           >
             <Users className="w-3.5 h-3.5 inline mr-1.5 -mt-px" />
-            From CRM
+            {t('scheduling.attendeeModal.tabCrm')}
           </button>
           <button
             type="button"
@@ -137,7 +140,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
             }`}
           >
             <User className="w-3.5 h-3.5 inline mr-1.5 -mt-px" />
-            Manual
+            {t('scheduling.attendeeModal.tabManual')}
           </button>
         </div>
 
@@ -158,7 +161,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
                   type="text"
                   value={query}
                   onChange={e => { setQuery(e.target.value); setSelected(null); }}
-                  placeholder="Search leads by name, email, company…"
+                  placeholder={t('scheduling.attendeeModal.searchPlaceholder')}
                   className="w-full pl-8 pr-3 py-2.5 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                 />
                 {crmLoading && (
@@ -195,13 +198,13 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
 
               {!selected && query.trim() && !crmLoading && crmResults.length === 0 && (
                 <p className="text-xs text-on-surface-variant text-center py-3">
-                  No leads found for &ldquo;{query}&rdquo;
+                  {t('scheduling.attendeeModal.noResults', { query })}
                 </p>
               )}
 
               {!selected && !query.trim() && (
                 <p className="text-xs text-on-surface-variant/60 text-center py-2">
-                  Start typing to search your CRM contacts
+                  {t('scheduling.attendeeModal.searchPrompt')}
                 </p>
               )}
 
@@ -240,19 +243,19 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
           {(mode === 'manual' || selected) && (
             <div className="space-y-3">
               {mode === 'crm' && selected && (
-                <p className="text-xs text-on-surface-variant/70">Review or edit details before adding:</p>
+                <p className="text-xs text-on-surface-variant/70">{t('scheduling.attendeeModal.reviewDetails')}</p>
               )}
 
               {/* Name */}
               <div>
                 <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
-                  <User className="w-3.5 h-3.5 inline mr-1" />Name <span className="text-error">*</span>
+                  <User className="w-3.5 h-3.5 inline mr-1" />{t('scheduling.attendeeModal.nameLabel')} <span className="text-error">*</span>
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Full name"
+                  placeholder={t('scheduling.attendeeModal.namePlaceholder')}
                   className="w-full px-3 py-2.5 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                   required
                 />
@@ -261,13 +264,13 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
               {/* Email */}
               <div>
                 <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
-                  <Mail className="w-3.5 h-3.5 inline mr-1" />Email <span className="text-error">*</span>
+                  <Mail className="w-3.5 h-3.5 inline mr-1" />{t('scheduling.attendeeModal.emailLabel')} <span className="text-error">*</span>
                 </label>
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="email@example.com"
+                  placeholder={t('scheduling.attendeeModal.emailPlaceholder')}
                   className="w-full px-3 py-2.5 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                   required
                 />
@@ -276,20 +279,20 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
               {/* Phone */}
               <div>
                 <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
-                  <Phone className="w-3.5 h-3.5 inline mr-1" />Phone <span className="text-on-surface-variant/40">(optional)</span>
+                  <Phone className="w-3.5 h-3.5 inline mr-1" />{t('scheduling.attendeeModal.phoneLabel')} <span className="text-on-surface-variant/40">{t('scheduling.attendeeModal.optional')}</span>
                 </label>
                 <input
                   type="tel"
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
+                  placeholder={t('scheduling.attendeeModal.phonePlaceholder')}
                   className="w-full px-3 py-2.5 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                 />
               </div>
 
               {/* Type */}
               <div>
-                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Type</label>
+                <label className="block text-xs font-medium text-on-surface-variant mb-1.5">{t('scheduling.attendeeModal.typeLabel')}</label>
                 <div className="flex gap-2">
                   {ATTENDEE_TYPES.map(t => (
                     <button
@@ -317,7 +320,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
               onClick={() => { reset(); onClose(); }}
               className="flex-1 px-4 py-2.5 text-sm text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-colors"
             >
-              Cancel
+              {t('scheduling.attendeeModal.cancel')}
             </button>
             <button
               type="submit"
@@ -325,7 +328,7 @@ export default function AttendeeModal({ meetingId, workspaceId, isOpen, onClose,
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
               {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Add Attendee
+              {t('scheduling.attendeeModal.submit')}
             </button>
           </div>
         </form>

@@ -25,6 +25,13 @@ export interface ProductRow {
   updatedAt: Date;
 }
 
+/**
+ * Row ceiling for one catalog import. Shared so the upload UI can stop an
+ * oversized file at the mapping step instead of letting the API reject the
+ * whole batch after the user has finished mapping it.
+ */
+export const MAX_IMPORT_PRODUCTS = 1000;
+
 export const PRODUCT_SORT_KEYS = ['updated', 'name', 'price', 'stock'] as const;
 export type ProductSortKey = (typeof PRODUCT_SORT_KEYS)[number];
 

@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspacePermission } from '@/lib/api/workspace';
-import { AI_CREDIT_COSTS, chargeAiCredits, refundAiCredits } from '@/lib/billing/ai-credits';
-import { getGroq } from '@/lib/groq';
+import { reserveAiCredits } from '@/lib/billing/ai-credits';
+import { estimateMessageTokens } from '@/lib/billing/ai-pricing';
+import { completeBilled } from '@/lib/ai/billed-completion';
+import { QUALITY_MODEL } from '@/lib/ai/models';
 
-const model = 'llama-3.3-70b-versatile';
+const MAX_OUTPUT_TOKENS = 800;
+const MAX_PROMPT_CHARS = 2000;
 
 type ProductSuggestion = {
   name: string;
@@ -52,7 +55,6 @@ function sanitizeSuggestion(value: any): ProductSuggestion {
 }
 
 export async function POST(request: NextRequest) {
-  let charge: { workspaceId: string; cost: number } | null = null;
   try {
     if (!process.env.GROQ_API_KEY) {
       return NextResponse.json({ error: 'GROQ_API_KEY is not configured' }, { status: 500 });
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const workspaceId = String(body.workspaceId || '').trim();
-    const prompt = String(body.prompt || '').trim();
+    const prompt = String(body.prompt || '').trim().slice(0, MAX_PROMPT_CHARS);
     const currentProduct = body.currentProduct ?? null;
 
     if (!workspaceId || !prompt) {
@@ -74,16 +76,6 @@ export async function POST(request: NextRequest) {
     if ('error' in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
-
-    const credits = await chargeAiCredits(
-      access.session.user.id,
-      workspaceId,
-      AI_CREDIT_COSTS.productSuggest
-    );
-    if (!credits.ok) {
-      return credits.response;
-    }
-    charge = credits;
 
     const [categoryRows, recentProducts] = await Promise.all([
       prisma.$queryRaw<Array<{ category: string | null }>>(Prisma.sql`
@@ -143,20 +135,37 @@ export async function POST(request: NextRequest) {
         ? `Recent product examples: ${JSON.stringify(recentProducts)}`
         : 'Recent product examples: none yet',
       currentProduct
-        ? `Current product draft to refine: ${JSON.stringify(currentProduct)}`
+        ? `Current product draft to refine: ${JSON.stringify(currentProduct).slice(0, MAX_PROMPT_CHARS)}`
         : 'Current product draft to refine: none',
     ].join('\n\n');
 
-    const completion = await getGroq().chat.completions.create({
-      model,
-      temperature: 0.4,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-    });
+    const messages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: userPrompt },
+    ];
 
-    const content = completion.choices[0]?.message?.content;
+    const reserve = await reserveAiCredits({
+      userId: access.session.user.id,
+      workspaceId,
+      feature: 'product',
+      model: QUALITY_MODEL,
+      estimate: { inputTokens: estimateMessageTokens(messages), outputTokens: MAX_OUTPUT_TOKENS },
+    });
+    if (!reserve.ok) {
+      return reserve.response;
+    }
+
+    // completeBilled settles the reservation itself: refunded if the call fails,
+    // charged for the tokens used if it answered, even when the answer turns out
+    // unusable below. The model spend happened either way.
+    const { text: content } = await completeBilled({
+      reservation: reserve.reservation,
+      messages,
+      maxTokens: MAX_OUTPUT_TOKENS,
+      temperature: 0.4,
+      json: true,
+      signal: request.signal,
+    });
     if (!content) {
       throw new Error('AI response was empty');
     }
@@ -166,8 +175,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ suggestion });
   } catch (error) {
     console.error('Error generating product suggestion:', error);
-    // No usable suggestion came back, so the credits go back.
-    if (charge) await refundAiCredits(charge);
     return NextResponse.json(
       {
         error:

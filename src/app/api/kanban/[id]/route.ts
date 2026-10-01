@@ -3,6 +3,18 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
+import { notify } from '@/lib/notifications/notify';
+
+/** `assignees` is stored as a JSON-stringified array of user ids. */
+function parseAssignees(value: string | null): string[] {
+    if (!value) return [];
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+        return [];
+    }
+}
 
 export async function PATCH(
     request: NextRequest,
@@ -76,6 +88,24 @@ export async function PATCH(
                 },
             },
         });
+
+        // Fire-and-forget: notify only the assignees newly added by this update,
+        // not ones who were already on the card.
+        if (assignees !== undefined) {
+            const before = new Set(parseAssignees(card.assignees));
+            const after = parseAssignees(updatedCard.assignees);
+            const newlyAssigned = after.filter((id) => !before.has(id));
+            if (newlyAssigned.length > 0) {
+                void notify({
+                    recipients: newlyAssigned,
+                    type: 'tasks.card_assigned',
+                    workspaceId: card.workspaceId,
+                    actorId: session.user.id,
+                    title: `You were assigned to "${updatedCard.title}"`,
+                    href: `/kanban-board-view?workspace=${card.workspaceId}`,
+                });
+            }
+        }
 
         return NextResponse.json(updatedCard);
     } catch (error) {

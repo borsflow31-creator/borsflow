@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { aiComplete, aiErrorMessage } from '@/lib/ai/client';
 import { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import MeetingList from '@/components/scheduling/MeetingList';
 import SelectRefined from '@/components/ui/SelectRefined';
 import StatusBadge from '@/components/documents/StatusBadge';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
     id: string;
@@ -90,6 +92,7 @@ function PurchaseHistory({
     workspaceId: string;
     leadId: string;
 }) {
+    const { t, formatCurrency, formatDate } = useI18n();
     const [items, setItems] = useState<PurchaseHistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -152,17 +155,25 @@ function PurchaseHistory({
     if (items.length === 0) {
         return (
             <div className="rounded-xl bg-surface-container-low p-6 text-center text-sm text-on-surface-variant">
-                No quotes or invoices linked to this contact yet.
+                {t('crm.leadModal.purchaseHistory.empty')}
             </div>
         );
     }
+
+    const headings = [
+        t('crm.leadModal.purchaseHistory.colType'),
+        t('crm.leadModal.purchaseHistory.colDocument'),
+        t('crm.leadModal.purchaseHistory.colStatus'),
+        t('crm.leadModal.purchaseHistory.colTotal'),
+        t('crm.leadModal.purchaseHistory.colDate'),
+    ];
 
     return (
         <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low">
             <table className="w-full">
                 <thead className="bg-surface-container">
                     <tr>
-                        {['Type', 'Document', 'Status', 'Total', 'Date'].map((heading) => (
+                        {headings.map((heading) => (
                             <th
                                 key={heading}
                                 className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant"
@@ -181,7 +192,7 @@ function PurchaseHistory({
                                         ? 'bg-secondary/10 text-secondary'
                                         : 'bg-primary/10 text-primary'
                                 }`}>
-                                    {item.type === 'quote' ? 'Quote' : 'Invoice'}
+                                    {item.type === 'quote' ? t('crm.leadModal.purchaseHistory.typeQuote') : t('crm.leadModal.purchaseHistory.typeInvoice')}
                                 </span>
                             </td>
                             <td className="px-4 py-3">
@@ -200,17 +211,10 @@ function PurchaseHistory({
                                 />
                             </td>
                             <td className="px-4 py-3 text-sm text-on-surface">
-                                {new Intl.NumberFormat('en-US', {
-                                    style: 'currency',
-                                    currency: 'USD',
-                                }).format(item.total)}
+                                {formatCurrency(item.total, 'USD')}
                             </td>
                             <td className="px-4 py-3 text-sm text-on-surface-variant">
-                                {new Date(item.date).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                })}
+                                {formatDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}
                             </td>
                         </tr>
                     ))}
@@ -221,6 +225,7 @@ function PurchaseHistory({
 }
 
 export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose }: LeadModalProps) {
+    const { t } = useI18n();
     const [activeTab, setActiveTab] = useState<'details' | 'meetings' | 'history'>('details');
     const [formData, setFormData] = useState({
         firstName: lead?.firstName || '',
@@ -249,14 +254,14 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
     const [isAiLoading, setIsAiLoading] = useState(false);
 
     const statusOptions = useMemo(() => [
-        { value: 'new', label: 'New' },
-        { value: 'contacted', label: 'Contacted' },
-        { value: 'qualified', label: 'Qualified' },
-        { value: 'proposal', label: 'Proposal' },
-        { value: 'negotiation', label: 'Negotiation' },
-        { value: 'won', label: 'Won' },
-        { value: 'lost', label: 'Lost' },
-    ], []);
+        { value: 'new', label: t('crm.leadModal.status.new') },
+        { value: 'contacted', label: t('crm.leadModal.status.contacted') },
+        { value: 'qualified', label: t('crm.leadModal.status.qualified') },
+        { value: 'proposal', label: t('crm.leadModal.status.proposal') },
+        { value: 'negotiation', label: t('crm.leadModal.status.negotiation') },
+        { value: 'won', label: t('crm.leadModal.status.won') },
+        { value: 'lost', label: t('crm.leadModal.status.lost') },
+    ], [t]);
 
     const stageOptions = useMemo(() => 
         pipeline?.stages.map(s => ({ value: s, label: s })) || [], 
@@ -278,27 +283,24 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         ].filter(Boolean).join('\n');
 
         const prompt = type === 'summary'
-            ? `Summarize this CRM lead and suggest the best next action:\n\n${context}`
-            : `Write a short, professional follow-up email to this lead:\n\n${context}\n\nReturn only the email body (no subject line).`;
+            ? 'Summarize this CRM lead and suggest the best next action.'
+            : 'Write a short, professional follow-up email to this lead. Return only the email body (no subject line).';
+
+        const billingWorkspaceId = workspaceId ?? pipeline?.workspaceId;
+        if (!billingWorkspaceId) {
+            setAiResult(t('crm.leadModal.aiNoWorkspace'));
+            setIsAiLoading(false);
+            return;
+        }
 
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
-            });
-            if (!res.ok || !res.body) throw new Error('failed');
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
             let text = '';
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                text += decoder.decode(value);
+            await aiComplete({ workspaceId: billingWorkspaceId }, { prompt, text: context }, (chunk) => {
+                text += chunk;
                 setAiResult(text);
-            }
-        } catch {
-            setAiResult('Something went wrong. Please try again.');
+            });
+        } catch (error) {
+            setAiResult(aiErrorMessage(error, t('crm.leadModal.aiError')));
         } finally {
             setIsAiLoading(false);
         }
@@ -309,7 +311,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         if (!email) return null;
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            return 'Please enter a valid email address';
+            return t('crm.leadModal.errors.emailInvalid');
         }
         return null;
     };
@@ -319,7 +321,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         // Allow various phone formats: (123) 456-7890, 123-456-7890, 1234567890, +1 123 456 7890
         const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
         if (!phoneRegex.test(phone)) {
-            return 'Please enter a valid phone number';
+            return t('crm.leadModal.errors.phoneInvalid');
         }
         return null;
     };
@@ -328,18 +330,18 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         switch (name) {
             case 'firstName':
                 if (!value || value.trim().length === 0) {
-                    return 'First name is required';
+                    return t('crm.leadModal.errors.firstNameRequired');
                 }
                 if (value.trim().length > 50) {
-                    return 'First name must be less than 50 characters';
+                    return t('crm.leadModal.errors.firstNameTooLong');
                 }
                 return null;
             case 'lastName':
                 if (!value || value.trim().length === 0) {
-                    return 'Last name is required';
+                    return t('crm.leadModal.errors.lastNameRequired');
                 }
                 if (value.trim().length > 50) {
-                    return 'Last name must be less than 50 characters';
+                    return t('crm.leadModal.errors.lastNameTooLong');
                 }
                 return null;
             case 'email':
@@ -348,30 +350,30 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                 return validatePhone(value);
             case 'company':
                 if (value && value.trim().length > 100) {
-                    return 'Company name must be less than 100 characters';
+                    return t('crm.leadModal.errors.companyTooLong');
                 }
                 return null;
             case 'position':
                 if (value && value.trim().length > 100) {
-                    return 'Position must be less than 100 characters';
+                    return t('crm.leadModal.errors.positionTooLong');
                 }
                 return null;
             case 'value':
                 if (value && (isNaN(parseFloat(value)) || parseFloat(value) < 0)) {
-                    return 'Please enter a valid positive number';
+                    return t('crm.leadModal.errors.valueInvalid');
                 }
                 if (value && parseFloat(value) > 999999999) {
-                    return 'Value cannot exceed $999,999,999';
+                    return t('crm.leadModal.errors.valueTooLarge');
                 }
                 return null;
             case 'source':
                 if (value && value.trim().length > 100) {
-                    return 'Source must be less than 100 characters';
+                    return t('crm.leadModal.errors.sourceTooLong');
                 }
                 return null;
             case 'notes':
                 if (value && value.trim().length > 2000) {
-                    return 'Notes must be less than 2000 characters';
+                    return t('crm.leadModal.errors.notesTooLong');
                 }
                 return null;
             default:
@@ -501,12 +503,12 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                     {/* Header */}
                     <div className="mb-4 flex items-center justify-between">
                         <h2 className="headline-lg text-on-surface">
-                            {lead ? 'Edit Lead' : 'Add New Lead'}
+                            {lead ? t('crm.leadModal.editTitle') : t('crm.leadModal.createTitle')}
                         </h2>
                         <button
                             onClick={onClose}
                             className="text-on-surface-variant hover:text-on-surface transition-colors"
-                            aria-label="Close modal"
+                            aria-label={t('crm.leadModal.closeAria')}
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -526,7 +528,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         : 'border-transparent text-on-surface-variant hover:text-on-surface'
                                 }`}
                             >
-                                Details
+                                {t('crm.leadModal.tabDetails')}
                             </button>
                             <button
                                 type="button"
@@ -537,7 +539,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         : 'border-transparent text-on-surface-variant hover:text-on-surface'
                                 }`}
                             >
-                                Meetings
+                                {t('crm.leadModal.tabMeetings')}
                             </button>
                             <button
                                 type="button"
@@ -548,7 +550,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         : 'border-transparent text-on-surface-variant hover:text-on-surface'
                                 }`}
                             >
-                                Purchase History
+                                {t('crm.leadModal.tabHistory')}
                             </button>
                         </div>
                     )}
@@ -580,11 +582,11 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Personal Information */}
                         <div>
-                            <h3 className="headline-sm text-on-surface mb-4">Personal Information</h3>
+                            <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.personalInfoHeading')}</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        First Name *
+                                        {t('crm.leadModal.firstNameLabel')}
                                     </label>
                                     <input
                                         type="text"
@@ -605,7 +607,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Last Name *
+                                        {t('crm.leadModal.lastNameLabel')}
                                     </label>
                                     <input
                                         type="text"
@@ -626,7 +628,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Email
+                                        {t('crm.leadModal.emailLabel')}
                                     </label>
                                     <input
                                         type="email"
@@ -645,7 +647,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Phone
+                                        {t('crm.leadModal.phoneLabel')}
                                     </label>
                                     <input
                                         type="tel"
@@ -667,11 +669,11 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
 
                         {/* Company Information */}
                         <div>
-                            <h3 className="headline-sm text-on-surface mb-4">Company Information</h3>
+                            <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.companyInfoHeading')}</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Company
+                                        {t('crm.leadModal.companyLabel')}
                                     </label>
                                     <input
                                         type="text"
@@ -691,7 +693,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Position
+                                        {t('crm.leadModal.positionLabel')}
                                     </label>
                                     <input
                                         type="text"
@@ -714,11 +716,11 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
 
                         {/* Pipeline Information */}
                         <div>
-                            <h3 className="headline-sm text-on-surface mb-4">Pipeline Information</h3>
+                            <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.pipelineInfoHeading')}</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <SelectRefined
-                                        label="Status"
+                                        label={t('crm.leadModal.statusLabel')}
                                         value={formData.status}
                                         options={statusOptions}
                                         onChange={(val) => handleFieldChange('status', val)}
@@ -726,17 +728,17 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <SelectRefined
-                                        label="Stage"
+                                        label={t('crm.leadModal.stageLabel')}
                                         value={formData.stage}
                                         options={stageOptions}
                                         onChange={(val) => handleFieldChange('stage', val)}
                                         disabled={!pipeline}
-                                        placeholder={!pipeline ? 'No pipeline selected' : 'Select stage'}
+                                        placeholder={!pipeline ? t('crm.leadModal.noPipelineSelected') : t('crm.leadModal.selectStagePlaceholder')}
                                     />
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Deal Value ($)
+                                        {t('crm.leadModal.dealValueLabel')}
                                     </label>
                                     <input
                                         type="number"
@@ -757,7 +759,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Source
+                                        {t('crm.leadModal.sourceLabel')}
                                     </label>
                                     <input
                                         type="text"
@@ -766,7 +768,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         onBlur={() => handleFieldBlur('source')}
                                         className={getFieldClassName('source')}
                                         maxLength={100}
-                                        placeholder="e.g., Website, Referral, LinkedIn"
+                                        placeholder={t('crm.leadModal.sourcePlaceholder')}
                                         aria-invalid={!!getFieldError('source')}
                                         aria-describedby={getFieldError('source') ? 'source-error' : undefined}
                                     />
@@ -782,7 +784,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         {/* Tags */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Tags
+                                {t('crm.leadModal.tagsLabel')}
                             </label>
                             <div className="flex gap-2 mb-2">
                                 <input
@@ -791,7 +793,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                     onChange={(e) => setNewTag(e.target.value)}
                                     onKeyPress={handleKeyPress}
                                     className="flex-1 px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface focus:bg-surface-container-highest focus:outline-none transition-colors"
-                                    placeholder="Add a tag..."
+                                    placeholder={t('crm.leadModal.tagPlaceholder')}
                                     maxLength={50}
                                 />
                                 <button
@@ -799,7 +801,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                     onClick={handleAddTag}
                                     className="px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
                                 >
-                                    Add
+                                    {t('common.add')}
                                 </button>
                             </div>
                             {formData.tags.length > 0 && (
@@ -814,7 +816,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                                 type="button"
                                                 onClick={() => handleRemoveTag(tag)}
                                                 className="text-on-surface-variant hover:text-on-surface"
-                                                aria-label={`Remove tag ${tag}`}
+                                                aria-label={t('crm.leadModal.removeTagAria', { tag })}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -830,7 +832,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         {leadLists.length > 0 && (
                             <div>
                                 <label className="block body-sm text-on-surface-variant mb-2">
-                                    Lead Lists
+                                    {t('crm.leadModal.leadListsLabel')}
                                 </label>
                                 <div className="space-y-2">
                                     {leadLists.map((leadList) => (
@@ -864,28 +866,28 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-3 space-y-3">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-secondary text-base" style={{ fontVariationSettings: 'FILL 1' }}>auto_awesome</span>
-                                <span className="body-sm font-semibold text-on-surface">AI Assistant</span>
+                                <span className="body-sm font-semibold text-on-surface">{t('crm.leadModal.aiAssistantLabel')}</span>
                                 <div className="flex gap-2 ml-auto">
                                     <button
                                         type="button"
                                         onClick={() => aiPanel === 'summary' ? setAiPanel('none') : runAI('summary')}
                                         className="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
                                     >
-                                        {isAiLoading && aiPanel === 'summary' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : 'Summarize lead'}
+                                        {isAiLoading && aiPanel === 'summary' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('crm.leadModal.summarizeLeadButton')}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => aiPanel === 'emailDraft' ? setAiPanel('none') : runAI('emailDraft')}
                                         className="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
                                     >
-                                        {isAiLoading && aiPanel === 'emailDraft' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : 'Draft email'}
+                                        {isAiLoading && aiPanel === 'emailDraft' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('crm.leadModal.draftEmailButton')}
                                     </button>
                                 </div>
                             </div>
                             {aiPanel !== 'none' && (
                                 <div className="space-y-2">
                                     <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                                        {aiPanel === 'summary' ? 'Lead Summary' : 'Email Draft'}
+                                        {aiPanel === 'summary' ? t('crm.leadModal.leadSummaryHeading') : t('crm.leadModal.emailDraftHeading')}
                                     </div>
                                     <div className="min-h-[80px] text-sm text-on-surface whitespace-pre-wrap bg-surface-container rounded-lg p-3 border border-outline-variant/20">
                                         {isAiLoading && !aiResult ? (
@@ -901,7 +903,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                             }}
                                             className="text-xs text-secondary hover:underline"
                                         >
-                                            Copy to notes
+                                            {t('crm.leadModal.copyToNotes')}
                                         </button>
                                     )}
                                 </div>
@@ -911,7 +913,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         {/* Notes */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Notes
+                                {t('crm.leadModal.notesLabel')}
                             </label>
                             <textarea
                                 value={formData.notes}
@@ -919,7 +921,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 onBlur={() => handleFieldBlur('notes')}
                                 rows={4}
                                 className={getFieldClassName('notes')}
-                                placeholder="Add any additional notes about this lead..."
+                                placeholder={t('crm.leadModal.notesPlaceholder')}
                                 maxLength={2000}
                                 aria-invalid={!!getFieldError('notes')}
                                 aria-describedby={getFieldError('notes') ? 'notes-error' : undefined}
@@ -930,7 +932,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </p>
                             )}
                             <p className="body-xs text-on-surface-variant mt-1">
-                                {formData.notes.length} / 2000 characters
+                                {t('crm.leadModal.notesCharCount', { count: formData.notes.length })}
                             </p>
                         </div>
 
@@ -942,7 +944,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 disabled={isSubmitting}
                                 className="px-6 py-2 text-sm text-on-surface hover:bg-surface-container-high rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button
                                 type="submit"
@@ -952,10 +954,10 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 {isSubmitting ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-on-primary border-t-transparent" />
-                                        <span>Saving...</span>
+                                        <span>{t('common.saving')}</span>
                                     </>
                                 ) : (
-                                    <span>{lead ? 'Update Lead' : 'Add Lead'}</span>
+                                    <span>{lead ? t('crm.leadModal.updateButton') : t('crm.leadModal.createButton')}</span>
                                 )}
                             </button>
                         </div>

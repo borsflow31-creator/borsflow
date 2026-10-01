@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { FileText, DollarSign, Receipt, Columns, Zap, Star, LayoutTemplate, Eye } from 'lucide-react';
 import { UniversalTemplate, TemplateType } from '@/types';
 
@@ -19,6 +20,7 @@ interface TemplateCardProps {
 }
 
 export default function TemplateCard({ template, onSelect, onApply, applying }: TemplateCardProps) {
+  const { t } = useI18n();
   const cfg = TYPE_CONFIG[template.type as TemplateType] ?? { label: 'Template', color: 'text-neutral-600', bg: 'bg-neutral-100', icon: LayoutTemplate };
   const Icon = cfg.icon;
 

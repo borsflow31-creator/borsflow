@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
     id: string;
@@ -64,6 +65,7 @@ export default function LeadListView({
     onLeadDelete,
     onOpenLeadModal,
 }: LeadListViewProps) {
+    const { t, formatCurrency, formatDate: formatDateI18n } = useI18n();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection } | null>(null);
@@ -234,7 +236,7 @@ export default function LeadListView({
     };
 
     const handleDelete = async (lead: Lead) => {
-        if (!confirm(`Delete ${lead.firstName} ${lead.lastName}? This cannot be undone.`)) return;
+        if (!confirm(t('crm.pipelineBoard.confirmDeleteLead', { firstName: lead.firstName, lastName: lead.lastName }))) return;
 
         const previousLeads = leads;
         setLeads(prev => prev.filter(l => l.id !== lead.id));
@@ -260,19 +262,12 @@ export default function LeadListView({
 
     const formatValue = (value?: number | null) => {
         if (value == null) return '-';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(value);
+        return formatCurrency(value, 'USD');
     };
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return '-';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
+        return formatDateI18n(dateString, { year: 'numeric', month: 'short', day: 'numeric' });
     };
 
     const getSortIcon = (field: SortField) => {
@@ -313,7 +308,7 @@ export default function LeadListView({
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
                             <input
                                 type="text"
-                                placeholder="Search leads..."
+                                placeholder={t('crm.leadListView.searchPlaceholder')}
                                 value={filters.search}
                                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                                 className="w-full pl-10 pr-4 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
@@ -330,7 +325,7 @@ export default function LeadListView({
                             }`}
                         >
                             <Filter className="w-4 h-4" />
-                            <span>Filters</span>
+                            <span>{t('crm.leadListView.filtersButton')}</span>
                             {activeFiltersCount > 0 && (
                                 <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs">
                                     {activeFiltersCount}
@@ -345,14 +340,14 @@ export default function LeadListView({
                                 className="flex items-center gap-2 px-3 py-2 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-all"
                             >
                                 <X className="w-4 h-4" />
-                                <span>Clear</span>
+                                <span>{t('common.clearFilters')}</span>
                             </button>
                         )}
                     </div>
 
                     {/* Results count */}
                     <div className="text-sm text-on-surface-variant">
-                        Showing {sortedLeads.length} of {leads.length} leads
+                        {t('crm.leadListView.resultsCount', { shown: sortedLeads.length, total: leads.length })}
                     </div>
                 </div>
 
@@ -361,7 +356,7 @@ export default function LeadListView({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-surface-container-high rounded-lg">
                         {/* Status filter */}
                         <div>
-                            <label className="block body-sm text-on-surface-variant mb-2">Status</label>
+                            <label className="block body-sm text-on-surface-variant mb-2">{t('crm.leadListView.fieldStatus')}</label>
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                                 {uniqueStatuses.map(status => (
                                     <label key={status} className="flex items-center gap-2 cursor-pointer">
@@ -379,7 +374,7 @@ export default function LeadListView({
 
                         {/* Stage filter */}
                         <div>
-                            <label className="block body-sm text-on-surface-variant mb-2">Stage</label>
+                            <label className="block body-sm text-on-surface-variant mb-2">{t('crm.leadListView.fieldStage')}</label>
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                                 {uniqueStages.map(stage => (
                                     <label key={stage} className="flex items-center gap-2 cursor-pointer">
@@ -397,7 +392,7 @@ export default function LeadListView({
 
                         {/* Source filter */}
                         <div>
-                            <label className="block body-sm text-on-surface-variant mb-2">Source</label>
+                            <label className="block body-sm text-on-surface-variant mb-2">{t('crm.leadListView.fieldSource')}</label>
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                                 {uniqueSources.map(source => (
                                     <label key={source} className="flex items-center gap-2 cursor-pointer">
@@ -415,7 +410,7 @@ export default function LeadListView({
 
                         {/* Tags filter */}
                         <div>
-                            <label className="block body-sm text-on-surface-variant mb-2">Tags</label>
+                            <label className="block body-sm text-on-surface-variant mb-2">{t('crm.leadListView.fieldTags')}</label>
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                                 {uniqueTags.map(tag => (
                                     <label key={tag} className="flex items-center gap-2 cursor-pointer">
@@ -444,7 +439,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('name')}
                                     className="flex items-center gap-2 text-xs sm:text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Name
+                                    {t('crm.leadListView.fieldName')}
                                     {getSortIcon('name')}
                                 </button>
                             </th>
@@ -453,7 +448,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('company')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Company
+                                    {t('crm.leadListView.fieldCompany')}
                                     {getSortIcon('company')}
                                 </button>
                             </th>
@@ -462,7 +457,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('email')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Email
+                                    {t('crm.leadListView.fieldEmail')}
                                     {getSortIcon('email')}
                                 </button>
                             </th>
@@ -471,7 +466,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('status')}
                                     className="flex items-center gap-2 text-xs sm:text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Status
+                                    {t('crm.leadListView.fieldStatus')}
                                     {getSortIcon('status')}
                                 </button>
                             </th>
@@ -480,7 +475,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('stage')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Stage
+                                    {t('crm.leadListView.fieldStage')}
                                     {getSortIcon('stage')}
                                 </button>
                             </th>
@@ -489,7 +484,7 @@ export default function LeadListView({
                                     onClick={() => handleSort('value')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Value
+                                    {t('crm.leadListView.fieldValue')}
                                     {getSortIcon('value')}
                                 </button>
                             </th>
@@ -498,30 +493,30 @@ export default function LeadListView({
                                     onClick={() => handleSort('source')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Source
+                                    {t('crm.leadListView.fieldSource')}
                                     {getSortIcon('source')}
                                 </button>
                             </th>
-                            <th className="hidden md:table-cell px-4 py-3 text-left">Tags</th>
+                            <th className="hidden md:table-cell px-4 py-3 text-left">{t('crm.leadListView.fieldTags')}</th>
                             <th className="hidden lg:table-cell px-4 py-3 text-left">
                                 <button
                                     onClick={() => handleSort('createdAt')}
                                     className="flex items-center gap-2 text-sm font-medium text-on-surface hover:text-primary transition-colors"
                                 >
-                                    Created
+                                    {t('crm.leadListView.fieldCreated')}
                                     {getSortIcon('createdAt')}
                                 </button>
                             </th>
-                            <th className="px-3 sm:px-4 py-3 text-right">Actions</th>
+                            <th className="px-3 sm:px-4 py-3 text-right">{t('crm.leadListView.fieldActions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {sortedLeads.length === 0 ? (
                             <tr>
                                 <td colSpan={10} className="px-4 py-8 text-center text-on-surface-variant">
-                                    {activeFiltersCount > 0 
-                                        ? 'No leads match your filters. Try adjusting your search criteria.'
-                                        : 'No leads in this pipeline yet. Click "Add Lead" to get started.'
+                                    {activeFiltersCount > 0
+                                        ? t('crm.leadListView.emptyFiltered')
+                                        : t('crm.leadListView.emptyState')
                                     }
                                 </td>
                             </tr>
@@ -596,7 +591,7 @@ export default function LeadListView({
                                                     setShowActionsMenu(showActionsMenu === lead.id ? null : lead.id);
                                                 }}
                                                 className="p-1.5 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
-                                                aria-label="Actions"
+                                                aria-label={t('crm.leadListView.actionsAria')}
                                             >
                                                 <MoreVertical className="w-4 h-4" />
                                             </button>
@@ -611,7 +606,7 @@ export default function LeadListView({
                                                         className="w-full px-3 py-2 text-left text-sm text-on-surface hover:bg-surface-container-high flex items-center gap-2 transition-colors"
                                                     >
                                                         <Edit className="w-4 h-4" />
-                                                        Edit
+                                                        {t('common.edit')}
                                                     </button>
                                                     <button
                                                         onClick={(e) => {
@@ -621,7 +616,7 @@ export default function LeadListView({
                                                         className="w-full px-3 py-2 text-left text-sm text-error hover:bg-error-container flex items-center gap-2 transition-colors"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
-                                                        Delete
+                                                        {t('common.delete')}
                                                     </button>
                                                 </div>
                                             )}

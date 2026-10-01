@@ -17,7 +17,13 @@ let client: Groq | null = null
 
 export function getGroq(): Groq {
   if (!client) {
-    client = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    client = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+      // The SDK retries 408/409/429/5xx with backoff. Two retries rides out
+      // Groq's short rate-limit blips without making a dead upstream hang.
+      maxRetries: 2,
+      timeout: 60_000,
+    })
   }
   return client
 }

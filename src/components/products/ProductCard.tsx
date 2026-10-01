@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { formatMoney } from '@/lib/products';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { Product } from '@/types';
 
 interface ProductCardProps {
@@ -21,6 +22,7 @@ export default function ProductCard({
   canWrite = true,
   currency = 'USD',
 }: ProductCardProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,7 +50,7 @@ export default function ProductCard({
                   : 'bg-surface-container-high text-on-surface-variant'
               }`}
             >
-              {product.isActive ? 'Active' : 'Inactive'}
+              {product.isActive ? t('products.active') : t('products.inactive')}
             </span>
           </div>
           {product.description && (
@@ -64,7 +66,7 @@ export default function ProductCard({
             type="button"
             onClick={() => setOpen((value) => !value)}
             className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-            aria-label="Product actions"
+            aria-label={t('products.actionsAria')}
           >
             <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
           </button>
@@ -80,7 +82,7 @@ export default function ProductCard({
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-on-surface transition-colors hover:bg-surface-container-low"
               >
                 <Pencil className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-                Edit
+                {t('common.edit')}
               </button>
               <button
                 type="button"
@@ -91,7 +93,7 @@ export default function ProductCard({
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-error transition-colors hover:bg-error/5"
               >
                 <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           )}
@@ -101,28 +103,28 @@ export default function ProductCard({
 
       <div className="grid grid-cols-2 gap-3 border-t border-outline-variant/10 pt-4 text-sm">
         <div>
-          <p className="text-on-surface-variant">Price</p>
+          <p className="text-on-surface-variant">{t('products.fields.price')}</p>
           <p className="mt-1 font-semibold text-on-surface">
             {formatMoney(product.price, currency)}
             {product.unit ? <span className="ml-1 font-normal text-on-surface-variant">/ {product.unit}</span> : null}
           </p>
         </div>
         <div>
-          <p className="text-on-surface-variant">Tax Rate</p>
+          <p className="text-on-surface-variant">{t('products.fields.taxRate')}</p>
           <p className="mt-1 font-medium text-on-surface">{product.taxRate}%</p>
         </div>
         <div>
-          <p className="text-on-surface-variant">SKU</p>
+          <p className="text-on-surface-variant">{t('products.fields.sku')}</p>
           <p className="mt-1 truncate text-on-surface">{product.sku || '—'}</p>
         </div>
         <div>
-          <p className="text-on-surface-variant">Category</p>
+          <p className="text-on-surface-variant">{t('products.fields.category')}</p>
           <p className="mt-1 truncate text-on-surface">{product.category || '—'}</p>
         </div>
         <div className="col-span-2">
-          <p className="text-on-surface-variant">Stock</p>
+          <p className="text-on-surface-variant">{t('products.stockLabel')}</p>
           <p className="mt-1 text-on-surface">
-            {product.stockQuantity === null ? 'Not tracked' : product.stockQuantity}
+            {product.stockQuantity === null ? t('products.stockNotTracked') : product.stockQuantity}
           </p>
         </div>
       </div>

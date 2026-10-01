@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export interface LineItem {
   id: string;
@@ -47,6 +48,7 @@ export default function LineItemRow({
     }).format(amount);
   };
 
+  const { t } = useI18n();
   const handleInputChange = (field: keyof LineItem, value: string) => {
     if (field === 'description') {
       onUpdate(index, field, value);
@@ -84,7 +86,7 @@ export default function LineItemRow({
           <div className="col-span-1 flex items-center justify-center pb-1">
             <button
               className="p-1 text-on-surface-variant/40 hover:text-on-surface-variant cursor-grab active:cursor-grabbing transition-colors touch-none"
-              aria-label="Drag to reorder"
+              aria-label={t('documents.lineItem.dragToReorder')}
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.effectAllowed = 'move';
@@ -99,12 +101,12 @@ export default function LineItemRow({
 
         {/* Description */}
         <div className={showDragHandle ? 'col-span-11 sm:col-span-5' : 'col-span-12 sm:col-span-6'}>
-          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Description</label>
+          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{t('documents.lineItem.descriptionLabel')}</label>
           <input
             type="text"
             value={item.description}
             onChange={(e) => handleInputChange('description', e.target.value)}
-            placeholder="Item description"
+            placeholder={t('documents.lineItem.descriptionPlaceholder')}
             className="w-full px-0 py-1.5 bg-transparent border-0 border-b border-outline-variant/30 text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-secondary transition-all text-sm"
             aria-label={`Item ${index + 1} description`}
             required
@@ -128,7 +130,7 @@ export default function LineItemRow({
 
         {/* Unit Price */}
         <div className="col-span-6 sm:col-span-2">
-          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Unit Price</label>
+          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{t('documents.lineItem.unitPriceLabel')}</label>
           <div className="relative">
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-xs font-medium">{currency}</span>
             <input
@@ -185,7 +187,7 @@ export default function LineItemRow({
         </div>
 
         <div className="col-span-4 sm:col-span-3">
-          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Total</label>
+          <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{t('documents.lineItem.totalLabel')}</label>
           <div className="px-3 py-1.5 bg-secondary/8 border border-secondary/20 rounded-lg text-on-surface font-semibold text-sm text-right">
             {formatCurrency(item.total)}
           </div>
@@ -199,7 +201,7 @@ export default function LineItemRow({
             aria-label={`Delete item ${index + 1}`}
           >
             <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-            Remove
+            {t('documents.lineItem.remove')}
           </button>
         </div>
       </div>

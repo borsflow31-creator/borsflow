@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
 import { useAppStore } from '@/store/appStore'
+import { useI18n } from '@/i18n/I18nProvider'
 import { TrendingUp, Clock, AlertCircle, FileText as FileTextIcon } from 'lucide-react'
 
 interface Workspace {
@@ -45,6 +46,7 @@ export default function DashboardPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const { setWorkspace } = useAppStore()
+    const { t, locale, formatNumber } = useI18n()
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
     const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -105,7 +107,7 @@ export default function DashboardPage() {
                 type: 'page_updated',
                 title: page.title,
                 timestamp: page.updatedAt,
-                workspaceName: page.workspace?.name || 'Unknown',
+                workspaceName: page.workspace?.name || t('dashboard.unknownWorkspace'),
             }))
             setRecentActivity(activities)
         } catch (error) {
@@ -196,11 +198,11 @@ export default function DashboardPage() {
         const diffHours = Math.floor(diffMs / 3600000)
         const diffDays = Math.floor(diffMs / 86400000)
 
-        if (diffMins < 1) return 'Just now'
-        if (diffMins < 60) return `${diffMins}m ago`
-        if (diffHours < 24) return `${diffHours}h ago`
-        if (diffDays < 7) return `${diffDays}d ago`
-        return date.toLocaleDateString()
+        if (diffMins < 1) return t('dashboard.justNow')
+        if (diffMins < 60) return t('dashboard.minutesAgo', { mins: diffMins })
+        if (diffHours < 24) return t('dashboard.hoursAgo', { hours: diffHours })
+        if (diffDays < 7) return t('dashboard.daysAgo', { days: diffDays })
+        return date.toLocaleDateString(locale)
     }
 
     if (status === 'loading' || isLoading) {
@@ -218,7 +220,9 @@ export default function DashboardPage() {
                 {/* Header Section */}
                 <div className="mb-10">
                     <h1 className="text-3xl font-bold text-on-surface mb-2">
-                        Good morning, {session?.user?.name?.split(' ')[0] || 'there'}
+                        {session?.user?.name?.split(' ')[0]
+                            ? t('dashboard.greeting', { name: session.user.name.split(' ')[0] })
+                            : t('dashboard.greetingNoName')}
                     </h1>
                 </div>
 
@@ -229,7 +233,7 @@ export default function DashboardPage() {
                         <span className="material-symbols-outlined text-on-surface-variant pl-4 pointer-events-none">search</span>
                         <input
                             type="text"
-                            placeholder="Jump to workspace..."
+                            placeholder={t('dashboard.searchPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full px-3 h-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
@@ -242,7 +246,7 @@ export default function DashboardPage() {
                         <form onSubmit={handleQuickCapture} className="flex-1 flex h-full">
                             <input
                                 type="text"
-                                placeholder="Create a new page..."
+                                placeholder={t('dashboard.quickCapturePlaceholder')}
                                 value={quickCaptureText}
                                 onChange={(e) => setQuickCaptureText(e.target.value)}
                                 className="w-full px-3 h-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
@@ -281,7 +285,7 @@ export default function DashboardPage() {
                         <div>
                             <div className="flex items-center gap-2 mb-4">
                                 <span className="material-symbols-outlined text-on-surface-variant text-base">history</span>
-                                <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Recently updated</h2>
+                                <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.recentlyUpdated')}</h2>
                             </div>
                             
                             {recentActivity.length > 0 ? (
@@ -312,7 +316,7 @@ export default function DashboardPage() {
                                 </div>
                             ) : (
                                 <div className="py-6 text-sm text-on-surface-variant/60 flex items-center gap-2">
-                                    No recent activity
+                                    {t('dashboard.noRecentActivity')}
                                 </div>
                             )}
                         </div>
@@ -323,34 +327,34 @@ export default function DashboardPage() {
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <span className="material-symbols-outlined text-on-surface-variant text-base">account_balance_wallet</span>
-                                        <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Invoices Overview</h2>
+                                        <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.invoicesOverview')}</h2>
                                     </div>
                                     <Link href="/invoices" className="text-[10px] bg-surface-container hover:bg-surface-container-high py-1 px-2 rounded-md text-on-surface-variant cursor-pointer transition-colors flex items-center gap-1 font-medium">
-                                        Open full <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                                        {t('dashboard.openFull')} <span className="material-symbols-outlined text-sm">arrow_forward</span>
                                     </Link>
                                 </div>
                                 
                                 <div className="grid grid-cols-2 md:grid-cols-4 border border-outline-variant/20 rounded-xl overflow-hidden divide-y md:divide-y-0 md:divide-x divide-outline-variant/20 bg-surface-container-lowest/50">
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
-                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-success"/> Revenue</p>
+                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-success"/> {t('dashboard.revenue')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(billingAnalytics.totalRevenue)}
+                                            {formatNumber(billingAnalytics.totalRevenue, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
-                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-warning"/> Pending</p>
+                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-warning"/> {t('dashboard.pending')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(billingAnalytics.pendingAmount)}
+                                            {formatNumber(billingAnalytics.pendingAmount, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
-                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-error"/> Overdue</p>
+                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-error"/> {t('dashboard.overdue')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(billingAnalytics.overdueAmount)}
+                                            {formatNumber(billingAnalytics.overdueAmount, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
-                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><FileTextIcon className="w-3.5 h-3.5 text-secondary"/> Total Invs</p>
+                                        <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><FileTextIcon className="w-3.5 h-3.5 text-secondary"/> {t('dashboard.totalInvoices')}</p>
                                         <p className="text-xl font-semibold text-on-surface">{billingAnalytics.counts.total}</p>
                                     </div>
                                 </div>
@@ -364,7 +368,7 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <span className="material-symbols-outlined text-on-surface-variant text-base">grid_view</span>
-                                <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Workspaces</h2>
+                                <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.workspaces')}</h2>
                             </div>
                             <button
                                 onClick={() => setShowNewWorkspaceModal(true)}
@@ -400,7 +404,7 @@ export default function DashboardPage() {
                         ) : (
                             <div className="py-4 border border-dashed border-outline-variant/30 rounded-lg text-center flex flex-col items-center gap-2 bg-surface-container-lowest/50">
                                 <span className="material-symbols-outlined text-on-surface-variant/40 text-xl">folder_open</span>
-                                <p className="text-xs text-on-surface-variant">No workspaces</p>
+                                <p className="text-xs text-on-surface-variant">{t('dashboard.noWorkspaces')}</p>
                             </div>
                         )}
                     </div>
@@ -417,7 +421,7 @@ export default function DashboardPage() {
                     ></div>
                     <div className="relative bg-surface-container-lowest rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] w-full max-w-[400px] border border-outline-variant/20 overflow-hidden mix-card p-0 animate-in fade-in slide-in-from-bottom-4 duration-200">
                         <div className="px-5 py-3 border-b border-outline-variant/10">
-                            <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Create Workspace</h2>
+                            <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.createWorkspaceModalTitle')}</h2>
                         </div>
                         <form onSubmit={handleCreateWorkspace} className="p-5">
                             <div className="space-y-4">
@@ -427,7 +431,7 @@ export default function DashboardPage() {
                                         value={newWorkspaceName}
                                         onChange={(e) => setNewWorkspaceName(e.target.value)}
                                         className="w-full text-base bg-transparent border-b border-transparent hover:border-outline-variant/30 focus:border-secondary focus:outline-none transition-colors pb-1 placeholder:text-on-surface-variant/40 font-medium"
-                                        placeholder="Name your workspace..."
+                                        placeholder={t('dashboard.workspaceNamePlaceholder')}
                                         autoFocus
                                     />
                                 </div>
@@ -436,7 +440,7 @@ export default function DashboardPage() {
                                         value={newWorkspaceDescription}
                                         onChange={(e) => setNewWorkspaceDescription(e.target.value)}
                                         className="w-full text-sm bg-transparent border-b border-transparent hover:border-outline-variant/30 focus:border-secondary focus:outline-none transition-colors pb-1 placeholder:text-on-surface-variant/40 resize-none"
-                                        placeholder="Add a subtle description..."
+                                        placeholder={t('dashboard.workspaceDescriptionPlaceholder')}
                                         rows={2}
                                     />
                                 </div>
@@ -447,14 +451,14 @@ export default function DashboardPage() {
                                     onClick={() => setShowNewWorkspaceModal(false)}
                                     className="px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low border border-transparent hover:border-outline-variant/20 rounded transition-all"
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={!newWorkspaceName.trim()}
                                     className="px-3 py-1.5 text-xs font-medium bg-on-surface text-surface-container-lowest rounded hover:bg-on-surface/90 shadow-sm transition-all disabled:opacity-30"
                                 >
-                                    Create
+                                    {t('common.create')}
                                 </button>
                             </div>
                         </form>

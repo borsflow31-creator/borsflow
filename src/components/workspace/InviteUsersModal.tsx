@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2, Plus, History, Clock, Trash2 } from 'lucide-react';
 import { Role, getValidInvitationRoles } from '@/lib/workspace';
+import { useI18n } from '@/i18n/I18nProvider';
 import InvitationsList from './InvitationsList';
 
 interface InviteUsersModalProps {
@@ -28,6 +29,7 @@ export default function InviteUsersModal({
     workspaceName,
     userRole,
 }: InviteUsersModalProps) {
+    const { t } = useI18n();
     const [activeTab, setActiveTab] = useState<TabType>('send');
     const [invitees, setInvitees] = useState<InviteeEntry[]>([{ id: crypto.randomUUID(), email: '', role: 'member' }]);
     const [invitations, setInvitations] = useState<any[]>([]);
@@ -310,7 +312,7 @@ export default function InviteUsersModal({
                         onClick={onClose}
                         disabled={isSending || isLoadingInvitations}
                         className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Close modal"
+                        aria-label={t('workspace.inviteModal.closeModal')}
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -391,7 +393,7 @@ export default function InviteUsersModal({
                                         <span className="text-sm font-medium text-on-surface">
                                             Email Address <span className="text-error">*</span>
                                         </span>
-                                        <span className="text-sm font-medium text-on-surface w-36">Role</span>
+                                        <span className="text-sm font-medium text-on-surface w-36">{t('workspace.inviteModal.roleLabel')}</span>
                                         <span className="w-8" />
                                     </div>
 
@@ -428,7 +430,7 @@ export default function InviteUsersModal({
                                                         onClick={() => removeInvitee(inv.id)}
                                                         disabled={isSending || invitees.length === 1}
                                                         className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error/10 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                                        aria-label="Remove"
+                                                        aria-label={t('workspace.inviteModal.removeAriaLabel')}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
                                                     </button>

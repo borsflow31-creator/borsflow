@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, GanttChart, MoreVertical } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInDays, addDays } from 'date-fns';
+import { startOfMonth, endOfMonth, addMonths, subMonths, differenceInDays, addDays } from 'date-fns';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -57,9 +58,16 @@ export default function KanbanTimelineView({
     startDate: initialStartDate,
     endDate: initialEndDate,
 }: KanbanTimelineViewProps) {
+    const { t, formatDate } = useI18n();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [zoom, setZoom] = useState<TimelineZoom>('month');
     const [groupBy, setGroupBy] = useState<TimelineGroupBy>('project');
+
+    const ZOOM_LABELS: Record<TimelineZoom, string> = {
+        day: t('kanban.unitDay'),
+        week: t('kanban.unitWeek'),
+        month: t('kanban.unitMonth'),
+    };
 
     const getFilteredCards = () => {
         let filtered = [...cards];
@@ -101,23 +109,23 @@ export default function KanbanTimelineView({
         const groups: Record<string, KanbanCard[]> = {};
 
         filteredCards.forEach(card => {
-            let key = 'Ungrouped';
+            let key = t('kanban.ungroupedLabel');
 
             switch (groupBy) {
                 case 'project':
-                    key = card.project?.name || 'No Project';
+                    key = card.project?.name || t('kanban.noProjectLabel');
                     break;
                 case 'status':
-                    const statusMap = { todo: 'To Do', inprogress: 'In Progress', done: 'Done' };
-                    key = statusMap[card.status] || 'Unknown';
+                    const statusMap = { todo: t('kanban.statusTodo'), inprogress: t('kanban.statusInProgress'), done: t('kanban.statusDone') };
+                    key = statusMap[card.status] || t('kanban.unknownLabel');
                     break;
                 case 'priority':
-                    const priorityMap: Record<string, string> = { low: 'Low', medium: 'Medium', high: 'High' };
-                    key = priorityMap[card.priority] || 'Unknown';
+                    const priorityMap: Record<string, string> = { low: t('kanban.priorityLow'), medium: t('kanban.priorityMedium'), high: t('kanban.priorityHigh') };
+                    key = priorityMap[card.priority] || t('kanban.unknownLabel');
                     break;
                 case 'none':
                 default:
-                    key = 'All Cards';
+                    key = t('kanban.allCardsLabel');
                     break;
             }
 
@@ -184,7 +192,7 @@ export default function KanbanTimelineView({
         return (
             <div className="flex border-b border-outline-variant/30">
                 <div className="w-48 flex-shrink-0 p-3 bg-surface-container-high font-semibold text-xs text-on-surface-variant uppercase tracking-wide">
-                    Card
+                    {t('kanban.cardColumnHeader')}
                 </div>
                 <div className="flex-1 overflow-x-auto">
                     <div className="flex" style={{ width: `${totalDays * 40}px` }}>
@@ -195,10 +203,10 @@ export default function KanbanTimelineView({
                                 style={{ width: '40px' }}
                             >
                                 <div className="text-xs text-on-surface-variant">
-                                    {format(day, 'MMM')}
+                                    {formatDate(day, { month: 'short' })}
                                 </div>
                                 <div className="text-sm font-medium text-on-surface">
-                                    {format(day, 'd')}
+                                    {formatDate(day, { day: 'numeric' })}
                                 </div>
                             </div>
                         ))}
@@ -260,7 +268,7 @@ export default function KanbanTimelineView({
                                     left: `${left}%`,
                                     width: `${Math.max(width, 2)}%`,
                                 }}
-                                title={`${card.title} (${format(card.createdAt, 'MMM d')} - ${card.dueDate ? format(card.dueDate, 'MMM d') : 'No due date'})`}
+                                title={`${card.title} (${formatDate(card.createdAt, { month: 'short', day: 'numeric' })} - ${card.dueDate ? formatDate(card.dueDate, { month: 'short', day: 'numeric' }) : t('kanban.noDueDateLabel')})`}
                             >
                                 <div className="h-full p-2 flex items-center">
                                     <span className="text-xs font-medium text-on-surface truncate">
@@ -283,14 +291,14 @@ export default function KanbanTimelineView({
                     <div className="flex items-center gap-2">
                         <GanttChart className="w-5 h-5 text-primary" />
                         <h2 className="text-lg font-semibold text-on-surface">
-                            Timeline
+                            {t('kanban.timelineTitle')}
                         </h2>
                     </div>
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => navigateMonth('prev')}
                             className="p-1.5 rounded-md hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
-                            aria-label="Previous month"
+                            aria-label={t('kanban.previousMonthAria')}
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
@@ -298,12 +306,12 @@ export default function KanbanTimelineView({
                             onClick={goToToday}
                             className="px-3 py-1.5 text-sm text-on-surface-variant hover:bg-surface-container-highest rounded-md transition-colors"
                         >
-                            Today
+                            {t('kanban.today')}
                         </button>
                         <button
                             onClick={() => navigateMonth('next')}
                             className="p-1.5 rounded-md hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
-                            aria-label="Next month"
+                            aria-label={t('kanban.nextMonthAria')}
                         >
                             <ChevronRight className="w-5 h-5" />
                         </button>
@@ -326,7 +334,7 @@ export default function KanbanTimelineView({
                                     }
                                 `}
                             >
-                                {level}
+                                {ZOOM_LABELS[level]}
                             </button>
                         ))}
                     </div>
@@ -337,10 +345,10 @@ export default function KanbanTimelineView({
                         onChange={(e) => setGroupBy(e.target.value as TimelineGroupBy)}
                         className="px-3 py-1.5 bg-surface-container-high rounded-lg text-sm text-on-surface focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                     >
-                        <option value="none">No Grouping</option>
-                        <option value="project">Group by Project</option>
-                        <option value="status">Group by Status</option>
-                        <option value="priority">Group by Priority</option>
+                        <option value="none">{t('kanban.noGroupingOption')}</option>
+                        <option value="project">{t('kanban.groupByProjectOption')}</option>
+                        <option value="status">{t('kanban.groupByStatusOption')}</option>
+                        <option value="priority">{t('kanban.groupByPriorityOption')}</option>
                     </select>
                 </div>
             </div>
@@ -380,20 +388,20 @@ export default function KanbanTimelineView({
             {/* Footer */}
             <div className="px-6 py-3 bg-surface-container-high border-t border-outline-variant/30 text-xs text-on-surface-variant flex items-center justify-between">
                 <span>
-                    Showing {filteredCards.length} cards with due dates
+                    {t('kanban.showingCardsWithDueDates', { count: filteredCards.length })}
                 </span>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded bg-surface-container-high" />
-                        <span>To Do</span>
+                        <span>{t('kanban.statusTodo')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded bg-secondary-container" />
-                        <span>In Progress</span>
+                        <span>{t('kanban.statusInProgress')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 rounded bg-success-container" />
-                        <span>Done</span>
+                        <span>{t('kanban.statusDone')}</span>
                     </div>
                 </div>
             </div>

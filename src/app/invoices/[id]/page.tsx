@@ -11,9 +11,10 @@ import LineItemsTable, { LineItem } from '@/components/documents/LineItemsTable'
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
 import {
   ArrowLeft, Save, Mail, Download, MoreVertical, Loader2, X,
-  Trash2, Copy, DollarSign, Plus, Check, AlertCircle, Send, FileText, Link,
+  Trash2, Copy, DollarSign, Plus, Check, AlertCircle, Send, FileText,
 } from 'lucide-react';
 import type { Invoice, Payment } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({
@@ -32,13 +33,11 @@ function PaymentModal({
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(n);
+  const { t, formatCurrency } = useI18n();
 
   const handleSubmit = async () => {
     const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) { setError('Enter a valid amount'); return; }
+    if (!parsedAmount || parsedAmount <= 0) { setError(t('invoices.detail.paymentModal.invalidAmount')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -49,13 +48,13 @@ function PaymentModal({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || 'Failed to record payment');
+        throw new Error(d.error || t('invoices.detail.paymentModal.genericFailure'));
       }
       const data = await res.json();
       onPaymentRecorded(data.invoice);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to record payment');
+      setError(e instanceof Error ? e.message : t('invoices.detail.paymentModal.genericFailure'));
     } finally {
       setSaving(false);
     }
@@ -66,7 +65,7 @@ function PaymentModal({
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-surface rounded-xl shadow-2xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/10">
-          <h2 className="text-lg font-semibold text-on-surface">Record Payment</h2>
+          <h2 className="text-lg font-semibold text-on-surface">{t('invoices.detail.paymentModal.title')}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-container-low transition-colors">
             <X className="h-5 w-5 text-on-surface-variant" strokeWidth={1.75} />
           </button>
@@ -75,13 +74,13 @@ function PaymentModal({
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
 
           <div className="flex items-center justify-between p-3 bg-surface-container-low rounded-lg">
-            <span className="text-sm text-on-surface-variant">Amount Due</span>
-            <span className="font-semibold text-on-surface">{formatCurrency(invoice.amountDue)}</span>
+            <span className="text-sm text-on-surface-variant">{t('invoices.detail.paymentModal.amountDue')}</span>
+            <span className="font-semibold text-on-surface">{formatCurrency(invoice.amountDue, invoice.currency)}</span>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-on-surface-variant mb-2">
-              Amount <span className="text-error">*</span>
+              {t('invoices.detail.paymentModal.amount')} <span className="text-error">*</span>
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">{invoice.currency}</span>
@@ -91,44 +90,44 @@ function PaymentModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Payment Date</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.paymentModal.date')}</label>
             <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Payment Method</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.paymentModal.method')}</label>
             <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm">
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="cash">Cash</option>
-              <option value="credit_card">Credit Card</option>
-              <option value="check">Check</option>
-              <option value="other">Other</option>
+              <option value="bank_transfer">{t('invoices.paymentMethod.bankTransfer')}</option>
+              <option value="cash">{t('invoices.paymentMethod.cash')}</option>
+              <option value="credit_card">{t('invoices.paymentMethod.creditCard')}</option>
+              <option value="check">{t('invoices.paymentMethod.check')}</option>
+              <option value="other">{t('invoices.paymentMethod.other')}</option>
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Reference Number</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.paymentModal.reference')}</label>
             <input type="text" value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)}
-              placeholder="Transaction ID, check number..."
+              placeholder={t('invoices.detail.paymentModal.referencePlaceholder')}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Notes</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.paymentModal.notes')}</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none" />
           </div>
         </div>
         <div className="flex justify-end gap-3 p-6 border-t border-outline-variant/10">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button onClick={handleSubmit} disabled={saving}
             className="flex items-center gap-2 px-5 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 transition-colors text-sm font-medium">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <DollarSign className="h-4 w-4" strokeWidth={1.75} />}
-            <span>{saving ? 'Recording...' : 'Record Payment'}</span>
+            <span>{saving ? t('invoices.detail.paymentModal.recording') : t('invoices.detail.paymentModal.record')}</span>
           </button>
         </div>
       </div>
@@ -138,14 +137,18 @@ function PaymentModal({
 
 // ─── Send Email Modal ─────────────────────────────────────────────────────────
 function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClose: () => void; onSent: () => void }) {
+  const { t, formatDate } = useI18n();
   const [to, setTo] = useState(invoice.clientEmail || '');
-  const [subject, setSubject] = useState(`Invoice ${invoice.invoiceNumber}`);
-  const [message, setMessage] = useState(`Dear ${invoice.clientName},\n\nPlease find your invoice below. Payment is due on ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}.\n\nThank you for your business.`);
+  const [subject, setSubject] = useState(t('invoices.detail.sendModal.subjectTemplate', { number: invoice.invoiceNumber }));
+  const [message, setMessage] = useState(t('invoices.detail.sendModal.defaultMessage', {
+    name: invoice.clientName,
+    dueDate: invoice.dueDate ? formatDate(invoice.dueDate, { month: 'short', day: 'numeric', year: 'numeric' }) : t('invoices.detail.sendModal.notAvailable'),
+  }));
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
-    if (!to) { setError('Recipient email is required'); return; }
+    if (!to) { setError(t('invoices.detail.sendModal.recipientRequired')); return; }
     setSending(true);
     setError(null);
     try {
@@ -156,12 +159,12 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error || 'Failed to send');
+        throw new Error(d.error || t('invoices.detail.sendModal.failedToSend'));
       }
       onSent();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to send email');
+      setError(e instanceof Error ? e.message : t('invoices.detail.sendModal.genericError'));
     } finally {
       setSending(false);
     }
@@ -172,7 +175,7 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-surface rounded-xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between p-6 border-b border-outline-variant/10">
-          <h2 className="text-lg font-semibold text-on-surface">Send Invoice</h2>
+          <h2 className="text-lg font-semibold text-on-surface">{t('invoices.detail.sendModal.title')}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-surface-container-low transition-colors">
             <X className="h-5 w-5 text-on-surface-variant" strokeWidth={1.75} />
           </button>
@@ -180,29 +183,29 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
         <div className="p-6 space-y-4">
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">To</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.sendModal.to')}</label>
             <input type="email" value={to} onChange={(e) => setTo(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Subject</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.sendModal.subject')}</label>
             <input type="text" value={subject} onChange={(e) => setSubject(e.target.value)}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-2">Message</label>
+            <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.sendModal.message')}</label>
             <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5}
               className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm resize-none" />
           </div>
         </div>
         <div className="flex justify-end gap-3 p-6 border-t border-outline-variant/10">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors">
-            Cancel
+            {t('common.cancel')}
           </button>
           <button onClick={handleSend} disabled={sending}
             className="flex items-center gap-2 px-5 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 transition-colors text-sm font-medium">
             {sending ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Send className="h-4 w-4" strokeWidth={1.75} />}
-            <span>{sending ? 'Sending...' : 'Send'}</span>
+            <span>{sending ? t('invoices.detail.sendModal.sending') : t('invoices.detail.sendModal.send')}</span>
           </button>
         </div>
       </div>
@@ -216,6 +219,7 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const invoiceId = params.id as string;
   const isNew = invoiceId === 'new';
+  const { t, formatCurrency, formatDate } = useI18n();
 
   const { currentInvoice, setCurrentInvoice, updateInvoice, deleteInvoice, addInvoice } = useDocumentStore();
   const { currentWorkspaceId } = useAppStore();
@@ -228,7 +232,6 @@ export default function InvoiceDetailPage() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const [status, setStatus] = useState<InvoiceStatus>('draft');
@@ -268,7 +271,7 @@ export default function InvoiceDetailPage() {
     setError(null);
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`);
-      if (!response.ok) throw new Error('Failed to fetch invoice');
+      if (!response.ok) throw new Error(t('invoices.detail.failedToFetch'));
       const data = await response.json();
       const invoice = data.invoice;
       setCurrentInvoice(invoice);
@@ -294,11 +297,11 @@ export default function InvoiceDetailPage() {
       setPayments(invoice.payments || []);
       setIsEditing(invoice.status === 'draft');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('invoices.detail.genericError'));
     } finally {
       setLoading(false);
     }
-  }, [invoiceId, isNew, setCurrentInvoice]);
+  }, [invoiceId, isNew, setCurrentInvoice, t]);
 
   useEffect(() => {
     if (!isNew) fetchInvoice();
@@ -339,22 +342,22 @@ export default function InvoiceDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to save invoice');
+      if (!response.ok) throw new Error(t('invoices.detail.failedToSave'));
       const data = await response.json();
       setCurrentInvoice(data.invoice);
       updateInvoice(invoiceId, data.invoice);
       setHasChanges(false);
-      showToast('Invoice saved successfully');
+      showToast(t('invoices.detail.toastSaved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('invoices.detail.genericError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleCreate = async () => {
-    if (!clientName.trim()) { setError('Client name is required'); return; }
-    if (!currentWorkspaceId) { setError('No active workspace selected'); return; }
+    if (!clientName.trim()) { setError(t('invoices.detail.clientNameRequired')); return; }
+    if (!currentWorkspaceId) { setError(t('invoices.detail.noWorkspaceSelected')); return; }
     setSaving(true);
     setError(null);
     try {
@@ -380,13 +383,13 @@ export default function InvoiceDetailPage() {
       });
       if (!response.ok) {
         const d = await response.json();
-        throw new Error(d.error || 'Failed to create invoice');
+        throw new Error(d.error || t('invoices.detail.createFailed'));
       }
       const data = await response.json();
       addInvoice(data.invoice);
       router.replace(`/invoices/${data.invoice.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : t('invoices.detail.genericError'));
     } finally {
       setSaving(false);
     }
@@ -423,63 +426,41 @@ export default function InvoiceDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error('Failed to duplicate');
+      if (!response.ok) throw new Error(t('invoices.detail.failedToDuplicate'));
       const data = await response.json();
       router.push(`/invoices/${data.invoice.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to duplicate');
+      setError(err instanceof Error ? err.message : t('invoices.detail.failedToDuplicate'));
     }
   };
 
-  const handleGeneratePaymentLink = async () => {
-    setGeneratingLink(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}/payment-link`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate payment link');
-      setCurrentInvoice(data.invoice);
-      updateInvoice(invoiceId, data.invoice);
-      showToast('Payment link generated');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate payment link');
-    } finally {
-      setGeneratingLink(false);
-    }
-  };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${currentInvoice?.invoiceNumber}? This cannot be undone.`)) return;
+    if (!confirm(t('invoices.detail.deleteConfirm', { number: currentInvoice?.invoiceNumber || '' }))) return;
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete invoice');
+      if (!response.ok) throw new Error(t('invoices.detail.failedToDeleteInvoice'));
       deleteInvoice(invoiceId);
       router.push('/invoices');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete');
+      setError(err instanceof Error ? err.message : t('invoices.detail.failedToDelete'));
     }
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm('Remove this payment? The invoice will be updated.')) return;
+    if (!confirm(t('invoices.detail.deletePaymentConfirm'))) return;
     try {
       const res = await fetch(`/api/invoices/${invoiceId}/payments?paymentId=${paymentId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete payment');
+      if (!res.ok) throw new Error(t('invoices.detail.failedToDeletePayment'));
       const data = await res.json();
       setCurrentInvoice(data.invoice);
       setPayments(data.invoice.payments || []);
       setStatus(data.invoice.status);
-      showToast('Payment removed');
+      showToast(t('invoices.detail.toastPaymentRemoved'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete payment');
+      setError(err instanceof Error ? err.message : t('invoices.detail.failedToDeletePayment'));
     }
   };
-
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
-
-  const formatDate = (date: Date | string | null) =>
-    date ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 
   const isOverdue = dueDate ? new Date(dueDate) < new Date() && status !== 'paid' && status !== 'cancelled' : false;
 
@@ -499,7 +480,7 @@ export default function InvoiceDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-error-container/10 border border-error/20 rounded-lg p-6 text-center">
             <p className="text-error mb-4">{error}</p>
-            <button onClick={() => router.back()} className="px-4 py-2 bg-error text-on-error rounded-lg hover:opacity-90 text-sm font-medium">Go Back</button>
+            <button onClick={() => router.back()} className="px-4 py-2 bg-error text-on-error rounded-lg hover:opacity-90 text-sm font-medium">{t('invoices.detail.goBack')}</button>
           </div>
         </div>
       </AppShell>
@@ -525,7 +506,7 @@ export default function InvoiceDetailPage() {
             updateInvoice(invoiceId, updatedInvoice);
             setPayments(updatedInvoice.payments || []);
             setStatus(updatedInvoice.status);
-            showToast('Payment recorded successfully');
+            showToast(t('invoices.detail.toastPaymentRecorded'));
           }}
         />
       )}
@@ -535,7 +516,7 @@ export default function InvoiceDetailPage() {
           invoice={currentInvoice}
           onClose={() => setShowSendModal(false)}
           onSent={() => {
-            showToast('Invoice sent successfully');
+            showToast(t('invoices.detail.toastInvoiceSent'));
             fetchInvoice();
           }}
         />
@@ -545,12 +526,12 @@ export default function InvoiceDetailPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors" aria-label="Go back">
+            <button onClick={() => router.back()} className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors" aria-label={t('invoices.detail.backAria')}>
               <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div>
               <h1 className="text-2xl font-bold text-on-surface mb-1">
-                {isNew ? 'New Invoice' : (currentInvoice?.invoiceNumber || 'Invoice')}
+                {isNew ? t('invoices.detail.newInvoiceTitle') : (currentInvoice?.invoiceNumber || t('invoices.detail.invoiceFallback'))}
               </h1>
               {!isNew && (
                 <div className="flex items-center gap-3">
@@ -558,7 +539,7 @@ export default function InvoiceDetailPage() {
                   {isOverdue && (
                     <span className="flex items-center gap-1 text-xs text-error font-medium">
                       <AlertCircle className="h-3.5 w-3.5" strokeWidth={2} />
-                      Overdue
+                      {t('invoices.status.overdue')}
                     </span>
                   )}
                   {currentInvoice?.quoteId && (
@@ -566,24 +547,13 @@ export default function InvoiceDetailPage() {
                       onClick={() => router.push(`/quotes/${currentInvoice.quoteId}`)}
                       className="text-xs text-secondary underline-offset-2 hover:underline"
                     >
-                      From quote
+                      {t('invoices.detail.fromQuote')}
                     </button>
-                  )}
-                  {currentInvoice?.stripePaymentLink && (
-                    <a
-                      href={currentInvoice.stripePaymentLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-secondary underline-offset-2 hover:underline"
-                    >
-                      <Link className="h-3 w-3" strokeWidth={2} />
-                      Payment link
-                    </a>
                   )}
                   {hasChanges && (
                     <span className="text-xs text-warning flex items-center gap-1">
                       <span className="w-2 h-2 bg-warning rounded-full" />
-                      Unsaved changes
+                      {t('invoices.detail.unsavedChanges')}
                     </span>
                   )}
                 </div>
@@ -598,23 +568,23 @@ export default function InvoiceDetailPage() {
                   <button onClick={() => setShowPaymentModal(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary hover:bg-secondary-dim rounded-lg transition-colors text-sm font-medium">
                     <DollarSign className="h-4 w-4" strokeWidth={1.75} />
-                    <span className="hidden sm:inline">Payment</span>
+                    <span className="hidden sm:inline">{t('invoices.detail.payment')}</span>
                   </button>
                 )}
                 <button onClick={() => setShowSendModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-surface-container-low text-on-surface hover:bg-surface-container-high rounded-lg transition-colors text-sm font-medium">
                   <Mail className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Send</span>
+                  <span className="hidden sm:inline">{t('invoices.detail.send')}</span>
                 </button>
                 <button onClick={() => window.open(`/api/invoices/${invoiceId}/pdf`, '_blank')}
                   className="flex items-center gap-2 px-4 py-2 bg-surface-container-low text-on-surface hover:bg-surface-container-high rounded-lg transition-colors text-sm font-medium">
                   <Download className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="hidden sm:inline">PDF</span>
+                  <span className="hidden sm:inline">{t('invoices.detail.pdf')}</span>
                 </button>
 
                 <div className="relative">
                   <button onClick={() => setShowActionsMenu(!showActionsMenu)}
-                    className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors" aria-label="More options">
+                    className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors" aria-label={t('invoices.detail.moreOptionsAria')}>
                     <MoreVertical className="h-5 w-5" strokeWidth={1.75} />
                   </button>
                   {showActionsMenu && (
@@ -624,28 +594,18 @@ export default function InvoiceDetailPage() {
                         <button onClick={() => { setShowActionsMenu(false); setIsEditing(true); }}
                           className="w-full px-4 py-2.5 text-left text-sm text-on-surface hover:bg-surface-container-low flex items-center gap-3">
                           <FileText className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-                          Edit Invoice
+                          {t('invoices.detail.editInvoice')}
                         </button>
                         <button onClick={() => { setShowActionsMenu(false); handleDuplicate(); }}
                           className="w-full px-4 py-2.5 text-left text-sm text-on-surface hover:bg-surface-container-low flex items-center gap-3">
                           <Copy className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-                          Duplicate Invoice
+                          {t('invoices.detail.duplicateInvoice')}
                         </button>
-                        {status !== 'paid' && status !== 'cancelled' && (
-                          <button onClick={() => { setShowActionsMenu(false); handleGeneratePaymentLink(); }}
-                            disabled={generatingLink}
-                            className="w-full px-4 py-2.5 text-left text-sm text-on-surface hover:bg-surface-container-low flex items-center gap-3 disabled:opacity-50">
-                            {generatingLink
-                              ? <Loader2 className="h-4 w-4 text-secondary animate-spin" strokeWidth={1.75} />
-                              : <Link className="h-4 w-4 text-secondary" strokeWidth={1.75} />}
-                            {currentInvoice?.stripePaymentLink ? 'Regenerate Payment Link' : 'Generate Payment Link'}
-                          </button>
-                        )}
                         <div className="h-px bg-outline-variant/10 my-1" />
                         <button onClick={() => { setShowActionsMenu(false); handleDelete(); }}
                           className="w-full px-4 py-2.5 text-left text-sm text-error hover:bg-error-container/10 flex items-center gap-3">
                           <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-                          Delete Invoice
+                          {t('invoices.detail.deleteInvoice')}
                         </button>
                       </div>
                     </>
@@ -668,30 +628,30 @@ export default function InvoiceDetailPage() {
           <div className="bg-surface rounded-lg p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-2">Status</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.status')}</label>
                 <select value={status} onChange={(e) => { setStatus(e.target.value as InvoiceStatus); setHasChanges(true); }}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm">
-                  <option value="draft">Draft</option>
-                  <option value="sent">Sent</option>
-                  <option value="viewed">Viewed</option>
-                  <option value="partially_paid">Partially Paid</option>
-                  <option value="paid">Paid</option>
-                  <option value="overdue">Overdue</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="draft">{t('invoices.status.draft')}</option>
+                  <option value="sent">{t('invoices.status.sent')}</option>
+                  <option value="viewed">{t('invoices.status.viewed')}</option>
+                  <option value="partially_paid">{t('invoices.status.partiallyPaid')}</option>
+                  <option value="paid">{t('invoices.status.paid')}</option>
+                  <option value="overdue">{t('invoices.status.overdue')}</option>
+                  <option value="cancelled">{t('invoices.status.cancelled')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-2">Issue Date</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.issueDate')}</label>
                 <input type="date" value={issueDate} onChange={(e) => { setIssueDate(e.target.value); setHasChanges(true); }}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-2">Due Date</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.dueDate')}</label>
                 <input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); setHasChanges(true); }}
                   className={`w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm ${isOverdue ? 'border-2 border-error' : ''}`} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-on-surface-variant mb-2">Currency</label>
+                <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.currency')}</label>
                 <select value={currency} onChange={(e) => { setCurrency(e.target.value); setHasChanges(true); }}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm">
                   <option value="USD">USD</option>
@@ -710,13 +670,13 @@ export default function InvoiceDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* Client Info */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Client Information</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.fields.clientInformation')}</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { label: 'Client Name *', value: clientName, setter: setClientName, type: 'text' },
-                  { label: 'Email', value: clientEmail, setter: setClientEmail, type: 'email' },
-                  { label: 'Phone', value: clientPhone, setter: setClientPhone, type: 'tel' },
-                  { label: 'Company', value: clientCompany, setter: setClientCompany, type: 'text' },
+                  { label: `${t('invoices.fields.clientName')} *`, value: clientName, setter: setClientName, type: 'text' },
+                  { label: t('invoices.fields.email'), value: clientEmail, setter: setClientEmail, type: 'email' },
+                  { label: t('invoices.fields.phone'), value: clientPhone, setter: setClientPhone, type: 'tel' },
+                  { label: t('invoices.fields.company'), value: clientCompany, setter: setClientCompany, type: 'text' },
                 ].map(({ label, value, setter, type }) => (
                   <div key={label}>
                     <label className="block text-sm font-medium text-on-surface-variant mb-2">{label}</label>
@@ -726,7 +686,7 @@ export default function InvoiceDetailPage() {
                   </div>
                 ))}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-on-surface-variant mb-2">Address</label>
+                  <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.address')}</label>
                   <textarea value={clientAddress} onChange={(e) => { setClientAddress(e.target.value); setHasChanges(true); }}
                     disabled={!isEditing} rows={3}
                     className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 disabled:opacity-50 resize-none text-sm" />
@@ -736,7 +696,7 @@ export default function InvoiceDetailPage() {
 
             {/* Line Items */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Line Items</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.fields.lineItems')}</h2>
               <LineItemsTable
                 items={items}
                 currency={currency}
@@ -753,7 +713,7 @@ export default function InvoiceDetailPage() {
             {!isNew && <div className="bg-surface rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-on-surface">
-                  Payments
+                  {t('invoices.detail.payments')}
                   {payments.length > 0 && (
                     <span className="ml-2 text-xs font-normal text-on-surface-variant">
                       ({payments.length})
@@ -764,20 +724,20 @@ export default function InvoiceDetailPage() {
                   <button onClick={() => setShowPaymentModal(true)}
                     className="flex items-center gap-2 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container-high rounded-lg transition-colors text-xs font-medium text-on-surface">
                     <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    Record Payment
+                    {t('invoices.detail.recordPayment')}
                   </button>
                 )}
               </div>
 
               {payments.length === 0 ? (
-                <p className="text-sm text-on-surface-variant text-center py-6">No payments recorded yet.</p>
+                <p className="text-sm text-on-surface-variant text-center py-6">{t('invoices.detail.noPayments')}</p>
               ) : (
                 <>
                   {/* Progress bar */}
                   {total > 0 && (
                     <div className="mb-4">
                       <div className="flex justify-between text-xs text-on-surface-variant mb-1">
-                        <span>{formatCurrency(amountPaid)} paid</span>
+                        <span>{t('invoices.detail.paidOfTotal', { amount: formatCurrency(amountPaid, currency) })}</span>
                         <span>{Math.round(paidPercent)}%</span>
                       </div>
                       <div className="h-2 bg-surface-container-low rounded-full overflow-hidden">
@@ -793,10 +753,10 @@ export default function InvoiceDetailPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-outline-variant/10">
-                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">Date</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">Method</th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">Reference</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-on-surface-variant uppercase">Amount</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">{t('invoices.detail.colDate')}</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">{t('invoices.detail.colMethod')}</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-on-surface-variant uppercase">{t('invoices.detail.colReference')}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-on-surface-variant uppercase">{t('invoices.detail.colAmount')}</th>
                           <th className="px-3 py-2" />
                         </tr>
                       </thead>
@@ -806,10 +766,10 @@ export default function InvoiceDetailPage() {
                             <td className="px-3 py-3 text-sm text-on-surface">{formatDate(payment.paymentDate)}</td>
                             <td className="px-3 py-3 text-sm text-on-surface capitalize">{String(payment.paymentMethod).replace('_', ' ')}</td>
                             <td className="px-3 py-3 text-sm text-on-surface-variant">{payment.referenceNumber || '—'}</td>
-                            <td className="px-3 py-3 text-sm text-success font-semibold text-right">{formatCurrency(payment.amount)}</td>
+                            <td className="px-3 py-3 text-sm text-success font-semibold text-right">{formatCurrency(payment.amount, currency)}</td>
                             <td className="px-3 py-3 text-right">
                               <button onClick={() => handleDeletePayment(payment.id)}
-                                className="p-1 text-on-surface-variant hover:text-error transition-colors rounded" aria-label="Remove payment">
+                                className="p-1 text-on-surface-variant hover:text-error transition-colors rounded" aria-label={t('invoices.detail.removePaymentAria')}>
                                 <X className="h-3.5 w-3.5" strokeWidth={2} />
                               </button>
                             </td>
@@ -824,12 +784,12 @@ export default function InvoiceDetailPage() {
 
             {/* Notes */}
             <div className="bg-surface rounded-lg p-6">
-              <h2 className="text-base font-semibold text-on-surface mb-4">Notes & Terms</h2>
+              <h2 className="text-base font-semibold text-on-surface mb-4">{t('invoices.fields.notesAndTerms')}</h2>
               <div className="space-y-4">
                 {[
-                  { label: 'Notes', value: notes, setter: setNotes, placeholder: 'Additional notes for the client...' },
-                  { label: 'Terms', value: terms, setter: setTerms, placeholder: 'Payment terms and conditions...' },
-                  { label: 'Internal Notes (private)', value: internalNotes, setter: setInternalNotes, placeholder: 'Notes for internal use only...' },
+                  { label: t('invoices.fields.notes'), value: notes, setter: setNotes, placeholder: t('invoices.fields.notesPlaceholder') },
+                  { label: t('invoices.fields.terms'), value: terms, setter: setTerms, placeholder: t('invoices.fields.termsPlaceholder') },
+                  { label: `${t('invoices.fields.internalNotes')} ${t('invoices.fields.internalNotesPrivate')}`, value: internalNotes, setter: setInternalNotes, placeholder: t('invoices.fields.internalNotesPlaceholder') },
                 ].map(({ label, value, setter, placeholder }) => (
                   <div key={label}>
                     <label className="block text-sm font-medium text-on-surface-variant mb-2">{label}</label>
@@ -858,11 +818,11 @@ export default function InvoiceDetailPage() {
             {/* Quick stats */}
             {!isEditing && !isNew && (
               <div className="bg-surface rounded-lg p-5 space-y-3">
-                <h3 className="text-sm font-semibold text-on-surface">Details</h3>
+                <h3 className="text-sm font-semibold text-on-surface">{t('invoices.detail.details')}</h3>
                 {[
-                  { label: 'Issue Date', value: issueDate ? new Date(issueDate).toLocaleDateString() : '—' },
-                  { label: 'Due Date', value: dueDate ? new Date(dueDate).toLocaleDateString() : '—', highlight: isOverdue },
-                  { label: 'Currency', value: currency },
+                  { label: t('invoices.fields.issueDate'), value: issueDate ? formatDate(issueDate) : '—' },
+                  { label: t('invoices.fields.dueDate'), value: dueDate ? formatDate(dueDate) : '—', highlight: isOverdue },
+                  { label: t('invoices.fields.currency'), value: currency },
                 ].map(({ label, value, highlight }) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-on-surface-variant">{label}</span>
@@ -877,23 +837,23 @@ export default function InvoiceDetailPage() {
         {/* Action Buttons */}
         <div className="mt-8 flex items-center justify-end gap-3">
           {!isNew && hasChanges && (
-            <button onClick={() => { if (confirm('Discard unsaved changes?')) fetchInvoice(); }}
+            <button onClick={() => { if (confirm(t('invoices.detail.discardConfirm'))) fetchInvoice(); }}
               className="px-4 py-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors text-sm font-medium flex items-center gap-2">
               <X className="h-4 w-4" strokeWidth={1.75} />
-              Discard
+              {t('invoices.detail.discard')}
             </button>
           )}
           {isNew ? (
             <button onClick={handleCreate} disabled={saving}
               className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <FileText className="h-4 w-4" strokeWidth={1.75} />}
-              <span>{saving ? 'Creating...' : 'Create Invoice'}</span>
+              <span>{saving ? t('invoices.detail.creating') : t('invoices.detail.createInvoice')}</span>
             </button>
           ) : (
             <button onClick={handleSave} disabled={saving || !hasChanges}
               className="flex items-center gap-2 px-6 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Save className="h-4 w-4" strokeWidth={1.75} />}
-              <span>{saving ? 'Saving...' : 'Save'}</span>
+              <span>{saving ? t('invoices.detail.saving') : t('invoices.detail.save')}</span>
             </button>
           )}
         </div>

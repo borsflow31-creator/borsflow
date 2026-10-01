@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
     id: string;
@@ -72,6 +73,7 @@ export default function PipelineBoard({
     onOpenLeadModal,
     onOpenPipelineModal,
 }: PipelineBoardProps) {
+    const { t, formatCurrency } = useI18n();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
@@ -147,7 +149,7 @@ export default function PipelineBoard({
     };
 
     const handleLocalDelete = async (lead: Lead) => {
-        if (!confirm(`Delete ${lead.firstName} ${lead.lastName}? This cannot be undone.`)) return;
+        if (!confirm(t('crm.pipelineBoard.confirmDeleteLead', { firstName: lead.firstName, lastName: lead.lastName }))) return;
 
         const previousLeads = leads;
         setLeads(prev => prev.filter(l => l.id !== lead.id));
@@ -177,10 +179,7 @@ export default function PipelineBoard({
 
     const formatValue = (value?: number | null) => {
         if (value == null) return '-';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(value);
+        return formatCurrency(value, 'USD');
     };
 
     if (loading) {
@@ -206,7 +205,7 @@ export default function PipelineBoard({
                     <button
                         onClick={() => onOpenPipelineModal(pipeline)}
                         className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
-                        title="Edit Pipeline"
+                        title={t('crm.pipelineModal.editTitle')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -215,7 +214,7 @@ export default function PipelineBoard({
                     <button
                         onClick={() => onPipelineDelete(pipeline.id)}
                         className="p-2 text-error hover:bg-error-container rounded transition-colors"
-                        title="Delete Pipeline"
+                        title={t('crm.pipelineBoard.deletePipelineTitle')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -292,7 +291,7 @@ export default function PipelineBoard({
                                                                             handleLocalDelete(lead);
                                                                         }}
                                                                         className="text-on-surface-variant hover:text-error transition-colors"
-                                                                        aria-label={`Delete ${lead.firstName} ${lead.lastName}`}
+                                                                        aria-label={t('crm.pipelineBoard.deleteLeadAria', { firstName: lead.firstName, lastName: lead.lastName })}
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -347,7 +346,7 @@ export default function PipelineBoard({
                                                 {provided.placeholder}
                                                 {stageLeads.length === 0 && !snapshot.isDraggingOver && (
                                                     <p className="body-sm text-on-surface-variant text-center py-6">
-                                                        Drop leads here
+                                                        {t('crm.pipelineBoard.dropLeadsHere')}
                                                     </p>
                                                 )}
                                             </div>

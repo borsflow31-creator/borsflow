@@ -5,18 +5,17 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, ArrowRight, Layers } from 'lucide-react';
+import { safeCallbackUrl } from '@/lib/url';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t } = useI18n();
     // Honour ?callbackUrl= so flows that route through login (e.g. an emailed
     // workspace invitation) return to where they started. Relative paths only,
     // so the parameter can't be used as an open redirect.
-    const rawCallbackUrl = searchParams.get('callbackUrl');
-    const callbackUrl =
-        rawCallbackUrl && rawCallbackUrl.startsWith('/') && !rawCallbackUrl.startsWith('//')
-            ? rawCallbackUrl
-            : '/dashboard';
+    const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'), '/dashboard');
     const { data: session, status } = useSession();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -50,7 +49,7 @@ function LoginContent() {
                 router.refresh();
             }
         } catch (error) {
-            setError('An error occurred. Please try again.');
+            setError(t('common.errorRetry'));
         } finally {
             setIsLoading(false);
         }
@@ -66,12 +65,12 @@ function LoginContent() {
                     <span className="w-8 h-8 rounded-lg bg-[var(--n-text)] text-[var(--n-base)] flex items-center justify-center shadow-xs transition-transform duration-200 group-hover:scale-105">
                         <Layers className="w-4 h-4" aria-hidden="true" />
                     </span>
-                    <span className="font-display text-base font-semibold tracking-tight">BorsFlow</span>
+                    <span className="font-display text-base font-semibold tracking-tight">{t('misc.brandName')}</span>
                 </Link>
 
-                <h1 className="mt-10 font-display t-sub text-[var(--n-text)]">Welcome back.</h1>
+                <h1 className="mt-10 font-display t-sub text-[var(--n-text)]">{t('auth.loginTitle')}</h1>
                 <p className="mt-2 text-sm text-[var(--n-muted)]">
-                    Sign in to pick up where your pipeline left off.
+                    {t('auth.loginSubtitle')}
                 </p>
 
                 <div className="mt-8 taste-plinth p-6 sm:p-8">
@@ -91,7 +90,7 @@ function LoginContent() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label htmlFor="email" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
-                                Email
+                                {t('auth.email')}
                             </label>
                             <input
                                 id="email"
@@ -108,7 +107,7 @@ function LoginContent() {
 
                         <div>
                             <label htmlFor="password" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
-                                Password
+                                {t('auth.password')}
                             </label>
                             <input
                                 id="password"
@@ -134,11 +133,11 @@ function LoginContent() {
                                         className="w-4 h-4 rounded-full border-2 border-current border-r-transparent animate-spin"
                                         aria-hidden="true"
                                     />
-                                    <span>Signing in…</span>
+                                    <span>{t('auth.signingIn')}</span>
                                 </>
                             ) : (
                                 <>
-                                    <span>Sign in</span>
+                                    <span>{t('auth.signIn')}</span>
                                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
                                 </>
                             )}
@@ -147,7 +146,7 @@ function LoginContent() {
 
                     <div className="my-6 flex items-center gap-4">
                         <span className="h-px flex-1 bg-[var(--n-border)]" />
-                        <span className="text-xs text-[var(--n-muted)]">or</span>
+                        <span className="text-xs text-[var(--n-muted)]">{t('common.or')}</span>
                         <span className="h-px flex-1 bg-[var(--n-border)]" />
                     </div>
 
@@ -174,12 +173,12 @@ function LoginContent() {
                                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.16 7.07l3.68 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                             />
                         </svg>
-                        <span>Continue with Google</span>
+                        <span>{t('auth.continueWithGoogle')}</span>
                     </button>
                 </div>
 
                 <p className="mt-6 text-center text-sm text-[var(--n-muted)]">
-                    No account yet?{' '}
+                    {t('auth.noAccount')}{' '}
                     <Link
                         href={
                             callbackUrl === '/dashboard'
@@ -188,7 +187,7 @@ function LoginContent() {
                         }
                         className="text-[var(--n-text)] underline underline-offset-4 decoration-[var(--n-border-strong)] hover:decoration-[var(--n-text)] transition-colors"
                     >
-                        Create one
+                        {t('auth.createOne')}
                     </Link>
                 </p>
             </div>

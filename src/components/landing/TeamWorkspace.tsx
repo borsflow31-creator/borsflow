@@ -1,30 +1,39 @@
+'use client'
+
 import React from 'react'
 import { Check } from 'lucide-react'
-
-const ROLES = ['Viewer', 'Member', 'Admin', 'Owner'] as const
-
-/* Mirrors the permission matrix the server actually enforces: viewers read,
-   members create and edit their own, admins do everything but delete the
-   workspace, owners do everything. */
-const CAPABILITIES: { label: string; from: number }[] = [
-    { label: 'Read pages, deals and invoices', from: 0 },
-    { label: 'Create content and edit their own', from: 1 },
-    { label: "Edit and delete anyone's content", from: 2 },
-    { label: 'Invite people and manage members', from: 2 },
-    { label: 'Delete the workspace', from: 3 },
-]
+import { useI18n } from '@/i18n/I18nProvider'
 
 export const TeamWorkspace = () => {
+    const { t } = useI18n()
+
+    const ROLES = [
+        t('landing.team.roleViewer'),
+        t('landing.team.roleMember'),
+        t('landing.team.roleAdmin'),
+        t('landing.team.roleOwner'),
+    ] as const
+
+    /* Mirrors the permission matrix the server actually enforces: viewers read,
+       members create and edit their own, admins do everything but delete the
+       workspace, owners do everything. */
+    const CAPABILITIES: { label: string; from: number }[] = [
+        { label: t('landing.team.capRead'), from: 0 },
+        { label: t('landing.team.capCreate'), from: 1 },
+        { label: t('landing.team.capEditDelete'), from: 2 },
+        { label: t('landing.team.capInvite'), from: 2 },
+        { label: t('landing.team.capDeleteWorkspace'), from: 3 },
+    ]
+
     return (
         <section id="team" className="py-16 sm:py-24 scroll-mt-24 border-t border-[var(--n-border)]">
             <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
                 <div className="max-w-3xl">
                     <h2 className="font-display t-h2 text-[var(--n-text)]">
-                        Bring the team in without handing over the keys.
+                        {t('landing.team.heading')}
                     </h2>
                     <p className="mt-5 t-lead measure text-[var(--n-muted)]">
-                        Four roles, enforced on the server rather than hidden in the interface. An unrecognised role falls
-                        back to read-only, never to full access.
+                        {t('landing.team.lead')}
                     </p>
                 </div>
 
@@ -53,11 +62,11 @@ export const TeamWorkspace = () => {
 
                         {/* Tablet and up: the matrix proper. */}
                         <table className="hidden sm:table w-full text-left border-collapse">
-                            <caption className="sr-only">What each workspace role can do</caption>
+                            <caption className="sr-only">{t('landing.team.tableCaption')}</caption>
                             <thead>
                                 <tr className="border-b border-[var(--n-border-strong)]">
                                     <th scope="col" className="pb-3 pr-4 text-xs font-medium text-[var(--n-text)]">
-                                        Permission
+                                        {t('landing.team.permissionCol')}
                                     </th>
                                     {ROLES.map((role) => (
                                         <th
@@ -87,14 +96,14 @@ export const TeamWorkspace = () => {
                                                             className="inline-block w-3.5 h-3.5 text-[var(--n-emerald)]"
                                                             aria-hidden="true"
                                                         />
-                                                        <span className="sr-only">Yes</span>
+                                                        <span className="sr-only">{t('landing.team.yes')}</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <span aria-hidden="true" className="text-[var(--n-muted)]">
                                                             &ndash;
                                                         </span>
-                                                        <span className="sr-only">No</span>
+                                                        <span className="sr-only">{t('landing.team.no')}</span>
                                                     </>
                                                 )}
                                             </td>
@@ -108,27 +117,23 @@ export const TeamWorkspace = () => {
                     {/* Supporting detail */}
                     <div className="lg:col-span-5 space-y-8">
                         <div>
-                            <h3 className="font-display t-h3 text-[var(--n-text)]">Invitations that arrive</h3>
+                            <h3 className="font-display t-h3 text-[var(--n-text)]">{t('landing.team.invitationsHeading')}</h3>
                             <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                                Invite the whole team at once, to addresses that have not registered yet. Links expire after
-                                seven days and can be resent. If a provider refuses one, you still get a link to pass
-                                along by hand rather than a silent failure.
+                                {t('landing.team.invitationsBody')}
                             </p>
                         </div>
 
                         <div className="pt-8 border-t border-[var(--n-border)]">
-                            <h3 className="font-display t-h3 text-[var(--n-text)]">Talk where the work is</h3>
+                            <h3 className="font-display t-h3 text-[var(--n-text)]">{t('landing.team.talkHeading')}</h3>
                             <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                                Channels with live presence, typing indicators and file attachments, archived to your own
-                                database.
+                                {t('landing.team.talkBody')}
                             </p>
                         </div>
 
                         <div className="pt-8 border-t border-[var(--n-border)]">
-                            <h3 className="font-display t-h3 text-[var(--n-text)]">Run as many workspaces as you need</h3>
+                            <h3 className="font-display t-h3 text-[var(--n-text)]">{t('landing.team.workspacesHeading')}</h3>
                             <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                                One account, separate workspaces, separate members &mdash; for when the agency and the side
-                                venture should not see each other&rsquo;s pipeline.
+                                {t('landing.team.workspacesBody')}
                             </p>
                         </div>
                     </div>

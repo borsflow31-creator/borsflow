@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { History, CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface SyncLog {
   id: string;
@@ -22,31 +23,33 @@ interface SyncHistoryProps {
   integrationId: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
-  completed: { label: 'Completed', icon: CheckCircle2,  color: 'text-green-600 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
-  failed:    { label: 'Failed',    icon: XCircle,       color: 'text-error',                           bg: 'bg-error/10' },
-  running:   { label: 'Running',   icon: RefreshCw,     color: 'text-secondary',                       bg: 'bg-secondary/10' },
-  pending:   { label: 'Pending',   icon: Clock,         color: 'text-on-surface-variant',              bg: 'bg-surface-container-high' },
-};
-
-function formatDuration(ms?: number) {
-  if (!ms) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function formatRelativeTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (mins < 1)  return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
-
 export default function SyncHistory({ integrationId }: SyncHistoryProps) {
+  const { t, formatDateTime } = useI18n();
+
+  const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
+    completed: { label: t('scheduling.syncHistory.completed'), icon: CheckCircle2,  color: 'text-green-600 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
+    failed:    { label: t('scheduling.syncHistory.failed'),    icon: XCircle,       color: 'text-error',                           bg: 'bg-error/10' },
+    running:   { label: t('scheduling.syncHistory.running'),   icon: RefreshCw,     color: 'text-secondary',                       bg: 'bg-secondary/10' },
+    pending:   { label: t('scheduling.syncHistory.pending'),   icon: Clock,         color: 'text-on-surface-variant',              bg: 'bg-surface-container-high' },
+  };
+
+  const formatDuration = (ms?: number) => {
+    if (!ms) return '—';
+    if (ms < 1000) return t('scheduling.time.durationMs', { count: ms });
+    return t('scheduling.time.durationSeconds', { count: (ms / 1000).toFixed(1) });
+  };
+
+  const formatRelativeTime = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins  = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days  = Math.floor(diff / 86400000);
+    if (mins < 1)  return t('scheduling.time.justNow');
+    if (mins < 60) return t('scheduling.time.minutesAgo', { count: mins });
+    if (hours < 24) return t('scheduling.time.hoursAgo', { count: hours });
+    return t('scheduling.time.daysAgo', { count: days });
+  };
+
   const [logs,       setLogs]       = useState<SyncLog[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [expanded,   setExpanded]   = useState<string | null>(null);
@@ -83,13 +86,13 @@ export default function SyncHistory({ integrationId }: SyncHistoryProps) {
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-on-surface-variant" />
           <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
-            Sync History
+            {t('scheduling.syncHistory.heading')}
           </span>
         </div>
         <button
           onClick={fetchLogs}
           className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors"
-          title="Refresh"
+          title={t('scheduling.syncHistory.refreshTitle')}
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
@@ -98,7 +101,7 @@ export default function SyncHistory({ integrationId }: SyncHistoryProps) {
       {logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <History className="w-8 h-8 text-on-surface-variant/30 mb-2" />
-          <p className="text-xs text-on-surface-variant">No sync history yet</p>
+          <p className="text-xs text-on-surface-variant">{t('scheduling.syncHistory.empty')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -142,7 +145,7 @@ export default function SyncHistory({ integrationId }: SyncHistoryProps) {
                       )}
                       {hasStats && (
                         <span className="text-[11px] text-on-surface-variant/60">
-                          {log.eventsProcessed} events
+                          {t('scheduling.syncHistory.eventsCount', { count: log.eventsProcessed })}
                         </span>
                       )}
                     </div>
@@ -163,10 +166,10 @@ export default function SyncHistory({ integrationId }: SyncHistoryProps) {
                     {hasStats && (
                       <div className="grid grid-cols-4 gap-2">
                         {[
-                          { label: 'Created', value: log.eventsCreated, color: 'text-green-600 dark:text-green-400' },
-                          { label: 'Updated', value: log.eventsUpdated, color: 'text-blue-600 dark:text-blue-400' },
-                          { label: 'Deleted', value: log.eventsDeleted, color: 'text-error' },
-                          { label: 'Skipped', value: log.eventsSkipped, color: 'text-on-surface-variant' },
+                          { label: t('scheduling.syncHistory.created'), value: log.eventsCreated, color: 'text-green-600 dark:text-green-400' },
+                          { label: t('scheduling.syncHistory.updated'), value: log.eventsUpdated, color: 'text-blue-600 dark:text-blue-400' },
+                          { label: t('scheduling.syncHistory.deleted'), value: log.eventsDeleted, color: 'text-error' },
+                          { label: t('scheduling.syncHistory.skipped'), value: log.eventsSkipped, color: 'text-on-surface-variant' },
                         ].map(stat => (
                           <div key={stat.label} className="bg-surface-container-high rounded-lg px-2 py-1.5 text-center">
                             <p className={`text-sm font-bold ${stat.color}`}>{stat.value}</p>
@@ -186,9 +189,9 @@ export default function SyncHistory({ integrationId }: SyncHistoryProps) {
 
                     {/* Timestamps */}
                     <div className="text-[11px] text-on-surface-variant/60 space-y-0.5">
-                      <p>Started: {new Date(log.startedAt).toLocaleString()}</p>
+                      <p>{t('scheduling.syncHistory.started', { time: formatDateTime(log.startedAt) })}</p>
                       {log.completedAt && (
-                        <p>Completed: {new Date(log.completedAt).toLocaleString()}</p>
+                        <p>{t('scheduling.syncHistory.completedAt', { time: formatDateTime(log.completedAt) })}</p>
                       )}
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { ZoomClient } from '@/lib/scheduling/zoom-client';
 import { decrypt } from '@/lib/encryption';
 import { requireMeetingAccess } from '@/lib/api/workspace';
+import { notify } from '@/lib/notifications/notify';
 
 // PATCH /api/scheduling/meetings/[id] — update status or other fields
 export async function PATCH(
@@ -42,6 +43,18 @@ export async function PATCH(
       },
       include: { attendees: true, lead: true }
     });
+
+    if (body.status === 'cancelled' && updated.userId) {
+      void notify({
+        recipients: [updated.userId],
+        type: 'meetings.cancelled',
+        workspaceId: updated.workspaceId,
+        actorId: session.user.id,
+        title: `Meeting cancelled: ${updated.title}`,
+        body: body.reason || undefined,
+        href: `/meetings?workspace=${updated.workspaceId}`,
+      });
+    }
 
     return NextResponse.json({ meeting: updated });
   } catch (error) {

@@ -1,13 +1,29 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
-import { X, Send, Loader2 } from 'lucide-react'
+import { X, Send, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react'
+import { errorFrom } from '@/lib/products'
+import { readAgentStream } from '@/lib/ai/client'
+import { useI18n } from '@/i18n/I18nProvider'
+
+interface ToolStatus {
+    id: string
+    label: string
+    done: boolean
+    ok: boolean
+    link?: { label: string; url: string }
+}
 
 interface Message {
     role: 'user' | 'assistant'
     content: string
+    tools?: ToolStatus[]
+    /** Credits the reply cost, once known. */
+    credits?: number
+    error?: string
 }
 
 interface AIChatPanelProps {
@@ -22,6 +38,8 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState('')
     const [isStreaming, setIsStreaming] = useState(false)
+    const { t } = useI18n()
+    const abortRef = useRef<AbortController | null>(null)
     const bottomRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -35,56 +53,99 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
 
+    // Closing the panel stops a reply in progress; the server bills only what
+    // was generated.
+    useEffect(() => {
+        if (!isOpen) abortRef.current?.abort()
+    }, [isOpen])
+
+    const updateLast = (update: (message: Message) => Message) => {
+        setMessages(prev => {
+            const updated = [...prev]
+            updated[updated.length - 1] = update(updated[updated.length - 1])
+            return updated
+        })
+    }
+
     const sendMessage = async () => {
         const trimmed = input.trim()
         if (!trimmed || isStreaming) return
 
+        if (!workspaceId) {
+            setMessages(prev => [
+                ...prev,
+                { role: 'user', content: trimmed },
+                { role: 'assistant', content: '', error: 'Open a workspace to use the assistant.' },
+            ])
+            setInput('')
+            return
+        }
+
         const userMsg: Message = { role: 'user', content: trimmed }
-        const assistantMsg: Message = { role: 'assistant', content: '' }
+        const assistantMsg: Message = { role: 'assistant', content: '', tools: [] }
 
         setMessages(prev => [...prev, userMsg, assistantMsg])
         setInput('')
         setIsStreaming(true)
 
+        const abort = new AbortController()
+        abortRef.current = abort
+
         try {
             const res = await fetch('/api/ai/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: abort.signal,
                 body: JSON.stringify({
-                    messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+                    // Failed replies carry no content and are left out of the history.
+                    messages: [...messages, userMsg]
+                        .filter(m => m.content.trim())
+                        .map(m => ({ role: m.role, content: m.content })),
                     context,
                     workspaceId,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 }),
             })
 
-            if (!res.ok || !res.body) throw new Error('Request failed')
-
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                const chunk = decoder.decode(value)
-                setMessages(prev => {
-                    const updated = [...prev]
-                    updated[updated.length - 1] = {
-                        ...updated[updated.length - 1],
-                        content: updated[updated.length - 1].content + chunk,
-                    }
-                    return updated
-                })
+            if (!res.ok || !res.body) {
+                const error = await errorFrom(res, 'Sorry, something went wrong. Please try again.')
+                updateLast(m => ({ ...m, error }))
+                return
             }
-        } catch {
-            setMessages(prev => {
-                const updated = [...prev]
-                updated[updated.length - 1] = {
-                    ...updated[updated.length - 1],
-                    content: 'Sorry, something went wrong. Please try again.',
+
+            await readAgentStream(res, event => {
+                switch (event.t) {
+                    case 'text':
+                        updateLast(m => ({ ...m, content: m.content + event.v }))
+                        break
+                    case 'tool':
+                        updateLast(m => ({
+                            ...m,
+                            tools: [...(m.tools ?? []), { id: event.id, label: event.label, done: false, ok: false }],
+                        }))
+                        break
+                    case 'tool_done':
+                        updateLast(m => ({
+                            ...m,
+                            tools: (m.tools ?? []).map(t =>
+                                t.id === event.id ? { ...t, done: true, ok: event.ok, link: event.link } : t
+                            ),
+                        }))
+                        break
+                    case 'error':
+                        updateLast(m => ({ ...m, error: event.message }))
+                        break
+                    case 'done':
+                        updateLast(m => ({ ...m, credits: event.credits }))
+                        break
                 }
-                return updated
             })
+        } catch {
+            if (!abort.signal.aborted) {
+                updateLast(m => ({ ...m, error: 'Sorry, something went wrong. Please try again.' }))
+            }
         } finally {
+            abortRef.current = null
             setIsStreaming(false)
         }
     }
@@ -139,8 +200,8 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
                                 >
                                     auto_awesome
                                 </span>
-                                <p className="font-medium">How can I help?</p>
-                                <p className="text-xs">Ask me anything about your workspace, documents, or tasks.</p>
+                                <p className="font-medium">{t('ai.chat.heading')}</p>
+                                <p className="text-xs">{t('ai.chat.subheading')}</p>
                             </div>
                         )}
 
@@ -157,8 +218,68 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
                                     }`}
                                 >
                                     {msg.role === 'assistant' ? (
-                                        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-surface-container-highest prose-pre:border prose-pre:border-outline-variant/20">
-                                            <ReactMarkdown>{msg.content || '...'}</ReactMarkdown>
+                                        <div className="space-y-2">
+                                            {msg.tools && msg.tools.length > 0 && (
+                                                <ul className="flex flex-wrap gap-1.5">
+                                                    {msg.tools.map(tool => (
+                                                        <li
+                                                            key={tool.id}
+                                                            className="inline-flex items-center gap-1 rounded-full bg-surface-container-highest px-2 py-0.5 text-[11px] text-on-surface-variant"
+                                                        >
+                                                            {!tool.done ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : tool.ok ? (
+                                                                <Check className="h-3 w-3 text-secondary" />
+                                                            ) : (
+                                                                <AlertCircle className="h-3 w-3 text-error" />
+                                                            )}
+                                                            {tool.label}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {(msg.content || (!msg.error && !msg.tools?.length)) && (
+                                                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-surface-container-highest prose-pre:border prose-pre:border-outline-variant/20">
+                                                    <ReactMarkdown
+                                                        components={{
+                                                            a: ({ href, children }) =>
+                                                                href?.startsWith('/') ? (
+                                                                    <Link href={href} onClick={onClose}>{children}</Link>
+                                                                ) : (
+                                                                    <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                                                                ),
+                                                        }}
+                                                    >
+                                                        {msg.content || '...'}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            )}
+                                            {msg.tools?.some(t => t.link) && (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {msg.tools.filter(t => t.link).map(tool => (
+                                                        <Link
+                                                            key={tool.id}
+                                                            href={tool.link!.url}
+                                                            onClick={onClose}
+                                                            className="inline-flex items-center gap-1 rounded-lg border border-outline-variant/30 px-2 py-1 text-xs font-medium text-secondary hover:bg-surface-container-highest"
+                                                        >
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            {tool.link!.label}
+                                                        </Link>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {msg.error && (
+                                                <p role="alert" className="flex items-start gap-1.5 text-xs text-error">
+                                                    <AlertCircle className="h-3.5 w-3.5 mt-px flex-shrink-0" />
+                                                    {msg.error}
+                                                </p>
+                                            )}
+                                            {msg.credits !== undefined && msg.credits > 0 && (
+                                                <p className="text-[11px] text-on-surface-variant/70">
+                                                    {msg.credits} AI credit{msg.credits === 1 ? '' : 's'}
+                                                </p>
+                                            )}
                                         </div>
                                     ) : (
                                         <span className="whitespace-pre-wrap leading-relaxed">{msg.content}</span>
@@ -167,7 +288,7 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
                             </div>
                         ))}
 
-                        {isStreaming && messages[messages.length - 1]?.content === '' && (
+                        {isStreaming && messages[messages.length - 1]?.content === '' && !messages[messages.length - 1]?.tools?.length && (
                             <div className="flex justify-start">
                                 <div className="bg-surface-container rounded-2xl rounded-bl-sm px-3 py-2">
                                     <Loader2 className="h-4 w-4 animate-spin text-on-surface-variant" />
@@ -187,7 +308,7 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
                                     value={input}
                                     onChange={e => setInput(e.target.value)}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="Ask anything..."
+                                    placeholder={t('ai.chat.placeholder')}
                                     rows={1}
                                     className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 resize-none outline-none max-h-48 py-1"
                                     style={{ fieldSizing: 'content' } as React.CSSProperties}

@@ -10,26 +10,14 @@ import ViewToggle from '@/components/documents/ViewToggle';
 import SelectRefined from '@/components/ui/SelectRefined';
 import ProductCard from '@/components/products/ProductCard';
 import ProductTable from '@/components/products/ProductTable';
-import CSVImportModal from '@/components/products/CSVImportModal';
+import ProductImportModal from '@/components/products/ProductImportModal';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
 import { buildPageWindow, errorFrom } from '@/lib/products';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { CSVImportResult, Product } from '@/types';
 
 const PAGE_SIZE = 24;
-
-const sortOptions = [
-  { value: 'updated', label: 'Updated' },
-  { value: 'name', label: 'Name' },
-  { value: 'price', label: 'Price' },
-  { value: 'stock', label: 'Stock' },
-];
-
-const statusOptions = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'active', label: 'Active only' },
-  { value: 'inactive', label: 'Inactive only' },
-];
 
 interface Toast {
   id: number;
@@ -93,6 +81,7 @@ function PageSkeleton() {
 function ProductsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const {
     products,
@@ -127,6 +116,25 @@ function ProductsPageInner() {
   const [searchInput, setSearchInput] = useState(productsSearchQuery);
 
   const canWrite = role !== null && role !== 'viewer';
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'updated', label: t('products.sortUpdated') },
+      { value: 'name', label: t('products.sortName') },
+      { value: 'price', label: t('products.sortPrice') },
+      { value: 'stock', label: t('products.sortStock') },
+    ],
+    [t]
+  );
+
+  const statusOptions = useMemo(
+    () => [
+      { value: 'all', label: t('products.statusAll') },
+      { value: 'active', label: t('products.statusActiveOnly') },
+      { value: 'inactive', label: t('products.statusInactiveOnly') },
+    ],
+    [t]
+  );
 
   const addToast = useCallback((message: string, type: Toast['type']) => {
     const id = Date.now() + Math.random();
@@ -193,7 +201,7 @@ function ProductsPageInner() {
         });
 
         if (!response.ok) {
-          throw new Error(await errorFrom(response, 'Failed to fetch products'));
+          throw new Error(await errorFrom(response, t('products.fetchFailed')));
         }
 
         const data = await response.json();
@@ -204,7 +212,7 @@ function ProductsPageInner() {
         setTotalPages(data.pagination?.totalPages || 1);
       } catch (fetchError) {
         if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
-        setError(fetchError instanceof Error ? fetchError.message : 'An error occurred');
+        setError(fetchError instanceof Error ? fetchError.message : t('common.error'));
       } finally {
         setLoading(false);
       }
@@ -243,10 +251,10 @@ function ProductsPageInner() {
 
   const categoryOptions = useMemo(
     () => [
-      { value: 'all', label: 'All Categories' },
+      { value: 'all', label: t('products.allCategories') },
       ...categories.map((category) => ({ value: category, label: category })),
     ],
-    [categories]
+    [categories, t]
   );
 
   const hasActiveFilters =
@@ -266,9 +274,9 @@ function ProductsPageInner() {
 
   const handleImported = (result?: CSVImportResult) => {
     if (result) {
-      const skippedNote = result.skipped ? `, skipped ${result.skipped}` : '';
+      const skippedNote = result.skipped ? t('products.importedSkipped', { count: result.skipped }) : '';
       addToast(
-        `Imported ${result.created} product${result.created === 1 ? '' : 's'}${skippedNote}`,
+        `${t('products.imported', { count: result.created })}${skippedNote}`,
         result.created > 0 ? 'success' : 'error'
       );
     }
@@ -277,17 +285,17 @@ function ProductsPageInner() {
   };
 
   const handleDelete = async (product: Product) => {
-    if (!confirm(`Delete ${product.name}? This cannot be undone.`)) return;
+    if (!confirm(t('products.deleteConfirm', { name: product.name }))) return;
 
     try {
       const response = await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
       if (!response.ok) {
-        throw new Error(await errorFrom(response, 'Failed to delete product'));
+        throw new Error(await errorFrom(response, t('products.deleteFailed')));
       }
 
       // Mutation failures go to a toast rather than the page-level error panel, which
       // would replace the list the user is still working in.
-      addToast(`${product.name} deleted`, 'success');
+      addToast(t('products.deletedToast', { name: product.name }), 'success');
 
       // Deleting the last row of a page would otherwise strand the user on an empty one.
       if (products.length === 1 && page > 1) {
@@ -297,7 +305,7 @@ function ProductsPageInner() {
       }
     } catch (deleteError) {
       addToast(
-        deleteError instanceof Error ? deleteError.message : 'Failed to delete product',
+        deleteError instanceof Error ? deleteError.message : t('products.deleteFailed'),
         'error'
       );
     }
@@ -316,18 +324,18 @@ function ProductsPageInner() {
 
   return (
     <AppShell
-      workspace={{ id: workspaceId, name: workspaceName || 'Workspace' }}
+      workspace={{ id: workspaceId, name: workspaceName || t('products.workspaceFallback') }}
       breadcrumbs={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Products', href: `/products?workspace=${workspaceId}` },
+        { label: t('nav.dashboard'), href: '/dashboard' },
+        { label: t('nav.products'), href: `/products?workspace=${workspaceId}` },
       ]}
     >
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-on-surface">Products</h1>
+            <h1 className="text-3xl font-bold text-on-surface">{t('nav.products')}</h1>
             <p className="mt-2 text-on-surface-variant">
-              Build a reusable catalog for quotes and invoices.
+              {t('products.subtitle')}
             </p>
           </div>
 
@@ -339,7 +347,7 @@ function ProductsPageInner() {
                 className="flex items-center gap-2 rounded-lg border border-secondary/20 bg-secondary/10 px-4 py-2.5 text-sm font-medium text-secondary transition-colors hover:bg-secondary/15"
               >
                 <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-                Generate with AI
+                {t('products.generateWithAI')}
               </button>
               <button
                 type="button"
@@ -347,7 +355,7 @@ function ProductsPageInner() {
                 className="flex items-center gap-2 rounded-lg border border-outline-variant/20 bg-surface px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
               >
                 <Upload className="h-4 w-4" strokeWidth={1.75} />
-                Import CSV
+                {t('products.import')}
               </button>
               <button
                 type="button"
@@ -355,7 +363,7 @@ function ProductsPageInner() {
                 className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                New Product
+                {t('products.newProduct')}
               </button>
             </div>
           ) : null}
@@ -365,8 +373,8 @@ function ProductsPageInner() {
           <FilterBar
             searchQuery={searchInput}
             onSearchChange={setSearchInput}
-            searchPlaceholder="Search products..."
-            searchAriaLabel="Search products"
+            searchPlaceholder={t('products.searchPlaceholder')}
+            searchAriaLabel={t('products.searchAria')}
             statusFilter={productsCategoryFilter}
             onStatusChange={setProductsCategoryFilter}
             statusOptions={categoryOptions}
@@ -399,7 +407,7 @@ function ProductsPageInner() {
               onClick={refreshProducts}
               className="mt-3 rounded-lg bg-surface px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
             >
-              Try again
+              {t('common.tryAgain')}
             </button>
           </div>
         ) : null}
@@ -407,11 +415,11 @@ function ProductsPageInner() {
         {!loading && !error && products.length === 0 ? (
           <div className="rounded-2xl bg-surface-container-low px-6 py-16 text-center">
             <Package className="mx-auto h-14 w-14 text-on-surface-variant" strokeWidth={1.5} />
-            <h2 className="mt-4 text-xl font-semibold text-on-surface">No products yet</h2>
+            <h2 className="mt-4 text-xl font-semibold text-on-surface">{t('products.emptyTitle')}</h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-on-surface-variant">
               {hasActiveFilters
-                ? 'Try adjusting your filters or search terms.'
-                : 'Create your first catalog item so your team can reuse it in documents.'}
+                ? t('products.emptyFilteredSubtitle')
+                : t('products.emptySubtitle')}
             </p>
             {hasActiveFilters ? (
               <button
@@ -419,7 +427,7 @@ function ProductsPageInner() {
                 onClick={clearFilters}
                 className="mt-5 rounded-lg bg-surface px-5 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high"
               >
-                Clear filters
+                {t('common.clearFilters')}
               </button>
             ) : canWrite ? (
               <button
@@ -428,7 +436,7 @@ function ProductsPageInner() {
                 className="mt-5 inline-flex items-center gap-2 rounded-lg bg-secondary px-5 py-2.5 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
-                Create your first product
+                {t('products.createFirst')}
               </button>
             ) : null}
           </div>
@@ -460,7 +468,7 @@ function ProductsPageInner() {
         {!loading && products.length > 0 ? (
           <div className="mt-8 flex flex-col items-center gap-4">
             <p className="text-sm text-on-surface-variant">
-              Showing {rangeStart}&ndash;{rangeEnd} of {total} product{total === 1 ? '' : 's'}
+              {t('products.showingRange', { start: rangeStart, end: rangeEnd, total })}
             </p>
 
             {totalPages > 1 ? (
@@ -471,7 +479,7 @@ function ProductsPageInner() {
                   disabled={page === 1}
                   className="rounded-lg bg-surface-container-low px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Previous
+                  {t('common.previous')}
                 </button>
 
                 {buildPageWindow(page, totalPages).map((entry, index) =>
@@ -506,7 +514,7 @@ function ProductsPageInner() {
                   disabled={page === totalPages}
                   className="rounded-lg bg-surface-container-low px-4 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Next
+                  {t('common.next')}
                 </button>
               </div>
             ) : null}
@@ -515,7 +523,7 @@ function ProductsPageInner() {
       </div>
 
       {showImportModal ? (
-        <CSVImportModal
+        <ProductImportModal
           workspaceId={workspaceId}
           onClose={() => setShowImportModal(false)}
           onImported={handleImported}

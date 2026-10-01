@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import {
   X, Video, MapPin, Phone, Calendar, Clock, Users,
   User, ChevronDown, Plus, Trash2, Loader2, Search, UserPlus
@@ -30,6 +31,7 @@ const DURATIONS = [15, 30, 45, 60, 90, 120];
 export default function MeetingModal({
   isOpen, onClose, onSuccess, workspaceId, leadId, leadName, initialData
 }: MeetingModalProps) {
+  const { t } = useI18n();
   const [activeTab,   setActiveTab]   = useState<'details' | 'attendees'>('details');
   const [title,       setTitle]       = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
@@ -369,9 +371,9 @@ export default function MeetingModal({
               <div>
                 <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
                   {platform === 'phone' ? (
-                    <><Phone className="w-3.5 h-3.5 inline mr-1" />Phone Number</>
+                    <><Phone className="w-3.5 h-3.5 inline mr-1" />{t('misc.phoneNumber')}</>
                   ) : (
-                    <><MapPin className="w-3.5 h-3.5 inline mr-1" />Location</>
+                    <><MapPin className="w-3.5 h-3.5 inline mr-1" />{t('misc.locationLabel')}</>
                   )}
                 </label>
                 <input
@@ -392,7 +394,7 @@ export default function MeetingModal({
               <textarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="Agenda or notes for this meeting…"
+                placeholder={t('misc.meetingAgendaPlaceholder')}
                 rows={2}
                 className="w-full px-3 py-2.5 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all resize-none"
               />
@@ -416,7 +418,7 @@ export default function MeetingModal({
                       <div className="flex-1 min-w-0">
                         {a.name && <p className="text-xs font-medium text-on-surface truncate">{a.name}</p>}
                         {a.email && <p className="text-[11px] text-on-surface-variant truncate">{a.email}</p>}
-                        {a.leadId && <p className="text-[10px] text-secondary/70 truncate">CRM contact</p>}
+                        {a.leadId && <p className="text-[10px] text-secondary/70 truncate">{t('misc.crmContact')}</p>}
                       </div>
                       <button type="button" onClick={() => setAttendees(prev => prev.filter((_, i) => i !== idx))} className="text-on-surface-variant hover:text-error transition-colors flex-shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
@@ -435,7 +437,7 @@ export default function MeetingModal({
                     value={searchQuery}
                     onChange={e => { setSearchQuery(e.target.value); setShowNewForm(false); }}
                     onFocus={() => searchQuery.trim() && setShowDropdown(true)}
-                    placeholder="Search CRM contacts…"
+                    placeholder={t('misc.searchCrmContacts')}
                     className="flex-1 bg-transparent text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
                   />
                 </div>
@@ -491,14 +493,14 @@ export default function MeetingModal({
                       type="text"
                       value={newContact.firstName}
                       onChange={e => setNewContact(p => ({ ...p, firstName: e.target.value }))}
-                      placeholder="First name *"
+                      placeholder={t('misc.firstNameRequired')}
                       className="px-2.5 py-1.5 bg-surface-container-high rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                     <input
                       type="text"
                       value={newContact.lastName}
                       onChange={e => setNewContact(p => ({ ...p, lastName: e.target.value }))}
-                      placeholder="Last name"
+                      placeholder={t('misc.lastName')}
                       className="px-2.5 py-1.5 bg-surface-container-high rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                   </div>
@@ -506,7 +508,7 @@ export default function MeetingModal({
                     type="email"
                     value={newContact.email}
                     onChange={e => setNewContact(p => ({ ...p, email: e.target.value }))}
-                    placeholder="Email"
+                    placeholder={t('misc.emailLabel')}
                     className="w-full px-2.5 py-1.5 bg-surface-container-high rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50"
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -514,14 +516,14 @@ export default function MeetingModal({
                       type="text"
                       value={newContact.phone}
                       onChange={e => setNewContact(p => ({ ...p, phone: e.target.value }))}
-                      placeholder="Phone"
+                      placeholder={t('misc.phoneLabel')}
                       className="px-2.5 py-1.5 bg-surface-container-high rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                     <input
                       type="text"
                       value={newContact.company}
                       onChange={e => setNewContact(p => ({ ...p, company: e.target.value }))}
-                      placeholder="Company"
+                      placeholder={t('misc.companyLabel')}
                       className="px-2.5 py-1.5 bg-surface-container-high rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50"
                     />
                   </div>

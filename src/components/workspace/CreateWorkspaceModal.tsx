@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface CreateWorkspaceModalProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ export default function CreateWorkspaceModal({
     onClose,
     onSuccess,
 }: CreateWorkspaceModalProps) {
+    const { t } = useI18n();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -133,7 +135,7 @@ export default function CreateWorkspaceModal({
                         onClick={onClose}
                         disabled={isSubmitting}
                         className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Close modal"
+                        aria-label={t('workspace.createModal.closeModal')}
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -176,7 +178,7 @@ export default function CreateWorkspaceModal({
                             id="workspace-description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder="What is this workspace for?"
+                            placeholder={t('workspace.createModal.descPlaceholder')}
                             rows={3}
                             maxLength={500}
                             className={`w-full px-4 py-2.5 bg-surface-container-high rounded-lg text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 transition-all resize-none ${

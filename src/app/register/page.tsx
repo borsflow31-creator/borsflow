@@ -5,17 +5,16 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { AlertCircle, ArrowRight, Layers, MailCheck } from 'lucide-react';
+import { safeCallbackUrl } from '@/lib/url';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function RegisterContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { t } = useI18n();
     // Preserve ?callbackUrl= across sign-up so an invited user lands back on
     // their invitation after logging in. Relative paths only (no open redirect).
-    const rawCallbackUrl = searchParams.get('callbackUrl');
-    const callbackUrl =
-        rawCallbackUrl && rawCallbackUrl.startsWith('/') && !rawCallbackUrl.startsWith('//')
-            ? rawCallbackUrl
-            : null;
+    const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'), null);
     const loginHref = callbackUrl
         ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`
         : '/login';
@@ -29,23 +28,23 @@ function RegisterContent() {
 
     const validateForm = () => {
         if (!name.trim()) {
-            setError('Name is required');
+            setError(t('auth.nameRequired'));
             return false;
         }
         if (!email.trim()) {
-            setError('Email is required');
+            setError(t('auth.emailRequired'));
             return false;
         }
         if (!password) {
-            setError('Password is required');
+            setError(t('auth.passwordRequired'));
             return false;
         }
         if (password.length < 8) {
-            setError('Password must be at least 8 characters');
+            setError(t('auth.passwordTooShort'));
             return false;
         }
         if (password !== confirmPassword) {
-            setError('Passwords do not match');
+            setError(t('auth.passwordMismatch'));
             return false;
         }
         return true;
@@ -71,13 +70,15 @@ function RegisterContent() {
                     name,
                     email,
                     password,
+                    // So the verification link returns here, not to the dashboard.
+                    callbackUrl,
                 }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.error || 'Registration failed');
+                setError(data.error || t('auth.registrationFailed'));
             } else {
                 setSuccess(true);
                 // Redirect to login after 2 seconds
@@ -86,7 +87,7 @@ function RegisterContent() {
                 }, 2000);
             }
         } catch (error) {
-            setError('An error occurred. Please try again.');
+            setError(t('common.errorRetry'));
         } finally {
             setIsLoading(false);
         }
@@ -105,12 +106,11 @@ function RegisterContent() {
                     {/* Verification is mandatory: sign-in refuses an unverified
                         address, so saying "redirecting to login" on its own would
                         send people straight into a wall. */}
-                    <h1 className="mt-6 font-display t-sub text-[var(--n-text)]">Check your email.</h1>
+                    <h1 className="mt-6 font-display t-sub text-[var(--n-text)]">{t('auth.checkEmailTitle')}</h1>
                     <p className="mt-3 text-sm leading-relaxed text-[var(--n-muted)]">
-                        We sent a verification link to{' '}
-                        <span className="text-[var(--n-text)]">{email}</span>. You will need it before your first sign-in.
+                        {t('auth.checkEmailBody', { email })}
                     </p>
-                    <p className="mt-6 text-xs text-[var(--n-muted)]">Taking you to sign-in…</p>
+                    <p className="mt-6 text-xs text-[var(--n-muted)]">{t('auth.takingYouToSignIn')}</p>
                 </div>
             </main>
         );
@@ -123,12 +123,12 @@ function RegisterContent() {
                     <span className="w-8 h-8 rounded-lg bg-[var(--n-text)] text-[var(--n-base)] flex items-center justify-center shadow-xs transition-transform duration-200 group-hover:scale-105">
                         <Layers className="w-4 h-4" aria-hidden="true" />
                     </span>
-                    <span className="font-display text-base font-semibold tracking-tight">BorsFlow</span>
+                    <span className="font-display text-base font-semibold tracking-tight">{t('misc.brandName')}</span>
                 </Link>
 
-                <h1 className="mt-10 font-display t-sub text-[var(--n-text)]">Create a workspace.</h1>
+                <h1 className="mt-10 font-display t-sub text-[var(--n-text)]">{t('auth.registerTitle')}</h1>
                 <p className="mt-2 text-sm text-[var(--n-muted)]">
-                    Add a lead, write the scope, send the quote. About ten minutes.
+                    {t('auth.registerSubtitle')}
                 </p>
 
                 <div className="mt-8 taste-plinth p-6 sm:p-8">
@@ -145,7 +145,7 @@ function RegisterContent() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label htmlFor="name" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
-                                Name
+                                {t('auth.name')}
                             </label>
                             <input
                                 id="name"
@@ -153,7 +153,7 @@ function RegisterContent() {
                                 autoComplete="name"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Avery Cole"
+                                placeholder={t('misc.demoName')}
                                 className={field}
                                 required
                                 disabled={isLoading}
@@ -162,7 +162,7 @@ function RegisterContent() {
 
                         <div>
                             <label htmlFor="email" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
-                                Email
+                                {t('auth.email')}
                             </label>
                             <input
                                 id="email"
@@ -179,7 +179,7 @@ function RegisterContent() {
 
                         <div>
                             <label htmlFor="password" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
-                                Password
+                                {t('auth.password')}
                             </label>
                             <input
                                 id="password"
@@ -187,7 +187,7 @@ function RegisterContent() {
                                 autoComplete="new-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="At least 8 characters"
+                                placeholder={t('auth.passwordPlaceholder')}
                                 className={field}
                                 required
                                 minLength={8}
@@ -195,7 +195,7 @@ function RegisterContent() {
                                 aria-describedby="password-hint"
                             />
                             <p id="password-hint" className="mt-2 text-xs text-[var(--n-muted)]">
-                                Eight characters or more.
+                                {t('auth.passwordHint')}
                             </p>
                         </div>
 
@@ -204,7 +204,7 @@ function RegisterContent() {
                                 htmlFor="confirmPassword"
                                 className="block mb-2 text-xs font-medium text-[var(--n-text)]"
                             >
-                                Confirm password
+                                {t('auth.confirmPassword')}
                             </label>
                             <input
                                 id="confirmPassword"
@@ -230,11 +230,11 @@ function RegisterContent() {
                                         className="w-4 h-4 rounded-full border-2 border-current border-r-transparent animate-spin"
                                         aria-hidden="true"
                                     />
-                                    <span>Creating…</span>
+                                    <span>{t('auth.creatingWorkspace')}</span>
                                 </>
                             ) : (
                                 <>
-                                    <span>Create workspace</span>
+                                    <span>{t('auth.createWorkspace')}</span>
                                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
                                 </>
                             )}
@@ -243,7 +243,7 @@ function RegisterContent() {
 
                     <div className="my-6 flex items-center gap-4">
                         <span className="h-px flex-1 bg-[var(--n-border)]" />
-                        <span className="text-xs text-[var(--n-muted)]">or</span>
+                        <span className="text-xs text-[var(--n-muted)]">{t('common.or')}</span>
                         <span className="h-px flex-1 bg-[var(--n-border)]" />
                     </div>
 
@@ -274,17 +274,17 @@ function RegisterContent() {
                                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.16 7.07l3.68 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                             />
                         </svg>
-                        <span>Sign up with Google</span>
+                        <span>{t('auth.signUpWithGoogle')}</span>
                     </button>
                 </div>
 
                 <p className="mt-6 text-center text-sm text-[var(--n-muted)]">
-                    Already have an account?{' '}
+                    {t('auth.hasAccount')}{' '}
                     <Link
                         href={loginHref}
                         className="text-[var(--n-text)] underline underline-offset-4 decoration-[var(--n-border-strong)] hover:decoration-[var(--n-text)] transition-colors"
                     >
-                        Sign in
+                        {t('auth.signIn')}
                     </Link>
                 </p>
             </div>

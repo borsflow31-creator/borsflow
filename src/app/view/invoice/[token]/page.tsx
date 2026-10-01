@@ -2,18 +2,17 @@
 
 /**
  * Public invoice view. Outside the middleware matcher, so no session is required —
- * this is the page the client who received the invoice actually opens, and where
- * they pay it via the Stripe link already stored on the record.
+ * this is the page the client who received the invoice actually opens.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { CreditCard } from 'lucide-react';
 import PublicDocumentView, {
   PublicDocumentLoading,
   PublicDocumentError,
   type PublicDocument,
 } from '@/components/documents/PublicDocumentView';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ApiInvoice {
   invoiceNumber: string;
@@ -34,16 +33,15 @@ interface ApiInvoice {
   amountDue: number;
   notes: string | null;
   terms: string | null;
-  stripePaymentLink: string | null;
   items: PublicDocument['items'];
   payments: PublicDocument['payments'];
   workspace: { name: string };
 }
 
 export default function PublicInvoicePage() {
+  const { t } = useI18n();
   const { token } = useParams<{ token: string }>();
   const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
-  const [canPay, setCanPay] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,24 +50,23 @@ export default function PublicInvoicePage() {
       const res = await fetch(`/api/public/invoices/${token}`);
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'This link is no longer valid');
+        setError(data.error || t('public.invoice.loadErrorDefault'));
         return;
       }
       setInvoice(data.invoice);
-      setCanPay(data.canPay);
     } catch {
-      setError('We could not load this invoice. Please try again.');
+      setError(t('public.invoice.loadErrorCatch'));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   if (loading) return <PublicDocumentLoading />;
-  if (!invoice) return <PublicDocumentError message={error ?? 'This link is no longer valid.'} />;
+  if (!invoice) return <PublicDocumentError message={error ?? t('public.invoice.loadErrorFallback')} />;
 
   const doc: PublicDocument = {
     kind: 'invoice',
@@ -98,23 +95,13 @@ export default function PublicInvoicePage() {
 
   return (
     <PublicDocumentView doc={doc}>
-      {canPay && invoice.stripePaymentLink ? (
-        <a
-          href={invoice.stripePaymentLink}
-          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
-        >
-          <CreditCard className="h-4 w-4" />
-          Pay {new Intl.NumberFormat('en-US', { style: 'currency', currency: invoice.currency }).format(invoice.amountDue)}
-        </a>
-      ) : (
-        <p className="text-sm text-on-surface-variant">
-          {invoice.status === 'paid'
-            ? 'This invoice has been paid in full. Thank you.'
-            : invoice.status === 'cancelled'
-              ? 'This invoice has been cancelled.'
-              : 'Please refer to the payment terms below to settle this invoice.'}
-        </p>
-      )}
+      <p className="text-sm text-on-surface-variant">
+        {invoice.status === 'paid'
+          ? t('public.invoice.paidMessage')
+          : invoice.status === 'cancelled'
+            ? t('public.invoice.cancelledMessage')
+            : t('public.invoice.defaultMessage')}
+      </p>
     </PublicDocumentView>
   );
 }

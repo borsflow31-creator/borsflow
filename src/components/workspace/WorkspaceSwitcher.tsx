@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown, Plus, Check } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession } from 'next-auth/react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Workspace {
     id: string;
@@ -25,6 +26,7 @@ export default function WorkspaceSwitcher({ currentWorkspace, onCreateWorkspace 
     const router = useRouter();
     const { currentWorkspaceId, setWorkspace } = useAppStore();
     const { data: session } = useSession();
+    const { t } = useI18n();
 
     useEffect(() => {
         const fetchWorkspaces = async () => {
@@ -81,7 +83,7 @@ export default function WorkspaceSwitcher({ currentWorkspace, onCreateWorkspace 
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full group flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-container-highest transition-colors duration-150"
-                aria-label="Switch workspace"
+                aria-label={t('workspace.switcher.switchWorkspace')}
             >
                 <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-on-secondary font-semibold text-sm flex-shrink-0">
                     {effectiveWorkspace?.icon || effectiveWorkspace ? getInitials(effectiveWorkspace.name) : 'W'}
@@ -105,11 +107,11 @@ export default function WorkspaceSwitcher({ currentWorkspace, onCreateWorkspace 
                         <div className="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
                             {isLoading ? (
                                 <div className="px-3 py-4 text-center text-sm text-on-surface-variant">
-                                    Loading workspaces...
+                                    {t('workspace.switcher.loading')}
                                 </div>
                             ) : workspaces.length === 0 ? (
                                 <div className="px-3 py-4 text-center text-sm text-on-surface-variant">
-                                    No workspaces yet
+                                    {t('workspace.switcher.noWorkspaces')}
                                 </div>
                             ) : (
                                 workspaces.map((workspace) => {
@@ -153,7 +155,7 @@ export default function WorkspaceSwitcher({ currentWorkspace, onCreateWorkspace 
                             <div className="w-7 h-7 rounded-md bg-secondary/20 flex items-center justify-center flex-shrink-0">
                                 <Plus className="w-4 h-4" />
                             </div>
-                            <span className="text-sm font-medium">Create New Workspace</span>
+                            <span className="text-sm font-medium">{t('workspace.switcher.createNew')}</span>
                         </button>
                     </div>
                 </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Sparkles, X } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface PlanLimitPayload {
     error: string
@@ -15,13 +16,6 @@ interface PlanLimitPayload {
     foundingDiscountPercent?: number
 }
 
-const TITLES: Record<string, string> = {
-    ai_credits: "You've used this month's AI credits",
-    members: 'Your workspace is full',
-    email_sends: "You've reached this month's email sends",
-    invoices: "You've reached this month's invoices",
-}
-
 /**
  * Shows the upgrade (or, before paid plans launch, waitlist) prompt whenever any
  * API call answers 402 PLAN_LIMIT.
@@ -31,6 +25,13 @@ const TITLES: Record<string, string> = {
  * handling the failure as before; this adds the explanation on top.
  */
 export function PlanLimitModal() {
+    const { t } = useI18n()
+    const TITLES: Record<string, string> = {
+        ai_credits: t('settings.planLimit.titleAiCredits'),
+        members: t('settings.planLimit.titleMembers'),
+        email_sends: t('settings.planLimit.titleEmailSends'),
+        invoices: t('settings.planLimit.titleInvoices'),
+    }
     const [limit, setLimit] = useState<PlanLimitPayload | null>(null)
 
     useEffect(() => {
@@ -81,7 +82,7 @@ export function PlanLimitModal() {
                     <button
                         type="button"
                         onClick={() => setLimit(null)}
-                        aria-label="Close"
+                        aria-label={t('settings.planLimit.closeAria')}
                         className="rounded-lg p-1 text-[var(--n-muted)] hover:bg-[var(--n-elevated)] hover:text-[var(--n-text)]"
                     >
                         <X className="h-5 w-5" />
@@ -89,7 +90,7 @@ export function PlanLimitModal() {
                 </div>
 
                 <h2 id="plan-limit-title" className="mt-4 text-lg font-semibold text-[var(--n-text)]">
-                    {TITLES[limit.kind] ?? "You've reached a plan limit"}
+                    {TITLES[limit.kind] ?? t('settings.planLimit.titleGeneric')}
                 </h2>
                 <p className="mt-2 text-sm text-[var(--n-muted)]">{limit.error}</p>
 
@@ -99,7 +100,7 @@ export function PlanLimitModal() {
                             <div className="h-full w-full rounded-full bg-[var(--n-emerald)]" />
                         </div>
                         <p className="mt-1.5 text-xs text-[var(--n-muted)]">
-                            {limit.used} of {limit.limit} used
+                            {t('settings.planLimit.usedOfLimit', { used: limit.used, limit: limit.limit })}
                         </p>
                     </div>
                 )}
@@ -110,7 +111,7 @@ export function PlanLimitModal() {
                         onClick={() => setLimit(null)}
                         className="rounded-full px-4 py-2 text-sm font-medium text-[var(--n-muted)] hover:text-[var(--n-text)]"
                     >
-                        Not now
+                        {t('settings.planLimit.notNow')}
                     </button>
                     <Link
                         href={limit.upgradeUrl}
@@ -118,8 +119,8 @@ export function PlanLimitModal() {
                         className="inline-flex items-center justify-center rounded-full bg-[var(--n-text)] px-5 py-2 text-sm font-semibold text-[var(--n-base)]"
                     >
                         {limit.billingEnabled
-                            ? 'See plans'
-                            : `Join the waitlist - ${limit.foundingDiscountPercent ?? 30}% off for life`}
+                            ? t('settings.planLimit.seePlans')
+                            : t('settings.planLimit.joinWaitlistDiscount', { percent: limit.foundingDiscountPercent ?? 30 })}
                     </Link>
                 </div>
             </div>

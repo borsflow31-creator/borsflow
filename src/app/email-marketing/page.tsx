@@ -19,7 +19,8 @@ import TemplateModal from '@/components/email-marketing/TemplateModal'
 import SegmentModal from '@/components/email-marketing/SegmentModal'
 import ProviderModal from '@/components/email-marketing/ProviderModal'
 import AutomationModal from '@/components/email-marketing/AutomationModal'
-import { 
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider'
+import {
   Mail, 
   Send, 
   FileText, 
@@ -128,6 +129,7 @@ function EmailMarketingPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { currentWorkspaceId, setWorkspace } = useAppStore()
+  const { t } = useI18n()
 
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'campaigns')
   const workspaceId = currentWorkspaceId || ''
@@ -160,12 +162,12 @@ function EmailMarketingPageInner() {
   }, [status, router])
 
   const tabs = [
-    { id: 'campaigns', label: 'Campaigns', icon: Send },
-    { id: 'templates', label: 'Templates', icon: FileText },
-    { id: 'segments', label: 'Segments', icon: Users },
-    { id: 'automations', label: 'Automations', icon: Zap },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'providers', label: 'Providers', icon: Settings },
+    { id: 'campaigns', label: t('emailMarketing.tabs.campaigns'), icon: Send },
+    { id: 'templates', label: t('emailMarketing.tabs.templates'), icon: FileText },
+    { id: 'segments', label: t('emailMarketing.tabs.segments'), icon: Users },
+    { id: 'automations', label: t('emailMarketing.tabs.automations'), icon: Zap },
+    { id: 'analytics', label: t('emailMarketing.tabs.analytics'), icon: BarChart3 },
+    { id: 'providers', label: t('emailMarketing.tabs.providers'), icon: Settings },
   ]
 
   useEffect(() => {
@@ -249,7 +251,7 @@ function EmailMarketingPageInner() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      alert(data.error || 'Failed to save automation')
+      alert(data.error || t('emailMarketing.automationsTab.saveFailed'))
       return
     }
     setShowAutomationModal(false)
@@ -267,18 +269,18 @@ function EmailMarketingPageInner() {
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      alert(data.error || 'Failed to change automation status')
+      alert(data.error || t('emailMarketing.automationsTab.toggleFailed'))
       return
     }
     fetchData(workspaceId)
   }
 
   const handleDeleteAutomation = async (id: string) => {
-    if (!confirm('Delete this automation? Leads part-way through it will stop receiving its emails.')) return
+    if (!confirm(t('emailMarketing.automationsTab.deleteConfirm'))) return
     const res = await fetch(`/api/email-marketing/automations/${id}`, { method: 'DELETE' })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      alert(data.error || 'Failed to delete automation')
+      alert(data.error || t('emailMarketing.automationsTab.deleteFailed'))
       return
     }
     fetchData(workspaceId)
@@ -310,7 +312,7 @@ function EmailMarketingPageInner() {
     });
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(data.error || 'Failed to save template');
+      throw new Error(data.error || t('emailMarketing.templatesTab.saveFailed'));
     }
     setShowTemplateModal(false);
     fetchData(workspaceId);
@@ -324,7 +326,7 @@ function EmailMarketingPageInner() {
       body: JSON.stringify({ ...segment, workspaceId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save segment');
+    if (!res.ok) throw new Error(data.error || t('emailMarketing.segmentsTab.saveFailed'));
     setShowSegmentModal(false);
     fetchData(workspaceId);
   }
@@ -337,38 +339,38 @@ function EmailMarketingPageInner() {
       body: JSON.stringify({ ...provider, workspaceId })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to save provider');
+    if (!res.ok) throw new Error(data.error || t('emailMarketing.providersTab.saveFailed'));
     setShowProviderModal(false);
     fetchData(workspaceId);
   }
 
   const handleDeleteCampaign = async (id: string) => {
-    if (confirm('Are you sure you want to delete this campaign?')) {
+    if (confirm(t('emailMarketing.campaignsTab.deleteConfirm'))) {
       const res = await fetch(`/api/email-marketing/campaigns/${id}`, { method: 'DELETE' });
-      if (!res.ok) { alert('Failed to delete campaign'); return; }
+      if (!res.ok) { alert(t('emailMarketing.campaignsTab.deleteFailed')); return; }
       fetchData(workspaceId);
     }
   }
 
   const handleSendCampaign = async (id: string) => {
-    if (confirm('Are you sure you want to send this campaign now?')) {
+    if (confirm(t('emailMarketing.campaignsTab.sendConfirm'))) {
       await fetch(`/api/email-marketing/campaigns/${id}/send`, { method: 'POST' });
       fetchData(workspaceId);
     }
   }
 
   const handleDeleteTemplate = async (id: string) => {
-    if (confirm('Are you sure you want to delete this template?')) {
+    if (confirm(t('emailMarketing.templatesTab.deleteConfirm'))) {
       const res = await fetch(`/api/email-marketing/templates/${id}`, { method: 'DELETE' });
-      if (!res.ok) { alert('Failed to delete template'); return; }
+      if (!res.ok) { alert(t('emailMarketing.templatesTab.deleteFailed')); return; }
       fetchData(workspaceId);
     }
   }
 
   const handleDeleteSegment = async (id: string) => {
-    if (confirm('Are you sure you want to delete this segment?')) {
+    if (confirm(t('emailMarketing.segmentsTab.deleteConfirm'))) {
       const res = await fetch(`/api/email-marketing/segments/${id}`, { method: 'DELETE' });
-      if (!res.ok) { alert('Failed to delete segment'); return; }
+      if (!res.ok) { alert(t('emailMarketing.segmentsTab.deleteFailed')); return; }
       fetchData(workspaceId);
     }
   }
@@ -379,9 +381,9 @@ function EmailMarketingPageInner() {
   }
 
   const handleDeleteProvider = async (id: string) => {
-    if (confirm('Are you sure you want to delete this provider?')) {
+    if (confirm(t('emailMarketing.providersTab.deleteConfirm'))) {
       const res = await fetch(`/api/email-marketing/providers/${id}`, { method: 'DELETE' });
-      if (!res.ok) { alert('Failed to delete provider'); return; }
+      if (!res.ok) { alert(t('emailMarketing.providersTab.deleteFailed')); return; }
       fetchData(workspaceId);
     }
   }
@@ -414,7 +416,7 @@ function EmailMarketingPageInner() {
 
     const data = await res.json()
     if (!res.ok) {
-      throw new Error(data.error || 'Failed to clone starter template')
+      throw new Error(data.error || t('emailMarketing.templatesTab.cloneFailed'))
     }
 
     await fetchData(workspaceId)
@@ -447,7 +449,7 @@ function EmailMarketingPageInner() {
       }),
     })
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Failed to clone template for editing')
+    if (!res.ok) throw new Error(data.error || t('emailMarketing.templatesTab.cloneForEditFailed'))
 
     // Open the newly cloned template in the editor
     const cloned = data.template
@@ -461,19 +463,19 @@ function EmailMarketingPageInner() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
       case 'scheduled':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
       case 'sending':
-        return 'bg-yellow-100 text-yellow-800'
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
       case 'sent':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
       case 'paused':
-        return 'bg-orange-100 text-orange-800'
+        return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
       case 'cancelled':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
     }
   }
 
@@ -518,28 +520,28 @@ function EmailMarketingPageInner() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-surface-container-low border-b border-outline-variant/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <div className="flex items-center space-x-4">
-                <Mail className="h-6 w-6 text-indigo-600" />
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Email Marketing
+                <Mail className="h-6 w-6 text-secondary" />
+                <h1 className="text-xl font-semibold text-on-surface">
+                  {t('emailMarketing.page.title')}
                 </h1>
               </div>
               <div className="flex items-center space-x-3">
-                <button 
+                <button
                   onClick={() => fetchData(workspaceId)}
-                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                  title="Refresh"
+                  className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                  title={t('emailMarketing.page.refresh')}
                 >
                   <RefreshCw className="h-5 w-5" />
                 </button>
-                <button onClick={() => { setSelectedCampaign(null); setShowCampaignModal(true); }} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2">
+                <button onClick={() => { setSelectedCampaign(null); setShowCampaignModal(true); }} className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors flex items-center space-x-2">
                   <Plus className="h-4 w-4" />
-                  <span>Create Campaign</span>
+                  <span>{t('emailMarketing.page.createCampaign')}</span>
                 </button>
               </div>
             </div>
@@ -547,7 +549,7 @@ function EmailMarketingPageInner() {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-surface-container-low border-b border-outline-variant/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex space-x-8">
               {tabs.map((tab) => (
@@ -556,8 +558,8 @@ function EmailMarketingPageInner() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-4 border-b-2 transition-colors ${
                     activeTab === tab.id
-                      ? 'border-indigo-600 text-indigo-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                      ? 'border-secondary text-secondary'
+                      : 'border-transparent text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
                   <tab.icon className="h-5 w-5" />
@@ -733,6 +735,7 @@ function CampaignsContent({
   onDelete: (id: string) => void
   onSend: (id: string) => void
 }) {
+  const { t, formatDate } = useI18n()
   const filteredCampaigns = campaigns.filter(campaign =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     campaign.subject.toLowerCase().includes(searchQuery.toLowerCase())
@@ -750,90 +753,90 @@ function CampaignsContent({
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Email Campaigns
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.campaignsTab.heading')}
         </h2>
-        <p className="text-gray-600">
-          Create and manage your email campaigns with advanced targeting and automation.
+        <p className="text-on-surface-variant">
+          {t('emailMarketing.campaignsTab.subtitle')}
         </p>
       </div>
 
       {/* Campaign Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-3xl font-bold text-indigo-600">
+            <div className="text-3xl font-bold text-secondary">
               {stats.active}
             </div>
-            <Send className="h-8 w-8 text-indigo-200" />
+            <Send className="h-8 w-8 text-secondary/20" />
           </div>
-          <div className="text-gray-600">
-            Active Campaigns
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.campaignsTab.statActive')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-green-600">
               {stats.avgOpenRate}%
             </div>
-            <TrendingUp className="h-8 w-8 text-green-200" />
+            <TrendingUp className="h-8 w-8 text-green-200 dark:text-green-900/40" />
           </div>
-          <div className="text-gray-600">
-            Average Open Rate
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.campaignsTab.statAvgOpenRate')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-blue-600">
               {campaigns.reduce((acc, c) => acc + c.sentCount, 0).toLocaleString()}
             </div>
-            <Mail className="h-8 w-8 text-blue-200" />
+            <Mail className="h-8 w-8 text-blue-200 dark:text-blue-900/40" />
           </div>
-          <div className="text-gray-600">
-            Total Emails Sent
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.campaignsTab.statTotalSent')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-purple-600">
               {stats.draft}
             </div>
-            <FileText className="h-8 w-8 text-purple-200" />
+            <FileText className="h-8 w-8 text-purple-200 dark:text-purple-900/40" />
           </div>
-          <div className="text-gray-600">
-            Draft Campaigns
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.campaignsTab.statDraft')}
           </div>
         </div>
       </div>
 
       {/* Campaign List Header */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-surface-container-low rounded-lg shadow">
+        <div className="p-6 border-b border-outline-variant/20">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Campaigns ({filteredCampaigns.length})
+            <h3 className="text-lg font-semibold text-on-surface">
+              {t('emailMarketing.campaignsTab.listHeading', { count: filteredCampaigns.length })}
             </h3>
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
                 <input
                   type="text"
-                  placeholder="Search campaigns..."
+                  placeholder={t('emailMarketing.campaignsTab.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 />
               </div>
-              <div className="flex items-center space-x-1 border-l border-gray-300 pl-3">
+              <div className="flex items-center space-x-1 border-l border-outline-variant/40 pl-3">
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`p-2 rounded ${viewMode === 'list' ? 'bg-secondary/15 text-secondary' : 'text-on-surface-variant hover:text-on-surface'}`}
                 >
                   <List className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  className={`p-2 rounded ${viewMode === 'grid' ? 'bg-secondary/15 text-secondary' : 'text-on-surface-variant hover:text-on-surface'}`}
                 >
                   <LayoutGrid className="h-5 w-5" />
                 </button>
@@ -843,29 +846,29 @@ function CampaignsContent({
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-12 text-center text-on-surface-variant">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            Loading campaigns...
+            {t('emailMarketing.campaignsTab.loading')}
           </div>
         ) : filteredCampaigns.length === 0 ? (
           <div className="p-12 text-center">
-            <Mail className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No campaigns found</h3>
-            <p className="text-gray-500 mb-4">
-              {searchQuery ? 'Try adjusting your search' : 'Create your first email campaign to get started'}
+            <Mail className="h-16 w-16 text-on-surface-variant/30 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-on-surface mb-2">{t('emailMarketing.campaignsTab.emptyTitle')}</h3>
+            <p className="text-on-surface-variant mb-4">
+              {searchQuery ? t('emailMarketing.campaignsTab.emptySubtitleSearch') : t('emailMarketing.campaignsTab.emptySubtitleDefault')}
             </p>
             <button
               type="button"
               onClick={onCreate}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors"
             >
-              Create Campaign
+              {t('emailMarketing.page.createCampaign')}
             </button>
           </div>
         ) : viewMode === 'list' ? (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-outline-variant/20">
             {filteredCampaigns.map((campaign: EmailCampaign) => (
-              <div key={campaign.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div key={campaign.id} className="p-6 hover:bg-surface-container-high transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
@@ -873,43 +876,43 @@ function CampaignsContent({
                         {getStatusIcon(campaign.status)}
                         <span className="capitalize">{campaign.status}</span>
                       </span>
-                      <span className="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded capitalize">
+                      <span className="px-2 py-1 text-xs font-medium bg-secondary/15 text-secondary rounded capitalize">
                         {campaign.type}
                       </span>
-                      <h4 className="text-lg font-semibold text-gray-900">
+                      <h4 className="text-lg font-semibold text-on-surface">
                         {campaign.name}
                       </h4>
                     </div>
-                    <p className="text-gray-600 text-sm mb-3">
+                    <p className="text-on-surface-variant text-sm mb-3">
                       {campaign.subject}
                     </p>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-on-surface-variant">
                       <span className="flex items-center space-x-1">
                         <Users className="h-4 w-4" />
-                        <span>{campaign.totalRecipients.toLocaleString()} recipients</span>
+                        <span>{t('emailMarketing.campaignsTab.recipients', { count: campaign.totalRecipients })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Eye className="h-4 w-4" />
-                        <span>{calculateOpenRate(campaign)}% open rate</span>
+                        <span>{t('emailMarketing.campaignsTab.openRateValue', { rate: calculateOpenRate(campaign) })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <MousePointer2 className="h-4 w-4" />
-                        <span>{calculateClickRate(campaign)}% click rate</span>
+                        <span>{t('emailMarketing.campaignsTab.clickRateValue', { rate: calculateClickRate(campaign) })}</span>
                       </span>
                       <span className="flex items-center space-x-1">
                         <Calendar className="h-4 w-4" />
-                        <span>{new Date(campaign.createdAt).toLocaleDateString()}</span>
+                        <span>{formatDate(campaign.createdAt)}</span>
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded" onClick={() => onSend(campaign.id)}>
+                    <button className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded" onClick={() => onSend(campaign.id)}>
                       <Send className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded" onClick={() => onEdit(campaign)}>
+                    <button className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded" onClick={() => onEdit(campaign)}>
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" onClick={() => onDelete(campaign.id)}>
+                    <button className="p-2 text-on-surface-variant hover:text-red-600 hover:bg-red-50 rounded" onClick={() => onDelete(campaign.id)}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -921,44 +924,44 @@ function CampaignsContent({
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredCampaigns.map((campaign: EmailCampaign) => (
-                <div key={campaign.id} className="bg-gray-50 rounded-lg p-6 hover:shadow-lg transition-shadow">
+                <div key={campaign.id} className="bg-surface-container-high rounded-lg p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <span className={`px-2 py-1 text-xs font-medium rounded flex items-center space-x-1 ${getStatusColor(campaign.status)}`}>
                         {getStatusIcon(campaign.status)}
                         <span className="capitalize">{campaign.status}</span>
                       </span>
-                      <h4 className="text-lg font-semibold text-gray-900 mt-2">
+                      <h4 className="text-lg font-semibold text-on-surface mt-2">
                         {campaign.name}
                       </h4>
                     </div>
-                    <button className="p-1 text-gray-400 hover:text-gray-600">
+                    <button className="p-1 text-on-surface-variant hover:text-on-surface">
                       <MoreVertical className="h-5 w-5" />
                     </button>
                   </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                  <p className="text-on-surface-variant text-sm mb-4 line-clamp-2">
                     {campaign.subject}
                   </p>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <div className="text-2xl font-bold text-indigo-600">
+                      <div className="text-2xl font-bold text-secondary">
                         {calculateOpenRate(campaign)}%
                       </div>
-                      <div className="text-xs text-gray-500">Open Rate</div>
+                      <div className="text-xs text-on-surface-variant">{t('emailMarketing.campaignsTab.openRateLabel')}</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-green-600">
                         {calculateClickRate(campaign)}%
                       </div>
-                      <div className="text-xs text-gray-500">Click Rate</div>
+                      <div className="text-xs text-on-surface-variant">{t('emailMarketing.campaignsTab.clickRateLabel')}</div>
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <button className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-100" onClick={() => onSend(campaign.id)}>
-                      Send
+                    <button className="flex-1 px-4 py-2 text-sm border border-outline-variant/40 rounded hover:bg-surface-container-high" onClick={() => onSend(campaign.id)}>
+                      {t('emailMarketing.campaignsTab.send')}
                     </button>
-                    <button className="flex-1 px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700" onClick={() => onEdit(campaign)}>
-                      Edit
+                    <button className="flex-1 px-4 py-2 text-sm bg-secondary text-on-secondary rounded hover:opacity-90" onClick={() => onEdit(campaign)}>
+                      {t('common.edit')}
                     </button>
                   </div>
                 </div>
@@ -1008,18 +1011,19 @@ function TemplatesContent({
   onCreate: () => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useI18n()
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Email Templates
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.templatesTab.heading')}
         </h2>
       </div>
 
       {loading ? (
-        <div className="rounded-[28px] border border-gray-200 bg-white p-12 text-center text-gray-500 shadow-sm">
+        <div className="rounded-[28px] border border-outline-variant/20 bg-surface-container-low p-12 text-center text-on-surface-variant shadow-sm">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-          Loading templates...
+          {t('emailMarketing.templatesTab.loading')}
         </div>
       ) : (
         <div className="space-y-8">
@@ -1038,28 +1042,32 @@ function TemplatesContent({
   )
 }
 
-function describeTrigger(automation: EmailAutomation): string {
+type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string
+
+function describeTrigger(automation: EmailAutomation, t: TFunction): string {
   const trigger = automation.triggers?.[0]
-  if (!trigger) return 'No trigger configured'
+  if (!trigger) return t('emailMarketing.automationsTab.noTrigger')
   try {
     const c = JSON.parse(trigger.conditions)
-    if (!c?.toStage) return 'No trigger configured'
-    const from = c.fromStage ? ` from "${c.fromStage}"` : ''
-    return `When a lead moves${from} into "${c.toStage}"`
+    if (!c?.toStage) return t('emailMarketing.automationsTab.noTrigger')
+    if (c.fromStage) {
+      return t('emailMarketing.automationsTab.triggerMovesFrom', { fromStage: c.fromStage, toStage: c.toStage })
+    }
+    return t('emailMarketing.automationsTab.triggerMoves', { toStage: c.toStage })
   } catch {
-    return 'Invalid trigger'
+    return t('emailMarketing.automationsTab.invalidTrigger')
   }
 }
 
-function describeSchedule(automation: EmailAutomation): string {
+function describeSchedule(automation: EmailAutomation, t: TFunction): string {
   const steps = automation.steps || []
-  if (steps.length === 0) return 'No steps'
+  if (steps.length === 0) return t('emailMarketing.automationsTab.noSteps')
   const total = steps.reduce((acc, s) => acc + (s.delayMinutes || 0), 0)
-  const label = steps.length === 1 ? '1 email' : `${steps.length} emails`
-  if (total === 0) return `${label}, all sent immediately`
-  if (total < 60) return `${label} over ${total} min`
-  if (total < 60 * 24) return `${label} over ${Math.round(total / 60)} h`
-  return `${label} over ${Math.round(total / (60 * 24))} days`
+  const label = steps.length === 1 ? t('emailMarketing.automationsTab.oneEmail') : t('emailMarketing.automationsTab.emailsCount', { count: steps.length })
+  if (total === 0) return t('emailMarketing.automationsTab.allSentImmediately', { label })
+  if (total < 60) return t('emailMarketing.automationsTab.overMinutes', { label, minutes: total })
+  if (total < 60 * 24) return t('emailMarketing.automationsTab.overHours', { label, hours: Math.round(total / 60) })
+  return t('emailMarketing.automationsTab.overDays', { label, days: Math.round(total / (60 * 24)) })
 }
 
 function AutomationsContent({ automations, loading, onCreate, onEdit, onToggle, onDelete }: {
@@ -1070,124 +1078,125 @@ function AutomationsContent({ automations, loading, onCreate, onEdit, onToggle, 
   onToggle: (a: EmailAutomation) => void
   onDelete: (id: string) => void
 }) {
+  const { t } = useI18n()
   const active = automations.filter(a => a.status === 'active')
 
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Pipeline Automations
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.automationsTab.heading')}
         </h2>
-        <p className="text-gray-600">
-          Send a sequence of emails automatically when a lead reaches a stage in your CRM pipeline.
+        <p className="text-on-surface-variant">
+          {t('emailMarketing.automationsTab.subtitle')}
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-3xl font-bold text-indigo-600">{automations.length}</div>
-            <Zap className="h-8 w-8 text-indigo-200" />
+            <div className="text-3xl font-bold text-secondary">{automations.length}</div>
+            <Zap className="h-8 w-8 text-secondary/20" />
           </div>
-          <div className="text-gray-600">Automations</div>
+          <div className="text-on-surface-variant">{t('emailMarketing.automationsTab.statAutomations')}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-green-600">{active.length}</div>
-            <Play className="h-8 w-8 text-green-200" />
+            <Play className="h-8 w-8 text-green-200 dark:text-green-900/40" />
           </div>
-          <div className="text-gray-600">Running</div>
+          <div className="text-on-surface-variant">{t('emailMarketing.automationsTab.statRunning')}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-blue-600">
               {automations.reduce((acc, a) => acc + (a.activeEnrolled || 0), 0).toLocaleString()}
             </div>
-            <Users className="h-8 w-8 text-blue-200" />
+            <Users className="h-8 w-8 text-blue-200 dark:text-blue-900/40" />
           </div>
-          <div className="text-gray-600">Leads in a sequence</div>
+          <div className="text-on-surface-variant">{t('emailMarketing.automationsTab.statLeadsInSequence')}</div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-surface-container-low rounded-lg shadow">
+        <div className="p-6 border-b border-outline-variant/20">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Automations ({automations.length})
+            <h3 className="text-lg font-semibold text-on-surface">
+              {t('emailMarketing.automationsTab.listHeading', { count: automations.length })}
             </h3>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2" onClick={onCreate}>
+            <button className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors flex items-center space-x-2" onClick={onCreate}>
               <Plus className="h-4 w-4" />
-              <span>Create Automation</span>
+              <span>{t('emailMarketing.automationsTab.createAutomation')}</span>
             </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-12 text-center text-on-surface-variant">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            Loading automations...
+            {t('emailMarketing.automationsTab.loading')}
           </div>
         ) : automations.length === 0 ? (
           <div className="p-12 text-center">
-            <Zap className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No automations yet</h3>
-            <p className="text-gray-500 mb-4">
-              Pick a pipeline stage and the emails that should follow when a lead reaches it.
+            <Zap className="h-16 w-16 text-on-surface-variant/30 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-on-surface mb-2">{t('emailMarketing.automationsTab.emptyTitle')}</h3>
+            <p className="text-on-surface-variant mb-4">
+              {t('emailMarketing.automationsTab.emptySubtitle')}
             </p>
-            <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors" onClick={onCreate}>
-              Create Automation
+            <button className="px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors" onClick={onCreate}>
+              {t('emailMarketing.automationsTab.createAutomation')}
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-outline-variant/20">
             {automations.map((automation) => (
-              <div key={automation.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div key={automation.id} className="p-6 hover:bg-surface-container-high transition-colors">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-3 mb-1">
-                      <h4 className="text-base font-medium text-gray-900 truncate">{automation.name}</h4>
+                      <h4 className="text-base font-medium text-on-surface truncate">{automation.name}</h4>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         automation.status === 'active'
-                          ? 'bg-green-100 text-green-700'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
                           : automation.status === 'paused'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400'
                       }`}>
                         {automation.status}
                       </span>
                     </div>
                     {automation.description && (
-                      <p className="text-sm text-gray-500 mb-2 truncate">{automation.description}</p>
+                      <p className="text-sm text-on-surface-variant mb-2 truncate">{automation.description}</p>
                     )}
-                    <p className="text-sm text-gray-600">{describeTrigger(automation)}</p>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {describeSchedule(automation)}
+                    <p className="text-sm text-on-surface-variant">{describeTrigger(automation, t)}</p>
+                    <p className="text-sm text-on-surface-variant mt-1">
+                      {describeSchedule(automation, t)}
                       {' \u00b7 '}
-                      {automation.activeEnrolled || 0} active
+                      {t('emailMarketing.automationsTab.activeCount', { count: automation.activeEnrolled || 0 })}
                       {' \u00b7 '}
-                      {automation.completedCount || 0} completed
+                      {t('emailMarketing.automationsTab.completedCount', { count: automation.completedCount || 0 })}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => onToggle(automation)}
-                      className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                      title={automation.status === 'active' ? 'Pause' : 'Activate'}
+                      className="p-2 text-on-surface-variant hover:text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                      title={automation.status === 'active' ? t('emailMarketing.automationsTab.pause') : t('emailMarketing.automationsTab.activate')}
                     >
                       {automation.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     </button>
                     <button
                       onClick={() => onEdit(automation)}
-                      className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Edit"
+                      className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                      title={t('common.edit')}
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => onDelete(automation.id)}
                       className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
@@ -1203,120 +1212,121 @@ function AutomationsContent({ automations, loading, onCreate, onEdit, onToggle, 
 }
 
 function SegmentsContent({ segments, loading, onEdit, onCreate, onDelete }: { segments: SegmentationRule[]; loading: boolean; onEdit: (s: SegmentationRule) => void; onCreate: () => void; onDelete: (id: string) => void }) {
+  const { t } = useI18n()
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Customer Segments
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.segmentsTab.heading')}
         </h2>
-        <p className="text-gray-600">
-          Create dynamic segments based on lead attributes and behavior for targeted campaigns.
+        <p className="text-on-surface-variant">
+          {t('emailMarketing.segmentsTab.subtitle')}
         </p>
       </div>
 
       {/* Segment Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-3xl font-bold text-indigo-600">
+            <div className="text-3xl font-bold text-secondary">
               {segments.length}
             </div>
-            <Users className="h-8 w-8 text-indigo-200" />
+            <Users className="h-8 w-8 text-secondary/20" />
           </div>
-          <div className="text-gray-600">
-            Active Segments
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.segmentsTab.statActiveSegments')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-green-600">
               {segments.reduce((acc, s) => acc + (s.estimatedSize || 0), 0).toLocaleString()}
             </div>
-            <Target className="h-8 w-8 text-green-200" />
+            <Target className="h-8 w-8 text-green-200 dark:text-green-900/40" />
           </div>
-          <div className="text-gray-600">
-            Total Leads
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.segmentsTab.statTotalLeads')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-blue-600">
               {segments.filter(s => s.isActive).length}
             </div>
-            <Zap className="h-8 w-8 text-blue-200" />
+            <Zap className="h-8 w-8 text-blue-200 dark:text-blue-900/40" />
           </div>
-          <div className="text-gray-600">
-            Active Rules
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.segmentsTab.statActiveRules')}
           </div>
         </div>
       </div>
 
       {/* Segment List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-surface-container-low rounded-lg shadow">
+        <div className="p-6 border-b border-outline-variant/20">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Segments ({segments.length})
+            <h3 className="text-lg font-semibold text-on-surface">
+              {t('emailMarketing.segmentsTab.listHeading', { count: segments.length })}
             </h3>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2" onClick={onCreate}>
+            <button className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors flex items-center space-x-2" onClick={onCreate}>
               <Plus className="h-4 w-4" />
-              <span>Create Segment</span>
+              <span>{t('emailMarketing.segmentsTab.createSegment')}</span>
             </button>
           </div>
         </div>
         {loading ? (
-          <div className="p-12 text-center text-gray-500">
+          <div className="p-12 text-center text-on-surface-variant">
             <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
-            Loading segments...
+            {t('emailMarketing.segmentsTab.loading')}
           </div>
         ) : segments.length === 0 ? (
           <div className="p-12 text-center">
-            <Target className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No segments found</h3>
-            <p className="text-gray-500 mb-4">
-              Create your first segment to start targeting specific groups of leads
+            <Target className="h-16 w-16 text-on-surface-variant/30 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-on-surface mb-2">{t('emailMarketing.segmentsTab.emptyTitle')}</h3>
+            <p className="text-on-surface-variant mb-4">
+              {t('emailMarketing.segmentsTab.emptySubtitle')}
             </p>
-            <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors" onClick={onCreate}>
-              Create Segment
+            <button className="px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors" onClick={onCreate}>
+              {t('emailMarketing.segmentsTab.createSegment')}
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-outline-variant/20">
             {segments.map((segment: SegmentationRule) => (
-              <div key={segment.id} className="p-6 hover:bg-gray-50 transition-colors">
+              <div key={segment.id} className="p-6 hover:bg-surface-container-high transition-colors">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h4 className="text-lg font-semibold text-gray-900">
+                      <h4 className="text-lg font-semibold text-on-surface">
                         {segment.name}
                       </h4>
                       {segment.isActive ? (
                         <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded">
-                          Active
+                          {t('emailMarketing.segmentsTab.active')}
                         </span>
                       ) : (
-                        <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded">
-                          Inactive
+                        <span className="px-2 py-1 text-xs font-medium bg-surface-container-highest text-on-surface-variant rounded">
+                          {t('emailMarketing.segmentsTab.inactive')}
                         </span>
                       )}
                       {segment.estimatedSize && (
                         <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                          {segment.estimatedSize.toLocaleString()} leads
+                          {t('emailMarketing.segmentsTab.leadsCount', { count: segment.estimatedSize.toLocaleString() })}
                         </span>
                       )}
                     </div>
                     {segment.description && (
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-on-surface-variant text-sm">
                         {segment.description}
                       </p>
                     )}
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50" onClick={() => onEdit(segment)}>
-                      Edit
+                    <button className="px-3 py-1.5 text-sm border border-outline-variant/40 rounded hover:bg-surface-container-high" onClick={() => onEdit(segment)}>
+                      {t('common.edit')}
                     </button>
                     <button className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50" onClick={() => onDelete(segment.id)}>
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -1330,6 +1340,7 @@ function SegmentsContent({ segments, loading, onEdit, onCreate, onDelete }: { se
 }
 
 function AnalyticsContent({ campaigns }: { campaigns: EmailCampaign[] }) {
+  const { t } = useI18n()
   const totalSent = campaigns.reduce((acc, c) => acc + c.sentCount, 0)
   const totalDelivered = campaigns.reduce((acc, c) => acc + c.deliveredCount, 0)
   const totalOpened = campaigns.reduce((acc, c) => acc + c.openedCount, 0)
@@ -1349,136 +1360,136 @@ function AnalyticsContent({ campaigns }: { campaigns: EmailCampaign[] }) {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Email Analytics
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.analyticsTab.heading')}
         </h2>
-        <p className="text-gray-600">
-          Track performance metrics and insights for your email campaigns.
+        <p className="text-on-surface-variant">
+          {t('emailMarketing.analyticsTab.subtitle')}
         </p>
       </div>
 
       {/* Analytics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-3xl font-bold text-indigo-600">
+            <div className="text-3xl font-bold text-secondary">
               {totalSent.toLocaleString()}
             </div>
-            <Send className="h-8 w-8 text-indigo-200" />
+            <Send className="h-8 w-8 text-secondary/20" />
           </div>
-          <div className="text-gray-600">
-            Total Emails Sent
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.totalSent')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-green-600">
               {totalDelivered.toLocaleString()}
             </div>
-            <CheckCircle2 className="h-8 w-8 text-green-200" />
+            <CheckCircle2 className="h-8 w-8 text-green-200 dark:text-green-900/40" />
           </div>
-          <div className="text-gray-600">
-            Delivered
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.delivered')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-blue-600">
               {totalOpened.toLocaleString()}
             </div>
-            <Eye className="h-8 w-8 text-blue-200" />
+            <Eye className="h-8 w-8 text-blue-200 dark:text-blue-900/40" />
           </div>
-          <div className="text-gray-600">
-            Unique Opens
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.uniqueOpens')}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-3xl font-bold text-purple-600">
               {totalClicked.toLocaleString()}
             </div>
-            <MousePointer2 className="h-8 w-8 text-purple-200" />
+            <MousePointer2 className="h-8 w-8 text-purple-200 dark:text-purple-900/40" />
           </div>
-          <div className="text-gray-600">
-            Total Clicks
+          <div className="text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.totalClicks')}
           </div>
         </div>
       </div>
 
       {/* Performance Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-3xl font-bold text-green-600">
                 {openRate}%
               </div>
-              <div className="text-gray-600">Open Rate</div>
+              <div className="text-on-surface-variant">{t('emailMarketing.analyticsTab.openRate')}</div>
             </div>
-            <TrendingUp className="h-8 w-8 text-green-200" />
+            <TrendingUp className="h-8 w-8 text-green-200 dark:text-green-900/40" />
           </div>
-          <div className="text-sm text-gray-500">
-            {totalOpened.toLocaleString()} opens from {totalSent.toLocaleString()} sent
+          <div className="text-sm text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.opensFromSent', { opens: totalOpened.toLocaleString(), sent: totalSent.toLocaleString() })}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-3xl font-bold text-blue-600">
                 {clickRate}%
               </div>
-              <div className="text-gray-600">Click Rate</div>
+              <div className="text-on-surface-variant">{t('emailMarketing.analyticsTab.clickRate')}</div>
             </div>
-            <MousePointer2 className="h-8 w-8 text-blue-200" />
+            <MousePointer2 className="h-8 w-8 text-blue-200 dark:text-blue-900/40" />
           </div>
-          <div className="text-sm text-gray-500">
-            {totalClicked.toLocaleString()} clicks from {totalOpened.toLocaleString()} opens
+          <div className="text-sm text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.clicksFromOpens', { clicks: totalClicked.toLocaleString(), opens: totalOpened.toLocaleString() })}
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-surface-container-low rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-3xl font-bold text-red-600">
                 {bounceRate}%
               </div>
-              <div className="text-gray-600">Bounce Rate</div>
+              <div className="text-on-surface-variant">{t('emailMarketing.analyticsTab.bounceRate')}</div>
             </div>
-            <TrendingDown className="h-8 w-8 text-red-200" />
+            <TrendingDown className="h-8 w-8 text-red-200 dark:text-red-900/40" />
           </div>
-          <div className="text-sm text-gray-500">
-            {totalBounced.toLocaleString()} bounces from {totalSent.toLocaleString()} sent
+          <div className="text-sm text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.bouncesFromSent', { bounces: totalBounced.toLocaleString(), sent: totalSent.toLocaleString() })}
           </div>
         </div>
       </div>
 
       {/* Performance Chart Placeholder */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Email Performance Over Time
+      <div className="bg-surface-container-low rounded-lg shadow p-6 mb-8">
+        <h3 className="text-lg font-semibold text-on-surface mb-4">
+          {t('emailMarketing.analyticsTab.chartHeading')}
         </h3>
-        <div className="h-64 bg-gray-100 rounded flex items-center justify-center">
+        <div className="h-64 bg-surface-container-high rounded flex items-center justify-center">
           <div className="text-center">
-            <BarChart3 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <span className="text-gray-600">
-              Chart visualization will be rendered here
+            <BarChart3 className="h-16 w-16 text-on-surface-variant mx-auto mb-4" />
+            <span className="text-on-surface-variant">
+              {t('emailMarketing.analyticsTab.chartPlaceholder')}
             </span>
           </div>
         </div>
       </div>
 
       {/* Top Performing Campaigns */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Top Performing Campaigns
+      <div className="bg-surface-container-low rounded-lg shadow">
+        <div className="p-6 border-b border-outline-variant/20">
+          <h3 className="text-lg font-semibold text-on-surface">
+            {t('emailMarketing.analyticsTab.topCampaigns')}
           </h3>
         </div>
         {sortedCampaigns.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            No campaigns to display
+          <div className="p-12 text-center text-on-surface-variant">
+            {t('emailMarketing.analyticsTab.noCampaigns')}
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-outline-variant/20">
             {sortedCampaigns.map((campaign: EmailCampaign, index: number) => {
               const rate = campaign.sentCount > 0 ? ((campaign.openedCount / campaign.sentCount) * 100).toFixed(1) : '0.0'
               return (
@@ -1487,21 +1498,21 @@ function AnalyticsContent({ campaigns }: { campaigns: EmailCampaign[] }) {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-800' :
-                          index === 1 ? 'bg-gray-200 text-gray-800' :
-                          index === 2 ? 'bg-orange-100 text-orange-800' :
-                          'bg-gray-100 text-gray-600'
+                          index === 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                          index === 1 ? 'bg-gray-200 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300' :
+                          index === 2 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
+                          'bg-gray-100 text-gray-600 dark:bg-gray-800/40 dark:text-gray-400'
                         }`}>
                           #{index + 1}
                         </span>
                         <div>
-                          <h4 className="font-semibold text-gray-900">
+                          <h4 className="font-semibold text-on-surface">
                             {campaign.name}
                           </h4>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                            <span>{rate}% open rate</span>
+                          <div className="flex items-center space-x-4 text-sm text-on-surface-variant mt-1">
+                            <span>{t('emailMarketing.analyticsTab.openRateValue', { rate })}</span>
                             <span>•</span>
-                            <span>{campaign.sentCount.toLocaleString()} sent</span>
+                            <span>{t('emailMarketing.analyticsTab.sentCount', { count: campaign.sentCount.toLocaleString() })}</span>
                           </div>
                         </div>
                       </div>
@@ -1526,6 +1537,7 @@ function AnalyticsContent({ campaigns }: { campaigns: EmailCampaign[] }) {
  * configure; this only surfaces the outcome, and a Retry when it didn't finish.
  */
 function TrackingStatus({ provider, onRetry }: { provider: EmailProvider; onRetry: (id: string) => Promise<void> }) {
+  const { t } = useI18n()
   const [retrying, setRetrying] = useState(false)
   const status = provider.webhookStatus
 
@@ -1533,16 +1545,16 @@ function TrackingStatus({ provider, onRetry }: { provider: EmailProvider; onRetr
     return (
       <div className="flex items-center gap-1.5 text-sm text-green-700 mt-1">
         <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-        Bounce and complaint tracking on
+        {t('emailMarketing.providersTab.trackingOn')}
       </div>
     )
   }
 
   const canRetry = status === 'error' || !status
-  const message = provider.webhookError || "Bounce and complaint tracking isn't set up yet."
+  const message = provider.webhookError || t('emailMarketing.providersTab.trackingNotSetUp')
 
   return (
-    <div className={`flex items-start gap-1.5 text-sm mt-1 ${status === 'error' || !status ? 'text-amber-700' : 'text-gray-500'}`}>
+    <div className={`flex items-start gap-1.5 text-sm mt-1 ${status === 'error' || !status ? 'text-amber-700' : 'text-on-surface-variant'}`}>
       {status === 'waiting_public_url'
         ? <Clock className="h-4 w-4 mt-0.5 flex-shrink-0" />
         : <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />}
@@ -1551,14 +1563,14 @@ function TrackingStatus({ provider, onRetry }: { provider: EmailProvider; onRetr
         {canRetry && (
           <button
             type="button"
-            className="ml-2 font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+            className="ml-2 font-medium text-secondary hover:text-secondary disabled:opacity-50"
             disabled={retrying}
             onClick={async () => {
               setRetrying(true)
               try { await onRetry(provider.id) } finally { setRetrying(false) }
             }}
           >
-            {retrying ? 'Setting up…' : status ? 'Retry' : 'Set up now'}
+            {retrying ? t('emailMarketing.providersTab.settingUp') : status ? t('emailMarketing.providersTab.retry') : t('emailMarketing.providersTab.setUpNow')}
           </button>
         )}
       </span>
@@ -1567,36 +1579,37 @@ function TrackingStatus({ provider, onRetry }: { provider: EmailProvider; onRetr
 }
 
 function ProvidersContent({ providers, loading, onEdit, onCreate, onTest, onDelete, onRetryTracking }: any) {
+  const { t, formatNumber } = useI18n()
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Email Providers
+        <h2 className="text-2xl font-bold text-on-surface mb-2">
+          {t('emailMarketing.providersTab.heading')}
         </h2>
-        <p className="text-gray-600">
-          Configure and manage your email service providers for sending campaigns.
+        <p className="text-on-surface-variant">
+          {t('emailMarketing.providersTab.subtitle')}
         </p>
       </div>
 
       {/* Provider List */}
       <div className="space-y-4">
         {providers.map((provider: EmailProvider) => (
-          <div key={provider.id} className="bg-white rounded-lg shadow p-6">
+          <div key={provider.id} className="bg-surface-container-low rounded-lg shadow p-6">
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h4 className="text-lg font-semibold text-gray-900">
+                  <h4 className="text-lg font-semibold text-on-surface">
                     {provider.name}
                   </h4>
                   <div className="flex items-center space-x-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded capitalize flex items-center gap-1.5 ${
-                      provider.type === 'sendgrid' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                      provider.type === 'ses' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                      provider.type === 'resend' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                      provider.type === 'mailgun' ? 'bg-red-50 text-red-700 border border-red-200' :
-                      provider.type === 'postmark' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                      provider.type === 'brevo' ? 'bg-green-50 text-green-700 border border-green-200' :
-                      'bg-gray-100 text-gray-800'
+                      provider.type === 'sendgrid' ? 'bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' :
+                      provider.type === 'ses' ? 'bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800' :
+                      provider.type === 'resend' ? 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800' :
+                      provider.type === 'mailgun' ? 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' :
+                      provider.type === 'postmark' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800' :
+                      provider.type === 'brevo' ? 'bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' :
+                      'bg-surface-container-highest text-on-surface-variant'
                     }`}>
                       {provider.type === 'sendgrid' && <img src="https://www.vectorlogo.zone/logos/sendgrid/sendgrid-icon.svg" className="w-3.5 h-3.5" alt="" />}
                       {provider.type === 'ses' && <img src="https://www.vectorlogo.zone/logos/amazon_aws/amazon_aws-icon.svg" className="w-3.5 h-3.5" alt="" />}
@@ -1608,38 +1621,38 @@ function ProvidersContent({ providers, loading, onEdit, onCreate, onTest, onDele
                       <span className="capitalize">{provider.type}</span>
                     </span>
                     {provider.isDefault && (
-                      <span className="px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-800 rounded">
-                        Default
+                      <span className="px-2 py-1 text-xs font-medium bg-secondary/15 text-secondary rounded">
+                        {t('emailMarketing.providersTab.default')}
                       </span>
                     )}
                   </div>
                   <span className={`px-2 py-1 text-xs font-medium rounded ${
-                    provider.isActive 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
+                    provider.isActive
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                   }`}>
-                    {provider.isActive ? 'Active' : 'Inactive'}
+                    {provider.isActive ? t('emailMarketing.providersTab.active') : t('emailMarketing.providersTab.inactive')}
                   </span>
                 </div>
-                <div className="text-gray-600 text-sm">
-                  From: {provider.fromEmail}
+                <div className="text-on-surface-variant text-sm">
+                  {t('emailMarketing.providersTab.from', { email: provider.fromEmail })}
                 </div>
                 <TrackingStatus provider={provider} onRetry={onRetryTracking} />
                 {provider.dailyLimit && (
-                  <div className="text-gray-500 text-sm mt-1">
-                    Daily limit: {provider.dailyLimit.toLocaleString()} emails
+                  <div className="text-on-surface-variant text-sm mt-1">
+                    {t('emailMarketing.providersTab.dailyLimit', { count: formatNumber(provider.dailyLimit) })}
                   </div>
                 )}
               </div>
               <div className="flex items-center space-x-2">
-                <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50" onClick={() => onEdit(provider)}>
-                  Configure
+                <button className="px-3 py-1.5 text-sm border border-outline-variant/40 rounded hover:bg-surface-container-high" onClick={() => onEdit(provider)}>
+                  {t('emailMarketing.providersTab.configure')}
                 </button>
-                <button className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50" onClick={() => onTest(provider)}>
-                  Test
+                <button className="px-3 py-1.5 text-sm border border-outline-variant/40 rounded hover:bg-surface-container-high" onClick={() => onTest(provider)}>
+                  {t('emailMarketing.providersTab.test')}
                 </button>
                 <button className="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50" onClick={() => onDelete(provider.id)}>
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -1647,10 +1660,10 @@ function ProvidersContent({ providers, loading, onEdit, onCreate, onTest, onDele
         ))}
 
         {/* Add Provider Button */}
-        <div className="bg-white rounded-lg shadow p-6 border-2 border-dashed border-gray-300 flex flex-col items-center justify-center hover:border-indigo-400 hover:bg-indigo-50 transition-colors cursor-pointer" onClick={onCreate}>
-          <Settings className="h-12 w-12 text-gray-400 mb-3" />
-          <button className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-            Add New Provider
+        <div className="bg-surface-container-low rounded-lg shadow p-6 border-2 border-dashed border-outline-variant flex flex-col items-center justify-center hover:border-secondary hover:bg-secondary/10 transition-colors cursor-pointer" onClick={onCreate}>
+          <Settings className="h-12 w-12 text-on-surface-variant mb-3" />
+          <button className="px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors">
+            {t('emailMarketing.providersTab.addNew')}
           </button>
         </div>
       </div>

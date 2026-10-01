@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Package, Search, X } from 'lucide-react';
 import { formatMoney } from '@/lib/products';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { ProductPickResult } from '@/types';
 
 interface SearchProduct {
@@ -29,6 +30,7 @@ export default function ProductPicker({
   onClose,
   currency = 'USD',
 }: ProductPickerProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [products, setProducts] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,7 +120,7 @@ export default function ProductPicker({
           type="button"
           onClick={onClose}
           className="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-          aria-label="Close product picker"
+          aria-label={t('misc.closeProductPicker')}
         >
           <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
@@ -133,7 +135,7 @@ export default function ProductPicker({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search by product name, SKU, or description"
+            placeholder={t('misc.searchProducts')}
             className="w-full rounded-lg bg-surface-container-low py-2 pl-9 pr-3 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
           />
           {loading ? (

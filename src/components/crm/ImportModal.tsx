@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Pipeline {
     id: string;
@@ -34,21 +35,6 @@ interface FieldDef {
     label: string;
     required?: boolean;
 }
-
-const CRM_FIELDS: FieldDef[] = [
-    { key: 'firstName', label: 'First Name', required: true },
-    { key: 'lastName', label: 'Last Name', required: true },
-    { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'company', label: 'Company' },
-    { key: 'position', label: 'Position / Title' },
-    { key: 'status', label: 'Status' },
-    { key: 'stage', label: 'Stage' },
-    { key: 'value', label: 'Deal Value' },
-    { key: 'source', label: 'Source' },
-    { key: 'notes', label: 'Notes' },
-    { key: 'tags', label: 'Tags (comma-separated)' },
-];
 
 function parseCSV(text: string): string[][] {
     const rows: string[][] = [];
@@ -101,6 +87,21 @@ function autoMatch(header: string): CRMField {
 type Step = 'upload' | 'map' | 'preview' | 'done';
 
 export default function ImportModal({ pipeline, onClose, onImportComplete }: ImportModalProps) {
+    const { t } = useI18n();
+    const CRM_FIELDS: FieldDef[] = useMemo(() => [
+        { key: 'firstName', label: t('crm.importModal.fields.firstName'), required: true },
+        { key: 'lastName', label: t('crm.importModal.fields.lastName'), required: true },
+        { key: 'email', label: t('crm.importModal.fields.email') },
+        { key: 'phone', label: t('crm.importModal.fields.phone') },
+        { key: 'company', label: t('crm.importModal.fields.company') },
+        { key: 'position', label: t('crm.importModal.fields.position') },
+        { key: 'status', label: t('crm.importModal.fields.status') },
+        { key: 'stage', label: t('crm.importModal.fields.stage') },
+        { key: 'value', label: t('crm.importModal.fields.value') },
+        { key: 'source', label: t('crm.importModal.fields.source') },
+        { key: 'notes', label: t('crm.importModal.fields.notes') },
+        { key: 'tags', label: t('crm.importModal.fields.tags') },
+    ], [t]);
     const [step, setStep] = useState<Step>('upload');
     const [dragOver, setDragOver] = useState(false);
     const [fileName, setFileName] = useState('');
@@ -115,13 +116,13 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
     const processFile = (file: File) => {
         setError('');
         if (!file.name.match(/\.(csv|xlsx|xls|tsv|txt)$/i)) {
-            setError('Please upload a CSV, Excel (.xlsx/.xls), or TSV file.');
+            setError(t('crm.importModal.invalidFileType'));
             return;
         }
 
         // For Excel files, show a friendly notice
         if (file.name.match(/\.(xlsx|xls)$/i)) {
-            setError('Excel files: please export as CSV first (File → Save As → CSV). CSV import is fully supported.');
+            setError(t('crm.importModal.excelNotice'));
             return;
         }
 
@@ -131,13 +132,13 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
             const text = e.target?.result as string;
             const parsed = parseCSV(text);
             if (parsed.length < 2) {
-                setError('File must have at least a header row and one data row.');
+                setError(t('crm.importModal.minRowsError'));
                 return;
             }
             const hdrs = parsed[0];
             const dataRows = parsed.slice(1).filter(r => r.some(c => c.trim()));
             if (dataRows.length === 0) {
-                setError('No data rows found in the file.');
+                setError(t('crm.importModal.noDataRowsError'));
                 return;
             }
             setHeaders(hdrs);
@@ -145,7 +146,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
             setMapping(hdrs.map(h => autoMatch(h)));
             setStep('map');
         };
-        reader.onerror = () => setError('Failed to read file.');
+        reader.onerror = () => setError(t('crm.importModal.readFileError'));
         reader.readAsText(file, 'UTF-8');
     };
 
@@ -188,13 +189,13 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
             });
             const data = await res.json();
             if (!res.ok) {
-                setError(data.error || 'Import failed.');
+                setError(data.error || t('crm.importModal.importFailed'));
                 return;
             }
             setResult(data);
             setStep('done');
         } catch {
-            setError('Network error. Please try again.');
+            setError(t('crm.importModal.networkError'));
         } finally {
             setImporting(false);
         }
@@ -214,15 +215,15 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-outline-variant">
                     <div>
-                        <h2 className="title-lg text-on-surface">Import Leads</h2>
+                        <h2 className="title-lg text-on-surface">{t('crm.importModal.title')}</h2>
                         <p className="body-sm text-on-surface-variant mt-0.5">
-                            Pipeline: <span className="font-medium">{pipeline.name}</span>
+                            {t('crm.importModal.pipelineLabel')} <span className="font-medium">{pipeline.name}</span>
                         </p>
                     </div>
                     <button
                         onClick={handleClose}
                         className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
-                        aria-label="Close"
+                        aria-label={t('common.close')}
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -244,7 +245,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 {i + 1}
                             </div>
                             <span className={`text-xs capitalize hidden sm:inline ${step === s ? 'text-on-surface font-medium' : 'text-on-surface-variant'}`}>
-                                {s === 'upload' ? 'Upload' : s === 'map' ? 'Map Columns' : s === 'preview' ? 'Preview' : 'Done'}
+                                {s === 'upload' ? t('crm.importModal.stepUpload') : s === 'map' ? t('crm.importModal.stepMap') : s === 'preview' ? t('crm.importModal.stepPreview') : t('crm.importModal.stepDone')}
                             </span>
                             {i < 3 && <div className="w-6 h-px bg-outline-variant mx-1" />}
                         </div>
@@ -276,8 +277,8 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 <svg className="w-10 h-10 mx-auto text-on-surface-variant mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                 </svg>
-                                <p className="body-md text-on-surface font-medium">Drop your file here or click to browse</p>
-                                <p className="body-sm text-on-surface-variant mt-1">CSV or TSV files supported (max 1,000 rows)</p>
+                                <p className="body-md text-on-surface font-medium">{t('crm.importModal.dropZoneTitle')}</p>
+                                <p className="body-sm text-on-surface-variant mt-1">{t('crm.importModal.dropZoneSubtitle')}</p>
                                 <input
                                     ref={fileRef}
                                     type="file"
@@ -288,7 +289,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                             </div>
 
                             <div className="bg-surface-container rounded-lg p-4">
-                                <p className="body-sm font-medium text-on-surface mb-2">Expected columns (any order):</p>
+                                <p className="body-sm font-medium text-on-surface mb-2">{t('crm.importModal.expectedColumns')}</p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {CRM_FIELDS.map(f => (
                                         <span key={f.key} className={`px-2 py-0.5 rounded text-xs ${f.required ? 'bg-primary/20 text-primary font-medium' : 'bg-surface-container-high text-on-surface-variant'}`}>
@@ -296,7 +297,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                         </span>
                                     ))}
                                 </div>
-                                <p className="body-xs text-on-surface-variant mt-2">* Required fields</p>
+                                <p className="body-xs text-on-surface-variant mt-2">{t('crm.importModal.requiredNote')}</p>
                             </div>
                         </div>
                     )}
@@ -305,15 +306,15 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                     {step === 'map' && (
                         <div className="space-y-4">
                             <p className="body-sm text-on-surface-variant">
-                                Match your file columns to CRM fields. <span className="text-on-surface font-medium">{rows.length} rows</span> detected in <span className="font-medium">{fileName}</span>.
+                                {t('crm.importModal.mapInstructions', { count: rows.length, fileName })}
                             </p>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-outline-variant">
-                                            <th className="text-left py-2 pr-4 text-on-surface-variant font-medium">File Column</th>
-                                            <th className="text-left py-2 pr-4 text-on-surface-variant font-medium">Sample Value</th>
-                                            <th className="text-left py-2 text-on-surface-variant font-medium">Maps To</th>
+                                            <th className="text-left py-2 pr-4 text-on-surface-variant font-medium">{t('crm.importModal.colFileColumn')}</th>
+                                            <th className="text-left py-2 pr-4 text-on-surface-variant font-medium">{t('crm.importModal.colSampleValue')}</th>
+                                            <th className="text-left py-2 text-on-surface-variant font-medium">{t('crm.importModal.colMapsTo')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -321,7 +322,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                             <tr key={i} className="border-b border-outline-variant/50">
                                                 <td className="py-2 pr-4 text-on-surface font-medium">{header}</td>
                                                 <td className="py-2 pr-4 text-on-surface-variant truncate max-w-[140px]">
-                                                    {rows[0]?.[i] || <span className="italic text-on-surface-variant/50">empty</span>}
+                                                    {rows[0]?.[i] || <span className="italic text-on-surface-variant/50">{t('crm.importModal.emptyValue')}</span>}
                                                 </td>
                                                 <td className="py-2">
                                                     <select
@@ -333,7 +334,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                                         }}
                                                         className="w-full px-2 py-1 bg-surface-container-high rounded text-on-surface text-sm focus:outline-none focus:bg-surface-container-highest"
                                                     >
-                                                        <option value="__skip__">— Skip —</option>
+                                                        <option value="__skip__">{t('crm.importModal.skipOption')}</option>
                                                         {CRM_FIELDS.map(f => (
                                                             <option key={f.key} value={f.key}>{f.label}{f.required ? ' *' : ''}</option>
                                                         ))}
@@ -345,7 +346,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 </table>
                             </div>
                             {!canImport && (
-                                <p className="text-error text-sm">You must map at least <strong>First Name</strong> and <strong>Last Name</strong> columns.</p>
+                                <p className="text-error text-sm">{t('crm.importModal.mapRequiredError')}</p>
                             )}
                         </div>
                     )}
@@ -354,7 +355,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                     {step === 'preview' && (
                         <div className="space-y-4">
                             <p className="body-sm text-on-surface-variant">
-                                Previewing first {previewRows.length} of <span className="text-on-surface font-medium">{rows.length}</span> rows to be imported.
+                                {t('crm.importModal.previewInstructions', { shown: previewRows.length, total: rows.length })}
                             </p>
                             <div className="overflow-x-auto rounded-lg border border-outline-variant">
                                 <table className="w-full text-sm">
@@ -382,7 +383,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                             </div>
                             {rows.length > 5 && (
                                 <p className="body-xs text-on-surface-variant text-center">
-                                    …and {rows.length - 5} more rows
+                                    {t('crm.importModal.moreRows', { count: rows.length - 5 })}
                                 </p>
                             )}
                         </div>
@@ -397,21 +398,20 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 </svg>
                             </div>
                             <div>
-                                <p className="title-md text-on-surface">Import complete!</p>
+                                <p className="title-md text-on-surface">{t('crm.importModal.importComplete')}</p>
                                 <p className="body-sm text-on-surface-variant mt-1">
-                                    <span className="text-primary font-semibold">{result.created}</span> leads imported
-                                    {result.skipped > 0 && <>, <span className="text-on-surface-variant">{result.skipped}</span> skipped</>}.
+                                    <span className="text-primary font-semibold">{t('crm.importModal.resultCreated', { count: result.created })}</span>
+                                    {result.skipped > 0 && <span className="text-on-surface-variant">{t('crm.importModal.resultSkipped', { count: result.skipped })}</span>}.
                                 </p>
                             </div>
                             {!!result.stageCoerced && (
                                 <p className="body-sm text-on-surface-variant">
-                                    {result.stageCoerced} lead{result.stageCoerced === 1 ? '' : 's'} had a stage that doesn&apos;t exist
-                                    in &quot;{pipeline.name}&quot; and {result.stageCoerced === 1 ? 'was' : 'were'} placed in &quot;{pipeline.stages[0]}&quot;.
+                                    {t('crm.importModal.stageCoercedNotice', { count: result.stageCoerced, pipelineName: pipeline.name, firstStage: pipeline.stages[0] })}
                                 </p>
                             )}
                             {result.errors.length > 0 && (
                                 <div className="text-left bg-surface-container rounded-lg p-3 max-h-32 overflow-y-auto">
-                                    <p className="text-xs font-medium text-on-surface-variant mb-1">Errors:</p>
+                                    <p className="text-xs font-medium text-on-surface-variant mb-1">{t('crm.importModal.errorsHeading')}</p>
                                     {result.errors.map((e, i) => (
                                         <p key={i} className="text-xs text-error">{e}</p>
                                     ))}
@@ -429,7 +429,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 onClick={() => setStep(step === 'map' ? 'upload' : 'map')}
                                 className="px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
                             >
-                                Back
+                                {t('common.back')}
                             </button>
                         )}
                     </div>
@@ -438,7 +438,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                             onClick={handleClose}
                             className="px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
                         >
-                            {step === 'done' ? 'Close' : 'Cancel'}
+                            {step === 'done' ? t('common.close') : t('common.cancel')}
                         </button>
                         {step === 'map' && (
                             <button
@@ -446,7 +446,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 disabled={!canImport}
                                 className="px-4 py-2 text-sm bg-primary text-on-primary rounded hover:bg-primary-container transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                Preview
+                                {t('crm.importModal.previewButton')}
                             </button>
                         )}
                         {step === 'preview' && (
@@ -455,7 +455,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                                 disabled={importing}
                                 className="px-4 py-2 text-sm bg-primary text-on-primary rounded hover:bg-primary-container transition-colors disabled:opacity-60"
                             >
-                                {importing ? 'Importing…' : `Import ${rows.length} leads`}
+                                {importing ? t('crm.importModal.importingButton') : t('crm.importModal.importButton', { count: rows.length })}
                             </button>
                         )}
                     </div>

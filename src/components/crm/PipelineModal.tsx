@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Pipeline {
     id: string;
@@ -25,6 +26,7 @@ interface PipelineModalProps {
 }
 
 export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCountsLoaded = false, onSave, onClose }: PipelineModalProps) {
+    const { t } = useI18n();
     const [formData, setFormData] = useState({
         name: pipeline?.name || '',
         description: pipeline?.description || '',
@@ -80,7 +82,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
         const remaining = formData.stages.filter((_, i) => i !== removedIndex);
 
         if (remaining.length === 0) {
-            alert('A pipeline needs at least one stage.');
+            alert(t('crm.pipelineModal.minStageAlert'));
             return;
         }
 
@@ -91,12 +93,11 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
         // silently skipping the guard.
         if (!leadCountsLoaded) {
             if (!confirm(
-                `Remove "${stageToRemove}"? Any leads in it will be moved to "${remaining[0]}".`
+                t('crm.pipelineModal.confirmRemoveStage', { stage: stageToRemove, target: remaining[0] })
             )) return;
         } else if (affected > 0) {
             if (!confirm(
-                `"${stageToRemove}" holds ${affected} lead${affected === 1 ? '' : 's'}. ` +
-                `Removing it will move ${affected === 1 ? 'it' : 'them'} to "${remaining[0]}". Continue?`
+                t('crm.pipelineModal.confirmRemoveStageWithLeads', { stage: stageToRemove, count: affected, target: remaining[0] })
             )) return;
         }
 
@@ -132,7 +133,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                     {/* Header */}
                     <div className="mb-6 flex items-center justify-between">
                         <h2 className="headline-lg text-on-surface">
-                            {pipeline ? 'Edit Pipeline' : 'Create New Pipeline'}
+                            {pipeline ? t('crm.pipelineModal.editTitle') : t('crm.pipelineModal.createTitle')}
                         </h2>
                         <button
                             onClick={onClose}
@@ -149,34 +150,34 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                         {/* Pipeline Details */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Pipeline Name *
+                                {t('crm.pipelineModal.nameLabel')}
                             </label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 className="premium-input w-full px-4 py-2.5 text-sm transition-all"
-                                placeholder="e.g., Sales Pipeline"
+                                placeholder={t('crm.pipelineModal.namePlaceholder')}
                                 required
                             />
                         </div>
 
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Description
+                                {t('crm.pipelineModal.descriptionLabel')}
                             </label>
                             <textarea
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 rows={3}
                                 className="premium-input w-full px-4 py-2.5 text-sm transition-all resize-none"
-                                placeholder="Describe this pipeline..."
+                                placeholder={t('crm.pipelineModal.descriptionPlaceholder')}
                             />
                         </div>
 
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Color
+                                {t('crm.pipelineModal.colorLabel')}
                             </label>
                             <div className="flex items-center gap-3">
                                 <input
@@ -198,7 +199,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                         {/* Stages */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
-                                Pipeline Stages
+                                {t('crm.pipelineModal.stagesLabel')}
                             </label>
                             <div className="flex gap-2 mb-3">
                                 <input
@@ -207,14 +208,14 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                     onChange={(e) => setNewStage(e.target.value)}
                                     onKeyPress={handleKeyPress}
                                     className="premium-input flex-1 px-4 py-2.5 text-sm transition-all"
-                                    placeholder="Add a new stage..."
+                                    placeholder={t('crm.pipelineModal.addStagePlaceholder')}
                                 />
                                 <button
                                     type="button"
                                     onClick={handleAddStage}
                                     className="px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
                                 >
-                                    Add Stage
+                                    {t('crm.pipelineModal.addStageButton')}
                                 </button>
                             </div>
 
@@ -231,11 +232,11 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                                 value={stage}
                                                 onChange={(e) => handleRenameStage(index, e.target.value)}
                                                 className="premium-input w-full px-3 py-1.5 text-sm transition-all"
-                                                aria-label={`Stage ${index + 1} name`}
+                                                aria-label={t('crm.pipelineModal.stageNameAria', { number: index + 1 })}
                                             />
                                             {stageOrigins[index] && stageOrigins[index] !== stage && (
                                                 <p className="body-sm text-on-surface-variant mt-1">
-                                                    Renaming from &quot;{stageOrigins[index]}&quot; - leads stay in this column.
+                                                    {t('crm.pipelineModal.renamingFrom', { from: stageOrigins[index] as string })}
                                                 </p>
                                             )}
                                         </div>
@@ -245,7 +246,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                                 onClick={() => handleMoveStage(index, 'up')}
                                                 disabled={index === 0}
                                                 className="p-1 text-on-surface-variant hover:text-on-surface disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                title="Move Up"
+                                                title={t('crm.pipelineModal.moveUp')}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -256,7 +257,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                                 onClick={() => handleMoveStage(index, 'down')}
                                                 disabled={index === formData.stages.length - 1}
                                                 className="p-1 text-on-surface-variant hover:text-on-surface disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                title="Move Down"
+                                                title={t('crm.pipelineModal.moveDown')}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -266,7 +267,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                                 type="button"
                                                 onClick={() => handleRemoveStage(stage)}
                                                 className="p-1 text-error hover:bg-error-container rounded transition-colors"
-                                                title="Remove Stage"
+                                                title={t('crm.pipelineModal.removeStage')}
                                             >
                                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -279,7 +280,7 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
 
                             {formData.stages.length === 0 && (
                                 <p className="body-sm text-on-surface-variant text-center py-4">
-                                    No stages added yet. Add at least one stage to continue.
+                                    {t('crm.pipelineModal.noStages')}
                                 </p>
                             )}
                         </div>
@@ -291,14 +292,14 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
                                 onClick={onClose}
                                 className="px-6 py-2 text-sm text-on-surface hover:bg-surface-container-high rounded transition-colors"
                             >
-                                Cancel
+                                {t('common.cancel')}
                             </button>
                             <button
                                 type="submit"
                                 disabled={formData.stages.length === 0}
                                 className="px-6 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                                {pipeline ? 'Update Pipeline' : 'Create Pipeline'}
+                                {pipeline ? t('crm.pipelineModal.updateButton') : t('crm.pipelineModal.createButton')}
                             </button>
                         </div>
                     </form>

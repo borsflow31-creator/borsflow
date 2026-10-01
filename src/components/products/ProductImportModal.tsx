@@ -1,63 +1,41 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Loader2, Upload, X } from 'lucide-react';
+import { FileSpreadsheet, Loader2, Upload, X } from 'lucide-react';
+import { MAX_IMPORT_PRODUCTS } from '@/lib/products';
+import {
+  MAX_SPREADSHEET_BYTES,
+  SPREADSHEET_ACCEPT,
+  SpreadsheetError,
+  decodeTextFile,
+  isDelimitedFile,
+  isExcelFile,
+  isLegacyExcelFile,
+  parseDelimited,
+  readExcelWorkbook,
+  type SheetData,
+} from '@/lib/spreadsheet';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { CSVImportResult, ProductCSVField } from '@/types';
 
-type Step = 'upload' | 'map' | 'preview' | 'import' | 'done';
+type Step = 'upload' | 'sheet' | 'map' | 'preview' | 'import' | 'done';
 
-interface CSVImportModalProps {
+interface ProductImportModalProps {
   workspaceId: string;
   onClose: () => void;
   onImported: (result?: CSVImportResult) => void;
 }
 
-const PRODUCT_FIELDS: Array<{ key: ProductCSVField; label: string; required?: boolean }> = [
-  { key: 'name', label: 'Name', required: true },
-  { key: 'description', label: 'Description' },
-  { key: 'sku', label: 'SKU' },
-  { key: 'price', label: 'Price', required: true },
-  { key: 'unit', label: 'Unit' },
-  { key: 'category', label: 'Category' },
-  { key: 'taxRate', label: 'Tax Rate' },
-  { key: 'stockQuantity', label: 'Stock Quantity' },
+const PRODUCT_FIELD_KEYS: Array<{ key: Exclude<ProductCSVField, '__skip__'>; required?: boolean }> = [
+  { key: 'name', required: true },
+  { key: 'description' },
+  { key: 'sku' },
+  { key: 'price', required: true },
+  { key: 'unit' },
+  { key: 'category' },
+  { key: 'taxRate' },
+  { key: 'stockQuantity' },
 ];
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = [];
-  const lines = text.split(/\r?\n/);
-
-  for (const line of lines) {
-    if (!line.trim()) continue;
-
-    const columns: string[] = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let index = 0; index < line.length; index += 1) {
-      const char = line[index];
-
-      if (char === '"') {
-        if (inQuotes && line[index + 1] === '"') {
-          current += '"';
-          index += 1;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if ((char === ',' || char === ';' || char === '\t') && !inQuotes) {
-        columns.push(current);
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-
-    columns.push(current);
-    rows.push(columns);
-  }
-
-  return rows;
-}
 
 function autoMatch(header: string): ProductCSVField {
   const normalized = header.toLowerCase().replace(/[^a-z]/g, '');
@@ -74,14 +52,47 @@ function autoMatch(header: string): ProductCSVField {
   return '__skip__';
 }
 
-export default function CSVImportModal({
+function describeFileError(error: unknown, fallbackMessage: string): string {
+  if (error instanceof SpreadsheetError) return error.message;
+  console.error('Product import: could not read the selected file', error);
+  return fallbackMessage;
+}
+
+export default function ProductImportModal({
   workspaceId,
   onClose,
   onImported,
-}: CSVImportModalProps) {
+}: ProductImportModalProps) {
+  const { t } = useI18n();
+  const fieldLabels: Record<Exclude<ProductCSVField, '__skip__'>, string> = {
+    name: t('products.fields.name'),
+    description: t('products.fields.description'),
+    sku: t('products.fields.sku'),
+    price: t('products.fields.price'),
+    unit: t('products.fields.unit'),
+    category: t('products.fields.category'),
+    taxRate: t('products.fields.taxRate'),
+    stockQuantity: t('products.fields.stockQuantity'),
+  };
+  const PRODUCT_FIELDS = useMemo(
+    () => PRODUCT_FIELD_KEYS.map((field) => ({ ...field, label: fieldLabels[field.key] })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t]
+  );
+  const stepLabels: Record<Step, string> = {
+    upload: t('products.importModal.steps.upload'),
+    sheet: t('products.importModal.steps.sheet'),
+    map: t('products.importModal.steps.map'),
+    preview: t('products.importModal.steps.preview'),
+    import: t('products.importModal.steps.import'),
+    done: t('products.importModal.steps.done'),
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('upload');
   const [dragOver, setDragOver] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [sheets, setSheets] = useState<SheetData[]>([]);
+  const [sheetName, setSheetName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<ProductCSVField[]>([]);
@@ -89,43 +100,112 @@ export default function CSVImportModal({
   const [error, setError] = useState('');
   const [result, setResult] = useState<CSVImportResult | null>(null);
 
-  const processFile = (file: File) => {
-    setError('');
+  // The sheet picker only exists for multi-sheet workbooks, so the progress
+  // rail is derived rather than fixed.
+  const steps = useMemo<Step[]>(
+    () =>
+      sheets.length > 1
+        ? ['upload', 'sheet', 'map', 'preview', 'import', 'done']
+        : ['upload', 'map', 'preview', 'import', 'done'],
+    [sheets.length]
+  );
 
-    if (!file.name.match(/\.(csv|tsv|txt)$/i)) {
-      setError('Please upload a CSV, TSV, or TXT file.');
-      return;
-    }
+  const applyTable = useCallback(
+    (table: string[][], name: string) => {
+      const [headerRow, ...dataRows] = table;
+      const filledRows = dataRows.filter((row) => row.some((cell) => cell.trim()));
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = String(event.target?.result || '');
-      const parsedRows = parseCSV(text);
-
-      if (parsedRows.length < 2) {
-        setError('Your file needs a header row and at least one product row.');
+      if (!headerRow || filledRows.length === 0) {
+        setError(
+          name
+            ? t('products.importModal.sheetMissingHeaderNamed', { name })
+            : t('products.importModal.sheetMissingHeader')
+        );
         return;
       }
 
-      const [headerRow, ...dataRows] = parsedRows;
-      const filteredRows = dataRows.filter((row) => row.some((cell) => cell.trim()));
-
+      setSheetName(name);
       setHeaders(headerRow);
-      setRows(filteredRows);
+      setRows(filledRows);
       setMapping(headerRow.map(autoMatch));
-      setFileName(file.name);
+      setError('');
       setStep('map');
-    };
-    reader.onerror = () => setError('Failed to read the selected file.');
-    reader.readAsText(file, 'UTF-8');
-  };
+    },
+    [t]
+  );
 
-  const handleDrop = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    setDragOver(false);
-    const file = event.dataTransfer.files?.[0];
-    if (file) processFile(file);
-  }, []);
+  const processFile = useCallback(
+    async (file: File) => {
+      setError('');
+      setResult(null);
+
+      if (isLegacyExcelFile(file.name)) {
+        setError(t('products.importModal.legacyExcelError'));
+        return;
+      }
+
+      if (!isExcelFile(file.name) && !isDelimitedFile(file.name)) {
+        setError(t('products.importModal.unsupportedFileError'));
+        return;
+      }
+
+      if (file.size > MAX_SPREADSHEET_BYTES) {
+        setError(
+          t('products.importModal.fileTooLarge', {
+            size: Math.round(file.size / 1024 / 1024),
+            max: Math.round(MAX_SPREADSHEET_BYTES / 1024 / 1024),
+          })
+        );
+        return;
+      }
+
+      setReading(true);
+
+      try {
+        const buffer = await file.arrayBuffer();
+
+        if (isExcelFile(file.name)) {
+          const workbook = await readExcelWorkbook(buffer);
+          const populated = workbook.filter((sheet) => sheet.rows.length > 0);
+
+          if (populated.length === 0) {
+            setError(t('products.importModal.emptyWorkbook'));
+            return;
+          }
+
+          setFileName(file.name);
+          setSheets(populated);
+
+          if (populated.length === 1) {
+            applyTable(populated[0].rows, populated[0].name);
+          } else {
+            setStep('sheet');
+          }
+
+          return;
+        }
+
+        setFileName(file.name);
+        setSheets([]);
+        applyTable(parseDelimited(decodeTextFile(buffer)), '');
+      } catch (readError) {
+        setError(describeFileError(readError, t('products.importModal.readError')));
+      } finally {
+        setReading(false);
+      }
+    },
+    [applyTable, t]
+  );
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      setDragOver(false);
+      const file = event.dataTransfer.files?.[0];
+      if (file) void processFile(file);
+    },
+    [processFile]
+  );
 
   const mappedProducts = useMemo(
     () =>
@@ -143,7 +223,24 @@ export default function CSVImportModal({
   );
 
   const previewFields = PRODUCT_FIELDS.filter((field) => mapping.includes(field.key));
-  const canContinue = mapping.includes('name') && mapping.includes('price');
+  const overRowLimit = mappedProducts.length > MAX_IMPORT_PRODUCTS;
+  const canContinue = mapping.includes('name') && mapping.includes('price') && !overRowLimit;
+
+  const sourceLabel = sheetName ? `${fileName} · ${sheetName}` : fileName;
+
+  const handleBack = () => {
+    if (step === 'map') {
+      setStep(sheets.length > 1 ? 'sheet' : 'upload');
+      return;
+    }
+
+    if (step === 'sheet') {
+      setStep('upload');
+      return;
+    }
+
+    setStep('map');
+  };
 
   const handleImport = async () => {
     setStep('import');
@@ -159,14 +256,14 @@ export default function CSVImportModal({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Import failed');
+        throw new Error(data.error || t('products.importModal.importFailed'));
       }
 
       setResult(data);
       setStep('done');
       onImported(data);
     } catch (importError) {
-      setError(importError instanceof Error ? importError.message : 'Import failed');
+      setError(importError instanceof Error ? importError.message : t('products.importModal.importFailed'));
       setStep('preview');
     }
   };
@@ -178,28 +275,26 @@ export default function CSVImportModal({
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-outline-variant/10 px-6 py-5">
           <div>
-            <h2 className="text-lg font-semibold text-on-surface">Import Products</h2>
+            <h2 className="text-lg font-semibold text-on-surface">{t('products.importModal.title')}</h2>
             <p className="mt-1 text-sm text-on-surface-variant">
-              Upload a CSV and map its columns into your shared catalog.
+              {t('products.importModal.subtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-            aria-label="Close import modal"
+            aria-label={t('products.importModal.closeAria')}
           >
             <X className="h-5 w-5" strokeWidth={1.75} />
           </button>
         </div>
 
         <div className="flex items-center gap-3 border-b border-outline-variant/10 px-6 py-4">
-          {(['upload', 'map', 'preview', 'import', 'done'] as Step[]).map((item, index) => {
-            const order: Step[] = ['upload', 'map', 'preview', 'import', 'done'];
-            const currentIndex = order.indexOf(step);
-            const itemIndex = order.indexOf(item);
-            const isComplete = itemIndex < currentIndex;
-            const isCurrent = itemIndex === currentIndex;
+          {steps.map((item, index) => {
+            const currentIndex = steps.indexOf(step);
+            const isComplete = index < currentIndex;
+            const isCurrent = index === currentIndex;
 
             return (
               <div key={item} className="flex items-center gap-3">
@@ -219,9 +314,11 @@ export default function CSVImportModal({
                     isCurrent ? 'font-medium text-on-surface' : 'text-on-surface-variant'
                   }`}
                 >
-                  {item}
+                  {stepLabels[item]}
                 </span>
-                {index < 4 ? <div className="hidden h-px w-6 bg-outline-variant/20 sm:block" /> : null}
+                {index < steps.length - 1 ? (
+                  <div className="hidden h-px w-6 bg-outline-variant/20 sm:block" />
+                ) : null}
               </div>
             );
           })}
@@ -234,10 +331,20 @@ export default function CSVImportModal({
             </div>
           ) : null}
 
+          {overRowLimit && (step === 'map' || step === 'preview') ? (
+            <div className="mb-4 rounded-lg border border-error/20 bg-error/10 px-4 py-3 text-sm text-error">
+              {t('products.importModal.overRowLimit', {
+                count: mappedProducts.length.toLocaleString(),
+                max: MAX_IMPORT_PRODUCTS.toLocaleString(),
+              })}
+            </div>
+          ) : null}
+
           {step === 'upload' ? (
             <div className="space-y-5">
               <button
                 type="button"
+                disabled={reading}
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={(event) => {
@@ -245,38 +352,94 @@ export default function CSVImportModal({
                   setDragOver(true);
                 }}
                 onDragLeave={() => setDragOver(false)}
-                className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+                className={`flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-14 text-center transition-colors disabled:cursor-wait ${
                   dragOver
                     ? 'border-secondary bg-secondary/5'
                     : 'border-outline-variant/30 bg-surface-container-low hover:border-secondary/40 hover:bg-surface-container'
                 }`}
               >
-                <Upload className="mb-3 h-10 w-10 text-on-surface-variant" strokeWidth={1.75} />
-                <p className="text-base font-medium text-on-surface">
-                  Drop your file here or click to choose one
-                </p>
-                <p className="mt-2 text-sm text-on-surface-variant">
-                  CSV, TSV, and TXT files are supported
-                </p>
+                {reading ? (
+                  <>
+                    <Loader2
+                      className="mb-3 h-10 w-10 animate-spin text-secondary"
+                      strokeWidth={1.75}
+                    />
+                    <p className="text-base font-medium text-on-surface">{t('products.importModal.reading')}</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mb-3 h-10 w-10 text-on-surface-variant" strokeWidth={1.75} />
+                    <p className="text-base font-medium text-on-surface">
+                      {t('products.importModal.dropPrompt')}
+                    </p>
+                    <p className="mt-2 text-sm text-on-surface-variant">
+                      {t('products.importModal.supportedFormats')}
+                    </p>
+                  </>
+                )}
               </button>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.tsv,.txt"
+                accept={SPREADSHEET_ACCEPT}
                 className="hidden"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
-                  if (file) processFile(file);
+                  // Cleared so re-picking the same file still fires a change.
+                  event.target.value = '';
+                  if (file) void processFile(file);
                 }}
               />
+            </div>
+          ) : null}
+
+          {step === 'sheet' ? (
+            <div className="space-y-4">
+              <p className="text-sm text-on-surface-variant">
+                {t('products.importModal.sheetPrompt', { fileName, count: sheets.length })}
+              </p>
+
+              <div className="space-y-2">
+                {sheets.map((sheet) => (
+                  <button
+                    key={sheet.name}
+                    type="button"
+                    onClick={() => applyTable(sheet.rows, sheet.name)}
+                    className="flex w-full items-center gap-3 rounded-xl border border-outline-variant/10 bg-surface-container-low px-4 py-3 text-left transition-colors hover:border-secondary/40 hover:bg-surface-container"
+                  >
+                    <FileSpreadsheet
+                      className="h-5 w-5 shrink-0 text-on-surface-variant"
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-on-surface">
+                        {sheet.name}
+                      </span>
+                      <span className="block text-sm text-on-surface-variant">
+                        {t('products.importModal.rowsLabel', {
+                          count: Math.max(0, sheet.rows.length - 1).toLocaleString(),
+                        })}{' '}
+                        ·{' '}
+                        {sheet.rows[0]
+                          .filter((cell) => cell.trim())
+                          .slice(0, 4)
+                          .join(', ') || t('products.importModal.noHeader')}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 
           {step === 'map' ? (
             <div className="space-y-4">
               <p className="text-sm text-on-surface-variant">
-                {rows.length} rows found in <span className="font-medium text-on-surface">{fileName}</span>.
+                {t('products.importModal.rowsFoundIn', {
+                  count: rows.length.toLocaleString(),
+                  source: sourceLabel,
+                })}
               </p>
 
               <div className="overflow-x-auto rounded-xl border border-outline-variant/10">
@@ -284,26 +447,31 @@ export default function CSVImportModal({
                   <thead className="bg-surface-container-low">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant">
-                        File Column
+                        {t('products.importModal.columnFileColumn')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant">
-                        Sample
+                        {t('products.importModal.columnSample')}
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant">
-                        Maps To
+                        {t('products.importModal.columnMapsTo')}
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
                     {headers.map((header, index) => (
                       <tr key={`${header}-${index}`}>
-                        <td className="px-4 py-3 text-sm font-medium text-on-surface">{header}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-on-surface">
+                          {header.trim() || t('products.importModal.unnamedColumn', { index: index + 1 })}
+                        </td>
                         <td className="max-w-[220px] truncate px-4 py-3 text-sm text-on-surface-variant">
                           {rows[0]?.[index] || '—'}
                         </td>
                         <td className="px-4 py-3">
                           <select
                             value={mapping[index]}
+                            aria-label={t('products.importModal.mapColumnAria', {
+                              column: header.trim() || String(index + 1),
+                            })}
                             onChange={(event) => {
                               const next = [...mapping];
                               next[index] = event.target.value as ProductCSVField;
@@ -311,7 +479,7 @@ export default function CSVImportModal({
                             }}
                             className="w-full rounded-lg bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
                           >
-                            <option value="__skip__">Skip</option>
+                            <option value="__skip__">{t('products.importModal.skipOption')}</option>
                             {PRODUCT_FIELDS.map((field) => (
                               <option key={field.key} value={field.key}>
                                 {field.label}
@@ -331,7 +499,7 @@ export default function CSVImportModal({
           {step === 'preview' ? (
             <div className="space-y-4">
               <p className="text-sm text-on-surface-variant">
-                Previewing the first {Math.min(5, mappedProducts.length)} rows before import.
+                {t('products.importModal.previewingRows', { count: Math.min(5, mappedProducts.length) })}
               </p>
 
               <div className="overflow-x-auto rounded-xl border border-outline-variant/10">
@@ -367,9 +535,9 @@ export default function CSVImportModal({
           {step === 'import' ? (
             <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
               <Loader2 className="mb-4 h-10 w-10 animate-spin text-secondary" strokeWidth={1.75} />
-              <h3 className="text-lg font-semibold text-on-surface">Importing products</h3>
+              <h3 className="text-lg font-semibold text-on-surface">{t('products.importModal.importingTitle')}</h3>
               <p className="mt-2 max-w-md text-sm text-on-surface-variant">
-                Creating catalog entries from {mappedProducts.length} mapped rows.
+                {t('products.importModal.importingBody', { count: mappedProducts.length.toLocaleString() })}
               </p>
             </div>
           ) : null}
@@ -377,19 +545,19 @@ export default function CSVImportModal({
           {step === 'done' && result ? (
             <div className="space-y-5">
               <div className="rounded-xl bg-surface-container-low p-5">
-                <h3 className="text-lg font-semibold text-on-surface">Import complete</h3>
+                <h3 className="text-lg font-semibold text-on-surface">{t('products.importModal.doneTitle')}</h3>
                 <p className="mt-2 text-sm text-on-surface-variant">
-                  {result.created} created, {result.skipped} skipped.
+                  {t('products.importModal.doneSummary', { created: result.created, skipped: result.skipped })}
                 </p>
               </div>
 
               {result.errors.length > 0 ? (
                 <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-4">
-                  <p className="mb-3 text-sm font-medium text-on-surface">Row-level errors</p>
+                  <p className="mb-3 text-sm font-medium text-on-surface">{t('products.importModal.rowErrorsTitle')}</p>
                   <div className="max-h-52 space-y-2 overflow-y-auto text-sm text-on-surface-variant">
                     {result.errors.map((item) => (
                       <p key={`${item.row}-${item.message}`}>
-                        Row {item.row}: {item.message}
+                        {t('products.importModal.rowErrorPrefix', { row: item.row })} {item.message}
                       </p>
                     ))}
                   </div>
@@ -404,10 +572,10 @@ export default function CSVImportModal({
             {step !== 'upload' && step !== 'import' && step !== 'done' ? (
               <button
                 type="button"
-                onClick={() => setStep(step === 'map' ? 'upload' : 'map')}
+                onClick={handleBack}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
               >
-                Back
+                {t('common.back')}
               </button>
             ) : null}
           </div>
@@ -418,7 +586,7 @@ export default function CSVImportModal({
               onClick={onClose}
               className="rounded-lg px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
-              {step === 'done' ? 'Close' : 'Cancel'}
+              {step === 'done' ? t('common.close') : t('common.cancel')}
             </button>
 
             {step === 'map' ? (
@@ -428,7 +596,7 @@ export default function CSVImportModal({
                 disabled={!canContinue}
                 className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Preview
+                {t('products.importModal.previewButton')}
               </button>
             ) : null}
 
@@ -436,9 +604,10 @@ export default function CSVImportModal({
               <button
                 type="button"
                 onClick={handleImport}
-                className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim"
+                disabled={overRowLimit}
+                className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Import {mappedProducts.length} products
+                {t('products.importModal.importButton', { count: mappedProducts.length.toLocaleString() })}
               </button>
             ) : null}
           </div>

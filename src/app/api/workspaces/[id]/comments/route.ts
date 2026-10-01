@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess } from '@/lib/api/workspace'
 import { getAccessiblePageIds, getUserPageAccess } from '@/lib/workspace'
+import { notify } from '@/lib/notifications/notify'
+import { workspaceMembersForMentions } from '@/lib/notifications/recipients'
+import { extractMentionedUserIds } from '@/lib/notifications/mentions'
 
 /*
  * Access is owner-or-member (requireWorkspaceAccess). This route used to accept
@@ -111,11 +114,13 @@ export async function POST(
     if (pageId && !(await canUsePage(pageId, params.id, userId))) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
+    let parentAuthorId: string | null = null
     if (parentId) {
-      const parent = await prisma.comment.findFirst({ where: { id: parentId, workspaceId: params.id }, select: { id: true } })
+      const parent = await prisma.comment.findFirst({ where: { id: parentId, workspaceId: params.id }, select: { id: true, userId: true } })
       if (!parent) {
         return NextResponse.json({ error: 'Comment not found in this workspace' }, { status: 400 })
       }
+      parentAuthorId = parent.userId
     }
 
     const comment = await prisma.comment.create({
@@ -137,6 +142,33 @@ export async function POST(
         },
       },
     })
+
+    // Fire-and-forget: notify a reply's parent author and anyone @mentioned in the text.
+    const href = pageId ? `/pages/${pageId}` : `/workspaces/${params.id}`
+    if (parentAuthorId) {
+      void notify({
+        recipients: [parentAuthorId],
+        type: 'team.comment_reply',
+        workspaceId: params.id,
+        actorId: userId,
+        title: `${comment.user.name || comment.user.email} replied to your comment`,
+        body: content,
+        href,
+      })
+    }
+    const members = await workspaceMembersForMentions(params.id)
+    const mentioned = extractMentionedUserIds(content, members, userId).filter((id) => id !== parentAuthorId)
+    if (mentioned.length > 0) {
+      void notify({
+        recipients: mentioned,
+        type: 'team.mentioned_comment',
+        workspaceId: params.id,
+        actorId: userId,
+        title: `${comment.user.name || comment.user.email} mentioned you in a comment`,
+        body: content,
+        href,
+      })
+    }
 
     return NextResponse.json({ comment }, { status: 201 })
   } catch (error) {

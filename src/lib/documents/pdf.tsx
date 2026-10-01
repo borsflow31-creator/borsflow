@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
 
 export type PdfDocumentKind = 'quote' | 'invoice';
@@ -144,6 +145,7 @@ function statusLabel(status: string): string {
 }
 
 export function DocumentPdf({ data }: { data: PdfDocumentData }) {
+  const { t } = useI18n();
   const isInvoice = data.kind === 'invoice';
   const accent = isInvoice ? COLORS.accentInvoice : COLORS.accentQuote;
   const payments = data.payments ?? [];
@@ -171,7 +173,7 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
 
         <View style={styles.metaRow}>
           <View style={styles.metaBlock}>
-            <Text style={styles.metaLabel}>Billed to</Text>
+            <Text style={styles.metaLabel}>{t('misc.billedTo')}</Text>
             <Text style={styles.metaStrong}>{data.clientName}</Text>
             {data.clientCompany ? <Text style={styles.metaLine}>{data.clientCompany}</Text> : null}
             {data.clientEmail ? <Text style={styles.metaLine}>{data.clientEmail}</Text> : null}
@@ -179,7 +181,7 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
             {data.clientAddress ? <Text style={styles.metaLine}>{data.clientAddress}</Text> : null}
           </View>
           <View style={styles.metaBlock}>
-            <Text style={styles.metaLabel}>Details</Text>
+            <Text style={styles.metaLabel}>{t('misc.detailsLabel')}</Text>
             <Text style={styles.metaLine}>Issued {day(data.issueDate)}</Text>
             <Text style={styles.metaLine}>
               {isInvoice ? 'Due ' : 'Valid until '}
@@ -190,11 +192,11 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
         </View>
 
         <View style={styles.tableHead}>
-          <Text style={[styles.th, styles.colDesc]}>Description</Text>
+          <Text style={[styles.th, styles.colDesc]}>{t('misc.description')}</Text>
           <Text style={[styles.th, styles.colQty]}>Qty</Text>
-          <Text style={[styles.th, styles.colPrice]}>Unit price</Text>
+          <Text style={[styles.th, styles.colPrice]}>{t('misc.unitPriceLabel')}</Text>
           {showAdjustments ? <Text style={[styles.th, styles.colAdj]}>Disc / Tax</Text> : null}
-          <Text style={[styles.th, styles.colTotal]}>Amount</Text>
+          <Text style={[styles.th, styles.colTotal]}>{t('misc.amount')}</Text>
         </View>
 
         {data.items.map((item, index) => (
@@ -214,12 +216,12 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
 
         <View style={styles.totals}>
           <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Subtotal</Text>
+            <Text style={styles.totalsLabel}>{t('misc.subtotalLabel')}</Text>
             <Text style={styles.totalsValue}>{money(data.subtotal, data.currency)}</Text>
           </View>
           {data.discountAmount > 0 ? (
             <View style={styles.totalsRow}>
-              <Text style={styles.totalsLabel}>Discount</Text>
+              <Text style={styles.totalsLabel}>{t('misc.discountLabel')}</Text>
               <Text style={styles.totalsValue}>-{money(data.discountAmount, data.currency)}</Text>
             </View>
           ) : null}
@@ -230,7 +232,7 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
             </View>
           ) : null}
           <View style={styles.grandRow}>
-            <Text style={styles.grandLabel}>Total</Text>
+            <Text style={styles.grandLabel}>{t('misc.totalLabel')}</Text>
             <Text style={[styles.grandValue, { color: accent }]}>{money(data.total, data.currency)}</Text>
           </View>
 

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Wand2, Loader2, RotateCcw, CheckCircle, X, AlertCircle } from 'lucide-react';
 import { UniversalTemplate, TemplateType } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 const PLACEHOLDERS: Record<TemplateType, string> = {
   page:    'e.g. "A weekly team status report with sections for goals, blockers, and wins"',
@@ -39,6 +40,7 @@ export default function TemplateAIPanel({
   const [streamText, setStreamText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [generated, setGenerated] = useState<any>(null);
+  const { t } = useI18n();
   const abortRef = useRef<AbortController | null>(null);
 
   const handleGenerate = async () => {
@@ -101,7 +103,7 @@ export default function TemplateAIPanel({
       <div className="flex items-center justify-between p-4 border-b border-outline-variant">
         <div className="flex items-center gap-2">
           <Wand2 className="h-4 w-4 text-secondary" strokeWidth={1.5} />
-          <h3 className="text-sm font-semibold text-on-surface">Generate with AI</h3>
+          <h3 className="text-sm font-semibold text-on-surface">{t('templates.ai.generate')}</h3>
         </div>
         <button onClick={onClose} className="p-1 hover:bg-surface-container rounded-lg transition-colors">
           <X className="h-4 w-4 text-on-surface-variant" />
@@ -161,7 +163,7 @@ export default function TemplateAIPanel({
           <div className="bg-surface-container rounded-lg p-3 border border-secondary/30">
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="h-4 w-4 text-success" strokeWidth={1.5} />
-              <span className="text-xs font-semibold text-on-surface">Content ready</span>
+              <span className="text-xs font-semibold text-on-surface">{t('templates.ai.contentReady')}</span>
             </div>
             <GeneratedSummary type={type} content={generated} />
           </div>
@@ -184,14 +186,14 @@ export default function TemplateAIPanel({
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim transition-colors text-sm font-medium"
             >
               <CheckCircle className="h-4 w-4" strokeWidth={1.5} />
-              Apply this Template
+              {t('templates.ai.applyTemplate')}
             </button>
             <button
               onClick={handleReset}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-surface border border-outline-variant text-on-surface rounded-lg hover:bg-surface-container transition-colors text-sm"
             >
               <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Regenerate
+              {t('templates.ai.regenerate')}
             </button>
           </>
         ) : (
@@ -201,7 +203,7 @@ export default function TemplateAIPanel({
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim disabled:opacity-50 transition-colors text-sm font-medium"
           >
             {streaming ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              <><Loader2 className="h-4 w-4 animate-spin" /> {t('templates.ai.generating')}</>
             ) : (
               <><Wand2 className="h-4 w-4" strokeWidth={1.5} /> Generate</>
             )}

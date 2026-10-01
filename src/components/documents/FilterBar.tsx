@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, Filter, X, ChevronDown } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface FilterBarProps {
   searchQuery: string;
@@ -33,6 +34,7 @@ export default function FilterBar({
   searchPlaceholder = 'Search documents...',
   searchAriaLabel = 'Search documents',
 }: FilterBarProps) {
+  const { t } = useI18n();
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
@@ -59,7 +61,7 @@ export default function FilterBar({
               type="button"
               onClick={() => onSearchChange('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-on-surface-variant hover:text-on-surface transition-colors"
-              aria-label="Clear search"
+              aria-label={t('documents.filterBar.clearSearch')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -170,10 +172,10 @@ export default function FilterBar({
           <button
             onClick={onClearFilters}
             className="flex items-center gap-2 px-4 py-2.5 text-sm text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-all duration-200"
-            aria-label="Clear all filters"
+            aria-label={t('documents.filterBar.clearFilters')}
           >
             <X className="h-4 w-4" strokeWidth={1.75} />
-            <span>Clear</span>
+            <span>{t('documents.filterBar.clear')}</span>
           </button>
         )}
       </div>

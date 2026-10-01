@@ -4,6 +4,9 @@ import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { safeFileUrl } from '@/components/chat/chatFormat'
+import { notify } from '@/lib/notifications/notify'
+import { workspaceMembersForMentions } from '@/lib/notifications/recipients'
+import { extractMentionedUserIds } from '@/lib/notifications/mentions'
 
 // Client-supplied Ably timestamps are only trusted within this window of server time.
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
@@ -120,6 +123,25 @@ export async function POST(request: Request, { params }: { params: { id: string 
       },
       include: messageInclude,
     })
+
+    // Fire-and-forget: notify anyone @mentioned. Only on first archival of this
+    // message (the ablySerial-dedupe branch above returns before reaching here).
+    if (message.content) {
+      const members = await workspaceMembersForMentions(params.id)
+      const mentioned = extractMentionedUserIds(message.content, members, session.user.id)
+      if (mentioned.length > 0) {
+        void notify({
+          recipients: mentioned,
+          type: 'team.mentioned_chat',
+          workspaceId: params.id,
+          actorId: session.user.id,
+          title: `${message.user.name || message.user.email} mentioned you in chat`,
+          body: message.content,
+          href: channelId ? `/workspaces/${params.id}/chat?channel=${channelId}` : `/workspaces/${params.id}/chat`,
+        })
+      }
+    }
+
     return NextResponse.json({ message }, { status: 201 })
   } catch (err) {
     // Lost a race with a concurrent retry of the same serial: return the winner.

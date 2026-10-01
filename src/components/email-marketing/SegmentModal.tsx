@@ -7,6 +7,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useI18n } from '@/i18n/I18nProvider'
 import { X, Target, Plus, Trash2, Filter } from 'lucide-react'
 
 interface Condition {
@@ -30,6 +31,7 @@ export default function SegmentModal({
   segment,
   workspaceId
 }: SegmentModalProps) {
+  const { t } = useI18n()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -45,34 +47,34 @@ export default function SegmentModal({
   // These must be real Lead column names — criteria are evaluated against the
   // lead object, so a field that doesn't exist silently matches nothing.
   const availableFields = [
-    { value: 'firstName', label: 'First Name' },
-    { value: 'lastName', label: 'Last Name' },
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Phone' },
-    { value: 'status', label: 'Status' },
-    { value: 'stage', label: 'Stage' },
-    { value: 'pipelineId', label: 'Pipeline' },
-    { value: 'pipeline.name', label: 'Pipeline Name' },
-    { value: 'value', label: 'Deal Value' },
-    { value: 'company', label: 'Company' },
-    { value: 'position', label: 'Position' },
-    { value: 'source', label: 'Source' },
-    { value: 'tags', label: 'Tags' },
-    { value: 'createdAt', label: 'Created Date' },
-    { value: 'updatedAt', label: 'Updated Date' }
+    { value: 'firstName', label: t('emailMarketing.segmentModal.fieldFirstName') },
+    { value: 'lastName', label: t('emailMarketing.segmentModal.fieldLastName') },
+    { value: 'email', label: t('emailMarketing.segmentModal.fieldEmail') },
+    { value: 'phone', label: t('emailMarketing.segmentModal.fieldPhone') },
+    { value: 'status', label: t('emailMarketing.segmentModal.fieldStatus') },
+    { value: 'stage', label: t('emailMarketing.segmentModal.fieldStage') },
+    { value: 'pipelineId', label: t('emailMarketing.segmentModal.fieldPipeline') },
+    { value: 'pipeline.name', label: t('emailMarketing.segmentModal.fieldPipelineName') },
+    { value: 'value', label: t('emailMarketing.segmentModal.fieldDealValue') },
+    { value: 'company', label: t('emailMarketing.segmentModal.fieldCompany') },
+    { value: 'position', label: t('emailMarketing.segmentModal.fieldPosition') },
+    { value: 'source', label: t('emailMarketing.segmentModal.fieldSource') },
+    { value: 'tags', label: t('emailMarketing.segmentModal.fieldTags') },
+    { value: 'createdAt', label: t('emailMarketing.segmentModal.fieldCreatedDate') },
+    { value: 'updatedAt', label: t('emailMarketing.segmentModal.fieldUpdatedDate') }
   ]
 
   const operators = [
-    { value: 'equals', label: 'Equals' },
-    { value: 'not_equals', label: 'Not Equals' },
-    { value: 'contains', label: 'Contains' },
-    { value: 'not_contains', label: 'Does Not Contain' },
-    { value: 'starts_with', label: 'Starts With' },
-    { value: 'ends_with', label: 'Ends With' },
-    { value: 'greater_than', label: 'Greater Than' },
-    { value: 'less_than', label: 'Less Than' },
-    { value: 'is_empty', label: 'Is Empty' },
-    { value: 'is_not_empty', label: 'Is Not Empty' }
+    { value: 'equals', label: t('emailMarketing.segmentModal.opEquals') },
+    { value: 'not_equals', label: t('emailMarketing.segmentModal.opNotEquals') },
+    { value: 'contains', label: t('emailMarketing.segmentModal.opContains') },
+    { value: 'not_contains', label: t('emailMarketing.segmentModal.opNotContains') },
+    { value: 'starts_with', label: t('emailMarketing.segmentModal.opStartsWith') },
+    { value: 'ends_with', label: t('emailMarketing.segmentModal.opEndsWith') },
+    { value: 'greater_than', label: t('emailMarketing.segmentModal.opGreaterThan') },
+    { value: 'less_than', label: t('emailMarketing.segmentModal.opLessThan') },
+    { value: 'is_empty', label: t('emailMarketing.segmentModal.opIsEmpty') },
+    { value: 'is_not_empty', label: t('emailMarketing.segmentModal.opIsNotEmpty') }
   ]
 
   useEffect(() => {
@@ -152,10 +154,10 @@ export default function SegmentModal({
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Segment name is required'
+      newErrors.name = t('emailMarketing.segmentModal.nameRequired')
     }
     if (formData.criteria.length === 0) {
-      newErrors.criteria = 'At least one condition is required'
+      newErrors.criteria = t('emailMarketing.segmentModal.criteriaRequired')
     }
 
     setErrors(newErrors)
@@ -192,18 +194,18 @@ export default function SegmentModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div className="sticky top-0 bg-surface-container-low border-b border-outline-variant/20 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-3">
-            <Target className="h-6 w-6 text-indigo-600" />
-            <h2 className="text-xl font-semibold text-gray-900">
-              {segment ? 'Edit Segment' : 'Create New Segment'}
+            <Target className="h-6 w-6 text-secondary" />
+            <h2 className="text-xl font-semibold text-on-surface">
+              {segment ? t('emailMarketing.segmentModal.editTitle') : t('emailMarketing.segmentModal.createTitle')}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -213,24 +215,24 @@ export default function SegmentModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <Target className="h-5 w-5 mr-2 text-indigo-600" />
-              Basic Information
+            <h3 className="text-lg font-medium text-on-surface mb-4 flex items-center">
+              <Target className="h-5 w-5 mr-2 text-secondary" />
+              {t('emailMarketing.segmentModal.basicInformation')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Segment Name *
+                <label className="block text-sm font-medium text-on-surface mb-1">
+                  {t('emailMarketing.segmentModal.segmentName')}
                 </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                    errors.name ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
-                  placeholder="e.g., High-Value Leads"
+                  placeholder={t('emailMarketing.segmentModal.segmentNamePlaceholder')}
                 />
                 {errors.name && (
                   <p className="mt-1 text-sm text-red-600">{errors.name}</p>
@@ -238,16 +240,16 @@ export default function SegmentModal({
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                <label className="block text-sm font-medium text-on-surface mb-1">
+                  {t('emailMarketing.segmentModal.description')}
                 </label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Describe the purpose of this segment..."
+                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  placeholder={t('emailMarketing.segmentModal.descriptionPlaceholder')}
                 />
               </div>
             </div>
@@ -256,34 +258,34 @@ export default function SegmentModal({
           {/* Criteria */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                <Filter className="h-5 w-5 mr-2 text-indigo-600" />
-                Criteria
+              <h3 className="text-lg font-medium text-on-surface flex items-center">
+                <Filter className="h-5 w-5 mr-2 text-secondary" />
+                {t('emailMarketing.segmentModal.criteria')}
               </h3>
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Match:</span>
+                <span className="text-sm text-on-surface-variant">{t('emailMarketing.segmentModal.match')}</span>
                 <select
                   name="logicOperator"
                   value={formData.logicOperator}
                   onChange={handleChange}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                  className="px-3 py-1.5 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent text-sm"
                 >
-                  <option value="AND">All conditions</option>
-                  <option value="OR">Any condition</option>
+                  <option value="AND">{t('emailMarketing.segmentModal.allConditions')}</option>
+                  <option value="OR">{t('emailMarketing.segmentModal.anyCondition')}</option>
                 </select>
               </div>
             </div>
 
             {formData.criteria.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                <Filter className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 mb-3">No conditions added yet</p>
+              <div className="text-center py-8 border-2 border-dashed border-outline-variant/40 rounded-lg">
+                <Filter className="h-12 w-12 text-on-surface-variant/30 mx-auto mb-3" />
+                <p className="text-on-surface-variant mb-3">{t('emailMarketing.segmentModal.noConditions')}</p>
                 <button
                   type="button"
                   onClick={handleAddCondition}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors"
                 >
-                  Add First Condition
+                  {t('emailMarketing.segmentModal.addFirstCondition')}
                 </button>
                 {errors.criteria && (
                   <p className="mt-2 text-sm text-red-600">{errors.criteria}</p>
@@ -292,11 +294,11 @@ export default function SegmentModal({
             ) : (
               <div className="space-y-3">
                 {formData.criteria.map((condition, index) => (
-                  <div key={index} className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex items-center space-x-2 p-4 bg-surface-container-high rounded-lg">
                     <select
                       value={condition.field}
                       onChange={(e) => handleUpdateCondition(index, 'field', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="flex-1 px-3 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent text-sm"
                     >
                       {availableFields.map(field => (
                         <option key={field.value} value={field.value}>
@@ -308,7 +310,7 @@ export default function SegmentModal({
                     <select
                       value={condition.operator}
                       onChange={(e) => handleUpdateCondition(index, 'operator', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                      className="flex-1 px-3 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent text-sm"
                     >
                       {operators.map(op => (
                         <option key={op.value} value={op.value}>
@@ -321,8 +323,8 @@ export default function SegmentModal({
                       type="text"
                       value={condition.value}
                       onChange={(e) => handleUpdateCondition(index, 'value', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      placeholder="Value"
+                      className="flex-1 px-3 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent text-sm"
+                      placeholder={t('emailMarketing.segmentModal.valuePlaceholder')}
                       disabled={condition.operator === 'is_empty' || condition.operator === 'is_not_empty'}
                     />
 
@@ -339,10 +341,10 @@ export default function SegmentModal({
                 <button
                   type="button"
                   onClick={handleAddCondition}
-                  className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-colors text-gray-600 hover:text-indigo-600 flex items-center justify-center space-x-2"
+                  className="w-full px-4 py-2 border-2 border-dashed border-outline-variant/40 rounded-lg hover:border-secondary/50 hover:bg-secondary/15 transition-colors text-on-surface-variant hover:text-secondary flex items-center justify-center space-x-2"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Add Another Condition</span>
+                  <span>{t('emailMarketing.segmentModal.addAnotherCondition')}</span>
                 </button>
               </div>
             )}
@@ -350,9 +352,9 @@ export default function SegmentModal({
 
           {/* Tags */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <Target className="h-5 w-5 mr-2 text-indigo-600" />
-              Tags
+            <h3 className="text-lg font-medium text-on-surface mb-4 flex items-center">
+              <Target className="h-5 w-5 mr-2 text-secondary" />
+              {t('emailMarketing.segmentModal.tags')}
             </h3>
             <div className="space-y-3">
               <div className="flex space-x-2">
@@ -361,16 +363,16 @@ export default function SegmentModal({
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Add a tag..."
+                  className="flex-1 px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  placeholder={t('emailMarketing.segmentModal.addTagPlaceholder')}
                 />
                 <button
                   type="button"
                   onClick={handleAddTag}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center space-x-2"
+                  className="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors flex items-center space-x-2"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Add</span>
+                  <span>{t('common.add')}</span>
                 </button>
               </div>
               {formData.tags.length > 0 && (
@@ -378,13 +380,13 @@ export default function SegmentModal({
                   {formData.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center space-x-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm"
+                      className="inline-flex items-center space-x-1 px-3 py-1 bg-secondary/15 text-secondary rounded-full text-sm"
                     >
                       <span>{tag}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(tag)}
-                        className="hover:text-indigo-600"
+                        className="hover:text-secondary"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -396,28 +398,28 @@ export default function SegmentModal({
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end space-x-3 pt-6 border-t border-outline-variant/20">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-outline-variant/40 rounded-lg hover:bg-surface-container-high transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="px-6 py-2 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
               {saving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Saving...</span>
+                  <span>{t('common.saving')}</span>
                 </>
               ) : (
                 <>
                   <Target className="h-4 w-4" />
-                  <span>{segment ? 'Update Segment' : 'Create Segment'}</span>
+                  <span>{segment ? t('emailMarketing.segmentModal.updateSegment') : t('emailMarketing.segmentModal.createSegmentButton')}</span>
                 </>
               )}
             </button>

@@ -3,7 +3,12 @@ import { randomUUID } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspacePermission } from '@/lib/api/workspace';
-import { isPresent, toOptionalNumber, toOptionalString } from '@/lib/products';
+import {
+  MAX_IMPORT_PRODUCTS,
+  isPresent,
+  toOptionalNumber,
+  toOptionalString,
+} from '@/lib/products';
 import { DUPLICATE_SKU_MESSAGE, isDuplicateSkuError } from '@/lib/products-server';
 
 interface ImportRow {
@@ -30,8 +35,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (products.length > 1000) {
-      return NextResponse.json({ error: 'Maximum 1000 products per import' }, { status: 400 });
+    if (products.length > MAX_IMPORT_PRODUCTS) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_IMPORT_PRODUCTS} products per import` },
+        { status: 400 }
+      );
     }
 
     const access = await requireWorkspacePermission(workspaceId, 'content:create');

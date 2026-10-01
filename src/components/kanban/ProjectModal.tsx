@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -28,19 +29,6 @@ interface ProjectFormData {
     color?: string;
 }
 
-const PREDEFINED_COLORS = [
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Violet', value: '#8b5cf6' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Rose', value: '#f43f5e' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Green', value: '#22c55e' },
-    { name: 'Teal', value: '#14b8a6' },
-    { name: 'Sky', value: '#0ea5e9' },
-    { name: 'Slate', value: '#64748b' },
-];
-
 export default function ProjectModal({
     isOpen,
     onClose,
@@ -48,6 +36,21 @@ export default function ProjectModal({
     project,
     loading = false,
 }: ProjectModalProps) {
+    const { t } = useI18n();
+
+    const PREDEFINED_COLORS = [
+        { name: t('kanban.colorIndigo'), value: '#6366f1' },
+        { name: t('kanban.colorViolet'), value: '#8b5cf6' },
+        { name: t('kanban.colorPink'), value: '#ec4899' },
+        { name: t('kanban.colorRose'), value: '#f43f5e' },
+        { name: t('kanban.colorOrange'), value: '#f97316' },
+        { name: t('kanban.colorYellow'), value: '#eab308' },
+        { name: t('kanban.colorGreen'), value: '#22c55e' },
+        { name: t('kanban.colorTeal'), value: '#14b8a6' },
+        { name: t('kanban.colorSky'), value: '#0ea5e9' },
+        { name: t('kanban.colorSlate'), value: '#64748b' },
+    ];
+
     const [formData, setFormData] = useState<ProjectFormData>({
         name: '',
         description: '',
@@ -79,15 +82,15 @@ export default function ProjectModal({
         const newErrors: Partial<ProjectFormData> = {};
 
         if (!formData.name.trim()) {
-            newErrors.name = 'Project name is required';
+            newErrors.name = t('kanban.nameRequiredError');
         } else if (formData.name.trim().length < 2) {
-            newErrors.name = 'Project name must be at least 2 characters';
+            newErrors.name = t('kanban.nameMinLengthError');
         } else if (formData.name.trim().length > 100) {
-            newErrors.name = 'Project name must be less than 100 characters';
+            newErrors.name = t('kanban.nameMaxLengthError');
         }
 
         if (formData.description && formData.description.length > 500) {
-            newErrors.description = 'Description must be less than 500 characters';
+            newErrors.description = t('kanban.descriptionMaxLengthError');
         }
 
         setErrors(newErrors);
@@ -111,7 +114,7 @@ export default function ProjectModal({
             onClose();
         } catch (error: any) {
             console.error('Error submitting project:', error);
-            setErrors({ name: error.message || 'Failed to save project' });
+            setErrors({ name: error.message || t('kanban.saveProjectError') });
         } finally {
             setIsSubmitting(false);
         }
@@ -134,13 +137,13 @@ export default function ProjectModal({
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-outline-variant/30">
                     <h3 className="text-lg font-semibold text-on-surface">
-                        {project ? 'Edit Project' : 'Create New Project'}
+                        {project ? t('kanban.editProjectTitle') : t('kanban.createProjectTitle')}
                     </h3>
                     <button
                         onClick={() => !isSubmitting && onClose()}
                         disabled={isSubmitting}
                         className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Close modal"
+                        aria-label={t('kanban.closeModalAria')}
                     >
                         <X className="w-5 h-5 text-on-surface-variant" />
                     </button>
@@ -151,14 +154,14 @@ export default function ProjectModal({
                     {/* Name */}
                     <div>
                         <label htmlFor="project-name" className="block text-sm font-medium text-on-surface mb-2">
-                            Project Name *
+                            {t('kanban.projectNameLabel')}
                         </label>
                         <input
                             id="project-name"
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="e.g., Website Redesign"
+                            placeholder={t('kanban.projectNamePlaceholder')}
                             className="w-full px-4 py-2.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                             disabled={isSubmitting}
                             autoFocus
@@ -171,14 +174,14 @@ export default function ProjectModal({
                     {/* Description */}
                     <div>
                         <label htmlFor="project-description" className="block text-sm font-medium text-on-surface mb-2">
-                            Description
+                            {t('kanban.descriptionFieldLabel')}
                         </label>
                         <textarea
                             id="project-description"
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             rows={3}
-                            placeholder="Add a brief description of this project..."
+                            placeholder={t('kanban.projectDescriptionPlaceholder')}
                             className="w-full px-4 py-2.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all resize-none"
                             disabled={isSubmitting}
                         />
@@ -186,14 +189,14 @@ export default function ProjectModal({
                             <p className="mt-1.5 text-sm text-error">{errors.description}</p>
                         )}
                         <p className="mt-1 text-xs text-on-surface-variant">
-                            {formData.description?.length || 0} / 500 characters
+                            {t('kanban.charactersCount', { count: formData.description?.length || 0 })}
                         </p>
                     </div>
 
                     {/* Color */}
                     <div>
                         <label className="block text-sm font-medium text-on-surface mb-3">
-                            Project Color
+                            {t('kanban.projectColorLabel')}
                         </label>
                         <div className="grid grid-cols-5 gap-3">
                             {PREDEFINED_COLORS.map((color) => (
@@ -212,7 +215,7 @@ export default function ProjectModal({
                                     `}
                                     style={{ backgroundColor: color.value }}
                                     title={color.name}
-                                    aria-label={`Select ${color.name} color`}
+                                    aria-label={t('kanban.selectColorAria', { color: color.name })}
                                 >
                                     {formData.color === color.value && (
                                         <div className="absolute inset-0 flex items-center justify-center">
@@ -234,7 +237,7 @@ export default function ProjectModal({
                             disabled={isSubmitting}
                             className="flex-1 px-4 py-2.5 text-sm text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -247,10 +250,10 @@ export default function ProjectModal({
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                     </svg>
-                                    {project ? 'Updating...' : 'Creating...'}
+                                    {project ? t('kanban.updating') : t('kanban.creating')}
                                 </span>
                             ) : (
-                                project ? 'Update Project' : 'Create Project'
+                                project ? t('kanban.updateProjectCta') : t('kanban.createProjectCta')
                             )}
                         </button>
                     </div>

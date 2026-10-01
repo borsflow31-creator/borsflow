@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import {
   Search, Plus, Filter, Calendar, List, Clock,
   Video, RefreshCw, Loader2, CalendarX, CloudDownload
@@ -38,6 +39,7 @@ type SortMode = 'upcoming' | 'recent';
 type ViewMode = 'list' | 'calendar';
 
 export default function MeetingList({ workspaceId, leadId, leadName, compact }: MeetingListProps) {
+  const { t } = useI18n();
   const [meetings,    setMeetings]    = useState<Meeting[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [search,      setSearch]      = useState('');
@@ -165,7 +167,7 @@ export default function MeetingList({ workspaceId, leadId, leadName, compact }: 
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search meetings…"
+              placeholder={t('misc.searchMeetings')}
               className="w-full pl-9 pr-3 py-2 bg-surface-container-high rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
             />
           </div>

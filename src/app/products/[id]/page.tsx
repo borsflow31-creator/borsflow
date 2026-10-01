@@ -7,11 +7,13 @@ import AppShell from '@/components/AppShell';
 import ProductFormFields from '@/components/products/ProductFormFields';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function ProductDetailPageInner() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const { setCurrentProduct, updateProduct, deleteProduct } = useProductStore();
 
@@ -66,7 +68,7 @@ function ProductDetailPageInner() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to load product');
+          throw new Error(data.error || t('products.detail.loadFailed'));
         }
 
         setCurrentProduct(data.product);
@@ -89,14 +91,14 @@ function ProductDetailPageInner() {
         );
         setIsActive(Boolean(data.product.isActive));
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load product');
+        setError(fetchError instanceof Error ? fetchError.message : t('products.detail.loadFailed'));
       } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [productId, setCurrentProduct]);
+  }, [productId, setCurrentProduct, t]);
 
   const handleAddCategory = (value: string) => {
     setCategories((current) =>
@@ -106,7 +108,7 @@ function ProductDetailPageInner() {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setError('Product name is required.');
+      setError(t('products.nameRequired'));
       return;
     }
 
@@ -133,20 +135,20 @@ function ProductDetailPageInner() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save product');
+        throw new Error(data.error || t('products.detail.saveFailed'));
       }
 
       updateProduct(productId, data.product);
       router.push(`/products?workspace=${workspaceId}`);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Failed to save product');
+      setError(saveError instanceof Error ? saveError.message : t('products.detail.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+    if (!confirm(t('products.deleteConfirm', { name }))) return;
 
     setSaving(true);
     setError(null);
@@ -156,23 +158,23 @@ function ProductDetailPageInner() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete product');
+        throw new Error(data.error || t('products.deleteFailed'));
       }
 
       deleteProduct(productId);
       router.push(`/products?workspace=${workspaceId}`);
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete product');
+      setError(deleteError instanceof Error ? deleteError.message : t('products.deleteFailed'));
       setSaving(false);
     }
   };
 
   return (
     <AppShell
-      workspace={workspaceId ? { id: workspaceId, name: 'Workspace' } : undefined}
+      workspace={workspaceId ? { id: workspaceId, name: t('products.workspaceFallback') } : undefined}
       breadcrumbs={[
-        { label: 'Products', href: `/products?workspace=${workspaceId}` },
-        { label: name || 'Edit Product', href: `/products/${productId}?workspace=${workspaceId}` },
+        { label: t('nav.products'), href: `/products?workspace=${workspaceId}` },
+        { label: name || t('products.detail.editFallback'), href: `/products/${productId}?workspace=${workspaceId}` },
       ]}
     >
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
@@ -182,16 +184,16 @@ function ProductDetailPageInner() {
               type="button"
               onClick={() => router.push(`/products?workspace=${workspaceId}`)}
               className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-              aria-label="Back to products"
+              aria-label={t('products.backToProductsAria')}
             >
               <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
             </button>
             <div>
               <h1 className="text-2xl font-bold text-on-surface">
-                {loading ? 'Product' : name || 'Edit Product'}
+                {loading ? t('products.detail.loadingTitle') : name || t('products.detail.editFallback')}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">
-                Update catalog details and product availability.
+                {t('products.detail.subtitle')}
               </p>
             </div>
           </div>
@@ -205,7 +207,7 @@ function ProductDetailPageInner() {
               className="flex items-center gap-2 rounded-lg border border-error/20 px-4 py-2.5 text-sm font-medium text-error transition-colors hover:bg-error/5 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-              Delete
+              {t('common.delete')}
             </button>
             <button
               type="button"
@@ -214,7 +216,7 @@ function ProductDetailPageInner() {
               className="flex items-center gap-2 rounded-lg bg-secondary px-5 py-2.5 text-sm font-medium text-on-secondary transition-colors hover:bg-secondary-dim disabled:cursor-not-allowed disabled:opacity-40"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> : <Save className="h-4 w-4" strokeWidth={1.75} />}
-              Save Product
+              {t('products.detail.saveButton')}
             </button>
           </div>
           ) : null}

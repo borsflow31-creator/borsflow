@@ -1,6 +1,9 @@
 'use client'
 
+import { useI18n } from '@/i18n/I18nProvider';
+
 export default function NavigationSidebar() {
+    const { t } = useI18n();
     return (
         <aside className="h-screen w-16 md:w-64 flex flex-col fixed left-0 top-0 bg-slate-50 dark:bg-slate-900 font-sans text-sm antialiased z-50">
             <div className="flex flex-col h-full py-4 px-3 space-y-2 bg-slate-100 dark:bg-slate-800/50">
@@ -11,28 +14,28 @@ export default function NavigationSidebar() {
                             architecture
                         </span>
                     </div>
-                    <span className="font-bold text-slate-900 dark:text-slate-100 text-lg md:block hidden">Acme Corp</span>
+                    <span className="font-bold text-slate-900 dark:text-slate-100 text-lg md:block hidden">{t('navigation.sidebar.brand')}</span>
                 </div>
 
                 {/* Main Tabs */}
                 <nav className="flex-1 space-y-1">
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3">search</span>
-                        <span className="md:block hidden">Search</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.search')}</span>
                     </div>
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3">inbox</span>
-                        <span className="md:block hidden">Inbox</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.inbox')}</span>
                     </div>
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3">task_alt</span>
-                        <span className="md:block hidden">My Tasks</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.myTasks')}</span>
                     </div>
 
                     {/* Active Workspace Tab */}
                     <div className="flex items-center px-3 py-2 bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white rounded-md border-l-2 border-indigo-500 transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3">grid_view</span>
-                        <span className="md:block hidden">Workspace</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.workspace')}</span>
                     </div>
                 </nav>
 
@@ -40,15 +43,15 @@ export default function NavigationSidebar() {
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-1">
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3 text-sm">settings</span>
-                        <span className="md:block hidden">Settings</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.settings')}</span>
                     </div>
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3 text-sm">layers</span>
-                        <span className="md:block hidden">Templates</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.templates')}</span>
                     </div>
                     <div className="flex items-center px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer">
                         <span className="material-symbols-outlined mr-3 text-sm">delete</span>
-                        <span className="md:block hidden">Trash</span>
+                        <span className="md:block hidden">{t('navigation.sidebar.trash')}</span>
                     </div>
                 </div>
             </div>

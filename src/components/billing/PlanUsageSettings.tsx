@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Loader2, Sparkles, Users } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface UsageResponse {
     plan: { tier: string; name: string }
@@ -25,6 +26,7 @@ function Meter({
     limit: number | null
     detail?: string
 }) {
+    const { t, formatNumber } = useI18n()
     const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0
     const full = limit !== null && used >= limit
 
@@ -36,7 +38,7 @@ function Meter({
                     {label}
                 </span>
                 <span className={full ? 'font-medium text-error' : 'text-on-surface-variant'}>
-                    {used.toLocaleString()} / {limit === null ? 'Unlimited' : limit.toLocaleString()}
+                    {formatNumber(used)} / {limit === null ? t('settings.billing.unlimited') : formatNumber(limit)}
                 </span>
             </div>
             {limit !== null && (
@@ -61,6 +63,7 @@ function Meter({
 
 /** Settings > Plan & usage: the workspace's plan and this month's pooled usage. */
 export function PlanUsageSettings({ workspaceId }: { workspaceId: string | null }) {
+    const { t } = useI18n()
     const [data, setData] = useState<UsageResponse | null>(null)
     const [error, setError] = useState('')
 
@@ -71,65 +74,65 @@ export function PlanUsageSettings({ workspaceId }: { workspaceId: string | null 
         fetch(`/api/billing/usage?workspaceId=${encodeURIComponent(workspaceId)}`)
             .then(async (res) => {
                 const body = await res.json().catch(() => ({}))
-                if (!res.ok) throw new Error(body.error || 'Could not load usage')
+                if (!res.ok) throw new Error(body.error || t('settings.billing.loadError'))
                 setData(body)
             })
-            .catch((err) => setError(err instanceof Error ? err.message : 'Could not load usage'))
-    }, [workspaceId])
+            .catch((err) => setError(err instanceof Error ? err.message : t('settings.billing.loadError')))
+    }, [workspaceId, t])
 
     return (
         <div className="bg-surface-container-low rounded-lg p-6 ambient-shadow">
             <div className="mb-6">
-                <h2 className="text-xl font-semibold text-on-surface">Plan & usage</h2>
+                <h2 className="text-xl font-semibold text-on-surface">{t('settings.billing.heading')}</h2>
                 <p className="text-on-surface-variant text-sm">
-                    Pricing is flat per workspace. Usage is shared by everyone in it and resets each month.
+                    {t('settings.billing.subtitle')}
                 </p>
             </div>
 
             {!workspaceId ? (
-                <p className="text-sm text-on-surface-variant">Select a workspace to see its plan.</p>
+                <p className="text-sm text-on-surface-variant">{t('settings.billing.selectWorkspace')}</p>
             ) : error ? (
                 <p role="alert" className="text-sm text-error">{error}</p>
             ) : !data ? (
                 <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" aria-label="Loading" />
+                    <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" aria-label={t('settings.billing.loadingAria')} />
                 </div>
             ) : (
                 <div className="space-y-6">
                     <div className="flex items-center justify-between rounded-lg bg-surface-container-high px-4 py-3">
                         <div>
-                            <p className="text-xs uppercase tracking-wider text-on-surface-variant">Current plan</p>
+                            <p className="text-xs uppercase tracking-wider text-on-surface-variant">{t('settings.billing.currentPlan')}</p>
                             <p className="mt-0.5 text-lg font-semibold text-on-surface">
                                 {data.plan.name}
                                 {!data.billingEnabled && (
                                     <span className="ml-2 rounded-full bg-secondary/15 px-2 py-0.5 align-middle text-xs font-medium text-secondary">
-                                        Beta
+                                        {t('settings.billing.betaBadge')}
                                     </span>
                                 )}
                             </p>
                         </div>
                         <Link href="/pricing" className="text-sm font-medium text-secondary hover:underline">
-                            Compare plans
+                            {t('settings.billing.comparePlans')}
                         </Link>
                     </div>
 
                     <Meter
                         icon={Users}
-                        label="Members"
+                        label={t('settings.billing.membersLabel')}
                         used={data.members.used}
                         limit={data.members.capacity}
                         detail={
                             data.members.pendingInvitations > 0
-                                ? `${data.members.members} members and ${data.members.pendingInvitations} pending invitations. The owner is not counted.`
-                                : 'The workspace owner is not counted.'
+                                ? t('settings.billing.membersDetailPending', { members: data.members.members, pending: data.members.pendingInvitations })
+                                : t('settings.billing.membersDetailOwnerOnly')
                         }
                     />
                     <Meter
                         icon={Sparkles}
-                        label="AI credits this month"
+                        label={t('settings.billing.aiCreditsLabel')}
                         used={data.aiCredits.used}
                         limit={data.aiCredits.limit}
-                        detail="A chat message uses 1 credit (2 when it looks up workspace data); generating a template 3; product and email suggestions 5."
+                        detail={t('settings.billing.aiCreditsDetail')}
                     />
 
                     {data.billingEnabled ? (
@@ -137,20 +140,19 @@ export function PlanUsageSettings({ workspaceId }: { workspaceId: string | null 
                             href="/pricing"
                             className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim transition-colors"
                         >
-                            Upgrade plan
+                            {t('settings.billing.upgradePlan')}
                         </Link>
                     ) : (
                         <div className="rounded-lg border border-secondary/30 bg-secondary/5 p-4">
-                            <p className="text-sm font-medium text-on-surface">Paid plans are coming soon</p>
+                            <p className="text-sm font-medium text-on-surface">{t('settings.billing.paidPlansComingSoon')}</p>
                             <p className="mt-1 text-sm text-on-surface-variant">
-                                Only the Free plan is available during the beta. Join a waitlist and keep{' '}
-                                {data.foundingDiscountPercent}% off for life when paid plans open.
+                                {t('settings.billing.paidPlansDescription', { percent: data.foundingDiscountPercent })}
                             </p>
                             <Link
                                 href="/pricing#waitlist"
                                 className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded-lg text-sm hover:bg-secondary-dim transition-colors"
                             >
-                                Join the waitlist
+                                {t('settings.billing.joinWaitlist')}
                             </Link>
                         </div>
                     )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 import { X, Wand2, Loader2, Star, FileText, DollarSign, Receipt, Columns, BookOpen, CheckCircle2, ChevronRight } from 'lucide-react';
 import { UniversalTemplate, TemplateType } from '@/types';
 
@@ -86,6 +87,7 @@ function PagePreview({ content }: { content: any }) {
 }
 
 function QuoteInvoicePreview({ content, type }: { content: any; type: 'quote' | 'invoice' }) {
+  const { t } = useI18n();
   const items: any[] = content.items || [];
   const subtotal = items.reduce((s: number, i: any) => s + (i.quantity || 1) * (i.unitPrice || 0), 0);
   const taxAmount = subtotal * ((content.taxRate || 0) / 100);
@@ -111,9 +113,9 @@ function QuoteInvoicePreview({ content, type }: { content: any; type: 'quote' | 
         
         {/* Mock Company Info */}
         <div className="text-right text-sm text-on-surface-variant space-y-1">
-          <p className="font-semibold text-on-surface">Your Company</p>
+          <p className="font-semibold text-on-surface">{t('misc.yourCompany')}</p>
           <p>123 Business Rd.</p>
-          <p>City, State 12345</p>
+          <p>{t('misc.companyAddress')}</p>
         </div>
       </div>
 
@@ -122,10 +124,10 @@ function QuoteInvoicePreview({ content, type }: { content: any; type: 'quote' | 
         <table className="w-full text-sm min-w-[500px]">
           <thead>
             <tr className="bg-surface-container-low border-b border-outline-variant/50">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Item Description</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('misc.itemDescription')}</th>
               <th className="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider w-20">Qty</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider w-32">Rate</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider w-32">Amount</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider w-32">{t('misc.rateLabel')}</th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider w-32">{t('misc.amountLabel')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-outline-variant/30">
@@ -165,7 +167,7 @@ function QuoteInvoicePreview({ content, type }: { content: any; type: 'quote' | 
         {/* Totals */}
         <div className="w-full sm:w-64 space-y-3">
           <div className="flex justify-between text-sm text-on-surface-variant px-2">
-            <span>Subtotal</span>
+            <span>{t('misc.subtotalLabel')}</span>
             <span className="font-medium text-on-surface">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
           </div>
           {content.taxRate > 0 && (
@@ -175,7 +177,7 @@ function QuoteInvoicePreview({ content, type }: { content: any; type: 'quote' | 
             </div>
           )}
           <div className="flex justify-between items-center text-base font-bold text-on-surface border-t-2 border-outline-variant/50 pt-3 px-2">
-            <span>Total</span>
+            <span>{t('misc.totalLabel')}</span>
             <span className={isQuote ? 'text-emerald-600 dark:text-emerald-400' : 'text-blue-600 dark:text-blue-400'}>
               ${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
@@ -300,6 +302,7 @@ export default function TemplatePreviewPanel({
   onAICustomize,
   applying,
 }: TemplatePreviewPanelProps) {
+  const { t } = useI18n();
   const content = useMemo(() => {
     try { return JSON.parse(template.content) } catch { return {} }
   }, [template.content]);

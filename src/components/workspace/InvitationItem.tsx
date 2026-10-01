@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Mail, Calendar, User, Loader2, RefreshCw, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Role } from '@/lib/workspace';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface InvitationItemProps {
     invitation: {
@@ -32,6 +33,7 @@ export default function InvitationItem({
     isResending = false,
     isCancelling = false,
 }: InvitationItemProps) {
+    const { t } = useI18n();
     const canManage = ['owner', 'admin'].includes(currentUserRole);
     const isPending = invitation.status === 'pending';
     const isExpired = invitation.status === 'expired';
@@ -67,12 +69,11 @@ export default function InvitationItem({
     };
 
     const formatDate = (date: Date) => {
-        const d = new Date(date);
-        return d.toLocaleDateString('en-US', {
+        return new Intl.DateTimeFormat(undefined, {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
-        });
+        }).format(new Date(date));
     };
 
     const getRoleColor = () => {
@@ -137,7 +138,7 @@ export default function InvitationItem({
                             onClick={onResend}
                             disabled={isResending || isCancelling}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-secondary hover:bg-secondary/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Resend invitation"
+                            title={t('workspace.invitation.resendTitle')}
                         >
                             {isResending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -152,7 +153,7 @@ export default function InvitationItem({
                             onClick={onCancel}
                             disabled={isResending || isCancelling}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-error hover:bg-error/10 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Cancel invitation"
+                            title={t('workspace.invitation.cancelTitle')}
                         >
                             {isCancelling ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -167,7 +168,7 @@ export default function InvitationItem({
 
             {isExpired && (
                 <p className="text-sm text-error">
-                    This invitation has expired. You can send a new invitation to this email.
+                    {t('workspace.invitation.expired')}
                 </p>
             )}
         </div>

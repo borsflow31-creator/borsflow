@@ -10,6 +10,7 @@ import {
     Video,
     File as FileIcon,
 } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface Block {
     id: string
@@ -31,6 +32,7 @@ interface Page {
 // ─── Read-only block renderers ────────────────────────────────
 
 function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?: number }) {
+    const { t } = useI18n()
     const c = block.content ?? {}
     const text: string = c.text ?? ''
 
@@ -111,7 +113,7 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
         case 'code':
             return (
                 <div className="relative">
-                    <div className="absolute top-3 right-3 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500 font-mono">Code</div>
+                    <div className="absolute top-3 right-3 px-2 py-1 bg-gray-100 rounded text-xs text-gray-500 font-mono">{t('public.share.codeBadge')}</div>
                     <pre className="w-full bg-gray-50 rounded-lg p-4 font-mono text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto">{text}</pre>
                 </div>
             )
@@ -202,7 +204,7 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
                             {c.linkTitle || c.url}
                         </a>
                     ) : (
-                        <span className="text-sm text-gray-400">No link</span>
+                        <span className="text-sm text-gray-400">{t('public.share.noLink')}</span>
                     )}
                 </div>
             )
@@ -217,8 +219,8 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
                 >
                     {c.bookmarkImage && <img src={c.bookmarkImage} alt="" className="w-full h-40 object-cover" />}
                     <div className="p-4">
-                        <h4 className="font-medium text-gray-900 mb-1">{c.bookmarkTitle || 'Untitled'}</h4>
-                        <p className="text-sm text-gray-500 line-clamp-2">{c.description || 'No description'}</p>
+                        <h4 className="font-medium text-gray-900 mb-1">{c.bookmarkTitle || t('public.share.untitled')}</h4>
+                        <p className="text-sm text-gray-500 line-clamp-2">{c.description || t('public.share.noDescription')}</p>
                         <p className="text-xs text-gray-400 mt-2 truncate">{c.url}</p>
                     </div>
                 </a>
@@ -237,7 +239,7 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
             return (
                 <div className="flex items-center gap-2">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${tagColorClasses[c.tagColor ?? 'gray'] ?? tagColorClasses.gray}`}>
-                        {text || 'Tag'}
+                        {text || t('public.share.tagFallback')}
                     </span>
                 </div>
             )
@@ -259,7 +261,7 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
                             : `https://player.vimeo.com/video/${video.videoId}`}
                         className="w-full h-full"
                         allowFullScreen
-                        title="Video"
+                        title={t('public.share.videoTitle')}
                     />
                 </div>
             )
@@ -297,6 +299,7 @@ function ReadonlyBlock({ block, numberedIndex }: { block: Block; numberedIndex?:
 // ─── Main public share page ───────────────────────────────────
 
 export default function SharePage() {
+    const { t } = useI18n()
     const params = useParams()
     const [page, setPage] = useState<Page | null>(null)
     const [status, setStatus] = useState<'loading' | 'notfound' | 'forbidden' | 'ok'>('loading')
@@ -337,8 +340,8 @@ export default function SharePage() {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center px-4">
                 <div className="text-5xl mb-4">🔒</div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">This page is private</h1>
-                <p className="text-gray-500">The owner hasn&apos;t shared this page publicly.</p>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('public.share.privateTitle')}</h1>
+                <p className="text-gray-500">{t('public.share.privateBody')}</p>
             </div>
         )
     }
@@ -347,8 +350,8 @@ export default function SharePage() {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-center px-4">
                 <div className="text-5xl mb-4">📄</div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Page not found</h1>
-                <p className="text-gray-500">This page may have been deleted or the link is invalid.</p>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('public.share.notFoundTitle')}</h1>
+                <p className="text-gray-500">{t('public.share.notFoundBody')}</p>
             </div>
         )
     }
@@ -364,10 +367,10 @@ export default function SharePage() {
                             <span>/</span>
                         </>
                     )}
-                    <span className="text-gray-900 font-medium truncate max-w-[200px]">{page.title || 'Untitled'}</span>
+                    <span className="text-gray-900 font-medium truncate max-w-[200px]">{page.title || t('public.share.untitled')}</span>
                 </div>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                    Read-only
+                    {t('public.share.readOnly')}
                 </span>
             </header>
 
@@ -381,7 +384,7 @@ export default function SharePage() {
 
                     {/* Title */}
                     <h1 className="text-[2.75rem] font-black tracking-tighter leading-tight text-gray-900 mb-10">
-                        {page.title || 'Untitled'}
+                        {page.title || t('public.share.untitled')}
                     </h1>
 
                     {/* Blocks */}
@@ -400,7 +403,7 @@ export default function SharePage() {
 
             {/* Footer */}
             <footer className="text-center py-8 text-xs text-gray-400">
-                Made with BorsFlow
+                {t('public.share.madeWith')}
             </footer>
         </div>
     )

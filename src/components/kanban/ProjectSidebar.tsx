@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, ChevronRight, FolderOpen, Folder, LayoutTemplate } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -37,6 +38,7 @@ export default function ProjectSidebar({
     onProjectDelete,
     loading = false,
 }: ProjectSidebarProps) {
+    const { t } = useI18n();
     const [searchQuery, setSearchQuery] = useState('');
     const [expanded, setExpanded] = useState(true);
     const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
@@ -59,13 +61,13 @@ export default function ProjectSidebar({
                     {expanded && (
                         <h2 className="text-lg font-semibold text-on-surface flex items-center gap-2">
                             <FolderOpen className="w-5 h-5 text-primary" />
-                            Projects
+                            {t('kanban.projectsHeading')}
                         </h2>
                     )}
                     <button
                         onClick={() => setExpanded(!expanded)}
                         className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors"
-                        aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                        aria-label={expanded ? t('kanban.collapseSidebarAria') : t('kanban.expandSidebarAria')}
                     >
                         <ChevronRight className={`w-5 h-5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                     </button>
@@ -79,7 +81,7 @@ export default function ProjectSidebar({
                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <Plus className="w-4 h-4" />
-                            <span>Add Project</span>
+                            <span>{t('kanban.addProject')}</span>
                         </button>
                         {onTemplateCreate && (
                             <button
@@ -88,7 +90,7 @@ export default function ProjectSidebar({
                                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-outline-variant text-on-surface-variant rounded-lg text-sm font-medium hover:bg-surface-container transition-colors disabled:opacity-50"
                             >
                                 <LayoutTemplate className="w-4 h-4" />
-                                <span>From Template</span>
+                                <span>{t('kanban.fromTemplate')}</span>
                             </button>
                         )}
                     </div>
@@ -102,7 +104,7 @@ export default function ProjectSidebar({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
                         <input
                             type="text"
-                            placeholder="Search projects..."
+                            placeholder={t('kanban.searchProjectsPlaceholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
@@ -128,7 +130,7 @@ export default function ProjectSidebar({
                     {expanded && (
                         <>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">All Cards</p>
+                                <p className="text-sm font-medium truncate">{t('kanban.allCardsLabel')}</p>
                             </div>
                             <span className="text-xs px-2 py-1 rounded-full bg-surface-container-high">
                                 {totalCards}
@@ -187,7 +189,7 @@ export default function ProjectSidebar({
                                         onProjectEdit(project);
                                     }}
                                     className="p-1.5 rounded-md hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
-                                    aria-label="Edit project"
+                                    aria-label={t('kanban.editProjectAria')}
                                 >
                                     <Edit2 className="w-4 h-4" />
                                 </button>
@@ -197,7 +199,7 @@ export default function ProjectSidebar({
                                         onProjectDelete(project.id);
                                     }}
                                     className="p-1.5 rounded-md hover:bg-error-container text-error hover:text-on-error-container transition-colors"
-                                    aria-label="Delete project"
+                                    aria-label={t('kanban.deleteProjectAria')}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -208,19 +210,19 @@ export default function ProjectSidebar({
 
                 {filteredProjects.length === 0 && searchQuery && (
                     <div className="text-center py-8">
-                        <p className="text-sm text-on-surface-variant">No projects found</p>
+                        <p className="text-sm text-on-surface-variant">{t('kanban.noProjectsFound')}</p>
                     </div>
                 )}
 
                 {!loading && projects.length === 0 && !searchQuery && (
                     <div className="text-center py-8 px-4">
                         <Folder className="w-12 h-12 mx-auto mb-3 text-on-surface-variant/30" />
-                        <p className="text-sm text-on-surface-variant mb-2">No projects yet</p>
+                        <p className="text-sm text-on-surface-variant mb-2">{t('kanban.noProjectsYet')}</p>
                         <button
                             onClick={onProjectCreate}
                             className="text-sm text-primary hover:text-primary-container font-medium"
                         >
-                            Create your first project
+                            {t('kanban.createFirstProjectCta')}
                         </button>
                     </div>
                 )}
@@ -244,7 +246,9 @@ export default function ProjectSidebar({
             {expanded && (
                 <div className="p-4 border-t border-outline-variant/30">
                     <div className="text-xs text-on-surface-variant text-center">
-                        {projects.length} {projects.length === 1 ? 'project' : 'projects'}
+                        {projects.length === 1
+                            ? t('kanban.projectCountSingular', { count: projects.length })
+                            : t('kanban.projectCountPlural', { count: projects.length })}
                     </div>
                 </div>
             )}

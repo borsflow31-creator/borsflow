@@ -3,6 +3,7 @@
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
 import { useMemo, useState } from 'react';
 import KanbanCard from './KanbanCard';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanBoardProps {
     workspaceId: string;
@@ -63,13 +64,14 @@ export default function KanbanBoard({
     isSubmitting = false,
     error = null,
 }: KanbanBoardProps) {
+    const { t } = useI18n();
     const [showAddCard, setShowAddCard] = useState<string | null>(null);
     const [newCardTitle, setNewCardTitle] = useState('');
 
     const columns = [
-        { id: 'todo', title: 'To Do', color: 'text-on-surface-variant' },
-        { id: 'inprogress', title: 'In Progress', color: 'text-secondary' },
-        { id: 'done', title: 'Done', color: 'text-on-surface-variant' },
+        { id: 'todo', title: t('kanban.statusTodo'), color: 'text-on-surface-variant' },
+        { id: 'inprogress', title: t('kanban.statusInProgress'), color: 'text-secondary' },
+        { id: 'done', title: t('kanban.statusDone'), color: 'text-on-surface-variant' },
     ] as const;
 
     const cardsByColumn = useMemo(() => {
@@ -126,12 +128,12 @@ export default function KanbanBoard({
                             <button
                                 onClick={() => openAddCard(column.id)}
                                 className="flex items-center gap-2 px-3 py-1.5 text-sm text-secondary hover:bg-secondary-container rounded-lg transition-all duration-200 hover:shadow-sm hover:scale-105"
-                                aria-label={`Add card to ${column.title}`}
+                                aria-label={t('kanban.addCardToColumnAria', { column: column.title })}
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
-                                <span>Add</span>
+                                <span>{t('common.add')}</span>
                             </button>
                         </div>
 
@@ -154,8 +156,8 @@ export default function KanbanBoard({
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                                 </svg>
                                             </div>
-                                            <p className="text-sm text-on-surface-variant">No cards here</p>
-                                            <p className="text-xs text-on-surface-variant/60 mt-1">Drag cards here or click &quot;Add&quot;</p>
+                                            <p className="text-sm text-on-surface-variant">{t('kanban.noCardsHere')}</p>
+                                            <p className="text-xs text-on-surface-variant/60 mt-1">{t('kanban.dragCardsHint')}</p>
                                         </div>
                                     )}
                                     {getFilteredCards(column.id).map((card, index) => (
@@ -182,7 +184,7 @@ export default function KanbanBoard({
                                 )}
                                 <input
                                     type="text"
-                                    placeholder="Card title..."
+                                    placeholder={t('kanban.cardTitlePlaceholderShort')}
                                     value={newCardTitle}
                                     onChange={(e) => setNewCardTitle(e.target.value)}
                                     className="w-full px-4 py-2.5 bg-surface-container-high rounded-lg mb-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
@@ -199,14 +201,14 @@ export default function KanbanBoard({
                                         disabled={isSubmitting || !newCardTitle.trim()}
                                         className="flex-1 px-4 py-2.5 bg-gradient-to-r from-secondary to-secondary-container text-on-secondary rounded-lg text-sm font-medium hover:shadow-md hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                     >
-                                        {isSubmitting ? 'Adding...' : 'Add Card'}
+                                        {isSubmitting ? t('kanban.adding') : t('kanban.addCard')}
                                     </button>
                                     <button
                                         onClick={closeAddCard}
                                         disabled={isSubmitting}
                                         className="px-4 py-2.5 text-on-surface-variant hover:bg-surface-container-high rounded-lg text-sm transition-all duration-200 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        Cancel
+                                        {t('common.cancel')}
                                     </button>
                                 </div>
                             </div>

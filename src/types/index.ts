@@ -245,9 +245,6 @@ export interface Invoice {
     amountDue: number
     paymentMethod: string | null
     paymentReference: string | null
-    stripeCustomerId: string | null
-    stripePaymentLink: string | null
-    stripePaymentLinkId: string | null
     notes: string | null
     terms: string | null
     internalNotes: string | null

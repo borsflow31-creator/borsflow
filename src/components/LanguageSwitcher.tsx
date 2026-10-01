@@ -15,14 +15,14 @@ const locales: { code: Locale; label: string; flag: string }[] = [
 ];
 
 export default function LanguageSwitcher({ variant = 'pill', className = '' }: LanguageSwitcherProps) {
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
   if (variant === 'icon') {
     return (
       <div className={`relative group ${className}`}>
         <button
           className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-          aria-label="Switch language"
+          aria-label={t('misc.switchLanguage')}
         >
           <Languages className="h-5 w-5" />
         </button>
@@ -52,7 +52,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
     <div
       className={`flex items-center gap-0.5 bg-surface-container-low rounded-lg p-0.5 ${className}`}
       role="group"
-      aria-label="Language selector"
+      aria-label={t('misc.languageSelector')}
     >
       {locales.map(({ code, label, flag }) => (
         <button

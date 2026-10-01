@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface SyncProgressProps {
   integrationId: string;
@@ -11,14 +12,16 @@ interface SyncProgressProps {
 
 type Phase = 'connecting' | 'fetching' | 'processing' | 'saving' | 'done' | 'error';
 
-const PHASES: { key: Phase; label: string; durationMs: number }[] = [
-  { key: 'connecting',  label: 'Connecting to provider…', durationMs: 600  },
-  { key: 'fetching',    label: 'Fetching calendar events…', durationMs: 1200 },
-  { key: 'processing',  label: 'Processing events…',        durationMs: 800  },
-  { key: 'saving',      label: 'Saving to database…',       durationMs: 600  },
-];
-
 export default function SyncProgress({ integrationId, isActive, onComplete }: SyncProgressProps) {
+  const { t } = useI18n();
+
+  const PHASES: { key: Phase; label: string; durationMs: number }[] = [
+    { key: 'connecting',  label: t('scheduling.syncProgress.connecting'),  durationMs: 600  },
+    { key: 'fetching',    label: t('scheduling.syncProgress.fetching'),    durationMs: 1200 },
+    { key: 'processing',  label: t('scheduling.syncProgress.processing'), durationMs: 800  },
+    { key: 'saving',      label: t('scheduling.syncProgress.saving'),      durationMs: 600  },
+  ];
+
   const [phase,     setPhase]     = useState<Phase>('connecting');
   const [phaseIdx,  setPhaseIdx]  = useState(0);
   const [error,     setError]     = useState('');
@@ -65,7 +68,7 @@ export default function SyncProgress({ integrationId, isActive, onComplete }: Sy
           clearInterval(poll);
           timers.forEach(clearTimeout);
           setPhase('error');
-          setError(latest.errorMessage || 'Sync failed');
+          setError(latest.errorMessage || t('scheduling.syncProgress.failed'));
         }
       } catch (_) { /* silent */ }
     }, 1000);
@@ -90,8 +93,8 @@ export default function SyncProgress({ integrationId, isActive, onComplete }: Sy
                  : Math.round((phaseIdx / PHASES.length) * 90);
 
   const currentPhase = PHASES[phaseIdx] || PHASES[PHASES.length - 1];
-  const label = phase === 'done'  ? 'Sync complete!'
-              : phase === 'error' ? (error || 'Sync failed')
+  const label = phase === 'done'  ? t('scheduling.syncProgress.complete')
+              : phase === 'error' ? (error || t('scheduling.syncProgress.failed'))
               : currentPhase.label;
 
   return (

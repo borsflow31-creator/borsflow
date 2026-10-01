@@ -122,6 +122,63 @@
         ],
         "createdAt": "2026-09-27T12:34:25.803Z",
         "reason": "Claude: not a card - both hits (L496, L521) are the repo-wide animate-spin rounded-full border-b-2 loading spinner, pre-existing before this session; a circle has no corners for the border to clash with"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#111827",
+        "createdAt": "2026-09-30T22:08:40.283Z",
+        "reason": "notify.ts renderNotificationEmail: inline styles in a transactional HTML email, not app UI - email clients don't render CSS custom properties/DESIGN.md tokens, so literal hex is the standard approach (matches existing templates in src/lib/email.ts)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#4b5563",
+        "createdAt": "2026-09-30T22:08:40.417Z",
+        "reason": "notify.ts renderNotificationEmail: inline styles in a transactional HTML email, not app UI - email clients don't render CSS custom properties/DESIGN.md tokens, so literal hex is the standard approach (matches existing templates in src/lib/email.ts)"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#9ca3af",
+        "createdAt": "2026-09-30T22:08:40.541Z",
+        "reason": "notify.ts renderNotificationEmail: inline styles in a transactional HTML email, not app UI - email clients don't render CSS custom properties/DESIGN.md tokens, so literal hex is the standard approach (matches existing templates in src/lib/email.ts)"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "10px",
+        "createdAt": "2026-09-30T22:16:45.802Z",
+        "reason": "Matches existing app-wide pattern for avatar initials/micro-labels: AppShell.tsx:759,767,634 and MessageBubble.tsx:47,64 already use text-[10px] for the same purpose"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "11px",
+        "createdAt": "2026-09-30T22:16:45.903Z",
+        "reason": "Matches existing app-wide pattern for timestamps/secondary labels: AIChatPanel.tsx:277, ChannelView.tsx:413,460, MessageBubble.tsx:54 already use text-[11px] for the same purpose"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "#6366f1",
+        "files": [
+          "src/components/kanban/ProjectSidebar.tsx"
+        ],
+        "createdAt": "2026-10-01T17:09:02.938Z",
+        "reason": "pre-existing fallback color for project indicator dot, unrelated to i18n migration task; not introduced or modified by this change"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "2.75rem",
+        "files": [
+          "src/app/workspaces/[id]/page.tsx"
+        ],
+        "createdAt": "2026-10-01T17:09:40.054Z",
+        "reason": "pre-existing workspace title font size, unrelated to i18n migration task; not introduced or modified by this change"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "9px",
+        "files": [
+          "src/app/workspaces/[id]/components/SlashCommandMenu.tsx"
+        ],
+        "createdAt": "2026-10-01T17:11:37.255Z",
+        "reason": "pre-existing hint text font size, unrelated to i18n migration task; not introduced or modified by this change"
       }
     ]
   }

@@ -75,8 +75,8 @@ function appendUnsubscribeFooter(html: string, recipientEmail: string, workspace
   const unsubUrl = buildUnsubscribeUrl(recipientEmail, workspaceId)
   const footer = `
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7ee;text-align:center;font-size:12px;color:#52566b;">
-  <p>You are receiving this email because you signed up or were added to our list.</p>
-  <p><a href="${unsubUrl}" style="color:#52566b;">Unsubscribe</a></p>
+  <p>{{unsubscribe_reason}}</p>
+  <p><a href="${unsubUrl}" style="color:#52566b;">{t('misc.unsubscribe')}</a></p>
 </div>`
   if (html.includes('</body>')) {
     return html.replace('</body>', `${footer}</body>`)

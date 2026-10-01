@@ -64,6 +64,34 @@ export const INVITATION_RATE_LIMITS = {
   },
 } satisfies Record<string, RateLimitRule>
 
+/**
+ * AI requests: a brake on scripted abuse of the model routes. Credits already cap
+ * spend per month; this stops one user from burning a month's pool in minutes.
+ */
+export const AI_RATE_LIMITS = {
+  perUser: {
+    bucket: 'ai:request',
+    limit: 60,
+    windowMs: 60 * 60 * 1000,
+    windowLabel: 'hour',
+  },
+  perWorkspace: {
+    bucket: 'ai:request',
+    limit: 600,
+    windowMs: 60 * 60 * 1000,
+    windowLabel: 'hour',
+  },
+} satisfies Record<string, RateLimitRule>
+
+export const AI_RATE_LIMIT_ACTION: RateLimitAction = { noun: 'AI request', verb: 'make' }
+
+export function aiLimitTargets(userId: string, workspaceId: string): RateLimitTarget[] {
+  return [
+    { subject: `user:${userId}`, rule: AI_RATE_LIMITS.perUser },
+    { subject: `workspace:${workspaceId}`, rule: AI_RATE_LIMITS.perWorkspace },
+  ]
+}
+
 export function invitationLimitTargets(userId: string, workspaceId: string): RateLimitTarget[] {
   return [
     { subject: `user:${userId}`, rule: INVITATION_RATE_LIMITS.perUser },
@@ -171,20 +199,35 @@ function describeWait(seconds: number): string {
   return `about ${hours} hour${hours === 1 ? '' : 's'}`
 }
 
+/** How a limited action is named in the 429 message. */
+export interface RateLimitAction {
+  /** Singular noun: 'invitation', 'AI request'. */
+  noun: string
+  /** Verb for doing one: 'send', 'make'. */
+  verb: string
+}
+
+const INVITATION_ACTION: RateLimitAction = { noun: 'invitation', verb: 'send' }
+
 /**
  * The 429 for a denied result. The body is `{ error }` like every other route,
  * so existing client error handling shows it without changes.
  */
-export function rateLimitedResponse(result: RateLimitResult, cost: number): NextResponse {
+export function rateLimitedResponse(
+  result: RateLimitResult,
+  cost: number,
+  action: RateLimitAction = INVITATION_ACTION
+): NextResponse {
+  const { noun, verb } = action
   let error: string
 
   if (result.exceedsLimit) {
     // Waiting will not help: the request is bigger than the whole allowance.
-    error = `You can send at most ${result.limit} invitations per ${result.windowLabel}. This request has ${cost}; send fewer at a time.`
+    error = `You can ${verb} at most ${result.limit} ${noun}s per ${result.windowLabel}. This request has ${cost}; ${verb} fewer at a time.`
   } else {
-    error = `You've reached the invitation limit (${result.limit} per ${result.windowLabel}). Try again in ${describeWait(result.retryAfterSeconds)}.`
+    error = `You've reached the ${noun} limit (${result.limit} per ${result.windowLabel}). Try again in ${describeWait(result.retryAfterSeconds)}.`
     if (result.remaining > 0) {
-      error += ` You can send ${result.remaining} more right now.`
+      error += ` You can ${verb} ${result.remaining} more right now.`
     }
   }
 

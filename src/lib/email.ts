@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { Resend, type CreateEmailOptions } from 'resend'
 import nodemailer from 'nodemailer'
 import { escapeHtml } from '@/lib/html'
 
@@ -14,6 +14,44 @@ function getResend(): Resend {
     resendClient = new Resend(process.env.RESEND_API_KEY)
   }
   return resendClient
+}
+
+/**
+ * Resend resolves with `{ data: null, error }` instead of throwing, so an
+ * unverified sending domain, a rejected key or a provider outage all looked
+ * like a successful send and the invitation UI reported "sent". Surface it as a
+ * throw: every caller here already treats a throw as "not delivered".
+ */
+async function sendViaResend(payload: CreateEmailOptions): Promise<void> {
+  const { error } = await getResend().emails.send(payload)
+  if (error) {
+    throw new Error(`${error.name}: ${error.message}`)
+  }
+}
+
+/**
+ * The origin emailed links point at. NEXT_PUBLIC_APP_URL is the deployed one,
+ * but being a NEXT_PUBLIC_ var it has to be present at build time to be
+ * reliable; NEXTAUTH_URL is already required for auth and names the same
+ * origin, so prefer it over a localhost link the recipient cannot open.
+ */
+function getAppUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL
+  if (configured) return configured.replace(/\/$/, '')
+
+  // Falling through in production means every link we mail out points at the
+  // recipient's own machine - a dead invitation that still looks sent. NextAuth
+  // can infer its own origin from the request on Vercel, so a working sign-in
+  // is not evidence that NEXTAUTH_URL is actually set; say so out loud rather
+  // than let the invitation fail silently.
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[email] Neither NEXT_PUBLIC_APP_URL nor NEXTAUTH_URL is set. ' +
+        'Emailed links will point at http://localhost:3000 and will not work. ' +
+        'Set NEXT_PUBLIC_APP_URL at build time.'
+    )
+  }
+  return 'http://localhost:3000'
 }
 
 function getSmtpTransporter() {
@@ -169,7 +207,7 @@ export async function sendInvitationEmail(
   token: string,
   invitationId: string
 ): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = getAppUrl()
   const acceptUrl = `${appUrl}/invitations/${invitationId}?token=${token}`
 
   const emailData: InvitationEmailData = {
@@ -191,7 +229,7 @@ export async function sendInvitationEmail(
     await transporter.sendMail({ from, to: email, subject, html })
   } else {
     // Default: Resend
-    await getResend().emails.send({ from, to: email, subject, html })
+    await sendViaResend({ from, to: email, subject, html })
   }
 }
 
@@ -199,13 +237,22 @@ export async function sendInvitationEmail(
 
 export async function sendVerificationEmail(
   email: string,
-  token: string
+  token: string,
+  /**
+   * Where to send the user once the address is confirmed. An invited user signs
+   * up mid-invitation, so without this they verify and land on the dashboard
+   * with the invitation abandoned. Callers must pass a validated local path
+   * (see `safeCallbackUrl`).
+   */
+  callbackUrl?: string | null
 ): Promise<void> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = getAppUrl()
   // The page, not the API route: /api/auth/verify-email only accepts POST, so a
   // link straight to it answered every click with 405. The page reads the token
   // from the query string and POSTs it for us.
-  const verifyUrl = `${appUrl}/verify-email?token=${encodeURIComponent(token)}`
+  const verifyUrl =
+    `${appUrl}/verify-email?token=${encodeURIComponent(token)}` +
+    (callbackUrl ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : '')
 
   // The copy says what happens next: the link verifies the address, then the
   // user signs in; it lasts as long as the token does (24 hours, see register).
@@ -227,7 +274,7 @@ export async function sendVerificationEmail(
     await transporter.sendMail({ from, to: email, subject, html })
   } else {
     // Default: Resend
-    await getResend().emails.send({ from, to: email, subject, html })
+    await sendViaResend({ from, to: email, subject, html })
   }
 }
 
@@ -270,7 +317,7 @@ export async function sendTransactionalEmail({
       })),
     })
   } else {
-    await getResend().emails.send({
+    await sendViaResend({
       from,
       to,
       subject,

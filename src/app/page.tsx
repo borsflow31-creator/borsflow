@@ -1,6 +1,9 @@
+'use client'
+
 import React from 'react'
 import Link from 'next/link'
 import { Layers } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 import { LandingHeader } from '@/components/landing/LandingHeader'
 import { HeroSection } from '@/components/landing/HeroSection'
 import { BentoGrid } from '@/components/landing/BentoGrid'
@@ -13,19 +16,21 @@ import { SupportSection } from '@/components/landing/SupportSection'
 import { PricingSection } from '@/components/landing/PricingSection'
 import { FinalCTA } from '@/components/landing/FinalCTA'
 
-/* Anchors rather than routes: every product page is behind the auth
-   middleware, so a visitor clicking one would be bounced to sign-in. */
-const PRODUCT_LINKS = [
-    { label: 'Pipeline', href: '#features' },
-    { label: 'Documents', href: '#editor' },
-    { label: 'How it works', href: '#journey' },
-    { label: 'Assistant', href: '#assistant' },
-    { label: 'Roles and team', href: '#team' },
-    { label: 'Quotes and invoices', href: '#financials' },
-    { label: 'Pricing', href: '/pricing' },
-]
-
 export default function Home() {
+    const { t } = useI18n()
+
+    /* Anchors rather than routes: every product page is behind the auth
+       middleware, so a visitor clicking one would be bounced to sign-in. */
+    const PRODUCT_LINKS = [
+        { label: t('landing.footer.linkPipeline'), href: '#features' },
+        { label: t('landing.footer.linkDocuments'), href: '#editor' },
+        { label: t('landing.footer.linkHowItWorks'), href: '#journey' },
+        { label: t('landing.footer.linkAssistant'), href: '#assistant' },
+        { label: t('landing.footer.linkRolesTeam'), href: '#team' },
+        { label: t('landing.footer.linkQuotesInvoices'), href: '#financials' },
+        { label: t('landing.footer.linkPricing'), href: '/pricing' },
+    ]
+
     return (
         <main className="landing-surface min-h-screen bg-[var(--n-base)] text-[var(--n-text)]">
             <LandingHeader />
@@ -56,8 +61,7 @@ export default function Home() {
                                 </span>
                             </Link>
                             <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--n-muted)]">
-                                Documents, pipeline, quotes, invoices, email and scheduling on one database. Stop
-                                retyping the same deal into five tools.
+                                {t('landing.footer.tagline')}
                             </p>
                         </div>
 
@@ -66,7 +70,7 @@ export default function Home() {
                                 id="footer-product"
                                 className="text-xs font-semibold uppercase tracking-wider text-[var(--n-text)]"
                             >
-                                Product
+                                {t('landing.footer.productHeading')}
                             </h2>
                             <ul className="mt-4 flex flex-col gap-2.5">
                                 {PRODUCT_LINKS.map((item) => (
@@ -84,19 +88,19 @@ export default function Home() {
                     </div>
 
                     <div className="mt-14 pt-8 border-t border-[var(--n-border)] flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-xs text-[var(--n-muted)]">&copy; 2026 BorsFlow</p>
+                        <p className="text-xs text-[var(--n-muted)]">{t('landing.footer.copyright')}</p>
                         <div className="flex items-center gap-6">
                             <Link
                                 href="/login"
                                 className="text-xs text-[var(--n-muted)] hover:text-[var(--n-text)] transition-colors"
                             >
-                                Sign in
+                                {t('landing.footer.signIn')}
                             </Link>
                             <Link
                                 href="/register"
                                 className="text-xs text-[var(--n-muted)] hover:text-[var(--n-text)] transition-colors"
                             >
-                                Create a workspace
+                                {t('landing.footer.createWorkspace')}
                             </Link>
                         </div>
                     </div>

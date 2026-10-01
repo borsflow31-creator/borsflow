@@ -30,16 +30,26 @@ Add the following variables to your `.env` file:
 # Cron Job Security (Required for expiring invitations)
 CRON_SECRET="your-cron-secret-here"
 
-# Email Configuration (Optional - for sending invitations)
-EMAIL_FROM="noreply@borsflow.com"
-SMTP_HOST="smtp.example.com"
-SMTP_PORT=587
-SMTP_USER="apikey"
-SMTP_PASSWORD="your-smtp-password"
+# Email - required to actually deliver invitations
+EMAIL_PROVIDER="resend"          # "resend" (default) or "smtp"
+EMAIL_FROM="noreply@borsflow.com"  # must be a domain verified with the provider
+RESEND_API_KEY="re_..."          # when EMAIL_PROVIDER=resend
 
-# Application URL (for invitation links)
+# ...or, when EMAIL_PROVIDER=smtp
+# SMTP_HOST="smtp.example.com"
+# SMTP_PORT=587
+# SMTP_USER="apikey"
+# SMTP_PASSWORD="your-smtp-password"
+
+# Origin used to build the link inside the invitation email.
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
+
+`NEXT_PUBLIC_APP_URL` is a `NEXT_PUBLIC_` variable, so it is inlined at **build**
+time - setting it only at runtime in the deployment is not enough. When it is
+unset the code falls back to `NEXTAUTH_URL` and then to `http://localhost:3000`,
+so make sure at least one of the two names the real origin in production, or
+every invitation email will carry a link the recipient cannot open.
 
 ### Generating Secrets
 
@@ -125,113 +135,43 @@ On Windows (using Task Scheduler):
 
 ## Email Service Integration
 
-The email service is currently set up to log emails to the console. To send real emails, you need to integrate with an email service provider.
+Email is already wired up in `src/lib/email.ts`. Pick the provider with
+`EMAIL_PROVIDER`:
 
-### Option 1: Resend (Recommended)
+- `resend` (default) - needs `RESEND_API_KEY` and `EMAIL_FROM`.
+- `smtp` - needs `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`
+  (and `SMTP_SECURE` for STARTTLS on a port other than 465).
 
-1. Install Resend:
-   ```bash
-   npm install resend
-   ```
+**`EMAIL_FROM` must be on a domain you have verified with your provider.** An
+unverified sending domain is the most common cause of invitations that appear to
+send but never arrive: Resend rejects the request, and until that rejection is
+surfaced the invitation row still gets created.
 
-2. Update `src/lib/email.ts`:
-   ```typescript
-   import { Resend } from 'resend'
+Delivery is reported, not assumed. `deliverInvitationEmail`
+(`src/lib/invitation-delivery.ts`) never throws; it returns one of three
+outcomes, which the invite modal renders distinctly:
 
-   const resend = new Resend(process.env.RESEND_API_KEY)
+| Outcome | Meaning |
+| --- | --- |
+| `emailSent: true` | The provider accepted the message. |
+| `reason: 'suppressed'` | The address has bounced before, so no send was attempted (`src/lib/email/suppression.ts`). |
+| `reason: 'provider_error'` | The provider rejected the send; `emailError` carries its message. |
 
-   export async function sendInvitationEmail(...) {
-     // ... existing code ...
-
-     await resend.emails.send({
-       from: process.env.EMAIL_FROM || 'noreply@borsflow.com',
-       to: email,
-       subject: `You're invited to join ${workspaceName}`,
-       html,
-     })
-   }
-   ```
-
-3. Add to `.env`:
-   ```env
-   RESEND_API_KEY="your-resend-api-key"
-   ```
-
-### Option 2: SendGrid
-
-1. Install SendGrid:
-   ```bash
-   npm install @sendgrid/mail
-   ```
-
-2. Update `src/lib/email.ts`:
-   ```typescript
-   import sgMail from '@sendgrid/mail'
-
-   sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-
-   export async function sendInvitationEmail(...) {
-     // ... existing code ...
-
-     await sgMail.send({
-       to: email,
-       from: process.env.EMAIL_FROM || 'noreply@borsflow.com',
-       subject: `You're invited to join ${workspaceName}`,
-       html,
-     })
-   }
-   ```
-
-3. Add to `.env`:
-   ```env
-   SENDGRID_API_KEY="your-sendgrid-api-key"
-   ```
-
-### Option 3: AWS SES
-
-1. Install AWS SDK:
-   ```bash
-   npm install @aws-sdk/client-ses
-   ```
-
-2. Update `src/lib/email.ts`:
-   ```typescript
-   import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses'
-
-   const sesClient = new SESClient({ region: process.env.AWS_REGION })
-
-   export async function sendInvitationEmail(...) {
-     // ... existing code ...
-
-     await sesClient.send(new SendEmailCommand({
-       Source: process.env.EMAIL_FROM || 'noreply@borsflow.com',
-       Destination: { ToAddresses: [email] },
-       Message: {
-         Subject: { Data: `You're invited to join ${workspaceName}` },
-         Body: { Html: { Data: html } },
-       },
-     }))
-   }
-   ```
-
-3. Add to `.env`:
-   ```env
-   AWS_REGION="us-east-1"
-   AWS_ACCESS_KEY_ID="your-access-key"
-   AWS_SECRET_ACCESS_KEY="your-secret-key"
-   ```
+In every case the invitation row is created, so an admin can still copy the
+link or use **Resend** once the provider is configured.
 
 ## API Endpoints
 
 ### Invitation Management
 
-- `POST /api/workspaces/[id]/invitations` - Send invitation
+- `POST /api/workspaces/[id]/invitations/bulk` - Send invitations (what the invite modal uses, for one address or many)
+- `POST /api/workspaces/[id]/invitations` - Send a single invitation
 - `GET /api/workspaces/[id]/invitations` - List workspace invitations
 - `GET /api/invitations/pending` - Get user's pending invitations
 - `POST /api/invitations/[id]/accept` - Accept invitation
 - `POST /api/invitations/[id]/decline` - Decline invitation
 - `DELETE /api/workspaces/[id]/invitations/[invitationId]` - Cancel invitation
-- `POST /api/workspaces/[id]/invitations/[invitationId]/resend` - Resend invitation
+- `POST /api/workspaces/[id]/invitations/[invitationId]` - Resend invitation (rotates the token and resets the 7-day expiry)
 
 ### Member Management
 
@@ -295,10 +235,15 @@ npx prisma generate
 
 ### Emails Not Sending
 
-1. Check the console logs for email content (currently logged)
-2. Verify your email service credentials
-3. Check if the email service API key is correct
-4. Ensure the email service is properly configured
+1. Read the banner in the invite modal. A red *"Email delivery failed for ..."*
+   carries the provider's own message; *"no email was sent - that address has
+   bounced before"* means the address is suppressed, not that sending is broken.
+2. Check the server log for `Failed to send invitation email:`
+   (`src/lib/invitation-delivery.ts`).
+3. Verify `EMAIL_FROM` is on a domain verified with your provider, and that
+   `RESEND_API_KEY` (or the `SMTP_*` set) is correct.
+4. If the mail arrives but the link is dead, `NEXT_PUBLIC_APP_URL` is wrong -
+   see Environment Variables above.
 
 ### Invitations Not Expiring
 
@@ -321,17 +266,15 @@ npx prisma generate
 1. **CRON_SECRET**: Always use a strong, randomly generated secret
 2. **Email Verification**: Verify email ownership during invitation acceptance
 3. **Token Security**: Tokens are 64-character hex strings (32 bytes)
-4. **Rate Limiting**: Consider implementing rate limiting for invitation endpoints
+4. **Rate Limiting**: Enforced in `src/lib/api/rate-limit.ts` - 50 invitations per user per hour and 200 per workspace per day
 5. **Audit Logging**: Consider adding audit logs for security-sensitive actions
 
 ## Next Steps
 
-1. Set up your email service provider
-2. Configure the cron job for production
-3. Test the complete invitation flow
-4. Implement rate limiting (optional)
-5. Add audit logging (optional)
-6. Create frontend UI components for invitation management
+1. Verify your sending domain with your email provider
+2. Set `NEXT_PUBLIC_APP_URL` (build time) and `NEXTAUTH_URL` in the deployment
+3. Test the complete invitation flow, including sign-up for a brand-new invitee
+4. Add audit logging (optional)
 
 ## Support
 

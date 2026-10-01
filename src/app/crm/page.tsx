@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import NoWorkspace from '@/components/NoWorkspace';
+import { useI18n } from '@/i18n/I18nProvider';
 import PipelineBoard from '@/components/crm/PipelineBoard';
 import LeadListView from '@/components/crm/LeadListView';
 import LeadModal from '@/components/crm/LeadModal';
@@ -62,6 +63,7 @@ interface LeadList {
 }
 
 function CRMPageInner() {
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const workspaceId = searchParams.get('workspace') || '';
     const { currentWorkspaceId } = useAppStore();
@@ -161,11 +163,11 @@ function CRMPageInner() {
                     return data.find((p: Pipeline) => p.id === prev.id) || data[0] || null;
                 });
             } else {
-                showError(await errorFrom(response, 'Failed to load pipelines'));
+                showError(await errorFrom(response, t('crm.page.errors.loadPipelinesFailed')));
             }
         } catch (error) {
             console.error('Error fetching pipelines:', error);
-            showError('Could not reach the server. Check your connection and try again.');
+            showError(t('crm.page.errors.loadPipelinesNetwork'));
         } finally {
             setLoading(false);
         }
@@ -178,7 +180,7 @@ function CRMPageInner() {
                 const data = await response.json();
                 setLeadLists(data);
             } else {
-                showError(await errorFrom(response, 'Failed to load lead lists'));
+                showError(await errorFrom(response, t('crm.page.errors.loadListsFailed')));
             }
         } catch (error) {
             console.error('Error fetching lead lists:', error);
@@ -206,7 +208,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to create lead'));
+                showError(await errorFrom(response, t('crm.page.errors.createLeadFailed')));
                 return false;
             }
 
@@ -215,7 +217,7 @@ function CRMPageInner() {
             return true;
         } catch (error) {
             console.error('Error creating lead:', error);
-            showError('Could not reach the server. The lead was not created.');
+            showError(t('crm.page.errors.createLeadNetwork'));
             return false;
         }
     };
@@ -229,7 +231,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to update lead'));
+                showError(await errorFrom(response, t('crm.page.errors.updateLeadFailed')));
                 return false;
             }
 
@@ -239,7 +241,7 @@ function CRMPageInner() {
             return true;
         } catch (error) {
             console.error('Error updating lead:', error);
-            showError('Could not reach the server. The change was not saved.');
+            showError(t('crm.page.errors.changeNotSavedNetwork'));
             return false;
         }
     };
@@ -251,14 +253,14 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to delete lead'));
+                showError(await errorFrom(response, t('crm.page.errors.deleteLeadFailed')));
                 return false;
             }
 
             return true;
         } catch (error) {
             console.error('Error deleting lead:', error);
-            showError('Could not reach the server. The lead was not deleted.');
+            showError(t('crm.page.errors.deleteLeadNetwork'));
             return false;
         }
     };
@@ -275,7 +277,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to create pipeline'));
+                showError(await errorFrom(response, t('crm.page.errors.createPipelineFailed')));
                 return;
             }
 
@@ -286,7 +288,7 @@ function CRMPageInner() {
             setBoardRefreshKey(k => k + 1);
         } catch (error) {
             console.error('Error creating pipeline:', error);
-            showError('Could not reach the server. The pipeline was not created.');
+            showError(t('crm.page.errors.createPipelineNetwork'));
         }
     };
 
@@ -299,7 +301,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to update pipeline'));
+                showError(await errorFrom(response, t('crm.page.errors.updatePipelineFailed')));
                 return;
             }
 
@@ -309,16 +311,17 @@ function CRMPageInner() {
             setBoardRefreshKey(k => k + 1);
         } catch (error) {
             console.error('Error updating pipeline:', error);
-            showError('Could not reach the server. The change was not saved.');
+            showError(t('crm.page.errors.changeNotSavedNetwork'));
         }
     };
 
     const handlePipelineDelete = async (pipelineId: string) => {
         const target = pipelines.find(p => p.id === pipelineId);
         const leadCount = target?._count?.leads ?? 0;
+        const name = target?.name ?? t('crm.page.thisPipelineFallback');
         const warning = leadCount > 0
-            ? `Delete "${target?.name ?? 'this pipeline'}" and its ${leadCount} lead${leadCount === 1 ? '' : 's'}? This cannot be undone.`
-            : `Delete "${target?.name ?? 'this pipeline'}"? This cannot be undone.`;
+            ? t('crm.page.confirmDeletePipelineWithLeads', { name, count: leadCount })
+            : t('crm.page.confirmDeletePipeline', { name });
 
         if (!confirm(warning)) return;
 
@@ -328,7 +331,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to delete pipeline'));
+                showError(await errorFrom(response, t('crm.page.errors.deletePipelineFailed')));
                 return;
             }
 
@@ -338,7 +341,7 @@ function CRMPageInner() {
             fetchPipelines();
         } catch (error) {
             console.error('Error deleting pipeline:', error);
-            showError('Could not reach the server. The pipeline was not deleted.');
+            showError(t('crm.page.errors.deletePipelineNetwork'));
         }
     };
 
@@ -354,7 +357,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to create list'));
+                showError(await errorFrom(response, t('crm.page.errors.createListFailed')));
                 return;
             }
 
@@ -362,7 +365,7 @@ function CRMPageInner() {
             fetchLeadLists();
         } catch (error) {
             console.error('Error creating lead list:', error);
-            showError('Could not reach the server. The list was not created.');
+            showError(t('crm.page.errors.createListNetwork'));
         }
     };
 
@@ -375,7 +378,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to update list'));
+                showError(await errorFrom(response, t('crm.page.errors.updateListFailed')));
                 return;
             }
 
@@ -384,7 +387,7 @@ function CRMPageInner() {
             fetchLeadLists();
         } catch (error) {
             console.error('Error updating lead list:', error);
-            showError('Could not reach the server. The change was not saved.');
+            showError(t('crm.page.errors.changeNotSavedNetwork'));
         }
     };
 
@@ -395,7 +398,7 @@ function CRMPageInner() {
             });
 
             if (!response.ok) {
-                showError(await errorFrom(response, 'Failed to delete list'));
+                showError(await errorFrom(response, t('crm.page.errors.deleteListFailed')));
                 return;
             }
 
@@ -403,7 +406,7 @@ function CRMPageInner() {
             setBoardRefreshKey(k => k + 1);
         } catch (error) {
             console.error('Error deleting lead list:', error);
-            showError('Could not reach the server. The list was not deleted.');
+            showError(t('crm.page.errors.deleteListNetwork'));
         }
     };
 
@@ -458,18 +461,18 @@ function CRMPageInner() {
 
     return (
         <AppShell
-            workspace={{ id: effectiveWorkspaceId, name: workspaceName || 'Workspace' }}
+            workspace={{ id: effectiveWorkspaceId, name: workspaceName || t('crm.page.workspaceFallback') }}
             currentPage={undefined}
             breadcrumbs={[
-                { label: 'Dashboard', href: '/dashboard' },
-                { label: 'CRM', href: `/crm?workspace=${effectiveWorkspaceId}` },
+                { label: t('nav.dashboard'), href: '/dashboard' },
+                { label: t('nav.crm'), href: `/crm?workspace=${effectiveWorkspaceId}` },
             ]}
         >
             <div className="p-4 sm:p-6 h-full">
                 {/* Header */}
                 <div className="mb-6 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                        <h1 className="display-md text-on-surface">CRM</h1>
+                        <h1 className="display-md text-on-surface">{t('nav.crm')}</h1>
 
                         {/* Pipeline Selector */}
                         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -481,13 +484,13 @@ function CRMPageInner() {
                                     if (pipeline) handlePipelineSelect(pipeline);
                                 }}
                                 className="flex-1 sm:w-64"
-                                placeholder="Select pipeline"
+                                placeholder={t('crm.page.selectPipelinePlaceholder')}
                             />
                             <button
                                 onClick={() => handleOpenPipelineModal()}
                                 className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
-                                title="Add Pipeline"
-                                aria-label="Add Pipeline"
+                                title={t('crm.page.addPipelineAria')}
+                                aria-label={t('crm.page.addPipelineAria')}
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -509,8 +512,8 @@ function CRMPageInner() {
                             onClick={() => handleOpenLeadListModal()}
                             className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
                         >
-                            <span className="hidden sm:inline">Manage Lists</span>
-                            <span className="sm:hidden">Lists</span>
+                            <span className="hidden sm:inline">{t('crm.page.manageListsFull')}</span>
+                            <span className="sm:hidden">{t('crm.page.manageListsShort')}</span>
                         </button>
                         {selectedPipeline && (
                             <button
@@ -520,14 +523,14 @@ function CRMPageInner() {
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                 </svg>
-                                <span className="hidden sm:inline">Import</span>
+                                <span className="hidden sm:inline">{t('crm.page.importButton')}</span>
                             </button>
                         )}
                         <button
                             onClick={() => handleOpenLeadModal()}
                             className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
                         >
-                            Add Lead
+                            {t('crm.page.addLeadButton')}
                         </button>
                     </div>
                 </div>
@@ -561,13 +564,13 @@ function CRMPageInner() {
                     <div className="flex items-center justify-center h-[calc(100vh-180px)]">
                         <div className="text-center">
                             <p className="body-lg text-on-surface-variant mb-4">
-                                No pipeline selected
+                                {t('crm.page.noPipelineSelected')}
                             </p>
                             <button
                                 onClick={() => handleOpenPipelineModal()}
                                 className="px-6 py-3 bg-primary text-on-primary rounded hover:bg-primary-container transition-colors"
                             >
-                                Create Your First Pipeline
+                                {t('crm.page.createFirstPipeline')}
                             </button>
                         </div>
                     </div>

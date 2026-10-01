@@ -92,15 +92,21 @@ export const metadata: Metadata = {
    persisted Zustand key ThemeProvider writes. */
 const themeScript = `(function(){try{var t='system',r=localStorage.getItem('app-storage');if(r){var p=JSON.parse(r);if(p&&p.state&&p.state.theme){t=p.state.theme}}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches),v=d?'dark':'light',e=document.documentElement;e.classList.remove('light','dark');e.classList.add(v);e.setAttribute('data-theme',v)}catch(e){}})();`
 
+/* Same problem as themeScript, for locale: without this the page always
+   paints lang="en" dir="ltr" first, then I18nProvider flips it on mount, so
+   an Arabic-locale visitor sees a flash of LTR layout before it mirrors to RTL. */
+const localeScript = `(function(){try{var l=localStorage.getItem('app_locale');if(l){var e=document.documentElement;e.lang=l;e.dir=(l==='ar')?'rtl':'ltr'}}catch(e){}})();`
+
 export default function RootLayout({
     children,
 }: {
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className={`${dmSans.variable} ${albertSans.variable} ${jetbrainsMono.variable}`}>
+        <html lang="en" dir="ltr" className={`${dmSans.variable} ${albertSans.variable} ${jetbrainsMono.variable}`}>
             <head>
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+                <script dangerouslySetInnerHTML={{ __html: localeScript }} />
                 <link rel="preconnect" href="https://fonts.googleapis.com" />
                 <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
                 <link

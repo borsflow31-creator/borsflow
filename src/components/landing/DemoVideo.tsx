@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Play, Volume2, VolumeX, X } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 /* The demo opens in a dialog rather than sitting inline: a 2.8 MB video on the
    fold would compete with the capture for the LCP and load for every visitor
@@ -22,6 +23,7 @@ interface DemoVideoProps {
 }
 
 export const DemoVideo = ({ className = '', ...triggerProps }: DemoVideoProps) => {
+    const { t } = useI18n()
     const [open, setOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
     const [muted, setMuted] = useState(true)
@@ -98,7 +100,7 @@ export const DemoVideo = ({ className = '', ...triggerProps }: DemoVideoProps) =
                 className={`taste-btn-ghost px-6 py-3.5 text-sm ${className}`.trim()}
             >
                 <Play className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Watch the demo</span>
+                <span>{t('landing.demoVideo.watchDemo')}</span>
                 <span className="t-data text-xs text-[var(--n-muted)]">0:21</span>
             </button>
 
@@ -111,13 +113,13 @@ export const DemoVideo = ({ className = '', ...triggerProps }: DemoVideoProps) =
                         ref={dialogRef}
                         role="dialog"
                         aria-modal="true"
-                        aria-label="BorsFlow product demo"
+                        aria-label={t('landing.demoVideo.dialogLabel')}
                         className="relative w-full max-w-5xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between gap-4 pb-3">
                             <p className="text-xs text-[var(--n-text)]">
-                                Recorded from the running app &middot; 21 seconds
+                                {t('landing.demoVideo.recordedFrom')}
                             </p>
                             <div className="flex items-center gap-2">
                                 <button
@@ -131,13 +133,13 @@ export const DemoVideo = ({ className = '', ...triggerProps }: DemoVideoProps) =
                                     ) : (
                                         <Volume2 className="w-3.5 h-3.5" aria-hidden="true" />
                                     )}
-                                    {muted ? 'Sound off' : 'Sound on'}
+                                    {muted ? t('landing.demoVideo.soundOff') : t('landing.demoVideo.soundOn')}
                                 </button>
                                 <button
                                     ref={closeRef}
                                     type="button"
                                     onClick={close}
-                                    aria-label="Close the demo"
+                                    aria-label={t('landing.demoVideo.closeDemo')}
                                     className="w-8 h-8 rounded-full border border-[var(--n-border)] bg-[var(--n-surface)] text-[var(--n-muted)] flex items-center justify-center transition-colors hover:text-[var(--n-text)] hover:border-[var(--n-border-strong)]"
                                 >
                                     <X className="w-4 h-4" aria-hidden="true" />

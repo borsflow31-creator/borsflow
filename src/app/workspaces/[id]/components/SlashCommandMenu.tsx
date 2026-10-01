@@ -1,17 +1,24 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { aiComplete, aiErrorMessage } from '@/lib/ai/client'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface SlashCommandMenuProps {
     onInsertBlock: (type: string, content?: string) => void
 }
 
 export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProps) {
+    const { t } = useI18n()
     const [aiPrompt, setAiPrompt] = useState('')
     const [showAiInput, setShowAiInput] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
+    const [error, setError] = useState<string | null>(null)
     const aiInputRef = useRef<HTMLInputElement>(null)
+    const params = useParams()
+    const workspaceId = params?.id as string
 
     useEffect(() => {
         if (showAiInput) aiInputRef.current?.focus()
@@ -20,29 +27,16 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
     const generateContent = async () => {
         if (!aiPrompt.trim() || isGenerating) return
         setIsGenerating(true)
+        setError(null)
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: 'user', content: aiPrompt }],
-                }),
+            const result = await aiComplete({ workspaceId }, {
+                prompt: `Write the following for a document. Return only the text to insert.\n\n${aiPrompt}`,
             })
-            if (!res.ok || !res.body) throw new Error('Request failed')
-
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let result = ''
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                result += decoder.decode(value)
-            }
             onInsertBlock('text', result.trim())
             setAiPrompt('')
             setShowAiInput(false)
-        } catch {
-            // silently fail
+        } catch (err) {
+            setError(aiErrorMessage(err, t('workspaces.generateError')))
         } finally {
             setIsGenerating(false)
         }
@@ -53,7 +47,7 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
 
             {/* AI section */}
             <div className="px-3 py-1.5 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                AI
+                {t('workspaces.aiLabel')}
             </div>
 
             {showAiInput ? (
@@ -68,7 +62,7 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                                 if (e.key === 'Enter') generateContent()
                                 if (e.key === 'Escape') { setShowAiInput(false); setAiPrompt('') }
                             }}
-                            placeholder="Describe what to generate…"
+                            placeholder={t('workspaces.describeGeneratePlaceholder')}
                             className="flex-1 bg-transparent text-xs text-on-surface placeholder-on-surface-variant outline-none"
                         />
                         {isGenerating ? (
@@ -83,7 +77,11 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                             </button>
                         )}
                     </div>
-                    <p className="text-[9px] text-on-surface-variant mt-1">Enter to generate · Esc to cancel</p>
+                    {error ? (
+                        <p role="alert" className="text-[10px] text-error mt-1">{error}</p>
+                    ) : (
+                        <p className="text-[9px] text-on-surface-variant mt-1">{t('workspaces.generateHint')}</p>
+                    )}
                 </div>
             ) : (
                 <div
@@ -94,8 +92,8 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                         <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: 'FILL 1' }}>auto_awesome</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-sm font-medium">Generate with AI</span>
-                        <span className="text-[10px] text-on-surface-variant">Describe what you want</span>
+                        <span className="text-sm font-medium">{t('workspaces.generateWithAi')}</span>
+                        <span className="text-[10px] text-on-surface-variant">{t('workspaces.describeWhatYouWant')}</span>
                     </div>
                 </div>
             )}
@@ -104,7 +102,7 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
 
             {/* Basic Blocks */}
             <div className="px-3 py-1.5 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                Basic Blocks
+                {t('workspaces.basicBlocksHeader')}
             </div>
 
             <div
@@ -114,7 +112,7 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                 <div className="w-8 h-8 rounded bg-surface-container flex items-center justify-center mr-3 group-hover:bg-white">
                     <span className="material-symbols-outlined text-sm">title</span>
                 </div>
-                <span className="text-sm font-medium">Heading 1</span>
+                <span className="text-sm font-medium">{t('workspaces.heading1Block')}</span>
             </div>
 
             <div
@@ -125,8 +123,8 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                     <span className="material-symbols-outlined text-sm">text_fields</span>
                 </div>
                 <div className="flex flex-col">
-                    <span className="text-sm font-medium">Text</span>
-                    <span className="text-[10px] text-on-surface-variant">Just start writing</span>
+                    <span className="text-sm font-medium">{t('workspaces.textBlock')}</span>
+                    <span className="text-[10px] text-on-surface-variant">{t('workspaces.justStartWriting')}</span>
                 </div>
             </div>
 
@@ -137,13 +135,13 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                 <div className="w-8 h-8 rounded bg-surface-container flex items-center justify-center mr-3 group-hover:bg-white">
                     <span className="material-symbols-outlined text-sm">list</span>
                 </div>
-                <span className="text-sm font-medium">Bullet List</span>
+                <span className="text-sm font-medium">{t('workspaces.bulletListBlock')}</span>
             </div>
 
             <div className="border-t border-outline-variant/10 my-2"></div>
 
             <div className="px-3 py-1.5 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">
-                Media
+                {t('workspaces.mediaHeader')}
             </div>
 
             <div
@@ -153,7 +151,7 @@ export default function SlashCommandMenu({ onInsertBlock }: SlashCommandMenuProp
                 <div className="w-8 h-8 rounded bg-surface-container flex items-center justify-center mr-3 group-hover:bg-white">
                     <span className="material-symbols-outlined text-sm">image</span>
                 </div>
-                <span className="text-sm font-medium">Image</span>
+                <span className="text-sm font-medium">{t('workspaces.imageBlock')}</span>
             </div>
         </div>
     )

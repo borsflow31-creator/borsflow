@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession, signOut } from 'next-auth/react';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import Toast from '@/components/Toast';
+import NotificationBell from '@/components/notifications/NotificationBell';
 import WorkspaceList from '@/components/workspace/WorkspaceList';
 import CreateWorkspaceModal from '@/components/workspace/CreateWorkspaceModal';
 import InviteUsersModal from '@/components/workspace/InviteUsersModal';
@@ -28,25 +30,25 @@ import { Role } from '@/lib/workspace';
 import AIChatPanel from '@/components/AIChatPanel';
 
 /* ─── Nav config ─────────────────────────────────────────── */
-const NAV_GROUPS = [
+const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: string; icon: typeof Home; basePath: string }[] }[] = [
     {
-        label: 'General',
+        labelKey: 'nav.groupGeneral',
         items: [
-            { label: 'Home',   href: '/dashboard',         icon: Home,      basePath: '/dashboard' },
-            { label: 'Pages',  href: '__workspace__',       icon: FileText,  basePath: '/workspaces' },
-            { label: 'Kanban',    href: '__kanban__',    icon: Columns,         basePath: '/kanban-board-view' },
-            { label: 'Chat',      href: '__chat__',      icon: MessageSquare,   basePath: '__chat__' },
+            { labelKey: 'nav.home',   href: '/dashboard',         icon: Home,      basePath: '/dashboard' },
+            { labelKey: 'nav.pages',  href: '__workspace__',       icon: FileText,  basePath: '/workspaces' },
+            { labelKey: 'nav.kanban',    href: '__kanban__',    icon: Columns,         basePath: '/kanban-board-view' },
+            { labelKey: 'nav.chat',      href: '__chat__',      icon: MessageSquare,   basePath: '__chat__' },
         ],
     },
     {
-        label: 'Business',
+        labelKey: 'nav.groupBusiness',
         items: [
-            { label: 'CRM',            href: '__crm__',      icon: Users,        basePath: '/crm' },
-            { label: 'Meetings',       href: '__meetings__', icon: CalendarDays, basePath: '/meetings' },
-            { label: 'Email Marketing',href: '/email-marketing', icon: Mail,    basePath: '/email-marketing' },
-            { label: 'Products',       href: '__products__', icon: Package,      basePath: '/products' },
-            { label: 'Quotes',         href: '__quotes__',   icon: QuoteIcon,    basePath: '/quotes' },
-            { label: 'Invoices',       href: '__invoices__', icon: DollarSign,   basePath: '/invoices' },
+            { labelKey: 'nav.crm',            href: '__crm__',      icon: Users,        basePath: '/crm' },
+            { labelKey: 'nav.meetings',       href: '__meetings__', icon: CalendarDays, basePath: '/meetings' },
+            { labelKey: 'nav.emailMarketing', href: '/email-marketing', icon: Mail,    basePath: '/email-marketing' },
+            { labelKey: 'nav.products',       href: '__products__', icon: Package,      basePath: '/products' },
+            { labelKey: 'nav.quotes',         href: '__quotes__',   icon: QuoteIcon,    basePath: '/quotes' },
+            { labelKey: 'nav.invoices',       href: '__invoices__', icon: DollarSign,   basePath: '/invoices' },
         ],
     },
 ];
@@ -104,6 +106,7 @@ export default function AppShell({
     const pathname = usePathname();
     const router   = useRouter();
     const { data: session } = useSession();
+    const { t } = useI18n();
     const {
         sidebarOpen, toggleSidebar,
         sidebarCollapsed, toggleSidebarCollapsed,
@@ -259,18 +262,18 @@ export default function AppShell({
     const breadcrumbs = useMemo(() => {
         if (explicitBreadcrumbs) return explicitBreadcrumbs;
         const crumbs: { label: string; href: string }[] = [
-            { label: 'Dashboard', href: '/dashboard' },
+            { label: t('nav.dashboard'), href: '/dashboard' },
         ];
         if (effectiveWorkspace && (pathname.startsWith('/workspaces') || pathname.startsWith('/pages/') || pathname.startsWith('/kanban-board-view'))) {
             crumbs.push({ label: effectiveWorkspace.name, href: `/workspaces/${effectiveWorkspace.id}` });
         }
-        if (pathname === '/pages') crumbs.push({ label: 'Pages', href: '/pages' });
+        if (pathname === '/pages') crumbs.push({ label: t('nav.pages'), href: '/pages' });
         if (currentPage && pathname.startsWith('/pages/')) {
             crumbs.push({ label: currentPage.title, href: `/pages/${currentPage.id}` });
         }
-        if (pathname === '/settings') crumbs.push({ label: 'Settings', href: '/settings' });
+        if (pathname === '/settings') crumbs.push({ label: t('nav.settings'), href: '/settings' });
         return crumbs;
-    }, [explicitBreadcrumbs, effectiveWorkspace, currentPage, pathname]);
+    }, [explicitBreadcrumbs, effectiveWorkspace, currentPage, pathname, t]);
 
     /* close dropdown on outside click */
     useEffect(() => {
@@ -318,17 +321,17 @@ export default function AppShell({
             const res = await fetch('/api/pages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'Untitled', workspaceId: effectiveWorkspace.id }),
+                body: JSON.stringify({ title: t('shell.untitled'), workspaceId: effectiveWorkspace.id }),
             });
             if (res.ok) {
                 const data = await res.json();
                 router.push(`/pages/${data.page.id}`);
             } else {
                 const err = await res.json();
-                setToast({ message: err.error || 'Failed to create page', type: 'error' });
+                setToast({ message: err.error || t('shell.createPageFailed'), type: 'error' });
             }
         } catch {
-            setToast({ message: 'Failed to create page. Please try again.', type: 'error' });
+            setToast({ message: t('shell.createPageFailedRetry'), type: 'error' });
         } finally {
             setIsCreatingPage(false);
         }
@@ -340,7 +343,7 @@ export default function AppShell({
     };
 
     const handleCreateWorkspace = async (newWs: Workspace) => {
-        setToast({ message: 'Workspace created!', type: 'success' });
+        setToast({ message: t('shell.workspaceCreated'), type: 'success' });
         await fetchWorkspaces();
         handleWorkspaceSelect(newWs.id);
     };
@@ -361,13 +364,15 @@ export default function AppShell({
         }
 
         if (choice === 'decline') {
-            setToast({ message: 'Invitation declined', type: 'success' });
+            setToast({ message: t('shell.invitationDeclined'), type: 'success' });
             await loadPendingInvitations();
             return;
         }
 
         setToast({
-            message: invitation ? `You joined ${invitation.workspace.name}!` : 'Invitation accepted!',
+            message: invitation
+                ? t('shell.joinedWorkspace', { workspace: invitation.workspace.name })
+                : t('shell.invitationAccepted'),
             type: 'success',
         });
         // Refresh both lists: without the workspaces refetch the newly joined
@@ -435,7 +440,7 @@ export default function AppShell({
                 <button
                     onClick={toggleSidebar}
                     className="fixed top-3 left-3 z-50 p-2 rounded-xl bg-surface-container-highest shadow-md hover:shadow-lg transition-all"
-                    aria-label="Toggle sidebar"
+                    aria-label={t('shell.toggleSidebar')}
                 >
                     {sidebarOpen
                         ? <CloseIcon className="h-5 w-5 text-on-surface" />
@@ -463,7 +468,7 @@ export default function AppShell({
                         <div className="flex flex-col items-center pt-4 pb-2 gap-1">
                             <button
                                 onClick={toggleSidebarCollapsed}
-                                title="Expand sidebar"
+                                title={t('shell.expandSidebar')}
                                 className="w-9 h-9 rounded-xl bg-secondary flex items-center justify-center text-on-secondary font-bold text-sm shadow-sm hover:opacity-90 transition-opacity"
                             >
                                 {effectiveWorkspace?.icon || (effectiveWorkspace ? effectiveWorkspace.name.charAt(0).toUpperCase() : '?')}
@@ -487,7 +492,7 @@ export default function AppShell({
                             {!isMobile && !shouldCollapseSidebar && (
                                 <button
                                     onClick={toggleSidebarCollapsed}
-                                    title="Collapse sidebar"
+                                    title={t('shell.collapseSidebar')}
                                     className="mt-5 p-1.5 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors flex-shrink-0"
                                 >
                                     <PanelLeftClose className="h-4 w-4" />
@@ -504,7 +509,7 @@ export default function AppShell({
                 {!isEffectivelyExpanded && !isMobile && !shouldCollapseSidebar && (
                     <button
                         onClick={toggleSidebarCollapsed}
-                        title="Expand sidebar"
+                        title={t('shell.expandSidebar')}
                         className="mx-auto mb-1 p-1.5 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface transition-colors"
                     >
                         <PanelLeftOpen className="h-4 w-4" />
@@ -514,11 +519,11 @@ export default function AppShell({
                 {/* ── Navigation ── */}
                 <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-1" role="navigation">
                     {NAV_GROUPS.map((group) => (
-                        <div key={group.label} className="mb-3">
+                        <div key={group.labelKey} className="mb-3">
                             {/* Group label — hidden when collapsed */}
                             {isEffectivelyExpanded && (
                                 <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60 select-none">
-                                    {group.label}
+                                    {t(group.labelKey)}
                                 </p>
                             )}
                             <div className="space-y-0.5">
@@ -526,12 +531,13 @@ export default function AppShell({
                                     const href      = resolveHref(item.href, effectiveWorkspace ?? null, firstPageId, currentWorkspaceId);
                                     const active    = isActive(item.basePath);
                                     const Icon      = item.icon;
+                                    const label     = t(item.labelKey);
                                     return (
                                         <Link
                                             key={item.basePath}
                                             href={href}
-                                            title={!isEffectivelyExpanded ? item.label : undefined}
-                                            aria-label={item.label}
+                                            title={!isEffectivelyExpanded ? label : undefined}
+                                            aria-label={label}
                                             aria-current={active ? 'page' : undefined}
                                             className={`
                                                 group flex items-center gap-3 rounded-xl
@@ -552,7 +558,7 @@ export default function AppShell({
                                             />
                                             {isEffectivelyExpanded && (
                                                 <span className={`text-sm font-medium ${active ? 'text-secondary' : ''}`}>
-                                                    {item.label}
+                                                    {label}
                                                 </span>
                                             )}
                                         </Link>
@@ -568,7 +574,7 @@ export default function AppShell({
                     {/* Invite People */}
                     <button
                         onClick={() => setShowInviteUsersModal(true)}
-                        title={!isEffectivelyExpanded ? 'Invite People' : undefined}
+                        title={!isEffectivelyExpanded ? t('shell.invitePeople') : undefined}
                         className={`
                             w-full flex items-center gap-2.5 rounded-xl
                             text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface
@@ -577,7 +583,7 @@ export default function AppShell({
                         `}
                     >
                         <UserPlus className="h-4 w-4 flex-shrink-0" />
-                        {isEffectivelyExpanded && <span>Invite People</span>}
+                        {isEffectivelyExpanded && <span>{t('shell.invitePeople')}</span>}
                     </button>
 
                     {/* New Page CTA */}
@@ -586,8 +592,8 @@ export default function AppShell({
                         disabled={isCreatingPage || !effectiveWorkspace}
                         title={
                             !effectiveWorkspace
-                                ? 'Select a workspace first'
-                                : !isEffectivelyExpanded ? 'New Page' : undefined
+                                ? t('shell.selectWorkspaceFirst')
+                                : !isEffectivelyExpanded ? t('shell.newPage') : undefined
                         }
                         className={`
                             w-full flex items-center gap-2.5 rounded-xl
@@ -603,7 +609,7 @@ export default function AppShell({
                             : <Plus    className="h-4 w-4 flex-shrink-0" />}
                         {isEffectivelyExpanded && (
                             <span>
-                                {isCreatingPage ? 'Creating…' : !effectiveWorkspace ? 'Select workspace' : 'New Page'}
+                                {isCreatingPage ? t('shell.creatingPage') : !effectiveWorkspace ? t('shell.selectWorkspace') : t('shell.newPage')}
                             </span>
                         )}
                     </button>
@@ -626,7 +632,7 @@ export default function AppShell({
                             {isEffectivelyExpanded && (
                                 <div className="flex-1 min-w-0 text-left">
                                     <p className="text-sm font-medium text-on-surface truncate leading-tight">{userName}</p>
-                                    <p className="text-[10px] text-on-surface-variant leading-tight">Account</p>
+                                    <p className="text-[10px] text-on-surface-variant leading-tight">{t('shell.account')}</p>
                                 </div>
                             )}
                             {isEffectivelyExpanded && (
@@ -641,14 +647,14 @@ export default function AppShell({
                                     className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
                                 >
                                     <Settings className="h-4 w-4 text-on-surface-variant" />
-                                    Settings
+                                    {t('nav.settings')}
                                 </Link>
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/login' })}
                                     className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-on-surface hover:bg-surface-container-highest transition-colors w-full"
                                 >
                                     <LogOut className="h-4 w-4 text-on-surface-variant" />
-                                    Logout
+                                    {t('nav.logout')}
                                 </button>
                             </div>
                         )}
@@ -692,7 +698,7 @@ export default function AppShell({
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder="Search pages, tasks…"
+                                            placeholder={t('shell.searchPlaceholder')}
                                             autoFocus
                                             className="w-56 pl-8 pr-3 py-1.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                         />
@@ -711,7 +717,7 @@ export default function AppShell({
                                 {showDropdown && (
                                     <div className="absolute top-full mt-1 left-0 w-72 bg-surface-container-low border border-outline-variant/20 rounded-xl shadow-lg overflow-hidden z-50">
                                         {searchResults.length === 0 ? (
-                                            <p className="px-4 py-3 text-sm text-on-surface-variant">No results found.</p>
+                                            <p className="px-4 py-3 text-sm text-on-surface-variant">{t('shell.noResultsFound')}</p>
                                         ) : (
                                             <ul>
                                                 {searchResults.map((result) => (
@@ -721,7 +727,7 @@ export default function AppShell({
                                                             onClick={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); setShowDropdown(false); }}
                                                             className="flex flex-col px-4 py-2.5 hover:bg-surface-container-highest transition-colors"
                                                         >
-                                                            <span className="text-sm font-medium text-on-surface truncate">{result.title || 'Untitled'}</span>
+                                                            <span className="text-sm font-medium text-on-surface truncate">{result.title || t('shell.untitled')}</span>
                                                             <span className="text-xs text-on-surface-variant truncate">{result.workspaceName}</span>
                                                         </Link>
                                                     </li>
@@ -735,7 +741,7 @@ export default function AppShell({
                             <button
                                 onClick={() => setShowSearch(true)}
                                 className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors"
-                                aria-label="Search"
+                                aria-label={t('shell.searchAria')}
                             >
                                 <Search className="h-4 w-4" />
                             </button>
@@ -743,6 +749,9 @@ export default function AppShell({
 
                         {/* Divider */}
                         <div className="h-5 w-px bg-outline-variant/30" />
+
+                        {/* Notifications */}
+                        <NotificationBell />
 
                         {/* Member avatars */}
                         {workspaceMembers.length > 0 && (
@@ -758,7 +767,7 @@ export default function AppShell({
                                 ))}
                                 {workspaceMembers.length > 3 && (
                                     <div
-                                        title={`${workspaceMembers.length - 3} more members`}
+                                        title={t('shell.moreMembersTitle', { count: workspaceMembers.length - 3 })}
                                         className="w-7 h-7 rounded-full bg-surface-container-high border-2 border-surface-container-lowest flex items-center justify-center text-[10px] font-semibold text-on-surface-variant"
                                     >
                                         +{workspaceMembers.length - 3}
@@ -771,7 +780,7 @@ export default function AppShell({
                         <button
                             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                             className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors"
-                            aria-label="Toggle dark mode"
+                            aria-label={t('shell.toggleDarkMode')}
                         >
                             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                         </button>
@@ -782,7 +791,7 @@ export default function AppShell({
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-secondary hover:bg-secondary/10 rounded-lg transition-colors font-medium"
                         >
                             <span className="material-symbols-outlined text-base leading-none">auto_awesome</span>
-                            <span className="hidden sm:inline">Ask AI</span>
+                            <span className="hidden sm:inline">{t('shell.askAI')}</span>
                         </button>
                     </div>
                 </header>

@@ -11,6 +11,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { QUOTE_RESPONSE_RATE_LIMIT } from '@/lib/documents/share';
 import { consumeRateLimits, rateLimitedResponse } from '@/lib/api/rate-limit';
+import { notify } from '@/lib/notifications/notify';
+import { workspaceAdminIds } from '@/lib/notifications/recipients';
 
 /** A decision is final; these statuses have already reached one, or timed out. */
 const DECIDED = ['accepted', 'rejected', 'expired'];
@@ -41,7 +43,7 @@ export async function POST(
 
     const quote = await prisma.quote.findUnique({
       where: { publicToken: params.token },
-      select: { id: true, status: true, validUntil: true },
+      select: { id: true, status: true, validUntil: true, workspaceId: true, quoteNumber: true, clientName: true, createdById: true },
     });
 
     if (!quote) {
@@ -70,6 +72,16 @@ export async function POST(
       data: accepted
         ? { status: 'accepted', acceptedAt: now }
         : { status: 'rejected', rejectedAt: now },
+    });
+
+    const admins = await workspaceAdminIds(quote.workspaceId);
+    void notify({
+      recipients: Array.from(new Set([...(quote.createdById ? [quote.createdById] : []), ...admins])),
+      type: accepted ? 'sales.quote_accepted' : 'sales.quote_rejected',
+      workspaceId: quote.workspaceId,
+      title: `${quote.clientName} ${accepted ? 'accepted' : 'rejected'} quote ${quote.quoteNumber}`,
+      href: `/quotes/${quote.id}`,
+      dedupeKey: `quote.${accepted ? 'accepted' : 'rejected'}:${quote.id}`,
     });
 
     return NextResponse.json({

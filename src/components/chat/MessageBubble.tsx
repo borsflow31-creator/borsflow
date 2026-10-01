@@ -1,6 +1,7 @@
 'use client'
 
 import { Download } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 import { formatTime, getFileIcon, getInitials } from './chatFormat'
 import type { ChatItem } from './types'
 
@@ -40,6 +41,7 @@ export function MessageBubble({
 }: {
   message: ChatItem; isOwn: boolean; showAvatar: boolean; showName: boolean
 }) {
+  const { t } = useI18n();
   return (
     <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <div className="w-7 h-7 flex-shrink-0">
@@ -63,7 +65,7 @@ export function MessageBubble({
         </div>
         <span className={`text-[10px] text-on-surface-variant/50 px-1 ${isOwn ? 'text-right' : ''}`}>
           {formatTime(message.createdAt)}
-          {message.archiveFailed && <span className="ml-1.5 text-amber-500" title="Delivered live but not saved to history">· not saved</span>}
+          {message.archiveFailed && <span className="ml-1.5 text-amber-500" title={t('misc.deliveredLive')}>· not saved</span>}
         </span>
       </div>
     </div>

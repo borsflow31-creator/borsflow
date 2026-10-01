@@ -15,25 +15,7 @@ import { useAppStore } from '@/store/appStore';
 import { DropResult } from '@hello-pangea/dnd';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import SelectRefined from '@/components/ui/SelectRefined';
-
-const PRIORITY_OPTIONS = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-];
-
-const STATUS_OPTIONS = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'inprogress', label: 'In Progress' },
-    { value: 'done', label: 'Done' },
-];
-
-const PRIORITY_FILTER_OPTIONS = [
-    { value: '', label: 'All Priorities' },
-    { value: 'high', label: 'High' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'low', label: 'Low' },
-];
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface KanbanProject {
     id: string;
@@ -66,9 +48,29 @@ interface KanbanCard {
 }
 
 function KanbanBoardPageInner() {
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const workspaceId = searchParams.get('workspace') || '';
     const { currentWorkspaceId } = useAppStore();
+
+    const PRIORITY_OPTIONS = [
+        { value: 'low', label: t('kanban.priorityLow') },
+        { value: 'medium', label: t('kanban.priorityMedium') },
+        { value: 'high', label: t('kanban.priorityHigh') },
+    ];
+
+    const STATUS_OPTIONS = [
+        { value: 'todo', label: t('kanban.statusTodo') },
+        { value: 'inprogress', label: t('kanban.statusInProgress') },
+        { value: 'done', label: t('kanban.statusDone') },
+    ];
+
+    const PRIORITY_FILTER_OPTIONS = [
+        { value: '', label: t('kanban.priorityFilterAll') },
+        { value: 'high', label: t('kanban.priorityHigh') },
+        { value: 'medium', label: t('kanban.priorityMedium') },
+        { value: 'low', label: t('kanban.priorityLow') },
+    ];
 
     // Cards and Projects
     const [cards, setCards] = useState<KanbanCard[]>([]);
@@ -198,7 +200,7 @@ function KanbanBoardPageInner() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to update card');
+                throw new Error(data.error || t('kanban.updateCardError'));
             }
 
             setCards(prev =>
@@ -220,7 +222,7 @@ function KanbanBoardPageInner() {
             if (card) {
                 setCards(prev => prev.map(c => c.id === cardId ? card : c));
             }
-            setError(err.message || 'Failed to update card. Please try again.');
+            setError(err.message || t('kanban.updateCardError'));
             setTimeout(() => setError(null), 5000);
         }
     };
@@ -231,15 +233,15 @@ function KanbanBoardPageInner() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to delete card');
+                throw new Error(data.error || t('kanban.deleteCardError'));
             }
 
             setCards(prev => prev.filter(card => card.id !== cardId));
-            setSuccess('Card deleted successfully');
+            setSuccess(t('kanban.cardDeletedSuccess'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             console.error('Error deleting card:', err);
-            setError(err.message || 'Failed to delete card. Please try again.');
+            setError(err.message || t('kanban.deleteCardError'));
             setTimeout(() => setError(null), 5000);
         }
     };
@@ -278,7 +280,7 @@ function KanbanBoardPageInner() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to create card');
+                throw new Error(data.error || t('kanban.createCardError'));
             }
 
             const cardWithDates = {
@@ -289,11 +291,11 @@ function KanbanBoardPageInner() {
                 assignees: data.assignees ? JSON.parse(data.assignees) : [],
             };
             setCards(prev => [...prev, cardWithDates]);
-            setSuccess('Card created successfully!');
+            setSuccess(t('kanban.cardCreatedSuccess'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             console.error('Error creating card:', err);
-            setError(err.message || 'Failed to create card. Please try again.');
+            setError(err.message || t('kanban.createCardError'));
             setTimeout(() => setError(null), 5000);
             throw err; // re-throw so callers can detect failure
         } finally {
@@ -313,7 +315,7 @@ function KanbanBoardPageInner() {
 
     const handleGlobalAddCard = async () => {
         if (!newCardTitle.trim()) {
-            setError('Please enter a card title');
+            setError(t('kanban.titleRequiredError'));
             return;
         }
         try {
@@ -407,12 +409,12 @@ function KanbanBoardPageInner() {
 
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
-                throw new Error(data.error || 'Failed to reorder cards');
+                throw new Error(data.error || t('kanban.reorderError'));
             }
         } catch (err: any) {
             console.error('Error reordering cards:', err);
             setCards(previousCards);
-            setError(err.message || 'Failed to move card. Please try again.');
+            setError(err.message || t('kanban.reorderError'));
             setTimeout(() => setError(null), 5000);
         }
     };
@@ -432,15 +434,15 @@ function KanbanBoardPageInner() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to create project');
+                throw new Error(result.error || t('kanban.createProjectError'));
             }
 
             await fetchProjects();
-            setSuccess('Project created successfully!');
+            setSuccess(t('kanban.projectCreatedSuccess'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             console.error('Error creating project:', err);
-            setError(err.message || 'Failed to create project. Please try again.');
+            setError(err.message || t('kanban.createProjectError'));
             setTimeout(() => setError(null), 5000);
             throw err;
         }
@@ -457,22 +459,22 @@ function KanbanBoardPageInner() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to update project');
+                throw new Error(result.error || t('kanban.updateProjectError'));
             }
 
             await fetchProjects();
-            setSuccess('Project updated successfully!');
+            setSuccess(t('kanban.projectUpdatedSuccess'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             console.error('Error updating project:', err);
-            setError(err.message || 'Failed to update project. Please try again.');
+            setError(err.message || t('kanban.updateProjectError'));
             setTimeout(() => setError(null), 5000);
             throw err;
         }
     };
 
     const handleProjectDelete = async (projectId: string) => {
-        if (!confirm('Are you sure you want to delete this project? All cards in this project will also be deleted.')) {
+        if (!confirm(t('kanban.deleteProjectConfirm'))) {
             return;
         }
 
@@ -484,7 +486,7 @@ function KanbanBoardPageInner() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to delete project');
+                throw new Error(result.error || t('kanban.deleteProjectError'));
             }
 
             // If the deleted project was selected, deselect it
@@ -494,11 +496,11 @@ function KanbanBoardPageInner() {
 
             await fetchProjects();
             await fetchCards();
-            setSuccess('Project deleted successfully!');
+            setSuccess(t('kanban.projectDeletedSuccess'));
             setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             console.error('Error deleting project:', err);
-            setError(err.message || 'Failed to delete project. Please try again.');
+            setError(err.message || t('kanban.deleteProjectError'));
             setTimeout(() => setError(null), 5000);
         }
     };
@@ -531,9 +533,9 @@ function KanbanBoardPageInner() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="text-center">
-                    <h1 className="display-md text-on-surface mb-4">No Workspace Selected</h1>
+                    <h1 className="display-md text-on-surface mb-4">{t('kanban.noWorkspaceTitle')}</h1>
                     <p className="body-lg text-on-surface-variant">
-                        Please select a workspace to view the Kanban board.
+                        {t('kanban.noWorkspaceDescription')}
                     </p>
                 </div>
             </div>
@@ -605,11 +607,11 @@ function KanbanBoardPageInner() {
 
     return (
         <AppShell
-            workspace={{ id: effectiveWorkspaceId, name: workspaceName || 'Workspace' }}
+            workspace={{ id: effectiveWorkspaceId, name: workspaceName || t('kanban.workspaceFallbackName') }}
             currentPage={undefined}
             breadcrumbs={[
-                { label: 'Dashboard', href: '/dashboard' },
-                { label: 'Kanban', href: `/kanban-board-view?workspace=${effectiveWorkspaceId}` },
+                { label: t('nav.dashboard'), href: '/dashboard' },
+                { label: t('nav.kanban'), href: `/kanban-board-view?workspace=${effectiveWorkspaceId}` },
             ]}
         >
             <div className="flex h-full">
@@ -661,7 +663,7 @@ function KanbanBoardPageInner() {
                                 <div className="flex-1 min-w-64 relative">
                                     <input
                                         type="text"
-                                        placeholder="Search cards..."
+                                        placeholder={t('kanban.searchCardsPlaceholder')}
                                         value={filter.search || ''}
                                         onChange={(e) => setFilter({ ...filter, search: e.target.value })}
                                         className="w-full px-4 py-2.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:bg-surface-container-highest focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
@@ -688,7 +690,7 @@ function KanbanBoardPageInner() {
                                         onClick={() => setFilter({})}
                                         className="px-4 py-2.5 text-sm text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all duration-200"
                                     >
-                                        Clear Filters
+                                        {t('common.clearFilters')}
                                     </button>
                                 )}
                             </div>
@@ -698,7 +700,7 @@ function KanbanBoardPageInner() {
                                 disabled={isSubmitting}
                                 className="px-5 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {isSubmitting ? 'Adding...' : 'Add Card'}
+                                {isSubmitting ? t('kanban.adding') : t('kanban.addCard')}
                             </button>
                         </div>
 
@@ -718,7 +720,7 @@ function KanbanBoardPageInner() {
                 >
                     <div className="bg-surface-container-lowest rounded-xl p-6 w-full max-w-lg shadow-2xl">
                         <div className="flex items-center justify-between mb-5">
-                            <h3 className="text-lg font-semibold text-on-surface">Add New Card</h3>
+                            <h3 className="text-lg font-semibold text-on-surface">{t('kanban.addCardModalTitle')}</h3>
                             <button
                                 onClick={() => { setShowAddCardModal(false); resetAddCardModal(); setError(null); }}
                                 className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors"
@@ -738,12 +740,12 @@ function KanbanBoardPageInner() {
                         <div className="space-y-4">
                             {/* Title */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Title *</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.titleFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={newCardTitle}
                                     onChange={(e) => setNewCardTitle(e.target.value)}
-                                    placeholder="Enter card title..."
+                                    placeholder={t('kanban.cardTitlePlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                     autoFocus
                                     disabled={isSubmitting}
@@ -753,12 +755,12 @@ function KanbanBoardPageInner() {
 
                             {/* Description */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Description</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.descriptionFieldLabel')}</label>
                                 <textarea
                                     value={newCardDescription}
                                     onChange={(e) => setNewCardDescription(e.target.value)}
                                     rows={3}
-                                    placeholder="Add a description..."
+                                    placeholder={t('kanban.descriptionPlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all resize-none"
                                     disabled={isSubmitting}
                                 />
@@ -767,7 +769,7 @@ function KanbanBoardPageInner() {
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Priority */}
                                 <SelectRefined
-                                    label="Priority"
+                                    label={t('kanban.priorityFieldLabel')}
                                     size="sm"
                                     variant="filled"
                                     value={newCardPriority}
@@ -778,7 +780,7 @@ function KanbanBoardPageInner() {
 
                                 {/* Status */}
                                 <SelectRefined
-                                    label="Status"
+                                    label={t('kanban.statusFieldLabel')}
                                     size="sm"
                                     variant="filled"
                                     value={newCardStatus}
@@ -790,7 +792,7 @@ function KanbanBoardPageInner() {
 
                             {/* Due Date */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Due Date</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.dueDateFieldLabel')}</label>
                                 <input
                                     type="date"
                                     value={newCardDueDate}
@@ -802,12 +804,12 @@ function KanbanBoardPageInner() {
 
                             {/* Tags */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Tags</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.tagsFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={newCardTagsRaw}
                                     onChange={(e) => setNewCardTagsRaw(e.target.value)}
-                                    placeholder="design, frontend, bug (comma-separated)"
+                                    placeholder={t('kanban.tagsPlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                     disabled={isSubmitting}
                                 />
@@ -815,12 +817,12 @@ function KanbanBoardPageInner() {
 
                             {/* Assignees */}
                             <div>
-                                <label className="block text-sm font-medium text-on-surface mb-1.5">Assignees</label>
+                                <label className="block text-sm font-medium text-on-surface mb-1.5">{t('kanban.assigneesFieldLabel')}</label>
                                 <input
                                     type="text"
                                     value={newCardAssigneesRaw}
                                     onChange={(e) => setNewCardAssigneesRaw(e.target.value)}
-                                    placeholder="Alice, Bob (comma-separated)"
+                                    placeholder={t('kanban.assigneesPlaceholder')}
                                     className="w-full px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                     disabled={isSubmitting}
                                 />
@@ -832,14 +834,14 @@ function KanbanBoardPageInner() {
                                     disabled={isSubmitting}
                                     className="px-4 py-2 text-sm text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Cancel
+                                    {t('common.cancel')}
                                 </button>
                                 <button
                                     onClick={handleGlobalAddCard}
                                     disabled={isSubmitting}
                                     className="px-4 py-2 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                 >
-                                    {isSubmitting ? 'Adding...' : 'Add Card'}
+                                    {isSubmitting ? t('kanban.adding') : t('kanban.addCard')}
                                 </button>
                             </div>
                         </div>

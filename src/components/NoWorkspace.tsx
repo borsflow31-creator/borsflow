@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Building2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 import AppShell from '@/components/AppShell';
 import PendingInvitationsList from '@/components/workspace/PendingInvitationsList';
 import {
@@ -15,6 +16,7 @@ import {
 export default function NoWorkspace() {
     const router = useRouter();
     const { data: session } = useSession();
+    const { t } = useI18n();
     const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [respondingId, setRespondingId] = useState<string | null>(null);
@@ -72,10 +74,10 @@ export default function NoWorkspace() {
                 {hasInvitations && (
                     <div className="bg-surface-container-low rounded-2xl p-8 max-w-md w-full">
                         <h2 className="text-xl font-semibold text-on-surface mb-1">
-                            You&apos;ve been invited
+                            {t('noWorkspace.invitedTitle')}
                         </h2>
                         <p className="text-on-surface-variant mb-5 text-sm">
-                            Accept an invitation to join a workspace.
+                            {t('noWorkspace.invitedSubtitle')}
                         </p>
                         {error && (
                             <div className="p-3 mb-4 rounded-lg bg-error/10 text-error text-sm">{error}</div>
@@ -92,15 +94,15 @@ export default function NoWorkspace() {
 
                 <div className="bg-surface-container-low rounded-2xl p-12 text-center max-w-md w-full">
                     <Building2 className="h-16 w-16 mx-auto mb-4 text-on-surface-variant" strokeWidth={1.5} />
-                    <h2 className="text-xl font-semibold text-on-surface mb-2">No workspace selected</h2>
+                    <h2 className="text-xl font-semibold text-on-surface mb-2">{t('noWorkspace.emptyTitle')}</h2>
                     <p className="text-on-surface-variant mb-6">
-                        Select or create a workspace to continue.
+                        {t('noWorkspace.emptySubtitle')}
                     </p>
                     <button
                         onClick={() => router.push('/dashboard')}
                         className="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-on-secondary rounded-lg hover:bg-secondary-dim text-sm font-medium transition-colors"
                     >
-                        Go to Dashboard
+                        {t('shell.goToDashboard')}
                     </button>
                 </div>
             </div>

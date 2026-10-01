@@ -1,9 +1,7 @@
-import type { Metadata } from 'next'
-import RetryButton from './RetryButton'
+'use client'
 
-export const metadata: Metadata = {
-    title: 'Offline',
-}
+import RetryButton from './RetryButton'
+import { useI18n } from '@/i18n/I18nProvider'
 
 /*
  * PWA offline fallback (next.config.js: fallbacks.document).
@@ -13,8 +11,13 @@ export const metadata: Metadata = {
  * React failed to hydrate it (minified error #418). It is now an ordinary page:
  * the layout provides the document and the title, and the styles are scoped to
  * a full-screen wrapper instead of <body>.
+ *
+ * Note: the static <title>Offline</title> metadata export was dropped when this
+ * became a client component ('use client' pages cannot export `metadata`). The
+ * document title falls back to the root layout's title in that case.
  */
 export default function OfflinePage() {
+    const { t } = useI18n()
     return (
         <div className="offline-root">
             <style>{`
@@ -70,11 +73,8 @@ export default function OfflinePage() {
             `}</style>
             <div className="container">
                 <div className="icon">B</div>
-                <h1>You&apos;re offline</h1>
-                <p>
-                    BorsFlow needs a connection to load your workspace.
-                    Check your internet and try again.
-                </p>
+                <h1>{t('public.offline.heading')}</h1>
+                <p>{t('public.offline.body')}</p>
                 <RetryButton />
             </div>
         </div>

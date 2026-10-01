@@ -14,6 +14,7 @@ import PublicDocumentView, {
   PublicDocumentError,
   type PublicDocument,
 } from '@/components/documents/PublicDocumentView';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ApiQuote {
   quoteNumber: string;
@@ -37,6 +38,7 @@ interface ApiQuote {
 }
 
 export default function PublicQuotePage() {
+  const { t } = useI18n();
   const { token } = useParams<{ token: string }>();
   const [quote, setQuote] = useState<ApiQuote | null>(null);
   const [canRespond, setCanRespond] = useState(false);
@@ -50,17 +52,17 @@ export default function PublicQuotePage() {
       const res = await fetch(`/api/public/quotes/${token}`);
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'This link is no longer valid');
+        setError(data.error || t('public.quote.loadErrorDefault'));
         return;
       }
       setQuote(data.quote);
       setCanRespond(data.canRespond);
     } catch {
-      setError('We could not load this quote. Please try again.');
+      setError(t('public.quote.loadErrorCatch'));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     load();
@@ -77,7 +79,7 @@ export default function PublicQuotePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'We could not record your response.');
+        setError(data.error || t('public.quote.respondErrorDefault'));
         return;
       }
       setOutcome(data.status);
@@ -85,14 +87,14 @@ export default function PublicQuotePage() {
       // Pull the document again so the status badge matches the decision.
       await load();
     } catch {
-      setError('We could not record your response. Please try again.');
+      setError(t('public.quote.respondErrorCatch'));
     } finally {
       setResponding(null);
     }
   };
 
   if (loading) return <PublicDocumentLoading />;
-  if (!quote) return <PublicDocumentError message={error ?? 'This link is no longer valid.'} />;
+  if (!quote) return <PublicDocumentError message={error ?? t('public.quote.loadErrorFallback')} />;
 
   const doc: PublicDocument = {
     kind: 'quote',
@@ -131,7 +133,7 @@ export default function PublicQuotePage() {
               ) : (
                 <CheckCircle2 className="h-4 w-4" />
               )}
-              Accept quote
+              {t('public.quote.acceptButton')}
             </button>
             <button
               onClick={() => respond('reject')}
@@ -143,16 +145,16 @@ export default function PublicQuotePage() {
               ) : (
                 <XCircle className="h-4 w-4" />
               )}
-              Decline
+              {t('public.quote.declineButton')}
             </button>
           </>
         ) : (
           <p className="text-sm text-on-surface-variant">
             {outcome === 'accepted'
-              ? 'Thank you — this quote has been accepted.'
+              ? t('public.quote.acceptedThankYou')
               : outcome === 'rejected'
-                ? 'This quote has been declined.'
-                : `This quote is ${quote.status.replace(/_/g, ' ')} and can no longer be changed.`}
+                ? t('public.quote.declinedMessage')
+                : t('public.quote.statusMessage', { status: quote.status.replace(/_/g, ' ') })}
           </p>
         )}
       </PublicDocumentView>

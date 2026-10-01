@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Video, Phone, MapPin } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Meeting {
   id: string;
@@ -35,13 +36,21 @@ const STATUS_OPACITY: Record<string, string> = {
   in_progress: 'opacity-100 ring-1 ring-white',
 };
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
 export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCalendarProps) {
+  const { t, formatDate: formatDateIntl } = useI18n();
+
+  const DAYS = useMemo(() => {
+    // Mon 2024-01-01 is a Monday; build Sun..Sat short weekday labels for the current locale.
+    const base = new Date(Date.UTC(2023, 0, 1)); // a Sunday
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setUTCDate(base.getUTCDate() + i);
+      return formatDateIntl(d, { weekday: 'short', timeZone: 'UTC' });
+    });
+  }, [formatDateIntl]);
+
+  const formatTime = (iso: string) => formatDateIntl(iso, { hour: '2-digit', minute: '2-digit' });
+
   const today = new Date();
   const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState<string | null>(today.toDateString());
@@ -73,7 +82,7 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
-  const monthLabel = viewDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
+  const monthLabel = formatDateIntl(viewDate, { month: 'long', year: 'numeric' });
 
   return (
     <div className="flex flex-col lg:flex-row gap-5">
@@ -154,8 +163,8 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
             { key: 'zoom',        label: 'Zoom' },
             { key: 'google_meet', label: 'Meet' },
             { key: 'calcom',      label: 'Cal.com' },
-            { key: 'in_person',   label: 'In-Person' },
-            { key: 'phone',       label: 'Phone' },
+            { key: 'in_person',   label: t('scheduling.platform.inPerson') },
+            { key: 'phone',       label: t('scheduling.platform.phone') },
           ].map(({ key, label }) => (
             <span key={key} className="flex items-center gap-1 text-[11px] text-on-surface-variant">
               <span className={`w-2 h-2 rounded-full ${PLATFORM_COLOR[key]}`} />
@@ -170,15 +179,15 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
         {selectedDate ? (
           <>
             <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3">
-              {new Date(selectedDate).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+              {formatDateIntl(new Date(selectedDate), { weekday: 'long', month: 'long', day: 'numeric' })}
               {' '}
               <span className="normal-case font-normal">
-                — {selectedMeetings.length} meeting{selectedMeetings.length !== 1 ? 's' : ''}
+                — {t('scheduling.meetingCount', { count: selectedMeetings.length })}
               </span>
             </p>
 
             {selectedMeetings.length === 0 ? (
-              <p className="text-sm text-on-surface-variant/60 py-4">No meetings on this day.</p>
+              <p className="text-sm text-on-surface-variant/60 py-4">{t('scheduling.calendar.noMeetingsOnDay')}</p>
             ) : (
               <div className="space-y-2">
                 {selectedMeetings
@@ -197,11 +206,11 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
                           <p className="text-sm font-medium text-on-surface truncate">{m.title}</p>
                           {m.lead && (
                             <p className="text-[11px] text-on-surface-variant">
-                              with {m.lead.firstName} {m.lead.lastName}
+                              {t('scheduling.calendar.withLead', { name: `${m.lead.firstName} ${m.lead.lastName}` })}
                             </p>
                           )}
                           <p className="text-[11px] text-on-surface-variant/60 mt-0.5">
-                            {formatTime(m.startTime)} – {formatTime(m.endTime)} · {m.duration} min
+                            {formatTime(m.startTime)} – {formatTime(m.endTime)} · {t('scheduling.card.minutesSuffix', { count: m.duration })}
                           </p>
                         </div>
                         {m.meetingUrl && (
@@ -212,7 +221,7 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
                             onClick={e => e.stopPropagation()}
                             className="flex-shrink-0 px-2.5 py-1 bg-secondary text-on-secondary text-[11px] font-medium rounded-lg hover:opacity-90 transition-opacity"
                           >
-                            Join
+                            {t('scheduling.calendar.join')}
                           </a>
                         )}
                       </button>
@@ -223,7 +232,7 @@ export default function MeetingCalendar({ meetings, onMeetingClick }: MeetingCal
           </>
         ) : (
           <div className="flex items-center justify-center h-32 text-sm text-on-surface-variant/60">
-            Select a date to view meetings
+            {t('scheduling.calendar.selectDatePrompt')}
           </div>
         )}
       </div>

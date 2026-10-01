@@ -1,47 +1,40 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { aiComplete, aiErrorMessage } from '@/lib/ai/client'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface FloatingAIToolbarProps {
     selectedText: string
     onResult: (text: string) => void
 }
 
-const ACTIONS = [
-    { label: 'Fix grammar',  prompt: (t: string) => `Fix the grammar and spelling of this text, return only the corrected text:\n\n${t}` },
-    { label: 'Summarize',    prompt: (t: string) => `Summarize this text concisely, return only the summary:\n\n${t}` },
-    { label: 'Make shorter', prompt: (t: string) => `Make this text shorter while keeping the key points, return only the result:\n\n${t}` },
-    { label: 'Make longer',  prompt: (t: string) => `Expand on this text with more detail, return only the result:\n\n${t}` },
-]
-
 export default function FloatingAIToolbar({ selectedText, onResult }: FloatingAIToolbarProps) {
+    const { t } = useI18n()
     const [loading, setLoading] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
+    const params = useParams()
+    const workspaceId = params?.id as string
 
-    const runAction = async (label: string, prompt: (t: string) => string) => {
+    const ACTIONS = [
+        { label: t('workspaces.fixGrammar'), prompt: 'Fix the grammar and spelling of this text. Return only the corrected text.' },
+        { label: t('workspaces.summarize'), prompt: 'Summarize this text concisely. Return only the summary.' },
+        { label: t('workspaces.makeShorter'), prompt: 'Make this text shorter while keeping the key points. Return only the result.' },
+        { label: t('workspaces.makeLonger'), prompt: 'Expand on this text with more detail. Return only the result.' },
+    ]
+
+    const runAction = async (label: string, prompt: string) => {
         if (!selectedText || loading) return
         setLoading(label)
+        setError(null)
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{ role: 'user', content: prompt(selectedText) }],
-                }),
-            })
-            if (!res.ok || !res.body) throw new Error('Request failed')
-
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let result = ''
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                result += decoder.decode(value)
-            }
+            const result = await aiComplete({ workspaceId }, { prompt, text: selectedText })
             onResult(result.trim())
-        } catch {
-            // silently fail — toolbar stays visible for retry
+        } catch (err) {
+            // The toolbar stays visible for a retry.
+            setError(aiErrorMessage(err, t('workspaces.aiActionError')))
         } finally {
             setLoading(null)
         }
@@ -53,7 +46,7 @@ export default function FloatingAIToolbar({ selectedText, onResult }: FloatingAI
                 <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: 'FILL 1' }}>
                     auto_awesome
                 </span>
-                <span className="text-xs font-semibold">AI</span>
+                <span className="text-xs font-semibold">{t('workspaces.aiLabel')}</span>
             </div>
             <div className="flex items-center space-x-1">
                 {ACTIONS.map(({ label, prompt }) => (
@@ -68,6 +61,11 @@ export default function FloatingAIToolbar({ selectedText, onResult }: FloatingAI
                     </button>
                 ))}
             </div>
+            {error && (
+                <span role="alert" className="max-w-[16rem] truncate text-xs text-error-container" title={error}>
+                    {error}
+                </span>
+            )}
             <div className="flex items-center space-x-3 text-surface/80 border-l border-surface/20 pl-4">
                 <span className="material-symbols-outlined text-sm cursor-pointer hover:text-white">format_bold</span>
                 <span className="material-symbols-outlined text-sm cursor-pointer hover:text-white">format_italic</span>

@@ -6,16 +6,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { ArrowRight, Layers, Menu, Moon, Sun, X } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useAppStore } from '@/store/appStore'
-
-const NAV = [
-    { label: 'Pipeline', href: '/#features' },
-    { label: 'How it works', href: '/#journey' },
-    { label: 'Assistant', href: '/#assistant' },
-    { label: 'Team', href: '/#team' },
-    { label: 'Pricing', href: '/pricing' },
-]
+import { useI18n } from '@/i18n/I18nProvider'
 
 export const LandingHeader = () => {
+    const { t } = useI18n()
     const [isScrolled, setIsScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
@@ -23,6 +17,14 @@ export const LandingHeader = () => {
     const { data: session } = useSession()
     const { setTheme } = useAppStore()
     const reduce = useReducedMotion()
+
+    const NAV = [
+        { label: t('landing.header.navPipeline'), href: '/#features' },
+        { label: t('landing.header.navHowItWorks'), href: '/#journey' },
+        { label: t('landing.header.navAssistant'), href: '/#assistant' },
+        { label: t('landing.header.navTeam'), href: '/#team' },
+        { label: t('landing.header.navPricing'), href: '/pricing' },
+    ]
 
     useEffect(() => {
         setMounted(true)
@@ -63,7 +65,7 @@ export const LandingHeader = () => {
                         </span>
                     </Link>
 
-                    <nav aria-label="Sections" className="hidden lg:flex items-center gap-1">
+                    <nav aria-label={t('landing.header.sectionsAria')} className="hidden lg:flex items-center gap-1">
                         {NAV.map((item) => (
                             <a
                                 key={item.label}
@@ -79,7 +81,7 @@ export const LandingHeader = () => {
                         <button
                             type="button"
                             onClick={toggleTheme}
-                            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                            aria-label={isDark ? t('landing.header.themeToLight') : t('landing.header.themeToDark')}
                             className="w-8 h-8 rounded-full border border-[var(--n-border)] bg-[var(--n-surface)] text-[var(--n-muted)] hover:text-[var(--n-text)] hover:border-[var(--n-border-strong)] flex items-center justify-center transition-colors duration-200"
                         >
                             {/* Rendered after mount only, so the server markup cannot
@@ -100,7 +102,7 @@ export const LandingHeader = () => {
                                 href="/dashboard"
                                 className="taste-sheen hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--n-text)] text-[var(--n-base)] shadow-xs hover:opacity-90 transition-opacity"
                             >
-                                <span>Dashboard</span>
+                                <span>{t('landing.header.dashboard')}</span>
                                 <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                             </Link>
                         ) : (
@@ -109,13 +111,13 @@ export const LandingHeader = () => {
                                     href="/login"
                                     className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium text-[var(--n-muted)] hover:text-[var(--n-text)] transition-colors"
                                 >
-                                    Sign in
+                                    {t('landing.header.signIn')}
                                 </Link>
                                 <Link
                                     href="/register"
                                     className="taste-sheen inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[var(--n-text)] text-[var(--n-base)] shadow-xs hover:opacity-90 transition-all active:scale-[0.98]"
                                 >
-                                    <span>Start free</span>
+                                    <span>{t('landing.header.startFree')}</span>
                                     <ArrowRight className="w-3 h-3" aria-hidden="true" />
                                 </Link>
                             </>
@@ -126,7 +128,7 @@ export const LandingHeader = () => {
                             onClick={() => setMobileMenuOpen((v) => !v)}
                             aria-expanded={mobileMenuOpen}
                             aria-controls="landing-mobile-nav"
-                            aria-label="Toggle navigation menu"
+                            aria-label={t('landing.header.toggleNav')}
                             className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-[var(--n-text)] hover:bg-[var(--n-elevated)] transition-colors"
                         >
                             {mobileMenuOpen ? (
@@ -142,7 +144,7 @@ export const LandingHeader = () => {
                     {mobileMenuOpen && (
                         <motion.nav
                             id="landing-mobile-nav"
-                            aria-label="Sections"
+                            aria-label={t('landing.header.sectionsAria')}
                             initial={reduce ? false : { opacity: 0, y: -8 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={reduce ? undefined : { opacity: 0, y: -8 }}
@@ -165,14 +167,14 @@ export const LandingHeader = () => {
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="w-full py-2.5 text-center text-sm font-medium rounded-xl text-[var(--n-text)] hover:bg-[var(--n-elevated)] transition-colors"
                                 >
-                                    Sign in
+                                    {t('landing.header.signIn')}
                                 </Link>
                                 <Link
                                     href="/register"
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="w-full py-2.5 text-center text-sm font-semibold rounded-xl bg-[var(--n-text)] text-[var(--n-base)] hover:opacity-90 transition-opacity"
                                 >
-                                    Start free
+                                    {t('landing.header.startFree')}
                                 </Link>
                             </div>
                         </motion.nav>

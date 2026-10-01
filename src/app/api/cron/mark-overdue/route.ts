@@ -16,6 +16,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isAuthorizedCron } from '@/lib/api/cron'
+import { notify } from '@/lib/notifications/notify'
 
 /**
  * Only invoices the client still owes on become overdue. A draft has not been sent,
@@ -34,22 +35,52 @@ export async function POST(request: NextRequest) {
   try {
     const now = new Date()
 
+    // Selected before the sweep so the notifications below know exactly which
+    // rows just flipped, rather than re-deriving "is overdue" after the fact.
+    const [toOverdue, toExpire] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { dueDate: { lt: now }, status: { in: OVERDUE_FROM } },
+        select: { id: true, workspaceId: true, createdById: true, invoiceNumber: true, clientName: true },
+      }),
+      prisma.quote.findMany({
+        where: { validUntil: { lt: now }, status: { in: EXPIRE_FROM } },
+        select: { id: true, workspaceId: true, createdById: true, quoteNumber: true, clientName: true },
+      }),
+    ])
+
     const [invoices, quotes] = await Promise.all([
       prisma.invoice.updateMany({
-        where: {
-          dueDate: { lt: now },
-          status: { in: OVERDUE_FROM },
-        },
+        where: { id: { in: toOverdue.map((i) => i.id) } },
         data: { status: 'overdue' },
       }),
       prisma.quote.updateMany({
-        where: {
-          validUntil: { lt: now },
-          status: { in: EXPIRE_FROM },
-        },
+        where: { id: { in: toExpire.map((q) => q.id) } },
         data: { status: 'expired' },
       }),
     ])
+
+    for (const invoice of toOverdue) {
+      if (!invoice.createdById) continue
+      void notify({
+        recipients: [invoice.createdById],
+        type: 'sales.invoice_overdue',
+        workspaceId: invoice.workspaceId,
+        title: `Invoice ${invoice.invoiceNumber} for ${invoice.clientName} is overdue`,
+        href: `/invoices/${invoice.id}`,
+        dedupeKey: `invoice.overdue:${invoice.id}`,
+      })
+    }
+    for (const quote of toExpire) {
+      if (!quote.createdById) continue
+      void notify({
+        recipients: [quote.createdById],
+        type: 'sales.quote_expired',
+        workspaceId: quote.workspaceId,
+        title: `Quote ${quote.quoteNumber} for ${quote.clientName} expired`,
+        href: `/quotes/${quote.id}`,
+        dedupeKey: `quote.expired:${quote.id}`,
+      })
+    }
 
     console.log(
       `[cron/mark-overdue] Marked ${invoices.count} invoices overdue and ${quotes.count} quotes expired at ${now.toISOString()}`

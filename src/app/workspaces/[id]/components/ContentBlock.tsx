@@ -1,4 +1,5 @@
 'use client'
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface ContentBlockProps {
     type: 'heading1' | 'paragraph' | 'bullet' | 'code'
@@ -7,6 +8,7 @@ interface ContentBlockProps {
 }
 
 export default function ContentBlock({ type, content, children }: ContentBlockProps) {
+    const { t } = useI18n();
     return (
         <div className="relative group mb-6">
             {/* Drag Handle */}
@@ -25,7 +27,7 @@ export default function ContentBlock({ type, content, children }: ContentBlockPr
                     {content}
                     {/* Real-time Cursor: Alice */}
                     <span className="inline-block w-[2px] h-6 bg-secondary relative top-1.5">
-                        <span className="cursor-name bg-secondary text-white">Alice is editing</span>
+                        <span className="cursor-name bg-secondary text-white">{t('misc.aliceEditing')}</span>
                     </span>
                 </p>
             )}

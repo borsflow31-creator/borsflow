@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export type DiscountType = 'none' | 'percentage' | 'fixed';
 
@@ -46,16 +47,17 @@ export default function CalculationsSummary({
     }).format(amount);
   };
 
+  const { t } = useI18n();
   const calculatedAmountDue = amountDue !== undefined ? amountDue : total - amountPaid;
 
   return (
     <div className="bg-surface rounded-lg p-6 space-y-4">
-      <h3 className="text-lg font-semibold text-on-surface">Summary</h3>
+      <h3 className="text-lg font-semibold text-on-surface">{t('documents.calculations.summary')}</h3>
       
       <div className="space-y-3">
         {/* Subtotal */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-on-surface-variant">Subtotal</span>
+          <span className="text-sm text-on-surface-variant">{t('documents.calculations.subtotal')}</span>
           <span className="text-sm font-medium text-on-surface">
             {formatCurrency(subtotal)}
           </span>
@@ -65,15 +67,15 @@ export default function CalculationsSummary({
         {!readOnly ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-on-surface-variant">Discount</span>
+              <span className="text-sm text-on-surface-variant">{t('documents.calculations.discount')}</span>
               <div className="flex items-center gap-2">
                 <select
                   value={discountType}
                   onChange={(e) => onDiscountTypeChange?.(e.target.value as DiscountType)}
                   className="px-2 py-1 bg-surface-container-low rounded text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                  aria-label="Discount type"
+                  aria-label={t('documents.calculations.discountTypeLabel')}
                 >
-                  <option value="none">None</option>
+                  <option value="none">{t('documents.calculations.discountNone')}</option>
                   <option value="percentage">%</option>
                   <option value="fixed">{currency}</option>
                 </select>
@@ -85,7 +87,7 @@ export default function CalculationsSummary({
                     value={discountValue}
                     onChange={(e) => onDiscountValueChange?.(parseFloat(e.target.value) || 0)}
                     className="w-24 px-2 py-1 bg-surface-container-low rounded text-sm text-on-surface text-right focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                    aria-label="Discount value"
+                    aria-label={t('documents.calculations.discountValueLabel')}
                   />
                 )}
               </div>
@@ -118,7 +120,7 @@ export default function CalculationsSummary({
         {!readOnly ? (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-on-surface-variant">Tax</span>
+              <span className="text-sm text-on-surface-variant">{t('documents.calculations.tax')}</span>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -128,7 +130,7 @@ export default function CalculationsSummary({
                   value={taxRate}
                   onChange={(e) => onTaxRateChange?.(parseFloat(e.target.value) || 0)}
                   className="w-20 px-2 py-1 bg-surface-container-low rounded text-sm text-on-surface text-right focus:outline-none focus:ring-2 focus:ring-secondary/50"
-                  aria-label="Tax rate"
+                  aria-label={t('documents.calculations.taxRateLabel')}
                 />
                 <span className="text-sm text-on-surface-variant">%</span>
               </div>
@@ -158,7 +160,7 @@ export default function CalculationsSummary({
 
         {/* Total */}
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-on-surface">Total</span>
+          <span className="text-base font-semibold text-on-surface">{t('documents.calculations.total')}</span>
           <span className="text-xl font-bold text-on-surface">
             {formatCurrency(total)}
           </span>
@@ -172,7 +174,7 @@ export default function CalculationsSummary({
             {/* Amount Paid */}
             {amountPaid > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-on-surface-variant">Amount Paid</span>
+                <span className="text-sm text-on-surface-variant">{t('documents.calculations.amountPaid')}</span>
                 <span className="text-sm font-medium text-success">
                   {formatCurrency(amountPaid)}
                 </span>
@@ -182,7 +184,7 @@ export default function CalculationsSummary({
             {/* Amount Due */}
             <div className="flex items-center justify-between">
               <span className="text-base font-semibold text-on-surface">
-                {calculatedAmountDue > 0 ? 'Amount Due' : 'Balance'}
+                {calculatedAmountDue > 0 ? t('documents.calculations.amountDue') : t('documents.calculations.balance')}
               </span>
               <span
                 className={`text-xl font-bold ${

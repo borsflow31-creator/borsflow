@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Columns, Table2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 type ViewMode = 'kanban' | 'list';
 
@@ -11,6 +12,7 @@ interface ViewToggleProps {
 }
 
 export default function ViewToggle({ viewMode, onViewModeChange }: ViewToggleProps) {
+    const { t } = useI18n();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -30,11 +32,11 @@ export default function ViewToggle({ viewMode, onViewModeChange }: ViewTogglePro
                         ? 'bg-surface text-on-surface shadow-sm'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
                 }`}
-                aria-label="Kanban view"
-                title="Kanban Board"
+                aria-label={t('crm.viewToggle.kanbanAria')}
+                title={t('crm.viewToggle.kanbanTitle')}
             >
                 <Columns className="w-4 h-4" />
-                <span className="hidden sm:inline">Kanban</span>
+                <span className="hidden sm:inline">{t('crm.viewToggle.kanbanLabel')}</span>
             </button>
             <button
                 onClick={() => onViewModeChange('list')}
@@ -43,11 +45,11 @@ export default function ViewToggle({ viewMode, onViewModeChange }: ViewTogglePro
                         ? 'bg-surface text-on-surface shadow-sm'
                         : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest'
                 }`}
-                aria-label="List view"
-                title="List View"
+                aria-label={t('crm.viewToggle.listAria')}
+                title={t('crm.viewToggle.listTitle')}
             >
                 <Table2 className="w-4 h-4" />
-                <span className="hidden sm:inline">List</span>
+                <span className="hidden sm:inline">{t('crm.viewToggle.listLabel')}</span>
             </button>
         </div>
     );

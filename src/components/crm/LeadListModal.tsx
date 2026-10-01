@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface LeadList {
     id: string;
@@ -30,6 +31,7 @@ export default function LeadListModal({
     onDelete,
     onClose,
 }: LeadListModalProps) {
+    const { t } = useI18n();
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
@@ -64,7 +66,7 @@ export default function LeadListModal({
     };
 
     const handleDelete = (leadListId: string) => {
-        if (confirm('Are you sure you want to delete this lead list?')) {
+        if (confirm(t('crm.leadListModal.confirmDelete'))) {
             onDelete(leadListId);
         }
     };
@@ -81,7 +83,7 @@ export default function LeadListModal({
                 <div className="p-6">
                     {/* Header */}
                     <div className="mb-6 flex items-center justify-between">
-                        <h2 className="headline-lg text-on-surface">Manage Lead Lists</h2>
+                        <h2 className="headline-lg text-on-surface">{t('crm.leadListModal.title')}</h2>
                         <button
                             onClick={onClose}
                             className="text-on-surface-variant hover:text-on-surface transition-colors"
@@ -101,7 +103,7 @@ export default function LeadListModal({
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                             </svg>
-                            Create New Lead List
+                            {t('crm.leadListModal.createNewList')}
                         </button>
                     )}
 
@@ -109,37 +111,37 @@ export default function LeadListModal({
                     {(showCreateForm || editingId) && (
                         <form onSubmit={editingId ? handleUpdate : handleCreate} className="mb-6 p-4 bg-surface-container rounded-lg">
                             <h3 className="headline-sm text-on-surface mb-4">
-                                {editingId ? 'Edit Lead List' : 'Create New Lead List'}
+                                {editingId ? t('crm.leadListModal.formTitleEdit') : t('crm.leadListModal.createNewList')}
                             </h3>
                             <div className="space-y-4">
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        List Name *
+                                        {t('crm.leadListModal.nameLabel')}
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         className="premium-input w-full px-4 py-2.5 text-sm transition-all"
-                                        placeholder="e.g., Hot Leads, Cold Leads"
+                                        placeholder={t('crm.leadListModal.namePlaceholder')}
                                         required
                                     />
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Description
+                                        {t('crm.leadListModal.descriptionLabel')}
                                     </label>
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         rows={3}
                                         className="premium-input w-full px-4 py-2.5 text-sm transition-all resize-none"
-                                        placeholder="Describe this lead list..."
+                                        placeholder={t('crm.leadListModal.descriptionPlaceholder')}
                                     />
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
-                                        Color
+                                        {t('crm.leadListModal.colorLabel')}
                                     </label>
                                     <div className="flex items-center gap-3">
                                         <input
@@ -163,13 +165,13 @@ export default function LeadListModal({
                                         onClick={handleCancel}
                                         className="px-4 py-2 text-sm text-on-surface hover:bg-surface-container-high rounded transition-colors"
                                     >
-                                        Cancel
+                                        {t('common.cancel')}
                                     </button>
                                     <button
                                         type="submit"
                                         className="px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
                                     >
-                                        {editingId ? 'Update' : 'Create'}
+                                        {editingId ? t('common.update') : t('common.create')}
                                     </button>
                                 </div>
                             </div>
@@ -180,7 +182,7 @@ export default function LeadListModal({
                     <div className="space-y-3">
                         {leadLists.length === 0 ? (
                             <p className="body-md text-on-surface-variant text-center py-8">
-                                No lead lists yet. Create your first list to get started.
+                                {t('crm.leadListModal.emptyState')}
                             </p>
                         ) : (
                             leadLists.map((leadList) => (
@@ -201,7 +203,7 @@ export default function LeadListModal({
                                                 </p>
                                             )}
                                             <p className="body-xs text-on-surface-variant mt-1">
-                                                {leadList._count?.leads || 0} leads
+                                                {t('crm.leadListModal.leadsCount', { count: leadList._count?.leads || 0 })}
                                             </p>
                                         </div>
                                     </div>
@@ -209,7 +211,7 @@ export default function LeadListModal({
                                         <button
                                             onClick={() => handleEdit(leadList)}
                                             className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded transition-colors"
-                                            title="Edit"
+                                            title={t('common.edit')}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -218,7 +220,7 @@ export default function LeadListModal({
                                         <button
                                             onClick={() => handleDelete(leadList.id)}
                                             className="p-2 text-error hover:bg-error-container rounded transition-colors"
-                                            title="Delete"
+                                            title={t('common.delete')}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

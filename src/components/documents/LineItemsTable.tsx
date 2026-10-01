@@ -6,6 +6,7 @@ import LineItemRow, { LineItem } from './LineItemRow';
 import { calculateLineTotal } from '@/lib/documents/calculations';
 import ProductPicker from '@/components/products/ProductPicker';
 import type { ProductPickResult } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export type { LineItem };
 
@@ -24,6 +25,7 @@ export default function LineItemsTable({
   readOnly = false,
   workspaceId,
 }: LineItemsTableProps) {
+  const { t } = useI18n();
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
@@ -131,9 +133,9 @@ export default function LineItemsTable({
       {/* Card wrapper header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-on-surface">Line Items</h3>
+          <h3 className="text-sm font-semibold text-on-surface">{t('documents.lineItems.heading')}</h3>
           <p className="text-xs text-on-surface-variant mt-0.5">
-            {items.length === 0 ? 'No items added yet' : `${items.length} item${items.length !== 1 ? 's' : ''}`}
+            {items.length === 0 ? t('documents.lineItems.noItems') : `${items.length} ${items.length !== 1 ? t('documents.lineItems.itemsCount', { count: items.length }) : t('documents.lineItems.itemCount', { count: items.length })}`}
           </p>
         </div>
       </div>
@@ -167,9 +169,9 @@ export default function LineItemsTable({
           <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-3">
             <ReceiptText className="h-6 w-6 text-secondary" strokeWidth={1.5} />
           </div>
-          <p className="text-sm font-medium text-on-surface mb-1">No items yet</p>
+          <p className="text-sm font-medium text-on-surface mb-1">{t('documents.lineItems.noItemsYet')}</p>
           <p className="text-xs text-on-surface-variant">
-            Add line items using the buttons below
+            {t('documents.lineItems.addFirst')}
           </p>
         </div>
       )}
@@ -180,10 +182,10 @@ export default function LineItemsTable({
           <button
             onClick={handleAddItem}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-outline-variant/30 rounded-xl text-on-surface-variant hover:border-secondary/50 hover:text-secondary hover:bg-secondary/5 transition-all duration-200 group"
-            aria-label="Add new line item"
+            aria-label={t('documents.lineItems.addNewAriaLabel')}
           >
             <Plus className="h-5 w-5 transition-transform group-hover:scale-110" strokeWidth={1.75} />
-            <span className="text-sm font-medium">Add Item</span>
+            <span className="text-sm font-medium">{t('documents.lineItems.addItem')}</span>
           </button>
 
           {workspaceId ? (
@@ -193,7 +195,7 @@ export default function LineItemsTable({
               className="flex items-center justify-center gap-2 rounded-xl border border-outline-variant/20 bg-surface px-4 py-3 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
             >
               <Package className="h-4 w-4 text-secondary" strokeWidth={1.75} />
-              Pick from catalog
+              {t('documents.lineItems.pickFromCatalog')}
             </button>
           ) : null}
 

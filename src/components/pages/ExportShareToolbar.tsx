@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Download, ChevronDown, Link2, Check, FileText, FileDown, FileCode, Globe, Lock, Users } from 'lucide-react'
 import { blocksToMarkdown, blocksToDocx, downloadBlob, triggerPrint } from '@/lib/pageExport'
 import PageAccessModal from './PageAccessModal'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface Block {
     id: string
@@ -22,6 +23,7 @@ interface ExportShareToolbarProps {
 }
 
 export default function ExportShareToolbar({ title, blocks, pageId, workspaceId, isPublic: initialIsPublic = false, isAdmin = false }: ExportShareToolbarProps) {
+    const { t } = useI18n()
     const [exportOpen, setExportOpen] = useState(false)
     const [accessModalOpen, setAccessModalOpen] = useState(false)
     const [isPublic, setIsPublic] = useState(initialIsPublic)
@@ -125,7 +127,7 @@ export default function ExportShareToolbar({ title, blocks, pageId, workspaceId,
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-on-surface-variant hover:text-on-surface bg-surface-container-low hover:bg-surface-container rounded-lg border border-outline-variant/40 transition-colors"
                     >
                         <Users className="h-3.5 w-3.5" />
-                        <span>Members</span>
+                        <span>{t('pages.exportShare.members')}</span>
                     </button>
                     <PageAccessModal
                         pageId={pageId}
@@ -148,7 +150,7 @@ export default function ExportShareToolbar({ title, blocks, pageId, workspaceId,
                     ) : (
                         <Download className="h-3.5 w-3.5" />
                     )}
-                    <span>Export</span>
+                    <span>{t('pages.exportShare.export')}</span>
                     <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </button>
 
@@ -199,7 +201,7 @@ export default function ExportShareToolbar({ title, blocks, pageId, workspaceId,
                         {/* Toggle */}
                         <div className="flex items-center justify-between mb-3">
                             <div>
-                                <p className="text-sm font-medium text-on-surface">Public access</p>
+                                <p className="text-sm font-medium text-on-surface">{t('pages.exportShare.publicAccess')}</p>
                                 <p className="text-xs text-on-surface-variant mt-0.5">
                                     {isPublic ? 'Anyone with the link can view' : 'Only workspace members can view'}
                                 </p>

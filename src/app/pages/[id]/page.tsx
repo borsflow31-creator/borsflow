@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { aiComplete, aiErrorMessage, parseAiJson } from '@/lib/ai/client'
 import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAppStore } from '@/store/appStore'
 import { errorFrom } from '@/lib/products'
+import { useI18n } from '@/i18n/I18nProvider'
 import AppShell from '@/components/AppShell'
 import PagesSidebar from '@/components/pages/PagesSidebar'
 import ExportShareToolbar from '@/components/pages/ExportShareToolbar'
@@ -120,6 +122,7 @@ function snapshot(title: string, blocks: Block[]): string {
 }
 
 function PrintBlock({ block }: { block: Block }) {
+    const { t } = useI18n()
     const c = block.content ?? {}
     const text: string = c.text ?? ''
     switch (block.type) {
@@ -148,8 +151,8 @@ function PrintBlock({ block }: { block: Block }) {
         }
         case 'link':      return <p><a href={c.url}>{c.linkTitle || c.url}</a></p>
         case 'bookmark':  return <p><a href={c.url}>{c.bookmarkTitle || c.url}</a>{c.description && ` — ${c.description}`}</p>
-        case 'video':     return <p>[Video: {c.url}]</p>
-        case 'file':      return <p>[File: {c.fileName || c.url}]</p>
+        case 'video':     return <p>[{t('documents.print.video')}: {c.url}]</p>
+        case 'file':      return <p>[{t('documents.print.file')}: {c.fileName || c.url}]</p>
         case 'equation':  return <pre>{c.latex}</pre>
         case 'tag':       return <p><code>{text}</code></p>
         case 'date':      return <p>📅 {text}</p>
@@ -157,44 +160,51 @@ function PrintBlock({ block }: { block: Block }) {
     }
 }
 
-const blockTypes = [
-    // Basic Blocks
-    { type: 'text', icon: Type, label: 'Text', description: 'Just start writing with plain text', category: 'Basic' },
-    { type: 'heading1', icon: Heading1, label: 'Heading 1', description: 'Big section heading', category: 'Basic' },
-    { type: 'heading2', icon: Heading2, label: 'Heading 2', description: 'Medium section heading', category: 'Basic' },
-    { type: 'heading3', icon: Heading3, label: 'Heading 3', description: 'Small section heading', category: 'Basic' },
-    { type: 'bullet', icon: List, label: 'Bulleted List', description: 'Create a simple bulleted list', category: 'Basic' },
-    { type: 'numbered', icon: ListOrdered, label: 'Numbered List', description: 'Create a list with numbering', category: 'Basic' },
-    { type: 'todo', icon: CheckSquare, label: 'To-do List', description: 'Track tasks with a to-do list', category: 'Basic' },
-    { type: 'code', icon: Code, label: 'Code', description: 'Capture a code snippet', category: 'Basic' },
-    { type: 'quote', icon: Quote, label: 'Quote', description: 'Capture a quote', category: 'Basic' },
-    
-    // Formatting Blocks
-    { type: 'divider', icon: Minus, label: 'Divider', description: 'Visual divider line', category: 'Formatting' },
-    { type: 'callout', icon: Info, label: 'Callout', description: 'Make writing stand out', category: 'Formatting' },
-    { type: 'toggle', icon: ChevronRight, label: 'Toggle', description: 'Toggles can hide content', category: 'Formatting' },
-    { type: 'tag', icon: TagIcon, label: 'Tag', description: 'Add colored tags', category: 'Formatting' },
-    { type: 'date', icon: Calendar, label: 'Date', description: 'Add a date with reminder', category: 'Formatting' },
-    { type: 'link', icon: LinkIcon, label: 'Link', description: 'Add external links', category: 'Formatting' },
-    
-    // Media Blocks
-    { type: 'image', icon: ImageIcon, label: 'Image', description: 'Upload and display images', category: 'Media' },
-    { type: 'video', icon: Video, label: 'Video', description: 'Embed YouTube or Vimeo videos', category: 'Media' },
-    { type: 'file', icon: FileIcon, label: 'File', description: 'Upload and attach files', category: 'Media' },
-    
-    // Advanced Blocks
-    { type: 'table', icon: TableIcon, label: 'Table', description: 'Add a simple table', category: 'Advanced' },
-    { type: 'bookmark', icon: Bookmark, label: 'Bookmark', description: 'Add a bookmark with preview', category: 'Advanced' },
-    { type: 'equation', icon: Sigma, label: 'Equation', description: 'Add math equations', category: 'Advanced' },
-]
+type TFunc = ReturnType<typeof useI18n>['t']
+
+/** Block type catalog for the slash menu, block menu and "turn into" list — localized per render. */
+function getBlockTypes(t: TFunc) {
+    return [
+        // Basic Blocks
+        { type: 'text', icon: Type, label: t('documents.blockTypes.text.label'), description: t('documents.blockTypes.text.description'), category: t('documents.categories.basic') },
+        { type: 'heading1', icon: Heading1, label: t('documents.blockTypes.heading1.label'), description: t('documents.blockTypes.heading1.description'), category: t('documents.categories.basic') },
+        { type: 'heading2', icon: Heading2, label: t('documents.blockTypes.heading2.label'), description: t('documents.blockTypes.heading2.description'), category: t('documents.categories.basic') },
+        { type: 'heading3', icon: Heading3, label: t('documents.blockTypes.heading3.label'), description: t('documents.blockTypes.heading3.description'), category: t('documents.categories.basic') },
+        { type: 'bullet', icon: List, label: t('documents.blockTypes.bullet.label'), description: t('documents.blockTypes.bullet.description'), category: t('documents.categories.basic') },
+        { type: 'numbered', icon: ListOrdered, label: t('documents.blockTypes.numbered.label'), description: t('documents.blockTypes.numbered.description'), category: t('documents.categories.basic') },
+        { type: 'todo', icon: CheckSquare, label: t('documents.blockTypes.todo.label'), description: t('documents.blockTypes.todo.description'), category: t('documents.categories.basic') },
+        { type: 'code', icon: Code, label: t('documents.blockTypes.code.label'), description: t('documents.blockTypes.code.description'), category: t('documents.categories.basic') },
+        { type: 'quote', icon: Quote, label: t('documents.blockTypes.quote.label'), description: t('documents.blockTypes.quote.description'), category: t('documents.categories.basic') },
+
+        // Formatting Blocks
+        { type: 'divider', icon: Minus, label: t('documents.blockTypes.divider.label'), description: t('documents.blockTypes.divider.description'), category: t('documents.categories.formatting') },
+        { type: 'callout', icon: Info, label: t('documents.blockTypes.callout.label'), description: t('documents.blockTypes.callout.description'), category: t('documents.categories.formatting') },
+        { type: 'toggle', icon: ChevronRight, label: t('documents.blockTypes.toggle.label'), description: t('documents.blockTypes.toggle.description'), category: t('documents.categories.formatting') },
+        { type: 'tag', icon: TagIcon, label: t('documents.blockTypes.tag.label'), description: t('documents.blockTypes.tag.description'), category: t('documents.categories.formatting') },
+        { type: 'date', icon: Calendar, label: t('documents.blockTypes.date.label'), description: t('documents.blockTypes.date.description'), category: t('documents.categories.formatting') },
+        { type: 'link', icon: LinkIcon, label: t('documents.blockTypes.link.label'), description: t('documents.blockTypes.link.description'), category: t('documents.categories.formatting') },
+
+        // Media Blocks
+        { type: 'image', icon: ImageIcon, label: t('documents.blockTypes.image.label'), description: t('documents.blockTypes.image.description'), category: t('documents.categories.media') },
+        { type: 'video', icon: Video, label: t('documents.blockTypes.video.label'), description: t('documents.blockTypes.video.description'), category: t('documents.categories.media') },
+        { type: 'file', icon: FileIcon, label: t('documents.blockTypes.file.label'), description: t('documents.blockTypes.file.description'), category: t('documents.categories.media') },
+
+        // Advanced Blocks
+        { type: 'table', icon: TableIcon, label: t('documents.blockTypes.table.label'), description: t('documents.blockTypes.table.description'), category: t('documents.categories.advanced') },
+        { type: 'bookmark', icon: Bookmark, label: t('documents.blockTypes.bookmark.label'), description: t('documents.blockTypes.bookmark.description'), category: t('documents.categories.advanced') },
+        { type: 'equation', icon: Sigma, label: t('documents.blockTypes.equation.label'), description: t('documents.blockTypes.equation.description'), category: t('documents.categories.advanced') },
+    ]
+}
 
 function SlashCommandMenu({ position, onSelect, onClose }: SlashCommandMenuProps) {
+    const { t } = useI18n()
     const [selectedIndex, setSelectedIndex] = useState(0)
     const menuRef = useRef<HTMLDivElement>(null)
+    const blockTypes = getBlockTypes(t)
 
     // Group blocks by category
     const groupedBlocks = blockTypes.reduce((acc, block) => {
-        const category = block.category || 'Basic'
+        const category = block.category || t('documents.categories.basic')
         if (!acc[category]) {
             acc[category] = []
         }
@@ -245,7 +255,7 @@ function SlashCommandMenu({ position, onSelect, onClose }: SlashCommandMenuProps
             {Object.entries(groupedBlocks).map(([category, blocks], groupIndex) => (
                 <div key={category}>
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-outline-variant/20">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-on-surface-variant">{category} blocks</p>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-on-surface-variant">{t('documents.blocksGroupLabel', { category })}</p>
                     </div>
                     {blocks.map((block) => (
                         <button
@@ -279,8 +289,10 @@ interface BlockContextMenuProps {
 }
 
 function BlockContextMenu({ position, onClose, onDuplicate, onDelete, onTransform, currentType }: BlockContextMenuProps) {
+    const { t } = useI18n()
     const menuRef = useRef<HTMLDivElement>(null)
     const [showTransformMenu, setShowTransformMenu] = useState(false)
+    const blockTypes = getBlockTypes(t)
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -304,14 +316,14 @@ function BlockContextMenu({ position, onClose, onDuplicate, onDelete, onTransfor
                     className="flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-surface-container-low w-full text-left"
                 >
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t('common.delete')}
                 </button>
                 <button
                     onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-on-surface hover:bg-gray-50 dark:hover:bg-surface-container-low w-full text-left"
                 >
                     <Copy className="h-4 w-4" />
-                    Duplicate
+                    {t('documents.duplicate')}
                 </button>
                 <div className="relative">
                     <button
@@ -320,7 +332,7 @@ function BlockContextMenu({ position, onClose, onDuplicate, onDelete, onTransfor
                     >
                         <div className="flex items-center gap-2">
                             <Type className="h-4 w-4" />
-                            Turn into
+                            {t('documents.turnInto')}
                         </div>
                         <ChevronRight className="h-4 w-4" />
                     </button>
@@ -491,10 +503,11 @@ function TodoBlock({ value, onChange, onKeyDown, placeholder, className, checked
 }
 
 function CodeBlock({ value, onChange, onKeyDown, placeholder, className }: any) {
+    const { t } = useI18n()
     return (
         <div className="relative">
             <div className="absolute top-3 right-3 px-2 py-1 bg-gray-100 dark:bg-surface-container-high rounded text-xs text-gray-500 dark:text-on-surface-variant font-mono">
-                Code
+                {t('documents.blockTypes.code.label')}
             </div>
             <textarea
                 value={value}
@@ -574,20 +587,21 @@ function CalloutBlock({ value, onChange, placeholder, className, color = 'gray',
 }
 
 function ToggleBlock({ value, onChange, placeholder, className, isOpen = false, onToggle, toggleContent, onToggleContentChange }: any) {
+    const { t } = useI18n()
     return (
         <div className={className}>
             <button
                 onClick={onToggle}
                 className="flex items-center gap-2 w-full text-left group"
             >
-                <ChevronRight 
-                    className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`} 
+                <ChevronRight
+                    className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-90' : ''}`}
                 />
                 <input
                     type="text"
                     value={value}
                     onChange={onChange}
-                    placeholder="Toggle title..."
+                    placeholder={t('documents.blocks.toggleTitlePlaceholder')}
                     className="flex-1 bg-transparent focus:outline-none text-base"
                 />
             </button>
@@ -595,7 +609,7 @@ function ToggleBlock({ value, onChange, placeholder, className, isOpen = false, 
                 <textarea
                     value={toggleContent || ''}
                     onChange={onToggleContentChange}
-                    placeholder="Toggle content..."
+                    placeholder={t('documents.blocks.toggleContentPlaceholder')}
                     rows={3}
                     className="w-full mt-2 ml-6 bg-transparent focus:outline-none resize-none text-base leading-relaxed text-gray-700 dark:text-on-surface-variant"
                 />
@@ -605,6 +619,7 @@ function ToggleBlock({ value, onChange, placeholder, className, isOpen = false, 
 }
 
 function ImageBlock({ value, onChange, placeholder, className, url, caption, onCaptionChange, onUpload, blockId }: any) {
+    const { t } = useI18n()
     const inputId = `image-upload-${blockId}`
     return (
         <div className={className}>
@@ -615,7 +630,7 @@ function ImageBlock({ value, onChange, placeholder, className, url, caption, onC
                         type="text"
                         value={caption || ''}
                         onChange={onCaptionChange}
-                        placeholder="Add a caption..."
+                        placeholder={t('documents.blocks.imageCaptionPlaceholder')}
                         className="mt-2 w-full text-sm bg-transparent focus:outline-none text-gray-600 dark:text-on-surface-variant"
                     />
                 </div>
@@ -624,7 +639,7 @@ function ImageBlock({ value, onChange, placeholder, className, url, caption, onC
                     <input type="file" accept="image/*" onChange={onUpload} className="hidden" id={inputId} />
                     <label htmlFor={inputId} className="cursor-pointer">
                         <ImageIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Click to upload an image</p>
+                        <p className="text-sm text-gray-500">{t('documents.blocks.imageUploadLabel')}</p>
                     </label>
                 </div>
             )}
@@ -632,13 +647,15 @@ function ImageBlock({ value, onChange, placeholder, className, url, caption, onC
     )
 }
 
-function TableBlock({ value, onChange, placeholder, className, headers = ['Column 1', 'Column 2', 'Column 3'], rows = [['', '', ''], ['', '', '']], onHeaderChange, onCellChange, onAddRow, onAddColumn, onDeleteRow }: any) {
+function TableBlock({ value, onChange, placeholder, className, headers, rows = [['', '', ''], ['', '', '']], onHeaderChange, onCellChange, onAddRow, onAddColumn, onDeleteRow }: any) {
+    const { t } = useI18n()
+    const resolvedHeaders: string[] = headers ?? [1, 2, 3].map((n) => t('documents.blocks.columnLabel', { number: n }))
     return (
         <div className={`overflow-x-auto ${className}`}>
             <table className="w-full border-collapse">
                 <thead>
                     <tr>
-                        {headers.map((header: string, index: number) => (
+                        {resolvedHeaders.map((header: string, index: number) => (
                             <th key={index} className="border border-gray-200 dark:border-outline-variant/50 p-2 min-w-[150px]">
                                 <input
                                     type="text"
@@ -674,13 +691,14 @@ function TableBlock({ value, onChange, placeholder, className, headers = ['Colum
                 </tbody>
             </table>
             <button onClick={onAddRow} className="mt-2 text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                <Plus className="h-4 w-4" /> Add row
+                <Plus className="h-4 w-4" /> {t('documents.blocks.tableAddRow')}
             </button>
         </div>
     )
 }
 
 function LinkBlock({ value, onChange, placeholder, className, url, linkTitle, onUrlChange, onTitleChange }: any) {
+    const { t } = useI18n()
     return (
         <div className={className}>
             <div className="flex items-center gap-2 p-3 border border-gray-200 dark:border-outline-variant/50 rounded-lg">
@@ -689,7 +707,7 @@ function LinkBlock({ value, onChange, placeholder, className, url, linkTitle, on
                     type="text"
                     value={url || value}
                     onChange={onUrlChange || onChange}
-                    placeholder="Paste or type a link..."
+                    placeholder={t('documents.blocks.linkPlaceholder')}
                     className="flex-1 bg-transparent focus:outline-none text-sm"
                 />
             </div>
@@ -709,6 +727,7 @@ function LinkBlock({ value, onChange, placeholder, className, url, linkTitle, on
 }
 
 function BookmarkBlock({ className, url, bookmarkTitle, description, bookmarkImage, onUrlChange }: any) {
+    const { t } = useI18n()
     return (
         <div className={className}>
             {!url ? (
@@ -719,7 +738,7 @@ function BookmarkBlock({ className, url, bookmarkTitle, description, bookmarkIma
                             type="text"
                             value={url || ''}
                             onChange={onUrlChange}
-                            placeholder="Paste a link to create a bookmark..."
+                            placeholder={t('documents.blocks.bookmarkPlaceholder')}
                             className="flex-1 bg-transparent focus:outline-none text-sm"
                         />
                     </div>
@@ -733,8 +752,8 @@ function BookmarkBlock({ className, url, bookmarkTitle, description, bookmarkIma
                 >
                     {bookmarkImage && <img src={bookmarkImage} alt="" className="w-full h-40 object-cover" />}
                     <div className="p-4">
-                        <h4 className="font-medium text-gray-900 dark:text-on-surface mb-1">{bookmarkTitle || 'Untitled'}</h4>
-                        <p className="text-sm text-gray-500 dark:text-on-surface-variant line-clamp-2">{description || 'No description'}</p>
+                        <h4 className="font-medium text-gray-900 dark:text-on-surface mb-1">{bookmarkTitle || t('documents.untitled')}</h4>
+                        <p className="text-sm text-gray-500 dark:text-on-surface-variant line-clamp-2">{description || t('documents.blocks.bookmarkNoDescription')}</p>
                         <p className="text-xs text-gray-400 mt-2 truncate">{url}</p>
                     </div>
                 </a>
@@ -744,6 +763,7 @@ function BookmarkBlock({ className, url, bookmarkTitle, description, bookmarkIma
 }
 
 function DateBlock({ value, onChange, placeholder, className, date, reminder, onDateChange, onReminderToggle }: any) {
+    const { t } = useI18n()
     return (
         <div className={`flex items-center gap-3 p-3 border border-gray-200 dark:border-outline-variant/50 rounded-lg ${className}`}>
             <Calendar className="h-4 w-4 text-gray-400" />
@@ -760,13 +780,14 @@ function DateBlock({ value, onChange, placeholder, className, date, reminder, on
                     onChange={onReminderToggle}
                     className="rounded border-gray-300 dark:border-outline-variant"
                 />
-                <span className="text-sm text-gray-500 dark:text-on-surface-variant">Remind me</span>
+                <span className="text-sm text-gray-500 dark:text-on-surface-variant">{t('documents.blocks.dateRemindMe')}</span>
             </label>
         </div>
     )
 }
 
 function TagBlock({ value, onChange, placeholder, className, tagColor = 'gray', onColorChange }: any) {
+    const { t } = useI18n()
     const colorClasses: Record<string, string> = {
         gray: 'bg-gray-100 dark:bg-surface-container-high text-gray-700 dark:text-on-surface-variant',
         blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
@@ -777,17 +798,17 @@ function TagBlock({ value, onChange, placeholder, className, tagColor = 'gray', 
         pink: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300',
         orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
     }
-    
+
     return (
         <div className={`flex items-center gap-2 ${className}`}>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${colorClasses[tagColor] || colorClasses.gray}`}>
-                {value || 'Tag'}
+                {value || t('documents.blocks.tagDefault')}
             </span>
             <input
                 type="text"
                 value={value}
                 onChange={onChange}
-                placeholder="Type a tag..."
+                placeholder={t('documents.blocks.tagPlaceholder')}
                 className="flex-1 bg-transparent focus:outline-none text-sm"
             />
         </div>
@@ -795,6 +816,7 @@ function TagBlock({ value, onChange, placeholder, className, tagColor = 'gray', 
 }
 
 function VideoBlock({ className, url, onUrlChange }: any) {
+    const { t } = useI18n()
     const getVideoEmbed = (url: string) => {
         // Parse YouTube URL
         const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
@@ -821,7 +843,7 @@ function VideoBlock({ className, url, onUrlChange }: any) {
                             type="text"
                             value={url || ''}
                             onChange={onUrlChange}
-                            placeholder="Paste a YouTube or Vimeo link..."
+                            placeholder={t('documents.blocks.videoPlaceholder')}
                             className="flex-1 bg-transparent focus:outline-none text-sm"
                         />
                     </div>
@@ -833,14 +855,14 @@ function VideoBlock({ className, url, onUrlChange }: any) {
                             src={`https://www.youtube.com/embed/${video.videoId}`}
                             className="w-full h-full"
                             allowFullScreen
-                            title="YouTube video"
+                            title={t('documents.blocks.youtubeTitle')}
                         />
                     ) : (
                         <iframe
                             src={`https://player.vimeo.com/video/${video.videoId}`}
                             className="w-full h-full"
                             allowFullScreen
-                            title="Vimeo video"
+                            title={t('documents.blocks.vimeoTitle')}
                         />
                     )}
                 </div>
@@ -850,6 +872,7 @@ function VideoBlock({ className, url, onUrlChange }: any) {
 }
 
 function FileBlock({ value, onChange, placeholder, className, fileName, fileSize, onUpload, blockId }: any) {
+    const { t } = useI18n()
     const formatFileSize = (bytes: number) => {
         if (bytes < 1024) return bytes + ' B'
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -868,7 +891,7 @@ function FileBlock({ value, onChange, placeholder, className, fileName, fileSize
                     <FileIcon className="h-8 w-8 text-gray-400" />
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-on-surface truncate">{fileName}</p>
-                        <p className="text-xs text-gray-500">{fileSize ? formatFileSize(fileSize) : 'Unknown size'}</p>
+                        <p className="text-xs text-gray-500">{fileSize ? formatFileSize(fileSize) : t('documents.blocks.fileUnknownSize')}</p>
                     </div>
                 </a>
             ) : (
@@ -876,7 +899,7 @@ function FileBlock({ value, onChange, placeholder, className, fileName, fileSize
                     <input type="file" onChange={onUpload} className="hidden" id={inputId} />
                     <label htmlFor={inputId} className="cursor-pointer">
                         <FileIcon className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Click to upload a file</p>
+                        <p className="text-sm text-gray-500">{t('documents.blocks.fileUploadLabel')}</p>
                     </label>
                 </div>
             )}
@@ -885,6 +908,7 @@ function FileBlock({ value, onChange, placeholder, className, fileName, fileSize
 }
 
 function EquationBlock({ value, onChange, placeholder, className }: any) {
+    const { t } = useI18n()
     return (
         <div className={`border border-gray-200 dark:border-outline-variant/50 rounded-lg p-4 ${className}`}>
             <div className="bg-gray-50 dark:bg-surface-container-highest rounded p-4 mb-2 text-center">
@@ -894,7 +918,7 @@ function EquationBlock({ value, onChange, placeholder, className }: any) {
                 type="text"
                 value={value}
                 onChange={onChange}
-                placeholder="Enter LaTeX equation..."
+                placeholder={t('documents.blocks.equationPlaceholder')}
                 className="w-full bg-transparent focus:outline-none font-mono text-sm text-gray-700 dark:text-on-surface-variant"
             />
         </div>
@@ -906,6 +930,7 @@ export default function PageEditorPage() {
     const router = useRouter()
     const params = useParams()
     const { setPage } = useAppStore()
+    const { t, formatDate } = useI18n()
 
     const [page, setPageState] = useState<Page | null>(null)
     const [accessLevel, setAccessLevel] = useState<string>('ADMIN')
@@ -938,44 +963,33 @@ export default function PageEditorPage() {
     /** Focusable element per block id, so Enter/Backspace can target a block directly. */
     const blockRefs = useRef(new Map<string, HTMLElement>())
 
+    /** Blocks from an AI answer shaped `{ "blocks": [{ "type", "text" }] }`. */
+    const aiBlocks = (raw: string) => {
+        const parsed = parseAiJson<{ blocks?: { type?: string; text?: string }[] }>(raw)
+        const allowed = ['heading1', 'heading2', 'heading3', 'text', 'bullet', 'numbered', 'todo', 'quote']
+        const items = (parsed.blocks ?? []).filter(item => typeof item?.text === 'string' && item.text.trim())
+        if (items.length === 0) throw new Error('empty')
+        return items.map((item, i) => ({
+            id: newBlockId(),
+            type: allowed.includes(item.type ?? '') ? item.type! : 'text',
+            content: { text: item.text!.trim() },
+            order: blocks.length + i,
+        }))
+    }
+
     const generateOutline = async () => {
         if (!title.trim() || isGeneratingOutline || accessLevel === 'VIEW') return
         setIsGeneratingOutline(true)
         setAiError(null)
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{
-                        role: 'user',
-                        content: `Generate a structured document outline for the topic: "${title}"\n\nReturn ONLY the outline as a JSON array of objects with this shape:\n[{"type":"heading1","text":"Section Title"},{"type":"heading2","text":"Subsection"},{"type":"text","text":"Brief description"}]\n\nInclude 2-4 main sections with 1-2 subsections each. Return valid JSON only, no explanation.`
-                    }]
-                }),
+            const raw = await aiComplete({ pageId: params.id as string }, {
+                prompt: `Generate a structured document outline for the topic: "${title}"\n\nReturn a JSON object of this shape:\n{"blocks":[{"type":"heading1","text":"Section Title"},{"type":"heading2","text":"Subsection"},{"type":"text","text":"Brief description"}]}\n\nInclude 2-4 main sections with 1-2 subsections each.`,
+                json: true,
             })
-            if (!res.ok || !res.body) throw new Error('failed')
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let raw = ''
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                raw += decoder.decode(value)
-            }
-            const jsonMatch = raw.match(/\[[\s\S]*\]/)
-            if (!jsonMatch) throw new Error('no json')
-            const items: { type: string; text: string }[] = JSON.parse(jsonMatch[0])
-            const newBlocks = items.map(item => ({
-                id: newBlockId(),
-                type: item.type,
-                content: item.type === 'heading1' || item.type === 'heading2' || item.type === 'heading3'
-                    ? { text: item.text }
-                    : { text: item.text },
-                order: blocks.length,
-            }))
+            const newBlocks = aiBlocks(raw)
             setBlocks(prev => [...prev, ...newBlocks])
-        } catch {
-            setAiError('Could not generate an outline. Please try again.')
+        } catch (error) {
+            setAiError(aiErrorMessage(error, t('documents.outlineErrorFallback')))
         } finally {
             setIsGeneratingOutline(false)
         }
@@ -986,39 +1000,17 @@ export default function PageEditorPage() {
         setIsGeneratingFromPrompt(true)
         setAiError(null)
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{
-                        role: 'user',
-                        content: `Write a complete, well-structured document about: "${aiPromptValue}"\n\nReturn ONLY valid JSON — an array of block objects with this shape:\n[{"type":"heading1","text":"Title"},{"type":"heading2","text":"Section"},{"type":"text","text":"Paragraph content"}]\n\nUse a mix of heading1, heading2, text, bullet, and numbered block types as appropriate. Make it thorough and detailed. Return valid JSON only, no explanation, no markdown code fences.`
-                    }]
-                }),
+            const raw = await aiComplete({ pageId: params.id as string }, {
+                prompt: `Write a complete, well-structured document about: "${aiPromptValue}"\n\nReturn a JSON object of this shape:\n{"blocks":[{"type":"heading1","text":"Title"},{"type":"heading2","text":"Section"},{"type":"text","text":"Paragraph content"}]}\n\nUse a mix of heading1, heading2, text, bullet, and numbered block types as appropriate. Make it thorough and detailed.`,
+                json: true,
+                maxTokens: 2048,
             })
-            if (!res.ok || !res.body) throw new Error('failed')
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let raw = ''
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                raw += decoder.decode(value)
-            }
-            const jsonMatch = raw.match(/\[[\s\S]*\]/)
-            if (!jsonMatch) throw new Error('no json')
-            const items: { type: string; text: string }[] = JSON.parse(jsonMatch[0])
-            const newBlocks = items.map(item => ({
-                id: newBlockId(),
-                type: item.type,
-                content: { text: item.text },
-                order: blocks.length,
-            }))
+            const newBlocks = aiBlocks(raw)
             setBlocks(prev => [...prev, ...newBlocks])
             setAiPromptValue('')
             setShowAiPromptInput(false)
-        } catch {
-            setAiError('Could not generate the document. Please try again.')
+        } catch (error) {
+            setAiError(aiErrorMessage(error, t('documents.documentErrorFallback')))
         } finally {
             setIsGeneratingFromPrompt(false)
         }
@@ -1033,30 +1025,15 @@ export default function PageEditorPage() {
         setAiError(null)
         setShowToneMenu(false)
         try {
-            const res = await fetch('/api/ai/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: [{
-                        role: 'user',
-                        content: `Rewrite this text in a ${tone} tone. Return only the rewritten text:\n\n${text}`
-                    }]
-                }),
+            const result = await aiComplete({ pageId: params.id as string }, {
+                prompt: `Rewrite this text in a ${tone} tone. Return only the rewritten text.`,
+                text,
             })
-            if (!res.ok || !res.body) throw new Error('failed')
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let result = ''
-            while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                result += decoder.decode(value)
-            }
             setBlocks(prev => prev.map(b =>
                 b.id === blockId ? { ...b, content: { ...b.content, text: result.trim() } } : b
             ))
-        } catch {
-            setAiError('Could not rewrite that block. Please try again.')
+        } catch (error) {
+            setAiError(aiErrorMessage(error, t('documents.toneErrorFallback')))
         } finally {
             setIsToneLoading(false)
             setSelectedBlockId(null)
@@ -1194,7 +1171,7 @@ export default function PageEditorPage() {
             // fetch does not throw on 4xx/5xx, so without this a rejected save —
             // a 403 from view-only access, a 500 — looked identical to a saved one.
             if (!res.ok) {
-                setSaveError(await errorFrom(res, 'Could not save your changes'))
+                setSaveError(await errorFrom(res, t('documents.saveErrorFallback')))
                 return
             }
 
@@ -1203,7 +1180,7 @@ export default function PageEditorPage() {
             setIsDirty(false)
         } catch (error) {
             console.error('Error saving page:', error)
-            setSaveError('Could not reach the server. Your changes are not saved.')
+            setSaveError(t('documents.saveErrorNetwork'))
         } finally {
             setIsSaving(false)
         }
@@ -1211,7 +1188,7 @@ export default function PageEditorPage() {
 
     const getDefaultContent = (type: string) => {
         switch (type) {
-            case 'table':    return { headers: ['Column 1', 'Column 2', 'Column 3'], rows: [['', '', ''], ['', '', '']] }
+            case 'table':    return { headers: [1, 2, 3].map((n) => t('documents.blocks.columnLabel', { number: n })), rows: [['', '', ''], ['', '', '']] }
             case 'toggle':   return { toggleTitle: '', toggleContent: '', isOpen: false }
             case 'callout':  return { text: '', icon: '💡', color: 'gray' }
             case 'todo':     return { text: '', checked: false }
@@ -1421,18 +1398,18 @@ export default function PageEditorPage() {
             onChange: (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
                 updateBlockContent(block.id, { text: e.target.value }),
             onKeyDown: (e: React.KeyboardEvent) => handleKeyDown(e, block.id),
-            placeholder: `Type '/' for commands...`,
+            placeholder: t('documents.typeCommandPlaceholder'),
         }
 
         switch (block.type) {
             case 'text':
                 return <TextBlock {...commonProps} />
             case 'heading1':
-                return <Heading1Block {...commonProps} placeholder="Heading 1" />
+                return <Heading1Block {...commonProps} placeholder={t('documents.blockTypes.heading1.label')} />
             case 'heading2':
-                return <Heading2Block {...commonProps} placeholder="Heading 2" />
+                return <Heading2Block {...commonProps} placeholder={t('documents.blockTypes.heading2.label')} />
             case 'heading3':
-                return <Heading3Block {...commonProps} placeholder="Heading 3" />
+                return <Heading3Block {...commonProps} placeholder={t('documents.blockTypes.heading3.label')} />
             case 'bullet':
                 return <BulletBlock {...commonProps} />
             case 'numbered':
@@ -1522,7 +1499,7 @@ export default function PageEditorPage() {
                 return (
                     <TableBlock
                         {...commonProps}
-                        headers={block.content.headers || ['Column 1', 'Column 2', 'Column 3']}
+                        headers={block.content.headers || [1, 2, 3].map((n) => t('documents.blocks.columnLabel', { number: n }))}
                         rows={block.content.rows || [['', '', ''], ['', '', '']]}
                         onHeaderChange={(index: number, value: string) => {
                             const newHeaders = [...(block.content.headers || [])]
@@ -1539,7 +1516,7 @@ export default function PageEditorPage() {
                             updateBlockContent(block.id, { ...block.content, rows: newRows })
                         }}
                         onAddColumn={() => {
-                            const newHeaders = [...(block.content.headers || []), `Column ${(block.content.headers?.length || 0) + 1}`]
+                            const newHeaders = [...(block.content.headers || []), t('documents.blocks.columnLabel', { number: (block.content.headers?.length || 0) + 1 })]
                             const newRows = (block.content.rows || []).map((row: string[]) => [...row, ''])
                             updateBlockContent(block.id, { ...block.content, headers: newHeaders, rows: newRows })
                         }}
@@ -1663,10 +1640,10 @@ export default function PageEditorPage() {
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background">
                 <div className="text-center">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-on-surface mb-2">
-                        Page not found
+                        {t('documents.notFound')}
                     </h3>
                     <Link href="/dashboard" className="text-blue-600 dark:text-secondary hover:text-blue-700 dark:hover:text-secondary-dim">
-                        Back to Dashboard
+                        {t('documents.backToDashboard')}
                     </Link>
                 </div>
             </div>
@@ -1674,14 +1651,14 @@ export default function PageEditorPage() {
     }
 
     const breadcrumbs = [
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Workspace', href: `/workspaces/${page.workspaceId}` },
-        { label: page.title || 'Untitled', href: `/pages/${page.id}` },
+        { label: t('nav.dashboard'), href: '/dashboard' },
+        { label: t('documents.workspaceFallback'), href: `/workspaces/${page.workspaceId}` },
+        { label: page.title || t('documents.untitled'), href: `/pages/${page.id}` },
     ]
 
     return (
         <AppShell
-            workspace={{ id: page.workspaceId, name: page.workspace?.name || 'Workspace' }}
+            workspace={{ id: page.workspaceId, name: page.workspace?.name || t('documents.workspaceFallback') }}
             currentPage={{ id: page.id, title: page.title }}
             breadcrumbs={breadcrumbs}
         >
@@ -1695,7 +1672,7 @@ export default function PageEditorPage() {
                         const res = await fetch('/api/pages', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title: 'Untitled', workspaceId: page.workspaceId }),
+                            body: JSON.stringify({ title: t('documents.untitled'), workspaceId: page.workspaceId }),
                         });
                         if (res.ok) {
                             const data = await res.json();
@@ -1727,7 +1704,7 @@ export default function PageEditorPage() {
                         {accessLevel === 'VIEW' && (
                             <div className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-surface-container-high rounded-lg text-sm text-on-surface-variant">
                                 <span>👁</span>
-                                <span>You have view-only access to this page.</span>
+                                <span>{t('documents.viewOnlyBanner')}</span>
                             </div>
                         )}
 
@@ -1737,7 +1714,7 @@ export default function PageEditorPage() {
                             value={title}
                             onChange={(e) => { if (accessLevel !== 'VIEW') setTitle(e.target.value) }}
                             readOnly={accessLevel === 'VIEW'}
-                            placeholder="Untitled"
+                            placeholder={t('documents.untitled')}
                             className="w-full text-[2.75rem] font-black tracking-tighter leading-tight text-on-surface bg-transparent focus:outline-none mb-4 placeholder:text-on-surface-variant/30"
                         />
 
@@ -1757,7 +1734,7 @@ export default function PageEditorPage() {
                                                     if (e.key === 'Enter') generateFromPrompt()
                                                     if (e.key === 'Escape') { setShowAiPromptInput(false); setAiPromptValue('') }
                                                 }}
-                                                placeholder="Describe the document you want to create…"
+                                                placeholder={t('documents.aiPromptPlaceholder')}
                                                 className="flex-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none"
                                                 autoFocus
                                             />
@@ -1773,7 +1750,7 @@ export default function PageEditorPage() {
                                                 </button>
                                             )}
                                         </div>
-                                        <p className="text-xs text-on-surface-variant/60 pl-1">Enter to generate · Esc to cancel</p>
+                                        <p className="text-xs text-on-surface-variant/60 pl-1">{t('documents.aiPromptHint')}</p>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-3 flex-wrap">
@@ -1783,7 +1760,7 @@ export default function PageEditorPage() {
                                             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/10 text-secondary text-sm font-medium hover:bg-secondary/20 transition-colors disabled:opacity-60"
                                         >
                                             <span className="material-symbols-outlined text-base leading-none" style={{ fontVariationSettings: 'FILL 1' }}>edit_note</span>
-                                            Write with AI
+                                            {t('documents.writeWithAi')}
                                         </button>
                                         {title.trim() && (
                                             <button
@@ -1792,9 +1769,9 @@ export default function PageEditorPage() {
                                                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary/10 text-secondary text-sm font-medium hover:bg-secondary/20 transition-colors disabled:opacity-60"
                                             >
                                                 {isGeneratingOutline ? (
-                                                    <><div className="h-4 w-4 rounded-full border-2 border-secondary border-t-transparent animate-spin" />Generating outline…</>
+                                                    <><div className="h-4 w-4 rounded-full border-2 border-secondary border-t-transparent animate-spin" />{t('documents.generatingOutline')}</>
                                                 ) : (
-                                                    <><span className="material-symbols-outlined text-base leading-none" style={{ fontVariationSettings: 'FILL 1' }}>auto_awesome</span>Generate outline with AI</>
+                                                    <><span className="material-symbols-outlined text-base leading-none" style={{ fontVariationSettings: 'FILL 1' }}>auto_awesome</span>{t('documents.generateOutlineWithAi')}</>
                                                 )}
                                             </button>
                                         )}
@@ -1830,7 +1807,7 @@ export default function PageEditorPage() {
                                                     <button
                                                         onClick={() => setSelectedBlockId(selectedBlockId === block.id ? null : block.id)}
                                                         className="p-0.5 rounded hover:bg-surface-container-highest"
-                                                        title="Rewrite tone with AI"
+                                                        title={t('documents.rewriteToneTitle')}
                                                     >
                                                         {isToneLoading && selectedBlockId === block.id
                                                             ? <div className="h-3.5 w-3.5 rounded-full border-2 border-secondary border-t-transparent animate-spin" />
@@ -1845,7 +1822,7 @@ export default function PageEditorPage() {
                                                                     onClick={() => rewriteBlockTone(block.id, tone)}
                                                                     className="w-full text-left px-3 py-1.5 text-sm text-on-surface hover:bg-surface-container-low capitalize transition-colors"
                                                                 >
-                                                                    {tone}
+                                                                    {t(`documents.tones.${tone}` as Parameters<typeof t>[0])}
                                                                 </button>
                                                             ))}
                                                         </div>
@@ -1891,7 +1868,7 @@ export default function PageEditorPage() {
                                     className="flex items-center gap-2 px-4 py-3 text-gray-500 dark:text-on-surface-variant hover:bg-gray-100 dark:hover:bg-surface-container-low rounded-lg transition-all border border-transparent hover:border-gray-200 dark:hover:border-outline-variant/30"
                                 >
                                     <Plus className="h-5 w-5" />
-                                    <span className="text-sm font-medium">Add a block</span>
+                                    <span className="text-sm font-medium">{t('documents.addBlockButton')}</span>
                                 </button>
                             </div>
                         )}
@@ -1899,17 +1876,17 @@ export default function PageEditorPage() {
                         {/* Block Menu */}
                         {showBlockMenu && (
                             <div className="mt-4 bg-white dark:bg-surface-dim rounded-xl shadow-xl border border-gray-200 dark:border-outline-variant/30 p-4 max-h-96 overflow-y-auto custom-scrollbar">
-                                {Object.entries(blockTypes.reduce((acc, block) => {
-                                    const category = block.category || 'Basic'
+                                {Object.entries(getBlockTypes(t).reduce((acc, block) => {
+                                    const category = block.category || t('documents.categories.basic')
                                     if (!acc[category]) {
                                         acc[category] = []
                                     }
                                     acc[category].push(block)
                                     return acc
-                                }, {} as Record<string, typeof blockTypes>)).map(([category, items]) => (
+                                }, {} as Record<string, ReturnType<typeof getBlockTypes>>)).map(([category, items]) => (
                                     <div key={category} className="mb-4 last:mb-0">
                                         <div className="px-2 py-1 mb-2">
-                                            <p className="text-xs font-semibold text-gray-500 dark:text-on-surface-variant">{category} blocks</p>
+                                            <p className="text-xs font-semibold text-gray-500 dark:text-on-surface-variant">{t('documents.blocksGroupLabel', { category })}</p>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
                                             {items.map((item) => (
@@ -1972,7 +1949,7 @@ export default function PageEditorPage() {
                                 <button
                                     onClick={() => setAiError(null)}
                                     className="ml-1 text-error/70 hover:text-error transition-colors"
-                                    aria-label="Dismiss"
+                                    aria-label={t('documents.dismiss')}
                                 >
                                     <X className="h-3.5 w-3.5" />
                                 </button>
@@ -1993,19 +1970,19 @@ export default function PageEditorPage() {
                             ) : isSaving ? (
                                 <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-outline-variant border-t-secondary"></div>
-                                    <span className="text-sm text-on-surface-variant">Saving…</span>
+                                    <span className="text-sm text-on-surface-variant">{t('documents.saving')}</span>
                                 </>
                             ) : isDirty ? (
                                 <>
                                     <Save className="h-4 w-4 text-on-surface-variant" />
-                                    <span className="text-sm text-on-surface-variant">Unsaved changes</span>
+                                    <span className="text-sm text-on-surface-variant">{t('documents.unsavedChanges')}</span>
                                 </>
                             ) : accessLevel === 'VIEW' ? (
-                                <span className="text-sm text-on-surface-variant">View only</span>
+                                <span className="text-sm text-on-surface-variant">{t('documents.viewOnly')}</span>
                             ) : (
                                 <>
                                     <Save className="h-4 w-4 text-secondary" />
-                                    <span className="text-sm text-on-surface-variant">Saved</span>
+                                    <span className="text-sm text-on-surface-variant">{t('documents.saved')}</span>
                                 </>
                             )}
                         </div>
@@ -2019,7 +1996,7 @@ export default function PageEditorPage() {
                     <aside className="fixed right-0 top-14 bottom-0 w-96 bg-surface-container-lowest border-l border-outline-variant/20 flex flex-col z-40 shadow-xl">
                         {/* Comments Header */}
                         <div className="p-5 border-b border-outline-variant/20 flex items-center justify-between">
-                            <h3 className="font-semibold text-on-surface">Comments</h3>
+                            <h3 className="font-semibold text-on-surface">{t('documents.commentsTitle')}</h3>
                             <button
                                 onClick={() => setShowComments(false)}
                                 className="p-2 hover:bg-surface-container-low rounded-lg transition-colors"
@@ -2033,7 +2010,7 @@ export default function PageEditorPage() {
                             {comments.length === 0 ? (
                                 <div className="text-center py-12 text-on-surface-variant">
                                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-40" />
-                                    <p className="text-sm">No comments yet</p>
+                                    <p className="text-sm">{t('documents.commentsEmpty')}</p>
                                 </div>
                             ) : (
                                 comments.map((comment) => (
@@ -2045,7 +2022,7 @@ export default function PageEditorPage() {
                                             <div className="flex-1">
                                                 <p className="text-sm font-medium text-on-surface">{comment.user.name || comment.user.email}</p>
                                                 <p className="text-xs text-on-surface-variant">
-                                                    {new Date(comment.createdAt).toLocaleDateString()}
+                                                    {formatDate(comment.createdAt)}
                                                 </p>
                                             </div>
                                         </div>
@@ -2060,7 +2037,7 @@ export default function PageEditorPage() {
                             <div className="flex gap-3">
                                 <input
                                     type="text"
-                                    placeholder="Add a comment..."
+                                    placeholder={t('documents.commentPlaceholder')}
                                     value={newComment}
                                     onChange={(e) => setNewComment(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && addComment()}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Users, Lock, Eye, Pencil, Loader2 } from 'lucide-react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface Member {
     userId: string
@@ -30,6 +31,7 @@ export default function PageAccessModal({
     isOpen,
     onClose,
 }: PageAccessModalProps) {
+    const { t } = useI18n()
     const [members, setMembers] = useState<Member[]>([])
     const [accesses, setAccesses] = useState<Record<string, string>>({})
     const [cascade, setCascade] = useState(false)
@@ -92,7 +94,7 @@ export default function PageAccessModal({
                     <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-primary" />
                         <div>
-                            <p className="text-sm font-semibold text-on-surface">Share with members</p>
+                            <p className="text-sm font-semibold text-on-surface">{t('pages.accessModal.shareWithMembers')}</p>
                             <p className="text-xs text-on-surface-variant truncate max-w-xs">{pageTitle || 'Untitled'}</p>
                         </div>
                     </div>
@@ -191,7 +193,7 @@ export default function PageAccessModal({
                             onChange={(e) => setCascade(e.target.checked)}
                             className="rounded border-outline-variant"
                         />
-                        <span className="text-xs text-on-surface-variant">Apply to child pages</span>
+                        <span className="text-xs text-on-surface-variant">{t('pages.accessModal.applyToChildPages')}</span>
                     </label>
                     <button
                         onClick={onClose}

@@ -7,6 +7,7 @@ import NoWorkspace from '@/components/NoWorkspace';
 import MeetingList from '@/components/scheduling/MeetingList';
 import IntegrationsPanel from '@/components/scheduling/IntegrationsPanel';
 import { useAppStore } from '@/store/appStore';
+import { useI18n } from '@/i18n/I18nProvider';
 import { CalendarDays, Link2, BarChart3, Video } from 'lucide-react';
 
 type ActiveTab = 'meetings' | 'integrations';
@@ -15,6 +16,7 @@ function MeetingsPageInner() {
   const searchParams        = useSearchParams();
   const workspaceId         = searchParams.get('workspace') || '';
   const { currentWorkspaceId } = useAppStore();
+  const { t } = useI18n();
   const [tab, setTab]       = useState<ActiveTab>('meetings');
   const [wsName, setWsName] = useState('');
 
@@ -49,7 +51,7 @@ function MeetingsPageInner() {
             <CalendarDays className="w-8 h-8 text-secondary/60" />
           </div>
           <h1 className="text-xl font-semibold text-on-surface mb-2">No Workspace Selected</h1>
-          <p className="text-sm text-on-surface-variant">Please select a workspace from the sidebar.</p>
+          <p className="text-sm text-on-surface-variant">{t('misc.meetingsNoWorkspace')}</p>
         </div>
       </div>
     );

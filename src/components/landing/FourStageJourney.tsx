@@ -2,46 +2,36 @@
 
 import React, { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useI18n } from '@/i18n/I18nProvider'
 
 type Stage = { title: string; body: string }
-
-/* The label/title/body triad restated one fact three times. Title and body
-   only. The numerals stay because the sequence is the argument. */
-const STAGES: Stage[] = [
-    {
-        title: 'The lead lands in the pipeline',
-        body: 'Add it by hand or import the list from CSV. Stage, value and source live on the lead, so the board and the table always agree.',
-    },
-    {
-        title: 'The scope is written against it',
-        body: 'Draft deliverables as blocks and give the client a read-only link instead of an attachment.',
-    },
-    {
-        title: 'The quote is built from that scope',
-        body: 'Line items carry their own discount and tax. The client accepts from their link, and the status changes for everyone at once.',
-    },
-    {
-        title: 'The invoice inherits all of it',
-        body: 'One step converts the accepted quote, numbering and all. Pay by Stripe link, or record the transfer by hand.',
-    },
-]
 
 /* The page's mid-scroll colour event. The close is still the ending because
    the two fields are nothing alike: this one is divided, dense and
    interactive; that one is open and empty. Painted in CSS, never revealed. */
 export const FourStageJourney = () => {
+    const { t } = useI18n()
     const [active, setActive] = useState(0)
     const reduce = useReducedMotion()
+
+    /* The label/title/body triad restated one fact three times. Title and body
+       only. The numerals stay because the sequence is the argument. */
+    const STAGES: Stage[] = [
+        { title: t('landing.journey.stage1Title'), body: t('landing.journey.stage1Body') },
+        { title: t('landing.journey.stage2Title'), body: t('landing.journey.stage2Body') },
+        { title: t('landing.journey.stage3Title'), body: t('landing.journey.stage3Body') },
+        { title: t('landing.journey.stage4Title'), body: t('landing.journey.stage4Body') },
+    ]
 
     return (
         <section id="journey" className="py-24 sm:py-32 scroll-mt-24 bg-[var(--n-emerald)]">
             <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
                 <div className="max-w-3xl">
                     <h2 className="font-display t-h2 text-[var(--n-base)]">
-                        From first contact to paid, without retyping anything.
+                        {t('landing.journey.heading')}
                     </h2>
                     <p className="mt-5 t-lead measure text-[var(--n-base)]">
-                        Each step reads the row the step before it wrote. That is the whole difference.
+                        {t('landing.journey.lead')}
                     </p>
                 </div>
 

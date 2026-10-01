@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { ChevronDown, FolderPlus, UserPlus, Check, Mail } from 'lucide-react';
 import { Workspace } from '@/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface WorkspaceListProps {
     workspaces: Workspace[];
@@ -32,6 +33,7 @@ export default function WorkspaceList({
     pendingInvitationCount = 0,
     onOpenInvitations,
 }: WorkspaceListProps) {
+    const { t } = useI18n();
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -68,7 +70,7 @@ export default function WorkspaceList({
                 <button
                     onClick={() => setOpen((v) => !v)}
                     className="flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-surface-container-highest transition-colors duration-150 min-w-0"
-                    aria-label="Switch workspace"
+                    aria-label={t('workspace.list.switchWorkspace')}
                     aria-expanded={open}
                 >
                     {/* Avatar */}
@@ -80,7 +82,7 @@ export default function WorkspaceList({
                         <p className="text-sm font-semibold text-on-surface truncate leading-tight">
                             {active?.name ?? 'Select workspace'}
                         </p>
-                        <p className="text-[10px] text-on-surface-variant leading-tight">Workspace</p>
+                        <p className="text-[10px] text-on-surface-variant leading-tight">{t('workspace.list.label')}</p>
                     </div>
                     {pendingInvitationCount > 0 && (
                         <span
@@ -99,9 +101,9 @@ export default function WorkspaceList({
                 {canInviteUsers && currentWorkspaceId && (
                     <button
                         onClick={onInviteUsers}
-                        title="Invite people"
+                        title={t('workspace.list.invitePeople')}
                         className="p-2 rounded-xl hover:bg-secondary/10 text-on-surface-variant hover:text-secondary transition-colors duration-150 flex-shrink-0"
-                        aria-label="Invite users to workspace"
+                        aria-label={t('workspace.list.inviteAriaLabel')}
                     >
                         <UserPlus className="h-4 w-4" />
                     </button>
@@ -113,7 +115,7 @@ export default function WorkspaceList({
                 <div className="mt-1.5 bg-surface-container-highest rounded-xl shadow-xl border border-outline-variant/10 overflow-hidden">
                     <div className="p-1.5 max-h-56 overflow-y-auto custom-scrollbar">
                         {sortedWorkspaces.length === 0 ? (
-                            <p className="px-3 py-3 text-sm text-on-surface-variant text-center">No workspaces yet</p>
+                            <p className="px-3 py-3 text-sm text-on-surface-variant text-center">{t('workspace.list.noWorkspaces')}</p>
                         ) : (
                             sortedWorkspaces.map((ws) => {
                                 const isSelected = ws.id === currentWorkspaceId;
@@ -150,7 +152,7 @@ export default function WorkspaceList({
                                     <div className="w-6 h-6 rounded-md bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
                                         <Mail className="h-3.5 w-3.5" />
                                     </div>
-                                    <span className="flex-1 text-sm font-medium text-left">Invitations</span>
+                                    <span className="flex-1 text-sm font-medium text-left">{t('workspace.list.invitations')}</span>
                                     <span className="px-1.5 py-0.5 rounded-full bg-secondary text-on-secondary text-[10px] font-bold leading-none">
                                         {pendingInvitationCount}
                                     </span>
@@ -167,7 +169,7 @@ export default function WorkspaceList({
                             <div className="w-6 h-6 rounded-md bg-surface-container-high flex items-center justify-center flex-shrink-0">
                                 <FolderPlus className="h-3.5 w-3.5" />
                             </div>
-                            <span className="text-sm font-medium">New workspace</span>
+                            <span className="text-sm font-medium">{t('workspace.list.newWorkspace')}</span>
                         </button>
                     </div>
                 </div>

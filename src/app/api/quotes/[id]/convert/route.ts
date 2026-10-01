@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
-import { createInvoicePaymentLink, getOrCreateCustomer } from '@/lib/stripe';
 import { createWithDocumentNumber } from '@/lib/documents/numbering';
 
 // POST /api/quotes/[id]/convert - Convert quote to invoice
@@ -41,7 +40,7 @@ export async function POST(
 
     if (!workspace) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    }
 
     // Membership is not enough to change content: viewers are read-only.
     if (!(await canEditContent(workspace.id, session.user.id))) {
@@ -138,54 +137,6 @@ export async function POST(
         return created;
       })
     );
-
-    // Auto-generate a Stripe payment link if the workspace has Stripe connected
-    const workspaceStripe = await prisma.workspace.findUnique({
-      where: { id: quote.workspaceId },
-      select: { stripeAccountId: true, stripeAccountEnabled: true },
-    });
-
-    if (workspaceStripe?.stripeAccountId && workspaceStripe.stripeAccountEnabled) {
-      try {
-        let stripeCustomerId: string | undefined;
-        if (invoice.clientEmail) {
-          stripeCustomerId = await getOrCreateCustomer(
-            workspaceStripe.stripeAccountId,
-            invoice.clientEmail,
-            invoice.clientName
-          );
-        }
-
-        const amountCents = Math.round(invoice.total * 100);
-        const { url, paymentLinkId } = await createInvoicePaymentLink({
-          connectedAccountId: workspaceStripe.stripeAccountId,
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          amountCents,
-          currency: invoice.currency,
-          clientEmail: invoice.clientEmail ?? undefined,
-        });
-
-        await prisma.invoice.update({
-          where: { id: invoice.id },
-          data: {
-            stripeCustomerId: stripeCustomerId ?? undefined,
-            stripePaymentLink: url,
-            stripePaymentLinkId: paymentLinkId,
-            status: 'sent',
-            sentAt: new Date(),
-          },
-        });
-
-        return NextResponse.json(
-          { invoice: { ...invoice, stripePaymentLink: url, status: 'sent' } },
-          { status: 201 }
-        );
-      } catch (stripeErr) {
-        // Non-fatal: invoice was created, payment link generation failed
-        console.error('Failed to auto-generate payment link after quote conversion:', stripeErr);
-      }
-    }
 
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (error) {

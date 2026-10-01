@@ -86,8 +86,9 @@ export async function DELETE(
 }
 
 /**
- * POST /api/workspaces/[id]/invitations/[invitationId]/resend
- * Resend a workspace invitation
+ * POST /api/workspaces/[id]/invitations/[invitationId]
+ * Resend a workspace invitation. There is no /resend segment - the path is the
+ * invitation itself, which is what the invite modal calls.
  */
 export async function POST(
   request: Request,

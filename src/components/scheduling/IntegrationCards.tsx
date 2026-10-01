@@ -9,6 +9,7 @@ import {
 import SyncStatus from './SyncStatus';
 import SyncHistory from './SyncHistory';
 import SyncProgress from './SyncProgress';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface CalendarIntegration {
   id: string;
@@ -80,13 +81,14 @@ interface CalendarCardProps {
  * reports the outcome; hourly sync keeps meetings current either way.
  */
 function LiveUpdates({ integration, onRetry }: { integration: CalendarIntegration; onRetry?: (id: string) => Promise<void> | void }) {
+  const { t } = useI18n();
   const [retrying, setRetrying] = useState(false);
 
   if (integration.webhookStatus === 'active') {
     return (
       <p className="mt-2 flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
         <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-        Live updates on — new bookings appear right away
+        {t('scheduling.integrationCard.liveUpdatesOn')}
       </p>
     );
   }
@@ -96,7 +98,7 @@ function LiveUpdates({ integration, onRetry }: { integration: CalendarIntegratio
     <p className="mt-2 flex items-start gap-1.5 text-xs text-on-surface-variant">
       <Clock className="w-3.5 h-3.5 mt-px flex-shrink-0" />
       <span>
-        {integration.webhookError || 'Live updates are off. Bookings still sync every hour.'}
+        {integration.webhookError || t('scheduling.integrationCard.liveUpdatesOff')}
         {canRetry && (
           <button
             type="button"
@@ -107,7 +109,7 @@ function LiveUpdates({ integration, onRetry }: { integration: CalendarIntegratio
             }}
             className="ml-1.5 font-medium text-secondary hover:underline disabled:opacity-50"
           >
-            {retrying ? 'Retrying…' : 'Retry'}
+            {retrying ? t('scheduling.integrationCard.retrying') : t('scheduling.integrationCard.retry')}
           </button>
         )}
       </span>
@@ -116,6 +118,7 @@ function LiveUpdates({ integration, onRetry }: { integration: CalendarIntegratio
 }
 
 export function CalendarIntegrationCard({ integration, onSync, onDisconnect, onRetryWebhook, isSyncing }: CalendarCardProps) {
+  const { t } = useI18n();
   const meta = PLATFORM_META[integration.type] || { label: integration.name, color: 'text-secondary', bg: 'bg-secondary/10', icon: '🔗' };
   const [showHistory, setShowHistory] = useState(false);
 
@@ -148,7 +151,7 @@ export function CalendarIntegrationCard({ integration, onSync, onDisconnect, onR
             <button
               onClick={() => onSync(integration.id)}
               disabled={isSyncing}
-              title="Sync now"
+              title={t('scheduling.integrationCard.syncNowTitle')}
               className="p-1.5 rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-secondary transition-colors disabled:opacity-40"
             >
               {isSyncing
@@ -158,14 +161,14 @@ export function CalendarIntegrationCard({ integration, onSync, onDisconnect, onR
             </button>
             <button
               onClick={() => setShowHistory(h => !h)}
-              title="Sync history"
+              title={t('scheduling.integrationCard.syncHistoryTitle')}
               className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-surface-container-high text-on-surface' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'}`}
             >
               <History className="w-4 h-4" />
             </button>
             <button
               onClick={() => onDisconnect(integration.id)}
-              title="Disconnect"
+              title={t('scheduling.integrationCard.disconnectTitle')}
               className="p-1.5 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
             >
               <Trash2 className="w-4 h-4" />
@@ -199,7 +202,7 @@ export function CalendarIntegrationCard({ integration, onSync, onDisconnect, onR
 
         {/* Sync frequency badge */}
         <div className="mt-2 flex items-center gap-1.5">
-          <span className="text-[11px] text-on-surface-variant/60">Sync frequency:</span>
+          <span className="text-[11px] text-on-surface-variant/60">{t('scheduling.integrationCard.syncFrequencyLabel')}</span>
           <span className="px-2 py-0.5 bg-surface-container-high rounded-full text-[11px] font-medium text-on-surface-variant capitalize">
             {integration.syncFrequency}
           </span>
@@ -224,6 +227,7 @@ interface VideoCardProps {
 }
 
 export function VideoConfigCard({ config, onSetDefault, onDisconnect }: VideoCardProps) {
+  const { t } = useI18n();
   const meta = PLATFORM_META[config.platform] || { label: config.name, color: 'text-secondary', bg: 'bg-secondary/10', icon: '🎥' };
 
   return (
@@ -242,7 +246,7 @@ export function VideoConfigCard({ config, onSetDefault, onDisconnect }: VideoCar
             <h3 className="text-sm font-semibold text-on-surface">{meta.label}</h3>
             {config.isDefault && (
               <span className="px-2 py-0.5 bg-secondary/10 text-secondary text-[11px] font-medium rounded-full">
-                Default
+                {t('scheduling.integrationCard.default')}
               </span>
             )}
           </div>
@@ -256,7 +260,7 @@ export function VideoConfigCard({ config, onSetDefault, onDisconnect }: VideoCar
           {!config.isDefault && (
             <button
               onClick={() => onSetDefault(config.id)}
-              title="Set as default"
+              title={t('scheduling.integrationCard.setDefaultTitle')}
               className="p-1.5 rounded-lg hover:bg-secondary/10 text-on-surface-variant hover:text-secondary transition-colors"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -264,7 +268,7 @@ export function VideoConfigCard({ config, onSetDefault, onDisconnect }: VideoCar
           )}
           <button
             onClick={() => onDisconnect(config.id)}
-            title="Disconnect"
+            title={t('scheduling.integrationCard.disconnectTitle')}
             className="p-1.5 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
           >
             <Trash2 className="w-4 h-4" />

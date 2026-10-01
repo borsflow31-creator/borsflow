@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { CheckCircle, AlertCircle, Loader2, Mail, LogIn } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface InvitationPreview {
     id: string;
@@ -23,6 +24,7 @@ interface Viewer {
 }
 
 function InvitationContent() {
+    const { t } = useI18n();
     const params = useParams<{ id: string }>();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -42,7 +44,7 @@ function InvitationContent() {
     // Re-fetch once the session resolves so `viewer` reflects the signed-in user.
     useEffect(() => {
         if (!token) {
-            setLoadError('This invitation link is missing its token.');
+            setLoadError(t('public.invitation.missingToken'));
             setIsLoading(false);
             return;
         }
@@ -62,10 +64,10 @@ function InvitationContent() {
                     setInvitation(data.invitation);
                     setViewer(data.viewer);
                 } else {
-                    setLoadError(data.error || 'This invitation could not be loaded.');
+                    setLoadError(data.error || t('public.invitation.loadFailed'));
                 }
             } catch {
-                if (!cancelled) setLoadError('An unexpected error occurred.');
+                if (!cancelled) setLoadError(t('public.invitation.unexpectedError'));
             } finally {
                 if (!cancelled) setIsLoading(false);
             }
@@ -73,7 +75,7 @@ function InvitationContent() {
 
         load();
         return () => { cancelled = true; };
-    }, [invitationId, token, sessionStatus]);
+    }, [invitationId, token, sessionStatus, t]);
 
     const respond = async (choice: 'accept' | 'decline') => {
         setAction(choice);
@@ -93,10 +95,15 @@ function InvitationContent() {
                     setTimeout(() => router.push(`/workspaces/${workspaceId}`), 1500);
                 }
             } else {
-                setActionError(data.error || `Failed to ${choice} the invitation.`);
+                setActionError(
+                    data.error ||
+                        t('public.invitation.actionFailed', {
+                            action: choice === 'accept' ? t('public.invitation.acceptVerb') : t('public.invitation.declineVerb'),
+                        })
+                );
             }
         } catch {
-            setActionError('An unexpected error occurred. Please try again.');
+            setActionError(t('public.invitation.actionFailedGeneric'));
         } finally {
             setAction(null);
         }
@@ -108,7 +115,7 @@ function InvitationContent() {
         return (
             <div className={`${card} text-center`}>
                 <Loader2 className="h-12 w-12 text-secondary animate-spin mx-auto mb-4" />
-                <p className="text-on-surface-variant">Loading your invitation...</p>
+                <p className="text-on-surface-variant">{t('public.invitation.loadingText')}</p>
             </div>
         );
     }
@@ -117,13 +124,13 @@ function InvitationContent() {
         return (
             <div className={`${card} text-center`}>
                 <AlertCircle className="h-16 w-16 text-error mx-auto mb-6" />
-                <h1 className="text-2xl font-bold text-on-surface mb-3">Invitation unavailable</h1>
+                <h1 className="text-2xl font-bold text-on-surface mb-3">{t('public.invitation.unavailableTitle')}</h1>
                 <p className="text-on-surface-variant mb-8">{loadError}</p>
                 <Link
                     href="/dashboard"
                     className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-on-secondary rounded-lg font-medium hover:bg-secondary-dim transition-colors"
                 >
-                    Go to dashboard
+                    {t('public.invitation.goToDashboard')}
                 </Link>
             </div>
         );
@@ -137,21 +144,23 @@ function InvitationContent() {
                     className={`h-16 w-16 mx-auto mb-6 ${accepted ? 'text-success' : 'text-on-surface-variant'}`}
                 />
                 <h1 className="text-2xl font-bold text-on-surface mb-3">
-                    {accepted ? `Welcome to ${invitation.workspace.name}!` : 'Invitation declined'}
+                    {accepted
+                        ? t('public.invitation.welcomeTo', { workspace: invitation.workspace.name })
+                        : t('public.invitation.declinedTitle')}
                 </h1>
                 <p className="text-on-surface-variant mb-6">
                     {accepted
-                        ? 'You now have access to this workspace.'
-                        : `You've declined the invitation to ${invitation.workspace.name}.`}
+                        ? t('public.invitation.accessGranted')
+                        : t('public.invitation.declinedBody', { workspace: invitation.workspace.name })}
                 </p>
                 {accepted ? (
-                    <p className="text-sm text-on-surface-variant animate-pulse">Taking you there...</p>
+                    <p className="text-sm text-on-surface-variant animate-pulse">{t('public.invitation.takingYouThere')}</p>
                 ) : (
                     <Link
                         href="/dashboard"
                         className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-on-secondary rounded-lg font-medium hover:bg-secondary-dim transition-colors"
                     >
-                        Go to dashboard
+                        {t('public.invitation.goToDashboard')}
                     </Link>
                 )}
             </div>
@@ -169,24 +178,24 @@ function InvitationContent() {
     // Already resolved server-side (accepted/declined/expired) - nothing to act on.
     if (invitation.status !== 'pending') {
         const copy: Record<string, string> = {
-            accepted: 'This invitation has already been accepted.',
-            declined: 'This invitation was declined.',
-            expired: 'This invitation has expired. Ask the workspace admin to send a new one.',
+            accepted: t('public.invitation.alreadyAccepted'),
+            declined: t('public.invitation.alreadyDeclined'),
+            expired: t('public.invitation.expired'),
         };
         return (
             <div className={`${card} text-center`}>
                 <AlertCircle className="h-16 w-16 text-on-surface-variant mx-auto mb-6" />
                 <h1 className="text-2xl font-bold text-on-surface mb-3">
-                    Invitation to {invitation.workspace.name}
+                    {t('public.invitation.invitationToWorkspace', { workspace: invitation.workspace.name })}
                 </h1>
                 <p className="text-on-surface-variant mb-8">
-                    {copy[invitation.status] || 'This invitation is no longer active.'}
+                    {copy[invitation.status] || t('public.invitation.notActive')}
                 </p>
                 <Link
                     href="/dashboard"
                     className="inline-flex items-center justify-center px-6 py-3 bg-secondary text-on-secondary rounded-lg font-medium hover:bg-secondary-dim transition-colors"
                 >
-                    Go to dashboard
+                    {t('public.invitation.goToDashboard')}
                 </Link>
             </div>
         );
@@ -203,11 +212,10 @@ function InvitationContent() {
             <div className={`${card} text-center`}>
                 {workspaceBadge}
                 <h1 className="text-2xl font-bold text-on-surface mb-3">
-                    You&apos;re invited to {invitation.workspace.name}
+                    {t('public.invitation.youreInvitedTo', { workspace: invitation.workspace.name })}
                 </h1>
                 <p className="text-on-surface-variant mb-2">
-                    {inviter} invited you to join as{' '}
-                    <span className="font-medium text-on-surface">{invitation.role}</span>.
+                    {t('public.invitation.invitedAs', { inviter, role: invitation.role })}
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant mb-8">
                     <Mail className="h-4 w-4" />
@@ -216,8 +224,10 @@ function InvitationContent() {
 
                 {wrongAccount && (
                     <div className="p-3 mb-6 rounded-lg bg-error/10 text-error text-sm">
-                        You&apos;re signed in as {viewer?.email}. Sign in as {invitation.email} to
-                        accept this invitation.
+                        {t('public.invitation.wrongAccountNotice', {
+                            email: viewer?.email ?? '',
+                            invitedEmail: invitation.email,
+                        })}
                     </div>
                 )}
 
@@ -226,13 +236,13 @@ function InvitationContent() {
                     className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-secondary text-on-secondary rounded-lg font-medium hover:bg-secondary-dim transition-colors"
                 >
                     <LogIn className="h-4 w-4" />
-                    {wrongAccount ? 'Switch account' : 'Sign in to accept'}
+                    {wrongAccount ? t('public.invitation.switchAccount') : t('public.invitation.signInToAccept')}
                 </Link>
                 <Link
                     href={`/register?callbackUrl=${encodeURIComponent(returnTo)}`}
                     className="inline-flex items-center justify-center w-full px-6 py-3 mt-3 text-on-surface-variant rounded-lg font-medium hover:bg-surface-container-high transition-colors"
                 >
-                    Create an account
+                    {t('public.invitation.createAccount')}
                 </Link>
             </div>
         );
@@ -242,11 +252,10 @@ function InvitationContent() {
         <div className={`${card} text-center`}>
             {workspaceBadge}
             <h1 className="text-2xl font-bold text-on-surface mb-3">
-                Join {invitation.workspace.name}
+                {t('public.invitation.joinWorkspace', { workspace: invitation.workspace.name })}
             </h1>
             <p className="text-on-surface-variant mb-2">
-                {inviter} invited you to join as{' '}
-                <span className="font-medium text-on-surface">{invitation.role}</span>.
+                {t('public.invitation.invitedAs', { inviter, role: invitation.role })}
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant mb-8">
                 <Mail className="h-4 w-4" />
@@ -270,7 +279,7 @@ function InvitationContent() {
                     ) : (
                         <CheckCircle className="h-4 w-4" />
                     )}
-                    Accept
+                    {t('public.invitation.accept')}
                 </button>
                 <button
                     onClick={() => respond('decline')}
@@ -278,7 +287,7 @@ function InvitationContent() {
                     className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 text-on-surface-variant rounded-lg font-medium hover:bg-surface-container-high transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {action === 'decline' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Decline
+                    {t('public.invitation.decline')}
                 </button>
             </div>
         </div>

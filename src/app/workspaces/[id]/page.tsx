@@ -10,6 +10,7 @@ import FloatingAIToolbar from './components/FloatingAIToolbar'
 import CommentsPanel from './components/CommentsPanel'
 import { Search, Plus, FileText, ChevronRight, ChevronDown, Layout } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface Page {
     id: string
@@ -106,6 +107,7 @@ function TreeNode({ page, level, expandedPages, toggleExpand, searchQuery, activ
 }
 
 export default function WorkspacePage() {
+    const { t } = useI18n()
     const { data: session, status } = useSession()
     const router = useRouter()
     const params = useParams()
@@ -133,9 +135,9 @@ export default function WorkspacePage() {
 
     const handleAiResult = useCallback((result: string) => {
         navigator.clipboard.writeText(result).catch(() => {})
-        setAiResultToast('AI result copied to clipboard!')
+        setAiResultToast(t('workspaces.aiResultCopied'))
         setTimeout(() => setAiResultToast(null), 3000)
-    }, [])
+    }, [t])
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -202,11 +204,11 @@ export default function WorkspacePage() {
                 setNewPageTitle('')
                 setShowNewPage(false)
             } else {
-                setCreateError(data.error || 'Failed to create page')
+                setCreateError(data.error || t('workspaces.createPageError'))
             }
         } catch (error) {
             console.error('Error creating page:', error)
-            setCreateError('An error occurred while creating the page')
+            setCreateError(t('workspaces.createPageGenericError'))
         }
     }
 
@@ -248,13 +250,13 @@ export default function WorkspacePage() {
                 <div className="text-center">
                     <Layout className="h-16 w-16 text-on-surface-variant mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-on-surface mb-2">
-                        Workspace not found
+                        {t('workspaces.notFoundTitle')}
                     </h3>
                     <Link
                         href="/dashboard"
                         className="text-secondary hover:text-secondary-dim"
                     >
-                        Back to Dashboard
+                        {t('workspaces.backToDashboard')}
                     </Link>
                 </div>
             </div>
@@ -281,7 +283,7 @@ export default function WorkspacePage() {
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
                             <input
                                 type="text"
-                                placeholder="Search pages..."
+                                placeholder={t('workspaces.searchPagesPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 bg-surface-container-high rounded-lg text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
@@ -310,7 +312,7 @@ export default function WorkspacePage() {
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-on-surface-variant">
                                 <FileText className="h-12 w-12 mb-4 opacity-50" />
-                                <p className="text-sm">No pages found</p>
+                                <p className="text-sm">{t('workspaces.noPagesFound')}</p>
                             </div>
                         )}
                     </div>
@@ -322,7 +324,7 @@ export default function WorkspacePage() {
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-secondary text-on-secondary rounded hover:bg-secondary-dim transition-colors"
                         >
                             <Plus className="h-5 w-5" />
-                            <span className="text-sm font-medium">New Page</span>
+                            <span className="text-sm font-medium">{t('workspaces.newPage')}</span>
                         </button>
                     </div>
                 </aside>
@@ -337,7 +339,7 @@ export default function WorkspacePage() {
                         <div className="bg-surface-container-lowest rounded-xl p-12 min-h-[1200px] relative mt-14 max-w-4xl">
                             {/* Page Breadcrumbs */}
                             <div className="mb-10 text-on-surface-variant text-xs tracking-widest uppercase">
-                                Workspace / {workspace.name}
+                                {t('workspaces.breadcrumb', { name: workspace.name })}
                             </div>
 
                             {/* New Page Form */}
@@ -352,7 +354,7 @@ export default function WorkspacePage() {
                                         <div className="flex gap-3">
                                             <input
                                                 type="text"
-                                                placeholder="Page title"
+                                                placeholder={t('workspaces.pageTitlePlaceholder')}
                                                 value={newPageTitle}
                                                 onChange={(e) => {
                                                     setNewPageTitle(e.target.value)
@@ -365,7 +367,7 @@ export default function WorkspacePage() {
                                                 type="submit"
                                                 className="px-4 py-1.5 bg-secondary text-on-secondary text-sm font-medium rounded transition-all hover:opacity-80"
                                             >
-                                                Create
+                                                {t('common.create')}
                                             </button>
                                             <button
                                                 type="button"
@@ -375,7 +377,7 @@ export default function WorkspacePage() {
                                                 }}
                                                 className="px-4 py-1.5 bg-primary-container text-on-primary-container text-sm font-medium rounded transition-all hover:opacity-80"
                                             >
-                                                Cancel
+                                                {t('common.cancel')}
                                             </button>
                                         </div>
                                     </form>
@@ -390,7 +392,7 @@ export default function WorkspacePage() {
                             {/* Description */}
                             <div className="relative group mb-10">
                                 <p className="text-[1rem] leading-[1.6] text-on-surface-variant">
-                                    {workspace.description || 'Welcome to your workspace. Select a page from the sidebar or create a new one to get started.'}
+                                    {workspace.description || t('workspaces.defaultDescription')}
                                 </p>
                             </div>
 
@@ -414,7 +416,7 @@ export default function WorkspacePage() {
                                                 <span className="flex-1 text-sm font-medium text-on-surface">{page.title}</span>
                                                 {page.children && page.children.length > 0 && (
                                                     <span className="text-[10px] text-on-surface-variant uppercase tracking-wide">
-                                                        {page.children.length} sub
+                                                        {t('workspaces.subPagesCount', { count: page.children.length })}
                                                     </span>
                                                 )}
                                                 <ChevronRight className="h-4 w-4 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -428,7 +430,7 @@ export default function WorkspacePage() {
                                         onClick={() => setShowNewPage(true)}
                                         className="px-4 py-1.5 bg-secondary text-on-secondary text-sm font-medium rounded transition-all hover:opacity-80"
                                     >
-                                        Create Your First Page
+                                        {t('workspaces.createFirstPage')}
                                     </button>
                                 )
                             )}

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@/lib/products';
+import { useI18n } from '@/i18n/I18nProvider';
 import type { Product } from '@/types';
 
 interface ProductTableProps {
@@ -22,6 +23,7 @@ function ProductTableActions({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -76,7 +78,7 @@ function ProductTableActions({
           setOpen((value) => !value);
         }}
         className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-        aria-label="Product actions"
+        aria-label={t('products.actionsAria')}
       >
         <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
       </button>
@@ -97,7 +99,7 @@ function ProductTableActions({
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-on-surface transition-colors hover:bg-surface-container-low"
               >
                 <Pencil className="h-4 w-4 text-on-surface-variant" strokeWidth={1.75} />
-                Edit
+                {t('common.edit')}
               </button>
               <button
                 type="button"
@@ -108,7 +110,7 @@ function ProductTableActions({
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-error transition-colors hover:bg-error/5"
               >
                 <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-                Delete
+                {t('common.delete')}
               </button>
             </div>,
             document.body
@@ -125,9 +127,17 @@ export default function ProductTable({
   canWrite = true,
   currency = 'USD',
 }: ProductTableProps) {
-  const headers = canWrite
-    ? ['Name', 'SKU', 'Category', 'Price', 'Tax Rate', 'Stock', 'Status', 'Actions']
-    : ['Name', 'SKU', 'Category', 'Price', 'Tax Rate', 'Stock', 'Status'];
+  const { t } = useI18n();
+  const baseHeaders = [
+    t('products.fields.name'),
+    t('products.fields.sku'),
+    t('products.fields.category'),
+    t('products.fields.price'),
+    t('products.fields.taxRate'),
+    t('products.stockLabel'),
+    t('products.statusLabel'),
+  ];
+  const headers = canWrite ? [...baseHeaders, t('products.actionsLabel')] : baseHeaders;
 
   return (
     <div className="rounded-xl border border-outline-variant/10 bg-surface">
@@ -156,7 +166,9 @@ export default function ProductTable({
                   <div>
                     <p className="font-medium text-on-surface">{product.name}</p>
                     {product.unit && (
-                      <p className="mt-1 text-xs text-on-surface-variant">Unit: {product.unit}</p>
+                      <p className="mt-1 text-xs text-on-surface-variant">
+                        {t('products.unitPrefix', { unit: product.unit })}
+                      </p>
                     )}
                   </div>
                 </td>
@@ -177,7 +189,7 @@ export default function ProductTable({
                         : 'bg-surface-container-high text-on-surface-variant'
                     }`}
                   >
-                    {product.isActive ? 'Active' : 'Inactive'}
+                    {product.isActive ? t('products.active') : t('products.inactive')}
                   </span>
                 </td>
                 {canWrite ? (

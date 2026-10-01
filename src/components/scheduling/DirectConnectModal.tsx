@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Loader2, Link2, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 interface Platform {
   key: string;
@@ -16,33 +17,35 @@ interface DirectConnectModalProps {
   onClose: () => void;
 }
 
-const PLATFORM_HELP: Record<string, {
-  tokenLabel: string;
-  tokenPlaceholder: string;
-  hint: string;
-  docsUrl: string;
-}> = {
-  google_calendar: {
-    tokenLabel: 'Access Token',
-    tokenPlaceholder: 'ya29.xxx...',
-    hint: 'Get your token from Google OAuth Playground or use a service account JSON access token.',
-    docsUrl: 'https://developers.google.com/oauthplayground',
-  },
-  calcom: {
-    tokenLabel: 'API Key',
-    tokenPlaceholder: 'cal_live_xxxxxxxxxxxx',
-    hint: 'Find your API key in Cal.com → Settings → Developer → API Keys.',
-    docsUrl: 'https://app.cal.com/settings/developer/api-keys',
-  },
-  zoom: {
-    tokenLabel: 'Access Token / JWT',
-    tokenPlaceholder: 'eyJ...',
-    hint: 'Generate a Server-to-Server OAuth token or JWT from your Zoom App Marketplace account.',
-    docsUrl: 'https://marketplace.zoom.us/develop/apps',
-  },
-};
-
 export default function DirectConnectModal({ platform, workspaceId, onSuccess, onClose }: DirectConnectModalProps) {
+  const { t } = useI18n();
+
+  const PLATFORM_HELP: Record<string, {
+    tokenLabel: string;
+    tokenPlaceholder: string;
+    hint: string;
+    docsUrl: string;
+  }> = {
+    google_calendar: {
+      tokenLabel: t('scheduling.directConnect.tokenLabelGoogle'),
+      tokenPlaceholder: t('scheduling.directConnect.tokenPlaceholderGoogle'),
+      hint: t('scheduling.directConnect.hintGoogle'),
+      docsUrl: 'https://developers.google.com/oauthplayground',
+    },
+    calcom: {
+      tokenLabel: t('scheduling.directConnect.tokenLabelCalcom'),
+      tokenPlaceholder: t('scheduling.directConnect.tokenPlaceholderCalcom'),
+      hint: t('scheduling.directConnect.hintCalcom'),
+      docsUrl: 'https://app.cal.com/settings/developer/api-keys',
+    },
+    zoom: {
+      tokenLabel: t('scheduling.directConnect.tokenLabelZoom'),
+      tokenPlaceholder: t('scheduling.directConnect.tokenPlaceholderZoom'),
+      hint: t('scheduling.directConnect.hintZoom'),
+      docsUrl: 'https://marketplace.zoom.us/develop/apps',
+    },
+  };
+
   const [accessToken, setAccessToken] = useState('');
   const [email, setEmail]             = useState('');
   const [showToken, setShowToken]     = useState(false);
@@ -50,16 +53,16 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
   const [error, setError]             = useState('');
 
   const help = PLATFORM_HELP[platform.key] || {
-    tokenLabel: 'Access Token',
-    tokenPlaceholder: 'Enter your token...',
-    hint: 'Paste your access token or API key.',
+    tokenLabel: t('scheduling.directConnect.tokenLabelDefault'),
+    tokenPlaceholder: t('scheduling.directConnect.tokenPlaceholderDefault'),
+    hint: t('scheduling.directConnect.hintDefault'),
     docsUrl: '#',
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accessToken.trim() || !email.trim()) {
-      setError('All fields are required.');
+      setError(t('scheduling.directConnect.requiredError'));
       return;
     }
     setError('');
@@ -77,12 +80,12 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || 'Connection failed.');
+        setError(data.error || t('scheduling.directConnect.connectionFailed'));
       } else {
         onSuccess();
       }
     } catch {
-      setError('Network error. Please try again.');
+      setError(t('scheduling.directConnect.networkError'));
     } finally {
       setLoading(false);
     }
@@ -98,8 +101,8 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
               {platform.icon}
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-on-surface">Connect {platform.label}</h2>
-              <p className="text-xs text-on-surface-variant">Enter your credentials directly</p>
+              <h2 className="text-sm font-semibold text-on-surface">{t('scheduling.directConnect.titlePrefix', { platform: platform.label })}</h2>
+              <p className="text-xs text-on-surface-variant">{t('scheduling.directConnect.subtitle')}</p>
             </div>
           </div>
           <button
@@ -115,13 +118,13 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
           {/* Email */}
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
-              Account Email
+              {t('scheduling.directConnect.accountEmailLabel')}
             </label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('scheduling.directConnect.emailPlaceholder')}
               className="w-full px-3 py-2.5 bg-surface-container-high border border-outline-variant/30 rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-secondary transition-colors"
               required
             />
@@ -176,7 +179,7 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
               onClick={onClose}
               className="flex-1 py-2.5 text-sm font-medium text-on-surface-variant hover:text-on-surface bg-surface-container-high rounded-xl transition-colors"
             >
-              Cancel
+              {t('scheduling.directConnect.cancel')}
             </button>
             <button
               type="submit"
@@ -184,8 +187,8 @@ export default function DirectConnectModal({ platform, workspaceId, onSuccess, o
               className="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium bg-secondary text-on-secondary rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</>
-                : <><Link2 className="w-4 h-4" /> Connect</>
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> {t('scheduling.directConnect.connecting')}</>
+                : <><Link2 className="w-4 h-4" /> {t('scheduling.directConnect.connect')}</>
               }
             </button>
           </div>

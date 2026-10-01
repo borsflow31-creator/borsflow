@@ -10,6 +10,7 @@
 
 import React from 'react';
 import { FileText, Download, CheckCircle2, XCircle, CreditCard, Loader2 } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export interface PublicLineItem {
   description: string;
@@ -66,17 +67,6 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-surface-container-high text-on-surface-variant',
 };
 
-function money(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount ?? 0);
-}
-
-function day(date: string | null | undefined): string {
-  if (!date) return '—';
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return '—';
-  return parsed.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-}
-
 export default function PublicDocumentView({
   doc,
   pdfUrl,
@@ -88,8 +78,16 @@ export default function PublicDocumentView({
   /** Action area — accept/reject for a quote, pay now for an invoice. */
   children?: React.ReactNode;
 }) {
+  const { t, formatDate, formatCurrency } = useI18n();
+  const money = (amount: number, currency: string) => formatCurrency(amount ?? 0, currency);
+  const day = (date: string | null | undefined) => {
+    if (!date) return '—';
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    return formatDate(parsed, { month: 'long', day: 'numeric', year: 'numeric' });
+  };
   const isInvoice = doc.kind === 'invoice';
-  const label = isInvoice ? 'Invoice' : 'Quote';
+  const label = isInvoice ? t('public.document.invoiceLabel') : t('public.document.quoteLabel');
   const showAdjustments = doc.items.some((item) => item.discount > 0 || item.taxRate > 0);
 
   return (
@@ -108,9 +106,9 @@ export default function PublicDocumentView({
                 {label} {doc.number}
               </h1>
               <p className="mt-1 text-sm text-on-surface-variant">
-                Issued {day(doc.issueDate)}
+                {t('public.document.issuedLabel')} {day(doc.issueDate)}
                 {doc.secondaryDate
-                  ? ` · ${isInvoice ? 'Due' : 'Valid until'} ${day(doc.secondaryDate)}`
+                  ? ` · ${isInvoice ? t('public.document.dueLabel') : t('public.document.validUntilLabel')} ${day(doc.secondaryDate)}`
                   : ''}
               </p>
             </div>
@@ -126,7 +124,7 @@ export default function PublicDocumentView({
           <div className="grid gap-6 border-b border-outline-variant/40 px-6 py-6 sm:grid-cols-2 sm:px-8">
             <div>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                Billed to
+                {t('public.document.billedTo')}
               </h2>
               <p className="font-medium text-on-surface">{doc.clientName}</p>
               {doc.clientCompany && <p className="text-sm text-on-surface-variant">{doc.clientCompany}</p>}
@@ -138,14 +136,17 @@ export default function PublicDocumentView({
             </div>
             <div className="sm:text-right">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                {isInvoice ? 'Amount due' : 'Total'}
+                {isInvoice ? t('public.document.amountDueHeading') : t('public.document.totalHeading')}
               </h2>
               <p className="text-3xl font-semibold text-on-surface">
                 {money(isInvoice ? (doc.amountDue ?? doc.total) : doc.total, doc.currency)}
               </p>
               {isInvoice && (doc.amountPaid ?? 0) > 0 && (
                 <p className="mt-1 text-sm text-on-surface-variant">
-                  {money(doc.amountPaid ?? 0, doc.currency)} paid of {money(doc.total, doc.currency)}
+                  {t('public.document.paidOf', {
+                    paid: money(doc.amountPaid ?? 0, doc.currency),
+                    total: money(doc.total, doc.currency),
+                  })}
                 </p>
               )}
             </div>
@@ -158,21 +159,21 @@ export default function PublicDocumentView({
               <thead>
                 <tr className="border-b border-outline-variant/60 text-left">
                   <th className="pb-2 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Description
+                    {t('public.document.descriptionCol')}
                   </th>
                   <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Qty
+                    {t('public.document.qtyCol')}
                   </th>
                   <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Unit price
+                    {t('public.document.unitPriceCol')}
                   </th>
                   {showAdjustments && (
                     <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                      Disc / Tax
+                      {t('public.document.discTaxCol')}
                     </th>
                   )}
                   <th className="pb-2 text-right text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Amount
+                    {t('public.document.amountCol')}
                   </th>
                 </tr>
               </thead>
@@ -200,30 +201,30 @@ export default function PublicDocumentView({
 
             <dl className="ml-auto mt-6 w-full max-w-xs space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-on-surface-variant">Subtotal</dt>
+                <dt className="text-on-surface-variant">{t('public.document.subtotal')}</dt>
                 <dd className="text-on-surface">{money(doc.subtotal, doc.currency)}</dd>
               </div>
               {doc.discountAmount > 0 && (
                 <div className="flex justify-between">
-                  <dt className="text-on-surface-variant">Discount</dt>
+                  <dt className="text-on-surface-variant">{t('public.document.discount')}</dt>
                   <dd className="text-on-surface">-{money(doc.discountAmount, doc.currency)}</dd>
                 </div>
               )}
               {doc.taxAmount > 0 && (
                 <div className="flex justify-between">
-                  <dt className="text-on-surface-variant">Tax</dt>
+                  <dt className="text-on-surface-variant">{t('public.document.tax')}</dt>
                   <dd className="text-on-surface">{money(doc.taxAmount, doc.currency)}</dd>
                 </div>
               )}
               <div className="flex justify-between border-t border-outline-variant/60 pt-2">
-                <dt className="font-semibold text-on-surface">Total</dt>
+                <dt className="font-semibold text-on-surface">{t('public.document.total')}</dt>
                 <dd className="font-semibold text-on-surface">{money(doc.total, doc.currency)}</dd>
               </div>
               {isInvoice && (
                 <>
                   {(doc.amountPaid ?? 0) > 0 && (
                     <div className="flex justify-between">
-                      <dt className="text-on-surface-variant">Amount paid</dt>
+                      <dt className="text-on-surface-variant">{t('public.document.amountPaid')}</dt>
                       <dd className="text-emerald-600 dark:text-emerald-400">
                         {money(doc.amountPaid ?? 0, doc.currency)}
                       </dd>
@@ -231,7 +232,7 @@ export default function PublicDocumentView({
                   )}
                   <div className="flex justify-between border-t border-outline-variant/60 pt-2">
                     <dt className="font-semibold text-on-surface">
-                      {(doc.amountDue ?? 0) > 0 ? 'Amount due' : 'Paid in full'}
+                      {(doc.amountDue ?? 0) > 0 ? t('public.document.amountDue') : t('public.document.paidInFull')}
                     </dt>
                     <dd
                       className={`font-semibold ${
@@ -251,7 +252,7 @@ export default function PublicDocumentView({
           {isInvoice && (doc.payments?.length ?? 0) > 0 && (
             <section className="border-t border-outline-variant/40 px-6 py-6 sm:px-8">
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                Payment history
+                {t('public.document.paymentHistory')}
               </h2>
               <ul className="space-y-2 text-sm">
                 {doc.payments?.map((payment, index) => (
@@ -274,7 +275,7 @@ export default function PublicDocumentView({
               {doc.notes && (
                 <div>
                   <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Notes
+                    {t('public.document.notes')}
                   </h2>
                   <p className="whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">
                     {doc.notes}
@@ -284,7 +285,7 @@ export default function PublicDocumentView({
               {doc.terms && (
                 <div>
                   <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-on-surface-variant">
-                    Terms
+                    {t('public.document.terms')}
                   </h2>
                   <p className="whitespace-pre-line text-sm leading-relaxed text-on-surface-variant">
                     {doc.terms}
@@ -303,7 +304,7 @@ export default function PublicDocumentView({
                   className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
                 >
                   <Download className="h-4 w-4" />
-                  Download PDF
+                  {t('public.document.downloadPdf')}
                 </a>
               )}
             </footer>
@@ -311,7 +312,7 @@ export default function PublicDocumentView({
         </article>
 
         <p className="mt-6 text-center text-xs text-on-surface-variant">
-          Sent by {doc.workspaceName}
+          {t('public.document.sentBy', { name: doc.workspaceName })}
         </p>
       </div>
     </div>
@@ -329,11 +330,12 @@ export function PublicDocumentLoading() {
 
 /** Shared error state. A bad token and a deleted document look the same on purpose. */
 export function PublicDocumentError({ message }: { message: string }) {
+  const { t } = useI18n();
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface-container-low px-4">
       <div className="w-full max-w-sm rounded-2xl bg-surface p-8 text-center shadow-sm ring-1 ring-outline-variant/40">
         <XCircle className="mx-auto mb-3 h-8 w-8 text-on-surface-variant" />
-        <h1 className="mb-1 text-lg font-semibold text-on-surface">Not available</h1>
+        <h1 className="mb-1 text-lg font-semibold text-on-surface">{t('public.document.notAvailableTitle')}</h1>
         <p className="text-sm text-on-surface-variant">{message}</p>
       </div>
     </div>
