@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { Resend } from 'resend'
+import { prisma } from '@/lib/prisma'
+import { requireWorkspaceAccess } from '@/lib/api/workspace'
+import { revealApiKey } from '@/lib/email/provider-keys'
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -9,8 +12,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json()
-  const { type, apiKey, fromEmail, domain, region, serverToken } = body
+  let body: any
+  try { body = await request.json() } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+  }
+  let { type, apiKey, fromEmail, domain, region } = body
+  const { serverToken, providerId } = body
+
+  // Testing a saved provider: the client only has the masked key, so fill in the
+  // real credentials from the stored row (after checking the caller can see it).
+  if (providerId && (!apiKey || String(apiKey).startsWith('****'))) {
+    const row = await prisma.emailProvider.findUnique({ where: { id: providerId } })
+    if (!row) return NextResponse.json({ error: 'Provider not found' }, { status: 404 })
+    const access = await requireWorkspaceAccess(row.workspaceId)
+    if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status })
+    apiKey = revealApiKey(row.apiKey)
+    type = type || row.type
+    fromEmail = fromEmail || row.fromEmail
+    region = region ?? row.region
+    domain = domain || row.domain
+  }
 
   if (!type || !apiKey || !fromEmail) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -46,7 +67,7 @@ export async function POST(request: NextRequest) {
         subject: 'Brevo Configuration Test',
         htmlContent: '<p>This is a test email to validate your Brevo configuration.</p>',
       }
-      const res = await fetch('https://api.brevo.com/v1/smtp/email', {
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -179,7 +179,11 @@ export default function EmailStarterTemplateGallery({
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {workspaceTemplates.map((template) => (
-              <article key={template.id} className="rounded-[24px] border border-outline-variant/20 bg-surface-container-low p-5 shadow-sm transition hover:shadow-md">
+              <article
+                key={template.id}
+                onClick={() => onEditWorkspaceTemplate?.(template)}
+                className={`rounded-[24px] border border-outline-variant/20 bg-surface-container-low p-5 shadow-sm transition hover:shadow-md ${onEditWorkspaceTemplate ? 'cursor-pointer hover:border-secondary/40' : ''}`}
+              >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-base font-semibold text-on-surface">{template.name}</div>
@@ -192,7 +196,8 @@ export default function EmailStarterTemplateGallery({
                   <p className="mb-3 text-sm leading-5 text-on-surface-variant line-clamp-2">{template.description}</p>
                 )}
 
-                <div className="flex gap-2">
+                {/* Buttons handle their own clicks; don't also trigger the card's edit */}
+                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={() => setPreviewTemplate(template)}

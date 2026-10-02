@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireWorkspaceAccess } from '@/lib/api/workspace'
+import { requireWorkspacePermission } from '@/lib/api/workspace'
 
 const ALLOWED_STATUSES = ['active', 'paused', 'draft']
 
@@ -28,7 +28,7 @@ export async function POST(
       return NextResponse.json({ error: 'Automation not found' }, { status: 404 })
     }
 
-    const access = await requireWorkspaceAccess(automation.workspaceId)
+    const access = await requireWorkspacePermission(automation.workspaceId, 'content:create')
     if ('error' in access) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

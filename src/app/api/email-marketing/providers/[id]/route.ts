@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
 import { isSupportedProviderType, sealApiKey, SUPPORTED_PROVIDER_TYPES } from '@/lib/email/provider-keys'
 import { presentProvider } from '@/lib/email/present-provider'
-import { connectProviderWebhook, disconnectProviderWebhook } from '@/lib/email/webhook-setup'
+import { connectProviderWebhook, disconnectProviderWebhook, findMailgunDomain } from '@/lib/email/webhook-setup'
+import { revealApiKey } from '@/lib/email/provider-keys'
+import { emailMarketingService } from '@/lib/email-marketing'
 
 /**
  * Authorizes against the workspace that owns the provider. A provider holds the
@@ -50,7 +52,10 @@ export async function PATCH(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
-    const body = await request.json()
+    let body: any
+    try { body = await request.json() } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
     const { name, type, apiKey, region, fromEmail, fromName, replyTo, isDefault, isActive, dailyLimit, monthlyLimit, config } = body
 
     if (type !== undefined && !isSupportedProviderType(type)) {
@@ -67,6 +72,12 @@ export async function PATCH(
     // the UI shows back.
     const keyChanged = typeof apiKey === 'string' && apiKey !== '' && !apiKey.startsWith('****')
 
+    // A different provider needs that provider's key; keeping the old one would
+    // reconnect the new provider with credentials that can't work.
+    if (type !== undefined && type !== before.type && !keyChanged) {
+      return NextResponse.json({ error: 'Enter the API key for the new provider type' }, { status: 400 })
+    }
+
     const data: Record<string, any> = { updatedBy: access.session.user.id }
     if (name !== undefined) data.name = name
     if (type !== undefined) data.type = type
@@ -77,7 +88,7 @@ export async function PATCH(
     if (isActive !== undefined) data.isActive = isActive
     if (dailyLimit !== undefined) data.dailyLimit = dailyLimit ? parseInt(String(dailyLimit)) : null
     if (monthlyLimit !== undefined) data.monthlyLimit = monthlyLimit ? parseInt(String(monthlyLimit)) : null
-    if (config !== undefined) data.config = config
+    if (config !== undefined) data.config = typeof config === 'string' ? config : JSON.stringify(config)
     if (keyChanged) data.apiKey = sealApiKey(apiKey)
 
     // The webhook lives on the account the key belongs to (and, for Mailgun, on
@@ -93,6 +104,13 @@ export async function PATCH(
       // Remove the old webhook with the old key while it still applies.
       await disconnectProviderWebhook(before)
       Object.assign(data, { webhookId: null, webhookSecret: null, webhookStatus: null, webhookError: null, domain: null })
+      // Mailgun sends from this domain; look it up now so sending works even if
+      // the webhook setup below can't finish.
+      if (nextType === 'mailgun') {
+        const key = keyChanged ? apiKey : revealApiKey(before.apiKey)
+        const nextRegion = region !== undefined ? (region || null) : before.region
+        data.domain = await findMailgunDomain(key, nextRegion, fromEmail ?? before.fromEmail).catch(() => null)
+      }
     }
 
     // If setting as default, unset the workspace's other defaults first
@@ -112,6 +130,10 @@ export async function PATCH(
     })
 
     if (reconnect) provider = (await connectProviderWebhook(provider.id)) ?? provider
+
+    // Senders are cached in memory; refresh so a deactivated or re-keyed
+    // provider isn't used until the next cron reload.
+    await emailMarketingService.loadProviders(access.workspace.id).catch(() => {})
 
     return NextResponse.json({ provider: presentProvider(provider) })
   } catch (error: any) {
@@ -138,6 +160,7 @@ export async function DELETE(
     await prisma.emailProvider.delete({
       where: { id: params.id }
     })
+    if (provider) await emailMarketingService.loadProviders(provider.workspaceId).catch(() => {})
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete provider' }, { status: 500 })

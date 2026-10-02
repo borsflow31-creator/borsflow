@@ -155,7 +155,8 @@ export class EmailMarketingService {
         region: (providerData as any).region || undefined,
         domain: (providerData as any).domain || undefined,
         serverToken: (providerData as any).serverToken || undefined,
-        metadata: providerData.config ? JSON.parse(providerData.config) : undefined
+        // One bad config row must not break sending for the whole workspace
+        metadata: (() => { try { return providerData.config ? JSON.parse(providerData.config) : undefined } catch { return undefined } })()
       }
 
       // Keep existing health across reloads: the queue cron reloads every minute,
@@ -219,7 +220,7 @@ export class EmailMarketingService {
             if (email.metadata) {
               payload.tags = Object.keys(email.metadata).filter(k => email.metadata![k])
             }
-            const res = await fetch('https://api.brevo.com/v1/smtp/email', {
+            const res = await fetch('https://api.brevo.com/v3/smtp/email', {
               method: 'POST',
               headers: { 'api-key': config.apiKey, 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),

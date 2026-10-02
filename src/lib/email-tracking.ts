@@ -138,8 +138,8 @@ export class EmailTrackingService {
       }
     })
 
-    // Update campaign statistics
-    if (tracking.email.campaignId) {
+    // Campaign stats count unique opens: only the recipient's first open
+    if (tracking.email.campaignId && tracking.openCount === 0) {
       await prisma.emailCampaign.update({
         where: { id: tracking.email.campaignId },
         data: {
@@ -222,8 +222,8 @@ export class EmailTrackingService {
       }
     })
 
-    // Update campaign statistics
-    if (tracking.email.campaignId) {
+    // Campaign stats count unique clickers: only the recipient's first click
+    if (tracking.email.campaignId && tracking.clickCount === 0) {
       await prisma.emailCampaign.update({
         where: { id: tracking.email.campaignId },
         data: {
@@ -291,7 +291,9 @@ export class EmailTrackingService {
       where: {
         workspaceId: bounceData.workspaceId,
         recipients: { some: { recipientEmail: bounceData.recipientEmail } }
-      }
+      },
+      // The bounce belongs to the latest email sent to this address
+      orderBy: { createdAt: 'desc' }
     })
 
     if (email?.campaignId) {

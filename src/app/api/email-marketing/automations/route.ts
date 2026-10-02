@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireWorkspaceAccess } from '@/lib/api/workspace'
+import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
 import { normalizeSteps, normalizeTriggers } from '@/lib/email/automation-validation'
 
 // GET /api/email-marketing/automations?workspaceId=
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const access = await requireWorkspaceAccess(workspaceId)
+    const access = await requireWorkspacePermission(workspaceId, 'content:create')
     if ('error' in access) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }

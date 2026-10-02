@@ -11,6 +11,22 @@ import { aiComplete, aiErrorMessage, parseAiJson } from '@/lib/ai/client'
 import { useI18n } from '@/i18n/I18nProvider'
 import { X, Send, Calendar, Users, FileText, Target, Tag, Plus, Trash2, Loader2, Mail, Code, Eye } from 'lucide-react'
 
+// <input type="datetime-local"> wants local time; toISOString() would shift it by the UTC offset
+function toLocalInputValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Older rows were stored double-encoded ("\"[]\""), so unwrap until we get a value of the right shape
+function parseJson<T>(raw: unknown, fallback: T): T {
+  let v: unknown = raw
+  for (let i = 0; i < 3 && typeof v === 'string'; i++) {
+    try { v = JSON.parse(v) } catch { return fallback }
+  }
+  if (Array.isArray(fallback)) return (Array.isArray(v) ? v : fallback) as T
+  return (v && typeof v === 'object' && !Array.isArray(v) ? v : fallback) as T
+}
+
 interface CampaignModalProps {
   isOpen: boolean
   onClose: () => void
@@ -158,9 +174,9 @@ export default function CampaignModal({
         replyTo: campaign.replyTo || '',
         templateId: campaign.templateId || '',
         segmentationRuleId: campaign.segmentationRuleId || '',
-        scheduledAt: campaign.scheduledAt ? new Date(campaign.scheduledAt).toISOString().slice(0, 16) : '',
-        tags: campaign.tags ? JSON.parse(campaign.tags) : [],
-        metadata: campaign.metadata ? JSON.parse(campaign.metadata) : {}
+        scheduledAt: campaign.scheduledAt ? toLocalInputValue(new Date(campaign.scheduledAt)) : '',
+        tags: parseJson(campaign.tags, [] as string[]),
+        metadata: parseJson(campaign.metadata, {} as Record<string, any>)
       })
     } else {
       setFormData({
@@ -244,8 +260,12 @@ export default function CampaignModal({
       const campaignData = {
         ...formData,
         workspaceId,
-        tags: JSON.stringify(formData.tags),
-        metadata: JSON.stringify(formData.metadata)
+        // The API serializes these itself; sending strings stored them double-encoded
+        tags: formData.tags,
+        metadata: formData.metadata,
+        // Convert the local time picked in the browser to an absolute instant;
+        // the server would otherwise read it in its own (UTC) timezone.
+        scheduledAt: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null
       }
 
       await onSave(campaignData)

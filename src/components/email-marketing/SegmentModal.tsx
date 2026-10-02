@@ -113,7 +113,7 @@ export default function SegmentModal({
   const handleAddCondition = () => {
     setFormData(prev => ({
       ...prev,
-      criteria: [...prev.criteria, { field: 'name', operator: 'equals', value: '' }]
+      criteria: [...prev.criteria, { field: 'firstName', operator: 'equals', value: '' }]
     }))
   }
 

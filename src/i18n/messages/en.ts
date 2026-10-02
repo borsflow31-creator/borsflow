@@ -510,6 +510,12 @@ export interface Messages {
       leadsCount: string;
     };
     providersTab: {
+      loading: string;
+      emptyTitle: string;
+      emptySubtitle: string;
+      testSent: string;
+      testFailed: string;
+      retryFailed: string;
       saveFailed: string;
       deleteConfirm: string;
       deleteFailed: string;
@@ -529,7 +535,19 @@ export interface Messages {
       test: string;
       addNew: string;
     };
+    statusLabels: {
+      draft: string;
+      scheduled: string;
+      sending: string;
+      sent: string;
+      paused: string;
+      cancelled: string;
+      active: string;
+    };
     campaignsTab: {
+      saveFailed: string;
+      sendFailed: string;
+      sendNowConfirm: string;
       deleteConfirm: string;
       deleteFailed: string;
       sendConfirm: string;
@@ -558,6 +576,12 @@ export interface Messages {
       createCampaign: string;
     };
     analyticsTab: {
+      campaignTableHeading: string;
+      colCampaign: string;
+      colSent: string;
+      colOpens: string;
+      colClicks: string;
+      colBounces: string;
       heading: string;
       subtitle: string;
       totalSent: string;
@@ -753,6 +777,8 @@ export interface Messages {
       avatarUrlLabel: string;
       accentColorLabel: string;
       duplicateTooltip: string;
+      moveUp: string;
+      moveDown: string;
       deleteTooltip: string;
       undoTooltip: string;
       redoTooltip: string;
@@ -804,6 +830,8 @@ export interface Messages {
       variablesLabel: string;
     };
     providerModal: {
+      sesKeyHint: string;
+      sesKeyFormat: string;
       regionUsDefault: string;
       regionEu: string;
       nameRequired: string;
@@ -906,6 +934,8 @@ export interface Messages {
       editTitle: string;
       newTitle: string;
       discard: string;
+      settings: string;
+      discardConfirm: string;
       saveChanges: string;
       createTemplate: string;
       templateInfo: string;
@@ -4410,6 +4440,12 @@ const en: Messages = {
       leadsCount: '{count} leads',
     },
     providersTab: {
+      loading: 'Loading providers…',
+      emptyTitle: 'No email provider connected',
+      emptySubtitle: 'Connect Resend, SendGrid, Mailgun, Postmark, Amazon SES or Brevo to start sending campaigns.',
+      testSent: 'Test email sent to {email}',
+      testFailed: 'Test failed: {error}',
+      retryFailed: 'Couldn\'t set up tracking',
       saveFailed: 'Failed to save provider',
       deleteConfirm: 'Delete this provider? This cannot be undone.',
       deleteFailed: 'Failed to delete provider',
@@ -4429,7 +4465,19 @@ const en: Messages = {
       test: 'Test',
       addNew: 'Add provider',
     },
+    statusLabels: {
+      draft: 'Draft',
+      scheduled: 'Scheduled',
+      sending: 'Sending',
+      sent: 'Sent',
+      paused: 'Paused',
+      cancelled: 'Cancelled',
+      active: 'Active',
+    },
     campaignsTab: {
+      saveFailed: 'Couldn\'t save the campaign',
+      sendFailed: 'Couldn\'t send the campaign',
+      sendNowConfirm: 'This campaign is scheduled for {date}. Send it now instead?',
       deleteConfirm: 'Delete this campaign? This cannot be undone.',
       deleteFailed: 'Failed to delete campaign',
       sendConfirm: 'Send this campaign now? Emails will go out immediately to all recipients.',
@@ -4458,6 +4506,12 @@ const en: Messages = {
       createCampaign: 'Create campaign',
     },
     analyticsTab: {
+      campaignTableHeading: 'Campaign performance',
+      colCampaign: 'Campaign',
+      colSent: 'Sent',
+      colOpens: 'Opens',
+      colClicks: 'Clicks',
+      colBounces: 'Bounces',
       heading: 'Analytics',
       subtitle: 'See how your campaigns are performing across opens, clicks, and bounces.',
       totalSent: 'Total sent',
@@ -4653,6 +4707,8 @@ const en: Messages = {
       avatarUrlLabel: 'Avatar URL',
       accentColorLabel: 'Accent color',
       duplicateTooltip: 'Duplicate block',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
       deleteTooltip: 'Delete block',
       undoTooltip: 'Undo',
       redoTooltip: 'Redo',
@@ -4704,6 +4760,8 @@ const en: Messages = {
       variablesLabel: 'Variables',
     },
     providerModal: {
+      sesKeyHint: 'Enter it as ACCESS_KEY_ID:SECRET_ACCESS_KEY',
+      sesKeyFormat: 'Amazon SES needs ACCESS_KEY_ID:SECRET_ACCESS_KEY (with a colon)',
       regionUsDefault: 'US (default)',
       regionEu: 'EU',
       nameRequired: 'Name is required',
@@ -4806,6 +4864,8 @@ const en: Messages = {
       editTitle: 'Edit template',
       newTitle: 'New template',
       discard: 'Discard',
+      settings: 'Settings',
+      discardConfirm: 'You have unsaved changes. Discard them?',
       saveChanges: 'Save changes',
       createTemplate: 'Create template',
       templateInfo: 'Template info',

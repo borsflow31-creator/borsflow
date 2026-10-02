@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { workspaceId, name, description, criteria } = body
+  const { workspaceId, name, description, criteria, tags } = body
   // SegmentModal lets the user pick OR; this used to be hard-coded to AND, so an
   // "any of these" segment was silently narrowed to "all of these".
   const logicOperator: 'AND' | 'OR' = body.logicOperator === 'OR' ? 'OR' : 'AND'
@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
         description: description || '',
         criteria: parsedCriteria,
         logicOperator,
+        tags: Array.isArray(tags) ? tags : undefined,
         createdById: access.session.user.id
       }
     )

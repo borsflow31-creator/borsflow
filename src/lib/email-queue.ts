@@ -287,6 +287,13 @@ export class EmailQueueService {
             where: { id: recipient.id },
             data: { status: 'sent', sentAt: new Date() }
           }).catch(() => {}) // non-fatal if recipient record is missing
+          // Campaign analytics count real sends, not queued emails
+          if (email.campaignId) {
+            await prisma.emailCampaign.update({
+              where: { id: email.campaignId },
+              data: { sentCount: { increment: 1 } }
+            }).catch(() => {})
+          }
         } else {
           allSucceeded = false
           lastError = result.error

@@ -21,6 +21,7 @@ export interface Env {
  */
 const JOBS = [
   '/api/cron/process-automations',
+  '/api/cron/process-scheduled-campaigns',
   '/api/cron/process-email-queue',
 ] as const
 

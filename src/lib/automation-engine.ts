@@ -75,8 +75,8 @@ function appendUnsubscribeFooter(html: string, recipientEmail: string, workspace
   const unsubUrl = buildUnsubscribeUrl(recipientEmail, workspaceId)
   const footer = `
 <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7ee;text-align:center;font-size:12px;color:#52566b;">
-  <p>{{unsubscribe_reason}}</p>
-  <p><a href="${unsubUrl}" style="color:#52566b;">{t('misc.unsubscribe')}</a></p>
+  <p>You are receiving this email because you signed up or were added to our list.</p>
+  <p><a href="${unsubUrl}" style="color:#52566b;">Unsubscribe</a></p>
 </div>`
   if (html.includes('</body>')) {
     return html.replace('</body>', `${footer}</body>`)
@@ -113,7 +113,7 @@ export class AutomationEngine {
           workspaceId: event.workspaceId,
         },
       },
-      include: { automation: { select: { id: true, steps: { select: { id: true } } } } },
+      include: { automation: { select: { id: true, steps: { select: { id: true, delayMinutes: true }, orderBy: { order: 'asc' } } } } },
     })
 
     let enrolled = 0
@@ -129,6 +129,8 @@ export class AutomationEngine {
       if (trigger.automation.steps.length === 0) continue
 
       const automationId = trigger.automationId
+      // Step 1's "delay after the stage change" applies from enrollment
+      const firstStepAt = new Date(Date.now() + Math.max(0, trigger.automation.steps[0].delayMinutes || 0) * 60_000)
 
       const existing = await prisma.automationEnrollment.findUnique({
         where: { automationId_leadId: { automationId, leadId: event.leadId } },
@@ -153,14 +155,14 @@ export class AutomationEngine {
           workspaceId: event.workspaceId,
           status: 'active',
           currentStepOrder: 0,
-          nextStepAt: new Date(),
+          nextStepAt: firstStepAt,
           triggerContext,
         },
         // Re-entry restarts a completed or exited sequence from the top.
         update: {
           status: 'active',
           currentStepOrder: 0,
-          nextStepAt: new Date(),
+          nextStepAt: firstStepAt,
           triggerContext,
           completedAt: null,
           exitedAt: null,

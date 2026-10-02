@@ -242,11 +242,15 @@ export default function AutomationModal({
             },
           },
         ],
-        steps: steps.map(step => ({
-          name: step.name.trim(),
-          templateId: step.templateId,
-          delayMinutes: toMinutes(step),
-        })),
+        // A running automation's steps are locked server-side; leave them out so
+        // renaming or re-describing it still saves.
+        ...(locked ? {} : {
+          steps: steps.map(step => ({
+            name: step.name.trim(),
+            templateId: step.templateId,
+            delayMinutes: toMinutes(step),
+          })),
+        }),
       })
     } finally {
       setSaving(false)

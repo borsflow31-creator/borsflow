@@ -9,6 +9,17 @@ import { prisma } from '@/lib/prisma'
 import { renderMergeTags, buildUnsubscribeUrl } from '@/lib/email/render'
 import { filterSendable } from '@/lib/email/suppression'
 
+// Forms send '' for "none"; Prisma needs null for an empty optional relation.
+const idOrNull = (v: string | null | undefined) => (v ? v : null)
+// Accepts a Date, an ISO/datetime-local string, or empty; invalid input becomes null.
+const toDateOrNull = (v: unknown): Date | null => {
+  if (!v) return null
+  const d = v instanceof Date ? v : new Date(String(v))
+  return isNaN(d.getTime()) ? null : d
+}
+// Callers may pass arrays/objects or already-serialized JSON; store JSON once.
+const toJson = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v))
+
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 function buildTrackingPixel(trackingId: string): string {
@@ -88,23 +99,25 @@ export class EmailCampaignService {
    * Create a new campaign
    */
   async createCampaign(data: CampaignData): Promise<any> {
+    const scheduledAt = toDateOrNull(data.scheduledAt)
     const campaign = await prisma.emailCampaign.create({
       data: {
         name: data.name,
         description: data.description,
         type: data.type,
         workspaceId: data.workspaceId,
-        templateId: data.templateId,
+        templateId: idOrNull(data.templateId),
         subject: data.subject,
         fromName: data.fromName,
         fromEmail: data.fromEmail,
         replyTo: data.replyTo,
-        segmentationRuleId: data.segmentationRuleId,
-        scheduledAt: data.scheduledAt,
-        tags: data.tags ? JSON.stringify(data.tags) : undefined,
-        metadata: data.metadata ? JSON.stringify(data.metadata) : undefined,
+        segmentationRuleId: idOrNull(data.segmentationRuleId),
+        scheduledAt,
+        tags: data.tags ? toJson(data.tags) : undefined,
+        metadata: data.metadata ? toJson(data.metadata) : undefined,
         createdById: data.createdById,
-        status: 'draft'
+        // A future send time makes it scheduled; the scheduled-campaigns cron sends it
+        status: scheduledAt && scheduledAt > new Date() ? 'scheduled' : 'draft'
       }
     })
 
@@ -125,15 +138,24 @@ export class EmailCampaignService {
     if (data.name !== undefined) updateData.name = data.name
     if (data.description !== undefined) updateData.description = data.description
     if (data.type !== undefined) updateData.type = data.type
-    if (data.templateId !== undefined) updateData.templateId = data.templateId
+    if (data.templateId !== undefined) updateData.templateId = idOrNull(data.templateId)
     if (data.subject !== undefined) updateData.subject = data.subject
     if (data.fromName !== undefined) updateData.fromName = data.fromName
     if (data.fromEmail !== undefined) updateData.fromEmail = data.fromEmail
     if (data.replyTo !== undefined) updateData.replyTo = data.replyTo
-    if (data.segmentationRuleId !== undefined) updateData.segmentationRuleId = data.segmentationRuleId
-    if (data.scheduledAt !== undefined) updateData.scheduledAt = data.scheduledAt
-    if (data.tags !== undefined) updateData.tags = JSON.stringify(data.tags)
-    if (data.metadata !== undefined) updateData.metadata = JSON.stringify(data.metadata)
+    if (data.segmentationRuleId !== undefined) updateData.segmentationRuleId = idOrNull(data.segmentationRuleId)
+    if (data.tags !== undefined) updateData.tags = toJson(data.tags)
+    if (data.metadata !== undefined) updateData.metadata = toJson(data.metadata)
+    if (data.scheduledAt !== undefined) {
+      const scheduledAt = toDateOrNull(data.scheduledAt)
+      updateData.scheduledAt = scheduledAt
+      // Keep status in step with the schedule, but never touch a campaign that
+      // is already sending or sent.
+      const current = await prisma.emailCampaign.findUnique({ where: { id: campaignId }, select: { status: true } })
+      if (current && (current.status === 'draft' || current.status === 'scheduled')) {
+        updateData.status = scheduledAt && scheduledAt > new Date() ? 'scheduled' : 'draft'
+      }
+    }
 
     const campaign = await prisma.emailCampaign.update({
       where: { id: campaignId },
@@ -141,6 +163,58 @@ export class EmailCampaignService {
     })
 
     return campaign
+  }
+
+  /**
+   * Why this campaign can't be sent right now, or null when it can. Checked
+   * before queuing so a send fails loudly instead of marking the campaign "sent"
+   * while every email fails later in the queue.
+   */
+  async getSendBlocker(campaign: { workspaceId: string; templateId?: string | null }): Promise<string | null> {
+    if (!campaign.templateId) return 'Choose a template before sending this campaign'
+    const providers = await prisma.emailProvider.count({ where: { workspaceId: campaign.workspaceId, isActive: true } })
+    if (providers === 0) return 'Connect an active email provider in the Providers tab before sending'
+    return null
+  }
+
+  /**
+   * Send every scheduled campaign whose time has come. Each one is claimed
+   * atomically (scheduled -> sending) so overlapping cron ticks can't send twice.
+   */
+  async processDueScheduledCampaigns(): Promise<{ sent: number; failed: number; skipped: number }> {
+    const due = await prisma.emailCampaign.findMany({
+      where: { status: 'scheduled', scheduledAt: { lte: new Date() } },
+      select: { id: true, workspaceId: true, templateId: true },
+      take: 20,
+    })
+    let sent = 0, failed = 0, skipped = 0
+    for (const c of due) {
+      const blocker = await this.getSendBlocker(c)
+      if (blocker) {
+        // Back to draft rather than retrying every minute; sending it by hand
+        // shows the user the reason.
+        console.warn('[scheduled-campaigns] not sent', c.id, blocker)
+        await prisma.emailCampaign.updateMany({
+          where: { id: c.id, status: 'scheduled' },
+          data: { status: 'draft' },
+        })
+        skipped++
+        continue
+      }
+      const claimed = await prisma.emailCampaign.updateMany({
+        where: { id: c.id, status: 'scheduled' },
+        data: { status: 'sending' },
+      })
+      if (claimed.count === 0) continue
+      try {
+        await this.executeCampaign(c.id)
+        sent++
+      } catch (err) {
+        console.error('[scheduled-campaigns] failed to send', c.id, err)
+        failed++
+      }
+    }
+    return { sent, failed, skipped }
   }
 
   /**
@@ -246,6 +320,13 @@ export class EmailCampaignService {
     })
 
     try {
+      // Segment membership is only stored when rules change; recompute it so
+      // leads added since then are included.
+      if (campaign.segmentationRuleId) {
+        const { emailSegmentationService } = await import('./email-segmentation')
+        await emailSegmentationService.calculateSegmentSize(campaign.segmentationRuleId)
+      }
+
       // Get recipients
       const allRecipients = await this.getCampaignRecipients(campaign)
 

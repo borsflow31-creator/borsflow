@@ -113,6 +113,20 @@ export async function DELETE(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
+    // Deleting it would clear the link, and a campaign with no segment mails
+    // every lead in the workspace. Make the user repoint those campaigns first.
+    const pending = await prisma.emailCampaign.findMany({
+      where: { segmentationRuleId: params.id, status: { in: ['draft', 'scheduled', 'sending'] } },
+      select: { name: true },
+      take: 3,
+    })
+    if (pending.length > 0) {
+      return NextResponse.json(
+        { error: `This segment is used by unsent campaigns: ${pending.map(c => c.name).join(', ')}. Change or delete those campaigns first.` },
+        { status: 409 }
+      )
+    }
+
     await prisma.segmentationRule.delete({
       where: { id: params.id }
     })

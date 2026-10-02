@@ -41,6 +41,8 @@ import {
   Share2,
   Video,
   Quote,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -677,6 +679,9 @@ function BlockCard({
   onSelect,
   onDelete,
   onDuplicate,
+  onMove,
+  isFirst,
+  isLast,
   onChange,
 }: {
   block: EmailBlock
@@ -686,6 +691,9 @@ function BlockCard({
   onSelect: () => void
   onDelete: () => void
   onDuplicate: () => void
+  onMove: (dir: -1 | 1) => void
+  isFirst: boolean
+  isLast: boolean
   onChange: (updated: Partial<EmailBlock>) => void
 }) {
   const { t } = useI18n()
@@ -835,6 +843,12 @@ function BlockCard({
               {paletteLabel(block.type, t)}
             </div>
             <div className="flex items-center gap-1.5">
+              <button type="button" disabled={isFirst} onClick={e => { e.stopPropagation(); onMove(-1) }} className="hover:text-on-secondary/70 disabled:opacity-30" title={t('emailMarketing.blockEditor.moveUp')} aria-label={t('emailMarketing.blockEditor.moveUp')}>
+                <ArrowUp className="h-3 w-3" />
+              </button>
+              <button type="button" disabled={isLast} onClick={e => { e.stopPropagation(); onMove(1) }} className="hover:text-on-secondary/70 disabled:opacity-30" title={t('emailMarketing.blockEditor.moveDown')} aria-label={t('emailMarketing.blockEditor.moveDown')}>
+                <ArrowDown className="h-3 w-3" />
+              </button>
               <button type="button" onClick={e => { e.stopPropagation(); onDuplicate() }} className="hover:text-on-secondary/70" title={t('emailMarketing.blockEditor.duplicateTooltip')}>
                 <Copy className="h-3 w-3" />
               </button>
@@ -860,9 +874,11 @@ interface EmailBlockEditorProps {
   variables?: string[]
   onChange: (html: string) => void
   fullHeight?: boolean
+  /** Hide the built-in Preview / View HTML toggles (when the host provides its own) */
+  hideViewToggles?: boolean
 }
 
-export default function EmailBlockEditor({ initialHtml, variables = [], onChange, fullHeight = false }: EmailBlockEditorProps) {
+export default function EmailBlockEditor({ initialHtml, variables = [], onChange, fullHeight = false, hideViewToggles = false }: EmailBlockEditorProps) {
   const { t } = useI18n()
   const uid = useId()
   const nextId = useCallback((i: number) => `${uid}-${Date.now()}-${i}`, [uid])
@@ -943,6 +959,9 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
+      // Let text fields keep their native undo/redo
+      const el = e.target as HTMLElement | null
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo() }
     }
@@ -980,6 +999,15 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
     next.splice(idx + 1, 0, copy)
     commitBlocks(next)
     setSelectedId(copy.id)
+  }
+
+  const moveBlock = (id: string, dir: -1 | 1) => {
+    const idx = blocks.findIndex(b => b.id === id)
+    const target = idx + dir
+    if (idx === -1 || target < 0 || target >= blocks.length) return
+    const next = [...blocks]
+    ;[next[idx], next[target]] = [next[target], next[idx]]
+    commitBlocks(next)
   }
 
   const addBlock = (type: BlockType) => {
@@ -1044,7 +1072,7 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
               {t('emailMarketing.blockEditor.blockCountLabel', { count: blocks.length })}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          {!hideViewToggles && <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => { setShowHtml(false); setShowPreview(v => !v) }}
@@ -1061,7 +1089,7 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
               <Code2 className="h-3.5 w-3.5" />
               {showHtml ? t('emailMarketing.blockEditor.closeHtml') : t('emailMarketing.blockEditor.viewHtmlLabel')}
             </button>
-          </div>
+          </div>}
         </div>
 
         {/* Preview mode */}
@@ -1182,6 +1210,9 @@ export default function EmailBlockEditor({ initialHtml, variables = [], onChange
                           onSelect={() => setSelectedId(block.id)}
                           onDelete={() => deleteBlock(block.id)}
                           onDuplicate={() => duplicateBlock(block.id)}
+                          onMove={dir => moveBlock(block.id, dir)}
+                          isFirst={index === 0}
+                          isLast={index === blocks.length - 1}
                           onChange={patch => updateBlock(block.id, patch)}
                         />
                       ))}

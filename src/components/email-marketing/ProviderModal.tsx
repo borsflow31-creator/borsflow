@@ -91,7 +91,7 @@ export default function ProviderModal({
         monthlyLimit: provider.monthlyLimit?.toString() || '',
         isActive: provider.isActive ?? true,
         isDefault: provider.isDefault ?? false,
-        config: provider.config ? JSON.parse(provider.config) : {}
+        config: (() => { try { return provider.config ? JSON.parse(provider.config) : {} } catch { return {} } })()
       })
     }
   }, [provider])
@@ -122,6 +122,8 @@ export default function ProviderModal({
     }
     if (!formData.apiKey.trim()) {
       newErrors.apiKey = t('emailMarketing.providerModal.apiKeyRequired')
+    } else if (formData.type === 'ses' && !formData.apiKey.startsWith('****') && !formData.apiKey.includes(':')) {
+      newErrors.apiKey = t('emailMarketing.providerModal.sesKeyFormat')
     }
     if (!formData.fromEmail.trim()) {
       newErrors.fromEmail = t('emailMarketing.providerModal.fromEmailRequired')
@@ -151,7 +153,9 @@ export default function ProviderModal({
           type: formData.type,
           apiKey: formData.apiKey,
           fromEmail: formData.fromEmail,
-          region: formData.region
+          region: formData.region,
+          // A saved provider only has its masked key here; the server fills in the real one
+          providerId: provider?.id
         })
       })
 
@@ -371,6 +375,9 @@ export default function ProviderModal({
               </div>
               {errors.apiKey && (
                 <p className="mt-1 text-sm text-error">{errors.apiKey}</p>
+              )}
+              {formData.type === 'ses' && !errors.apiKey && (
+                <p className="mt-1 text-xs text-on-surface-variant">{t('emailMarketing.providerModal.sesKeyHint')}</p>
               )}
               {autoTrackingTypes.includes(formData.type) ? (
                 <p className="mt-2 text-sm text-on-surface-variant flex items-start">

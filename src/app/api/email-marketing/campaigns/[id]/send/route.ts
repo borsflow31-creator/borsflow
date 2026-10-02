@@ -24,6 +24,11 @@ export async function POST(
       return NextResponse.json({ error: 'Campaign must be in draft or scheduled status' }, { status: 400 })
     }
 
+    const blocker = await emailCampaignService.getSendBlocker(campaign)
+    if (blocker) {
+      return NextResponse.json({ error: blocker }, { status: 400 })
+    }
+
     // Idempotency: atomically flip status to 'sending' — only one request wins
     const updated = await prisma.emailCampaign.updateMany({
       where: { id: params.id, status: { in: ['draft', 'scheduled'] } },
@@ -34,9 +39,8 @@ export async function POST(
       return NextResponse.json({ error: 'Campaign is already being sent or was already executed' }, { status: 409 })
     }
 
-    // Execute the campaign. Each queued email is pinned to this workspace's own
-    // provider at enqueue time (see executeCampaign), so no provider needs to be
-    // loaded here.
+    // Queue one email per recipient; the email-queue cron sends them through the
+    // workspace's active provider.
     await emailCampaignService.executeCampaign(params.id)
 
     return NextResponse.json({ success: true, message: 'Campaign execution started' })

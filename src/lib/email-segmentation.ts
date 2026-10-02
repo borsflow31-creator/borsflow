@@ -325,11 +325,28 @@ export class EmailSegmentationService {
   matchesCriterion(lead: any, criterion: Criteria): boolean {
     const fieldValue = this.getFieldValue(lead, criterion.field)
 
+    // The UI sends every value as text; compare numbers and dates by value, not
+    // by strict identity with that text (which never matched).
+    const asComparable = (v: any): number | null => {
+      if (v instanceof Date) return v.getTime()
+      if (typeof v === 'number') return v
+      return null
+    }
+    const fieldNum = asComparable(fieldValue)
+    const inputNum = fieldNum === null ? null
+      : fieldValue instanceof Date ? Date.parse(String(criterion.value))
+      : Number(criterion.value)
+    const typed = fieldNum !== null && inputNum !== null && !Number.isNaN(inputNum)
+    // A date "equals" a day, not an exact millisecond
+    const sameDay = fieldValue instanceof Date && typed
+      ? fieldValue.toISOString().slice(0, 10) === new Date(inputNum!).toISOString().slice(0, 10)
+      : null
+
     switch (criterion.operator) {
       case 'equals':
-        return fieldValue === criterion.value
+        return sameDay ?? (typed ? fieldNum === inputNum : fieldValue === criterion.value)
       case 'not_equals':
-        return fieldValue !== criterion.value
+        return sameDay !== null ? !sameDay : typed ? fieldNum !== inputNum : fieldValue !== criterion.value
       case 'contains':
         return String(fieldValue).toLowerCase().includes(String(criterion.value).toLowerCase())
       case 'not_contains':
@@ -339,9 +356,9 @@ export class EmailSegmentationService {
       case 'ends_with':
         return String(fieldValue).toLowerCase().endsWith(String(criterion.value).toLowerCase())
       case 'greater_than':
-        return Number(fieldValue) > Number(criterion.value)
+        return typed ? fieldNum! > inputNum! : Number(fieldValue) > Number(criterion.value)
       case 'less_than':
-        return Number(fieldValue) < Number(criterion.value)
+        return typed ? fieldNum! < inputNum! : Number(fieldValue) < Number(criterion.value)
       case 'in':
         return Array.isArray(criterion.value) && criterion.value.includes(fieldValue)
       case 'not_in':

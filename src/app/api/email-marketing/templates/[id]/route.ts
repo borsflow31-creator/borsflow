@@ -85,6 +85,19 @@ export async function DELETE(
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
+    // A campaign whose template disappears would send an empty email.
+    const pending = await prisma.emailCampaign.findMany({
+      where: { templateId: params.id, status: { in: ['draft', 'scheduled', 'sending'] } },
+      select: { name: true },
+      take: 3,
+    })
+    if (pending.length > 0) {
+      return NextResponse.json(
+        { error: `This template is used by unsent campaigns: ${pending.map(c => c.name).join(', ')}. Change or delete those campaigns first.` },
+        { status: 409 }
+      )
+    }
+
     await prisma.emailTemplate.delete({
       where: { id: params.id }
     })
