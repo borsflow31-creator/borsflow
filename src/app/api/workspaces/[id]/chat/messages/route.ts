@@ -1,156 +1,206 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { Prisma } from '@prisma/client'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { safeFileUrl } from '@/components/chat/chatFormat'
-import { notify } from '@/lib/notifications/notify'
-import { workspaceMembersForMentions } from '@/lib/notifications/recipients'
-import { extractMentionedUserIds } from '@/lib/notifications/mentions'
+import {
+  CHAT_FILE_TYPES,
+  MAX_FILE_NAME,
+  MAX_MESSAGE_LENGTH,
+  afterCursor,
+  beforeCursor,
+  chatRateLimit,
+  decodeCursor,
+  findVisibleChannel,
+  getChatAccess,
+  isWorkspaceFilePath,
+  logRealtimeError,
+  messageInclude,
+  notifyChatMentions,
+  presentMessage,
+  publishChatMessage,
+  publishSignal,
+  readJson,
+} from '@/lib/chat/server'
 
-// Client-supplied Ably timestamps are only trusted within this window of server time.
-const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
+const DEFAULT_LIMIT = 50
+const MAX_LIMIT = 100
+const AROUND_EACH_SIDE = 25
 
-const messageInclude = {
-  user: { select: { id: true, name: true, email: true } },
-} satisfies Prisma.MessageInclude
-
-async function getMember(workspaceId: string, userId: string) {
-  return prisma.workspace.findFirst({
-    where: {
-      id: workspaceId,
-      OR: [{ ownerId: userId }, { members: { some: { userId } } }],
-    },
-  })
-}
-
+// GET /api/workspaces/[id]/chat/messages?channelId=…
+//   (default)        newest page of the main timeline, oldest-first, with hasMore
+//   &before=cursor   older page (scroll-back), oldest-first, with hasMore
+//   &after=cursor    everything newer (catch-up), oldest-first, with hasMore
+//   &around=msgId    a window centred on one message (search results)
+//   &parentId=msgId  the replies in a thread
+//   &pinned=1        pinned messages, newest pin first
+//   &ids=a,b         specific messages (refresh after a change signal)
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const member = await getMember(params.id, session.user.id)
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const result = await getChatAccess(params.id)
+  if ('error' in result) return result.error
+  const { access } = result
 
   const { searchParams } = new URL(request.url)
-  const after = searchParams.get('after')
-  const channelId = searchParams.get('channelId') ?? null
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '50') || 50, 100)
+  const channelId = searchParams.get('channelId')
+  // Without a channel this would return every message in the workspace.
+  if (!channelId) return NextResponse.json({ error: 'channelId is required' }, { status: 400 })
+  const channel = await findVisibleChannel(access, channelId)
+  if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
 
-  const where = {
-    workspaceId: params.id,
-    channelId: channelId ?? undefined,
-    ...(after ? { createdAt: { gt: new Date(after) } } : {}),
+  const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '') || DEFAULT_LIMIT, 1), MAX_LIMIT)
+  const base: Prisma.MessageWhereInput = { workspaceId: params.id, channelId }
+  const asc = { orderBy: [{ createdAt: 'asc' as const }, { id: 'asc' as const }] }
+  const desc = { orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }] }
+
+  // Specific messages (refreshing after a reaction/pin/edit signal)
+  const ids = (searchParams.get('ids') ?? '').split(',').filter(Boolean).slice(0, 50)
+  if (ids.length > 0) {
+    const rows = await prisma.message.findMany({ where: { ...base, id: { in: ids } }, include: messageInclude })
+    return NextResponse.json({ messages: rows.map(presentMessage) })
   }
 
-  // `after` is a catch-up cursor: everything newer than it, oldest first.
-  if (after) {
-    const messages = await prisma.message.findMany({
-      where,
-      orderBy: { createdAt: 'asc' },
-      take: limit,
+  const parentId = searchParams.get('parentId')
+  if (parentId) {
+    const parent = await prisma.message.findFirst({ where: { id: parentId, ...base }, include: messageInclude })
+    if (!parent) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
+    const replies = await prisma.message.findMany({
+      where: { ...base, parentId, deletedAt: null },
+      ...asc,
+      take: 500,
       include: messageInclude,
     })
-    return NextResponse.json({ messages })
+    return NextResponse.json({ parent: presentMessage(parent), messages: replies.map(presentMessage) })
   }
 
-  // Initial load: the NEWEST `limit` messages, returned oldest-first for rendering.
-  const newest = await prisma.message.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: limit,
+  if (searchParams.get('pinned') === '1') {
+    const pinned = await prisma.message.findMany({
+      where: { ...base, pinnedAt: { not: null }, deletedAt: null },
+      orderBy: { pinnedAt: 'desc' },
+      take: 50,
+      include: messageInclude,
+    })
+    return NextResponse.json({ messages: pinned.map(presentMessage) })
+  }
+
+  const timeline: Prisma.MessageWhereInput = { ...base, parentId: null }
+
+  const around = searchParams.get('around')
+  if (around) {
+    const target = await prisma.message.findFirst({ where: { id: around, ...timeline } })
+    if (!target) return NextResponse.json({ error: 'Message not found' }, { status: 404 })
+    const [older, newer] = await Promise.all([
+      prisma.message.findMany({ where: { AND: [timeline, beforeCursor(target)] }, ...desc, take: AROUND_EACH_SIDE + 1, include: messageInclude }),
+      prisma.message.findMany({ where: { AND: [timeline, { OR: [{ id: target.id }, afterCursor(target)] }] }, ...asc, take: AROUND_EACH_SIDE + 1, include: messageInclude }),
+    ])
+    const hasMore = older.length > AROUND_EACH_SIDE
+    const hasNewer = newer.length > AROUND_EACH_SIDE
+    const messages = [...older.slice(0, AROUND_EACH_SIDE).reverse(), ...newer.slice(0, AROUND_EACH_SIDE)]
+    return NextResponse.json({ messages: messages.map(presentMessage), hasMore, hasNewer })
+  }
+
+  const after = decodeCursor(searchParams.get('after'))
+  if (after) {
+    const rows = await prisma.message.findMany({
+      where: { AND: [timeline, afterCursor(after)] },
+      ...asc,
+      take: limit + 1,
+      include: messageInclude,
+    })
+    return NextResponse.json({ messages: rows.slice(0, limit).map(presentMessage), hasMore: rows.length > limit })
+  }
+
+  const before = decodeCursor(searchParams.get('before'))
+  const rows = await prisma.message.findMany({
+    where: before ? { AND: [timeline, beforeCursor(before)] } : timeline,
+    ...desc,
+    take: limit + 1,
     include: messageInclude,
   })
-  return NextResponse.json({ messages: newest.reverse() })
+  return NextResponse.json({
+    messages: rows.slice(0, limit).reverse().map(presentMessage),
+    hasMore: rows.length > limit,
+  })
 }
 
-// Archives a message that was already delivered live over Ably. `ablySerial` makes this
-// idempotent, so client retries (and a future server-side webhook) cannot create duplicates.
+// POST /api/workspaces/[id]/chat/messages
+// Saves the message, then publishes it to the channel's Ably room as the sender.
+// Thread replies are not published to the room (they stay out of the main
+// timeline); open thread panels pick them up from the workspace signal.
 export async function POST(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const result = await getChatAccess(params.id, { write: true })
+  if ('error' in result) return result.error
+  const { access } = result
 
-  const member = await getMember(params.id, session.user.id)
-  if (!member) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const body = await readJson(request)
+  if (!body) return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
 
-  const { content, channelId, fileUrl: rawFileUrl, fileName, fileType, ablySerial, createdAt } = await request.json()
-  const fileUrl = safeFileUrl(rawFileUrl)
+  const content = typeof body.content === 'string' ? body.content.trim() : ''
+  const channelId = typeof body.channelId === 'string' ? body.channelId : ''
+  const parentId = typeof body.parentId === 'string' && body.parentId ? body.parentId : null
+  const clientMsgId = typeof body.clientMsgId === 'string' && body.clientMsgId.length <= 64 ? body.clientMsgId : undefined
+  const filePath = body.filePath ?? null
+  const fileType = typeof body.fileType === 'string' ? body.fileType : null
+  const fileName = typeof body.fileName === 'string' ? body.fileName.trim().slice(0, MAX_FILE_NAME) : null
 
-  if (!content?.trim() && !fileUrl) {
-    return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 })
+  if (!channelId) return NextResponse.json({ error: 'channelId is required' }, { status: 400 })
+  if (content.length > MAX_MESSAGE_LENGTH) {
+    return NextResponse.json({ error: `Messages can be at most ${MAX_MESSAGE_LENGTH} characters` }, { status: 400 })
   }
-
-  if (ablySerial != null && (typeof ablySerial !== 'string' || !ablySerial || ablySerial.length > 200)) {
-    return NextResponse.json({ error: 'Invalid ablySerial' }, { status: 400 })
+  if (filePath !== null && (!isWorkspaceFilePath(params.id, filePath) || !fileType || !CHAT_FILE_TYPES[fileType] || !fileName)) {
+    return NextResponse.json({ error: 'Invalid attachment' }, { status: 400 })
   }
+  if (!content && !filePath) return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 })
 
-  // A channel id from the body must belong to this workspace.
-  if (channelId) {
-    const channel = await prisma.channel.findFirst({
-      where: { id: channelId, workspaceId: params.id },
+  const channel = await findVisibleChannel(access, channelId)
+  if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
+
+  if (parentId) {
+    // One level of threading: reply to a live top-level message in this channel.
+    const parent = await prisma.message.findFirst({
+      where: { id: parentId, channelId, workspaceId: params.id, parentId: null, deletedAt: null },
       select: { id: true },
     })
-    if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 })
+    if (!parent) return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
   }
 
-  if (ablySerial) {
-    const existing = await prisma.message.findUnique({ where: { ablySerial }, include: messageInclude })
-    if (existing) {
-      // Same serial from another author/workspace is never a retry of ours.
-      if (existing.workspaceId !== params.id || existing.userId !== session.user.id) {
-        return NextResponse.json({ error: 'Message already archived' }, { status: 409 })
+  const limited = await chatRateLimit('message', access.userId)
+  if (limited) return limited
+
+  const row = await prisma.message.create({
+    data: {
+      content,
+      workspaceId: params.id,
+      userId: access.userId,
+      channelId,
+      parentId,
+      filePath: (filePath as string | null) ?? null,
+      fileName: filePath ? fileName : null,
+      fileType: filePath ? fileType : null,
+    },
+    include: messageInclude,
+  })
+  let message = presentMessage(row)
+
+  if (!parentId) {
+    try {
+      const serial = await publishChatMessage(message, clientMsgId)
+      if (serial) {
+        const updated = await prisma.message.update({ where: { id: row.id }, data: { ablySerial: serial }, include: messageInclude })
+        message = presentMessage(updated)
       }
-      return NextResponse.json({ message: existing }, { status: 200 })
+    } catch (err) {
+      // Saved but not delivered live: other members get it from catch-up / the signal.
+      logRealtimeError('publish message')(err)
     }
   }
 
-  // Store the Ably timestamp so archived history and the live stream share one clock.
-  const now = Date.now()
-  const parsed = typeof createdAt === 'string' || typeof createdAt === 'number' ? new Date(createdAt).getTime() : NaN
-  const createdAtMs = Number.isFinite(parsed) && Math.abs(parsed - now) <= MAX_CLOCK_SKEW_MS ? parsed : now
+  await publishSignal(params.id, {
+    type: 'message',
+    channelId,
+    messageId: message.id,
+    userId: access.userId,
+    parentId,
+  }).catch(logRealtimeError('signal'))
 
-  try {
-    const message = await prisma.message.create({
-      data: {
-        content: content?.trim() ?? '',
-        workspaceId: params.id,
-        userId: session.user.id,
-        channelId: channelId ?? null,
-        fileUrl: fileUrl ?? null,
-        fileName: fileName ?? null,
-        fileType: fileType ?? null,
-        ablySerial: ablySerial ?? null,
-        createdAt: new Date(createdAtMs),
-      },
-      include: messageInclude,
-    })
+  void notifyChatMentions(message, channel, row.user).catch(logRealtimeError('mention notifications'))
 
-    // Fire-and-forget: notify anyone @mentioned. Only on first archival of this
-    // message (the ablySerial-dedupe branch above returns before reaching here).
-    if (message.content) {
-      const members = await workspaceMembersForMentions(params.id)
-      const mentioned = extractMentionedUserIds(message.content, members, session.user.id)
-      if (mentioned.length > 0) {
-        void notify({
-          recipients: mentioned,
-          type: 'team.mentioned_chat',
-          workspaceId: params.id,
-          actorId: session.user.id,
-          title: `${message.user.name || message.user.email} mentioned you in chat`,
-          body: message.content,
-          href: channelId ? `/workspaces/${params.id}/chat?channel=${channelId}` : `/workspaces/${params.id}/chat`,
-        })
-      }
-    }
-
-    return NextResponse.json({ message }, { status: 201 })
-  } catch (err) {
-    // Lost a race with a concurrent retry of the same serial: return the winner.
-    if (ablySerial && err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      const existing = await prisma.message.findUnique({ where: { ablySerial }, include: messageInclude })
-      if (existing && existing.workspaceId === params.id && existing.userId === session.user.id) {
-        return NextResponse.json({ message: existing }, { status: 200 })
-      }
-    }
-    throw err
-  }
+  return NextResponse.json({ message }, { status: 201 })
 }

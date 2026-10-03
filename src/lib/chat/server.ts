@@ -1,0 +1,359 @@
+// Server-only helpers shared by the workspace chat API routes.
+//
+// Messages are written here first and then published to Ably by the server, as
+// the sending user. The database is the source of truth: what was saved is
+// exactly what was broadcast, and a message can't be lost from history because
+// the sender's tab closed between "sent live" and "archived".
+
+import Ably from 'ably'
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { Prisma } from '@prisma/client'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { consumeRateLimits, rateLimitedResponse, type RateLimitRule } from '@/lib/api/rate-limit'
+import type { Role } from '@/lib/workspace'
+import { chatRoomName, chatSignalChannel } from '@/lib/chatRooms'
+
+/* ─── Limits ──────────────────────────────────────────────────────────────── */
+
+export const MAX_MESSAGE_LENGTH = 4000
+export const MAX_CHANNEL_NAME = 80
+export const MAX_CHANNEL_DESCRIPTION = 500
+export const MAX_FILE_NAME = 255
+
+const CHAT_RATE_LIMITS = {
+  message: { bucket: 'chat:message', limit: 120, windowMs: 60 * 1000, windowLabel: 'minute' },
+  upload: { bucket: 'chat:upload', limit: 30, windowMs: 60 * 60 * 1000, windowLabel: 'hour' },
+  channel: { bucket: 'chat:channel', limit: 20, windowMs: 60 * 60 * 1000, windowLabel: 'hour' },
+  reaction: { bucket: 'chat:reaction', limit: 240, windowMs: 60 * 1000, windowLabel: 'minute' },
+} satisfies Record<string, RateLimitRule>
+
+const RATE_LIMIT_NOUNS = {
+  message: { noun: 'message', verb: 'send' },
+  upload: { noun: 'upload', verb: 'make' },
+  channel: { noun: 'channel', verb: 'create' },
+  reaction: { noun: 'reaction', verb: 'add' },
+} as const
+
+/** Returns a 429 response when over the limit, otherwise null (and records the use). */
+export async function chatRateLimit(kind: keyof typeof CHAT_RATE_LIMITS, userId: string) {
+  const result = await consumeRateLimits([{ subject: `user:${userId}`, rule: CHAT_RATE_LIMITS[kind] }])
+  return result.allowed ? null : rateLimitedResponse(result, 1, RATE_LIMIT_NOUNS[kind])
+}
+
+/* ─── Access ──────────────────────────────────────────────────────────────── */
+
+export interface ChatAccess {
+  userId: string
+  workspaceId: string
+  role: Role
+  isOwner: boolean
+  /** Viewers can read but not post, upload, react or create channels. */
+  canWrite: boolean
+  /** Owner and admins can delete or pin anyone's messages and manage any channel. */
+  canModerate: boolean
+}
+
+type AccessResult = { access: ChatAccess } | { error: NextResponse }
+
+const fail = (error: string, status: number) => ({ error: NextResponse.json({ error }, { status }) })
+
+/** Session + workspace membership + role, in one place for every chat route. */
+export async function getChatAccess(workspaceId: string, opts: { write?: boolean } = {}): Promise<AccessResult> {
+  const session = await getServerSession(authOptions)
+  const userId = session?.user?.id
+  if (!userId) return fail('Unauthorized', 401)
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { ownerId: true, members: { where: { userId }, select: { role: true }, take: 1 } },
+  })
+  if (!workspace) return fail('Forbidden', 403)
+
+  const isOwner = workspace.ownerId === userId
+  const memberRole = workspace.members[0]?.role
+  if (!isOwner && !memberRole) return fail('Forbidden', 403)
+
+  const role: Role = isOwner ? 'owner' : (['admin', 'member', 'viewer'].includes(memberRole!) ? memberRole : 'member') as Role
+  const access: ChatAccess = {
+    userId,
+    workspaceId,
+    role,
+    isOwner,
+    canWrite: role !== 'viewer',
+    canModerate: role === 'owner' || role === 'admin',
+  }
+  if (opts.write && !access.canWrite) return fail('You have view-only access to this workspace', 403)
+  return { access }
+}
+
+/** Visibility filter: public channels, plus private ones the user belongs to (owners see all). */
+export function visibleChannelWhere(access: ChatAccess): Prisma.ChannelWhereInput {
+  if (access.isOwner) return { workspaceId: access.workspaceId }
+  return {
+    workspaceId: access.workspaceId,
+    OR: [{ isPrivate: false }, { members: { some: { userId: access.userId } } }],
+  }
+}
+
+/** The channel if this user may see it, otherwise null (callers answer 404, not 403). */
+export function findVisibleChannel(access: ChatAccess, channelId: string) {
+  return prisma.channel.findFirst({ where: { id: channelId, ...visibleChannelWhere(access) } })
+}
+
+/** Ids of every channel the user can see; used for search and the Ably token. */
+export async function visibleChannelIds(access: ChatAccess): Promise<string[]> {
+  const rows = await prisma.channel.findMany({ where: visibleChannelWhere(access), select: { id: true } })
+  return rows.map(r => r.id)
+}
+
+/* ─── Validation ──────────────────────────────────────────────────────────── */
+
+export async function readJson(request: Request): Promise<Record<string, unknown> | null> {
+  try {
+    const body = await request.json()
+    return body && typeof body === 'object' && !Array.isArray(body) ? body : null
+  } catch {
+    return null
+  }
+}
+
+export const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
+
+/** Lowercase, hyphenated, a-z0-9 only. Empty result means the name was unusable. */
+export function slugifyChannelName(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, MAX_CHANNEL_NAME)
+}
+
+/** A file path is only accepted if it is inside this workspace's folder of the chat bucket. */
+export function isWorkspaceFilePath(workspaceId: string, path: unknown): path is string {
+  return (
+    typeof path === 'string' &&
+    path.startsWith(`${workspaceId}/`) &&
+    /^[A-Za-z0-9_-]+\/[0-9a-f-]{36}\.[a-z0-9]{2,5}$/.test(path)
+  )
+}
+
+/* ─── Serialization ───────────────────────────────────────────────────────── */
+
+export const messageInclude = {
+  user: { select: { id: true, name: true, email: true } },
+  reactions: { select: { emoji: true, userId: true } },
+  _count: { select: { replies: { where: { deletedAt: null } } } },
+} satisfies Prisma.MessageInclude
+
+export type MessageWithRelations = Prisma.MessageGetPayload<{ include: typeof messageInclude }>
+
+/** Shape sent to the browser (REST responses and Ably metadata alike). */
+export function presentMessage(m: MessageWithRelations) {
+  const deleted = !!m.deletedAt
+  const reactions: Record<string, string[]> = {}
+  if (!deleted) {
+    for (const r of m.reactions) (reactions[r.emoji] ??= []).push(r.userId)
+  }
+  return {
+    id: m.id,
+    content: deleted ? '' : m.content,
+    userId: m.userId,
+    workspaceId: m.workspaceId,
+    channelId: m.channelId,
+    parentId: m.parentId,
+    // Private files are served through the signed-URL route; legacy rows keep their URL.
+    fileUrl: deleted
+      ? null
+      : m.filePath
+        ? `/api/workspaces/${m.workspaceId}/chat/files/${m.id}`
+        : m.fileUrl,
+    fileName: deleted ? null : m.fileName,
+    fileType: deleted ? null : m.fileType,
+    ablySerial: m.ablySerial,
+    createdAt: m.createdAt.toISOString(),
+    editedAt: m.editedAt?.toISOString() ?? null,
+    deletedAt: m.deletedAt?.toISOString() ?? null,
+    pinnedAt: m.pinnedAt?.toISOString() ?? null,
+    pinnedById: m.pinnedById,
+    replyCount: m._count.replies,
+    reactions,
+    user: m.user,
+  }
+}
+
+export type PresentedMessage = ReturnType<typeof presentMessage>
+
+/* ─── Ably (server-side publishing) ───────────────────────────────────────── */
+
+const ABLY_CHAT_API_VERSION = 4
+
+/** A REST client that publishes as `userId`, so receivers see the real author. */
+function ablyAs(userId: string) {
+  if (!process.env.ABLY_API_KEY) throw new Error('ABLY_API_KEY is not set')
+  return new Ably.Rest({ key: process.env.ABLY_API_KEY, clientId: userId, queryTime: true })
+}
+
+async function chatRequest(userId: string, method: 'POST' | 'PUT', path: string, body: unknown) {
+  const res = await ablyAs(userId).request(method, path, ABLY_CHAT_API_VERSION, {}, body as any)
+  if (!res.success) throw new Error(res.errorMessage || `Ably request failed (${res.statusCode})`)
+  return res.items[0] as { serial?: string; timestamp?: number } | undefined
+}
+
+const roomPath = (workspaceId: string, channelId: string) =>
+  `/chat/v4/rooms/${encodeURIComponent(chatRoomName(workspaceId, channelId))}/messages`
+
+/** Publish a saved message into its channel's room. Returns the Ably serial. */
+export async function publishChatMessage(
+  m: PresentedMessage,
+  clientMsgId: string | undefined,
+): Promise<string | undefined> {
+  if (!m.channelId) return undefined
+  const sent = await chatRequest(m.userId, 'POST', roomPath(m.workspaceId, m.channelId), {
+    text: m.content || m.fileName || 'Attachment',
+    // Ably metadata is a JSON object; receivers trust it because only the server publishes.
+    metadata: { messageId: m.id, fileOnly: !m.content && !!m.fileUrl, fileUrl: m.fileUrl, fileName: m.fileName, fileType: m.fileType },
+    headers: clientMsgId ? { clientMsgId } : {},
+  })
+  return sent?.serial
+}
+
+/** Mirror an edit into the room so open clients update in place. */
+export async function publishChatEdit(m: PresentedMessage) {
+  if (!m.channelId || !m.ablySerial) return
+  await chatRequest(m.userId, 'PUT', `${roomPath(m.workspaceId, m.channelId)}/${encodeURIComponent(m.ablySerial)}`, {
+    message: {
+      text: m.content || m.fileName || 'Attachment',
+      metadata: { messageId: m.id, fileOnly: !m.content && !!m.fileUrl, fileUrl: m.fileUrl, fileName: m.fileName, fileType: m.fileType, editedAt: m.editedAt },
+      headers: {},
+    },
+  })
+}
+
+/** Mirror a delete into the room. `actorId` is whoever deleted it (author or moderator). */
+export async function publishChatDelete(m: PresentedMessage, actorId: string) {
+  if (!m.channelId || !m.ablySerial) return
+  await chatRequest(actorId, 'POST', `${roomPath(m.workspaceId, m.channelId)}/${encodeURIComponent(m.ablySerial)}/delete`, {})
+}
+
+export type ChatSignal =
+  | { type: 'message'; channelId: string; messageId: string; userId: string; parentId: string | null }
+  | { type: 'message-changed'; channelId: string; messageId: string; parentId: string | null }
+  | { type: 'channels-changed' }
+
+/**
+ * Lightweight workspace-wide events (unread bumps, reactions, pins, thread
+ * replies, channel list changes). Receivers only use them as a cue to refetch
+ * from the API, so they carry ids, never content. Clients can subscribe but not
+ * publish (see the token route).
+ */
+export async function publishSignal(workspaceId: string, signal: ChatSignal) {
+  if (!process.env.ABLY_API_KEY) return
+  const rest = new Ably.Rest({ key: process.env.ABLY_API_KEY, queryTime: true })
+  await rest.channels.get(chatSignalChannel(workspaceId)).publish(signal.type, signal)
+}
+
+/** Realtime failures must not fail the request: the message is already saved. */
+export function logRealtimeError(context: string) {
+  return (err: unknown) => console.error(`[chat] ${context} failed:`, err instanceof Error ? err.message : err)
+}
+
+/* ─── Files ───────────────────────────────────────────────────────────────── */
+
+// Extension is derived from the validated MIME type, never from the client's
+// filename, so an upload can't be served back as HTML/SVG from our storage.
+export const CHAT_FILE_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'text/plain': 'txt',
+  'text/csv': 'csv',
+  'application/zip': 'zip',
+  'application/x-zip-compressed': 'zip',
+}
+export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+
+/* ─── Cursors ─────────────────────────────────────────────────────────────── */
+
+// Pagination cursors are "createdAt|id": createdAt alone can tie at a page
+// boundary, which used to drop messages during catch-up.
+export function encodeCursor(m: { createdAt: Date | string; id: string }) {
+  const iso = typeof m.createdAt === 'string' ? m.createdAt : m.createdAt.toISOString()
+  return `${iso}|${m.id}`
+}
+
+export function decodeCursor(raw: string | null): { createdAt: Date; id: string } | null {
+  if (!raw) return null
+  const [iso, id] = raw.split('|')
+  const createdAt = new Date(iso)
+  if (!id || isNaN(createdAt.getTime())) return null
+  return { createdAt, id }
+}
+
+/** Strictly after the cursor in (createdAt, id) order. */
+export function afterCursor(c: { createdAt: Date; id: string }): Prisma.MessageWhereInput {
+  return { OR: [{ createdAt: { gt: c.createdAt } }, { createdAt: c.createdAt, id: { gt: c.id } }] }
+}
+
+/** Strictly before the cursor in (createdAt, id) order. */
+export function beforeCursor(c: { createdAt: Date; id: string }): Prisma.MessageWhereInput {
+  return { OR: [{ createdAt: { lt: c.createdAt } }, { createdAt: c.createdAt, id: { lt: c.id } }] }
+}
+
+/* ─── Mentions ────────────────────────────────────────────────────────────── */
+
+/**
+ * Notify people mentioned in a new message. Structured `<@id>` tokens from the
+ * autocomplete are exact; plain "@Name" text still works as a fallback. In a
+ * private channel only its members (and the owner) can be notified.
+ */
+export async function notifyChatMentions(
+  m: PresentedMessage,
+  channel: { id: string; name: string; isPrivate: boolean },
+  actor: { id: string; name: string | null; email: string },
+) {
+  if (!m.content || !m.content.includes('@')) return
+  const [{ workspaceMembersForMentions }, { extractMentionedUserIds, extractMentionTokens }, { notify }] = await Promise.all([
+    import('@/lib/notifications/recipients'),
+    import('@/lib/notifications/mentions'),
+    import('@/lib/notifications/notify'),
+  ])
+  let members = await workspaceMembersForMentions(m.workspaceId)
+  if (channel.isPrivate) {
+    const [rows, ws] = await Promise.all([
+      prisma.channelMember.findMany({ where: { channelId: channel.id }, select: { userId: true } }),
+      prisma.workspace.findUnique({ where: { id: m.workspaceId }, select: { ownerId: true } }),
+    ])
+    const allowed = new Set([...rows.map(r => r.userId), ws?.ownerId])
+    members = members.filter(member => allowed.has(member.id))
+  }
+  const mentioned = Array.from(new Set([
+    ...extractMentionTokens(m.content, members, actor.id),
+    ...extractMentionedUserIds(m.content, members, actor.id),
+  ]))
+  if (mentioned.length === 0) return
+  // Notification text shows names, not raw <@id> tokens
+  const byId = new Map(members.map(member => [member.id, member.name]))
+  const body = m.content.replace(/<@([A-Za-z0-9_-]{1,64})>/g, (_, id) => `@${byId.get(id) ?? 'someone'}`)
+  const thread = m.parentId ? `&thread=${m.parentId}` : ''
+  await notify({
+    recipients: mentioned,
+    type: 'team.mentioned_chat',
+    workspaceId: m.workspaceId,
+    actorId: actor.id,
+    title: `${actor.name || actor.email} mentioned you in #${channel.name}`,
+    body,
+    href: `/workspaces/${m.workspaceId}/chat?channel=${channel.id}${thread}`,
+  })
+}

@@ -61,21 +61,66 @@ model User {
   createdMeetings               Meeting[]               @relation("MeetingCreator")
   createdVideoConferenceConfigs VideoConferenceConfig[] @relation("VideoConferenceConfigCreator")
   createdChannels               Channel[]
+  channelMemberships            ChannelMember[]
+  channelReads                  ChannelRead[]
+  messageReactions              MessageReaction[]
+  pinnedMessages                Message[]               @relation("PinnedMessages")
   createdProducts               Product[]               @relation("ProductCreator")
   createdUniversalTemplates     UniversalTemplate[]     @relation("UniversalTemplateCreator")
 }
 
 model Channel {
-  id          String    @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   description String?
   workspaceId String
   createdById String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy   User      @relation(fields: [createdById], references: [id])
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation(fields: [createdById], references: [id])
   messages    Message[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  // Private channels are visible only to their ChannelMember rows (plus the workspace owner)
+  isPrivate   Boolean         @default(false)
+  members     ChannelMember[]
+  reads       ChannelRead[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ChannelMember {
+  id        String   @id @default(cuid())
+  channelId String
+  userId    String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, userId])
+  @@index([userId])
+}
+
+// Where each user has read up to in each channel; drives unread counts.
+model ChannelRead {
+  userId     String
+  channelId  String
+  lastReadAt DateTime
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, channelId])
+  @@index([channelId])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 model Workspace {
@@ -375,7 +420,7 @@ model Product {
 }
 
 model Message {
-  id          String    @id @default(cuid())
+  id          String            @id @default(cuid())
   content     String
   workspaceId String
   userId      String
@@ -383,16 +428,32 @@ model Message {
   fileUrl     String?
   fileName    String?
   fileType    String?
+  // Object path in the private chat bucket; served through a signed-URL route.
+  // fileUrl is kept only for rows written before files went private.
+  filePath    String?
+  editedAt    DateTime?
+  // Soft delete: the row stays so threads and ordering survive; content is cleared.
+  deletedAt   DateTime?
+  // One level of threading: replies point at their parent and stay out of the main timeline.
+  parentId    String?
+  parent      Message?          @relation("ThreadReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     Message[]         @relation("ThreadReplies")
+  pinnedAt    DateTime?
+  pinnedById  String?
+  pinnedBy    User?             @relation("PinnedMessages", fields: [pinnedById], references: [id], onDelete: SetNull)
+  reactions   MessageReaction[]
   // Ably Chat message serial. Dedupe key between the live Ably stream and this archive,
   // and the idempotency key for the archive upsert. NULL for pre-Ably rows.
-  ablySerial  String?   @unique
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id])
-  channel     Channel?  @relation(fields: [channelId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  ablySerial  String?           @unique
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id])
+  channel     Channel?          @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([workspaceId, channelId, createdAt])
+  @@index([channelId, createdAt])
+  @@index([parentId])
 }
 
 model Invitation {
@@ -501,52 +562,52 @@ model QuoteNote {
 }
 
 model Invoice {
-  id                    String        @id @default(cuid())
-  invoiceNumber         String
+  id                   String        @id @default(cuid())
+  invoiceNumber        String
   // Unguessable token for the public client view at /view/invoice/[token]. Null
   // until the invoice is shared; rotating it revokes the old link.
-  publicToken           String?       @unique
-  publicTokenCreatedAt  DateTime?
-  workspaceId           String
-  leadId                String?
-  lead                  Lead?         @relation(fields: [leadId], references: [id])
-  quoteId               String?
-  quote                 Quote?        @relation(fields: [quoteId], references: [id])
-  clientName            String
-  clientEmail           String?
-  clientPhone           String?
-  clientCompany         String?
-  clientAddress         String? // JSON object with address fields
-  status                String        @default("draft") // 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'
-  issueDate             DateTime      @default(now())
-  dueDate               DateTime?
-  paidDate              DateTime?
-  currency              String        @default("USD")
-  subtotal              Float         @default(0)
-  taxRate               Float         @default(0)
-  taxAmount             Float         @default(0)
-  discountType          String? // 'percentage', 'fixed'
-  discountValue         Float         @default(0)
-  discountAmount        Float         @default(0)
-  total                 Float         @default(0)
-  amountPaid            Float         @default(0)
-  amountDue             Float         @default(0)
-  paymentMethod         String? // For manual payment tracking
-  paymentReference      String? // Reference number for payments
-  notes                 String?
-  terms                 String?
-  internalNotes         String? // Private notes for team
-  sentAt                DateTime?
-  viewedAt              DateTime?
-  createdById           String?
-  updatedBy             String?
-  items                 InvoiceItem[]
-  invoiceNotes          InvoiceNote[]
-  payments              Payment[]
-  workspace             Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy             User?         @relation("InvoiceCreator", fields: [createdById], references: [id])
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  publicToken          String?       @unique
+  publicTokenCreatedAt DateTime?
+  workspaceId          String
+  leadId               String?
+  lead                 Lead?         @relation(fields: [leadId], references: [id])
+  quoteId              String?
+  quote                Quote?        @relation(fields: [quoteId], references: [id])
+  clientName           String
+  clientEmail          String?
+  clientPhone          String?
+  clientCompany        String?
+  clientAddress        String? // JSON object with address fields
+  status               String        @default("draft") // 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'
+  issueDate            DateTime      @default(now())
+  dueDate              DateTime?
+  paidDate             DateTime?
+  currency             String        @default("USD")
+  subtotal             Float         @default(0)
+  taxRate              Float         @default(0)
+  taxAmount            Float         @default(0)
+  discountType         String? // 'percentage', 'fixed'
+  discountValue        Float         @default(0)
+  discountAmount       Float         @default(0)
+  total                Float         @default(0)
+  amountPaid           Float         @default(0)
+  amountDue            Float         @default(0)
+  paymentMethod        String? // For manual payment tracking
+  paymentReference     String? // Reference number for payments
+  notes                String?
+  terms                String?
+  internalNotes        String? // Private notes for team
+  sentAt               DateTime?
+  viewedAt             DateTime?
+  createdById          String?
+  updatedBy            String?
+  items                InvoiceItem[]
+  invoiceNotes         InvoiceNote[]
+  payments             Payment[]
+  workspace            Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy            User?         @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@unique([workspaceId, invoiceNumber])
   @@index([workspaceId])

@@ -34,3 +34,23 @@ export function extractMentionedUserIds(
 
   return Array.from(matched);
 }
+
+/**
+ * Structured mentions: chat's @-autocomplete inserts `<@userId>` tokens, which
+ * resolve exactly (no name collisions). Only ids that belong to `members` count,
+ * so a hand-typed token can't notify someone outside the workspace.
+ */
+export function extractMentionTokens(
+  text: string,
+  members: { id: string }[],
+  excludeUserId?: string
+): string[] {
+  if (!text || !text.includes('<@')) return [];
+  const memberIds = new Set(members.map((m) => m.id));
+  const found = new Set<string>();
+  for (const match of Array.from(text.matchAll(/<@([A-Za-z0-9_-]{1,64})>/g))) {
+    const id = match[1];
+    if (id !== excludeUserId && memberIds.has(id)) found.add(id);
+  }
+  return Array.from(found);
+}

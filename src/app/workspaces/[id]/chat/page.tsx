@@ -7,6 +7,7 @@ import { useRouter, useParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import type { UserDirectory } from "@/components/chat/types";
 import { useAppStore } from "@/store/appStore";
+import { cachedJson, peekCached } from "@/lib/client-cache";
 
 interface WorkspaceUser {
   id: string;
@@ -41,32 +42,28 @@ export default function WorkspaceChatPage() {
   const workspaceId = params.id as string;
   const { setWorkspace } = useAppStore();
 
-  const [workspace, setWorkspaceState] = useState<Workspace | null>(null);
-  const [loading, setLoading] = useState(true);
+  const url = `/api/workspaces/${workspaceId}`;
+  // Shares the shell's cached workspace request, so returning to chat is instant
+  const [workspace, setWorkspaceState] = useState<Workspace | null>(
+    () => peekCached<{ workspace?: Workspace }>(url)?.workspace ?? null,
+  );
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    }
+    if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
   useEffect(() => {
     if (!session || !workspaceId) return;
     setWorkspace(workspaceId);
-    fetch(`/api/workspaces/${workspaceId}`)
-      .then((r) => r.json())
+    cachedJson<{ workspace?: Workspace }>(url)
       .then((data) => {
-        if (data.workspace) {
-          setWorkspaceState(data.workspace);
-        } else {
-          router.push("/dashboard");
-        }
+        if (data.workspace) setWorkspaceState(data.workspace);
+        else router.push("/dashboard");
       })
-      .catch(() => router.push("/dashboard"))
-      .finally(() => setLoading(false));
-  }, [session, workspaceId, setWorkspace, router]);
+      .catch(() => router.push("/dashboard"));
+  }, [session, workspaceId, url, setWorkspace, router]);
 
-  // Owner + accepted members: resolves realtime clientIds (user ids) to trusted display names.
+  // Owner + accepted members: resolves user ids to trusted display names.
   // The owner has no WorkspaceMember row, so they must be added explicitly.
   const directory = useMemo<UserDirectory>(() => {
     const dir: UserDirectory = {};
@@ -76,32 +73,20 @@ export default function WorkspaceChatPage() {
     return dir;
   }, [workspace]);
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary" />
-      </div>
-    );
-  }
-
-  if (!workspace) return null;
-
   return (
     <AppShell
-      workspace={{
-        id: workspace.id,
-        name: workspace.name,
-        icon: workspace.icon || undefined,
-      }}
+      workspace={workspace ? { id: workspace.id, name: workspace.name, icon: workspace.icon || undefined } : undefined}
     >
       <div className="h-full overflow-hidden">
-        <ChatRealtimeProvider workspaceId={workspaceId}>
-          <WorkspaceChat
-            workspaceId={workspaceId}
-            isOwner={workspace.ownerId === session?.user?.id}
-            directory={directory}
-          />
-        </ChatRealtimeProvider>
+        {session && workspace ? (
+          <ChatRealtimeProvider workspaceId={workspaceId}>
+            <WorkspaceChat workspaceId={workspaceId} directory={directory} />
+          </ChatRealtimeProvider>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-secondary" />
+          </div>
+        )}
       </div>
     </AppShell>
   );

@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Loader2, Send, Paperclip, X, Hash } from 'lucide-react'
+import { ArrowDown, Hash, Loader2, Lock, Menu, Pin, Users, X } from 'lucide-react'
 import {
   ChatMessageEventType,
   RoomStatus,
@@ -12,528 +11,684 @@ import {
   type RoomStatusChange,
 } from '@ably/chat'
 import { useMessages, usePresence, usePresenceListener, useTyping } from '@ably/chat/react'
-import { MessageBubble } from './MessageBubble'
-import { getInitials, resolveDisplayName, safeFileUrl } from './chatFormat'
-import type { Channel, ChatItem, MessageRow, UserDirectory } from './types'
+import { useI18n } from '@/i18n/I18nProvider'
+import { MessageBubble, MessageText } from './MessageBubble'
+import { MessageComposer, type ComposerSendInput } from './MessageComposer'
+import { ConfirmDialog } from './ConfirmDialog'
+import { chatApi, newClientMsgId, sendWithAttachment } from './chatApi'
+import { dayKey, dayLabel, formatTime, getInitials, resolveDisplayName, rowToItem, safeFileUrl } from './chatFormat'
+import { useChatSignal } from './useChatSignal'
+import type { Channel, ChatItem, ChatPermissions, MessageRow, UserDirectory } from './types'
 
-interface ChannelViewProps {
-  workspaceId: string
-  channel: Channel
-  directory: UserDirectory
-}
-
-const PAGE_SIZE = 50
-const MAX_CATCH_UP_PAGES = 5
-const ARCHIVE_RETRY_DELAYS_MS = [500, 1500, 4000]
 const NEAR_BOTTOM_PX = 120
+const LOAD_OLDER_AT_PX = 80
 const MAX_VISIBLE_PRESENCE = 5
+const MARK_READ_DELAY_MS = 800
 
-/* ─── Mapping: archived rows and live messages -> one view model ─────────── */
-
-function rowToItem(row: MessageRow, directory: UserDirectory): ChatItem {
-  return {
-    key: row.id,
-    id: row.id,
-    serial: row.ablySerial ?? undefined,
-    text: row.content,
-    userId: row.userId,
-    displayName: resolveDisplayName(row.userId, directory, row.user),
-    fileUrl: safeFileUrl(row.fileUrl),
-    fileName: row.fileName,
-    fileType: row.fileType,
-    createdAt: row.createdAt,
-  }
-}
-
-const str = (v: unknown) => (typeof v === 'string' ? v : null)
-
-function messageToItem(message: Message, directory: UserDirectory): ChatItem {
-  // metadata/headers are client-controlled: read defensively, never trust the display name.
-  const meta = message.metadata as Record<string, unknown>
-  const clientMsgId = str(message.headers?.clientMsgId) ?? undefined
-  return {
-    key: clientMsgId ?? message.serial,
-    clientMsgId,
-    serial: message.serial,
-    // File-only messages carry the file name as text (Ably may reject empty text); hide it.
-    text: meta.fileOnly === true ? '' : message.text,
-    userId: message.clientId,
-    displayName: resolveDisplayName(message.clientId, directory, { name: str(meta.name), email: str(meta.email) }),
-    fileUrl: safeFileUrl(meta.fileUrl),
-    fileName: str(meta.fileName),
-    fileType: str(meta.fileType),
-    createdAt: message.timestamp.toISOString(),
-  }
-}
+/* ─── Merging rows, live messages and optimistic bubbles into one list ────── */
 
 /**
- * Merge incoming items into the list. An incoming item that matches an existing one by
- * clientMsgId, serial or archive id REPLACES it in place (keeping the original React key so
- * the bubble doesn't remount or re-animate); otherwise it is appended. Result is time-sorted.
+ * An incoming item that matches an existing one by clientMsgId, database id or
+ * Ably serial REPLACES it in place (keeping its React key so the bubble doesn't
+ * remount); otherwise it is added. Result is sorted by time, then id.
  */
-function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
+export function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
   const next = prev.slice()
-  const byClient = new Map<string, number>()
-  const bySerial = new Map<string, number>()
-  const byId = new Map<string, number>()
-  const index = (item: ChatItem, at: number) => {
-    if (item.clientMsgId) byClient.set(item.clientMsgId, at)
-    if (item.serial) bySerial.set(item.serial, at)
-    if (item.id) byId.set(item.id, at)
-  }
-  next.forEach(index)
-
+  const find = (inc: ChatItem) =>
+    next.findIndex(
+      cur =>
+        (inc.clientMsgId && cur.clientMsgId === inc.clientMsgId) ||
+        (inc.id && cur.id === inc.id) ||
+        (inc.serial && cur.serial === inc.serial),
+    )
   for (const inc of incoming) {
-    const at =
-      (inc.clientMsgId !== undefined ? byClient.get(inc.clientMsgId) : undefined) ??
-      (inc.serial !== undefined ? bySerial.get(inc.serial) : undefined) ??
-      (inc.id !== undefined ? byId.get(inc.id) : undefined)
-
-    if (at === undefined) {
+    const at = find(inc)
+    if (at === -1) {
       next.push(inc)
-      index(inc, next.length - 1)
       continue
     }
-
     const cur = next[at]
-    const merged: ChatItem = {
+    next[at] = {
       ...cur,
       ...inc,
       key: cur.key,
       clientMsgId: cur.clientMsgId ?? inc.clientMsgId,
-      serial: inc.serial ?? cur.serial,
       id: inc.id ?? cur.id,
+      serial: inc.serial ?? cur.serial,
       pending: inc.pending ?? false,
-      // An archived row proves it was saved; otherwise keep whatever we knew.
-      archiveFailed: inc.id ? false : inc.archiveFailed ?? cur.archiveFailed,
+      // A live echo can't know reactions/replies; keep what the API told us.
+      reactions: inc.reactions ?? cur.reactions,
+      replyCount: inc.replyCount ?? cur.replyCount,
+      pinnedAt: inc.pinnedAt !== undefined ? inc.pinnedAt : cur.pinnedAt,
     }
-    next[at] = merged
-    index(merged, at)
   }
-
   return next.sort(
-    (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0),
+    (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || ((a.id ?? a.key) < (b.id ?? b.key) ? -1 : 1),
   )
 }
 
-const newClientMsgId = () =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+const str = (v: unknown) => (typeof v === 'string' ? v : null)
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-function typingLabel(names: string[]) {
-  if (names.length === 0) return ''
-  if (names.length === 1) return `${names[0]} is typing…`
-  if (names.length === 2) return `${names[0]} and ${names[1]} are typing…`
-  return 'Several people are typing…'
+/** A live Ably message becomes an item only if the server published it (carries our message id). */
+function liveToItem(message: Message, directory: UserDirectory): ChatItem | null {
+  const meta = (message.metadata ?? {}) as Record<string, unknown>
+  const id = str(meta.messageId)
+  if (!id) return null
+  const clientMsgId = str(message.headers?.clientMsgId) ?? undefined
+  return {
+    key: clientMsgId ?? id,
+    clientMsgId,
+    id,
+    serial: message.serial,
+    text: meta.fileOnly === true ? '' : message.text,
+    userId: message.clientId,
+    displayName: resolveDisplayName(message.clientId, directory),
+    fileUrl: safeFileUrl(meta.fileUrl),
+    fileName: str(meta.fileName),
+    fileType: str(meta.fileType),
+    createdAt: message.timestamp.toISOString(),
+    editedAt: str(meta.editedAt),
+  }
 }
+
+const cursorOf = (item: ChatItem) => `${item.createdAt}|${item.id}`
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
-export function ChannelView({ workspaceId, channel, directory }: ChannelViewProps) {
+export function ChannelView({
+  workspaceId,
+  channel,
+  directory,
+  permissions,
+  focusMessageId,
+  activeThreadId,
+  onOpenThread,
+  onMarkedRead,
+  onOpenSidebar,
+  onManageMembers,
+}: {
+  workspaceId: string
+  channel: Channel
+  directory: UserDirectory
+  permissions: ChatPermissions
+  /** Jump to this message (search result / link) */
+  focusMessageId?: string | null
+  activeThreadId?: string | null
+  onOpenThread: (parentId: string) => void
+  onMarkedRead: (channelId: string) => void
+  /** Mobile: open the channel list */
+  onOpenSidebar: () => void
+  onManageMembers?: () => void
+}) {
+  const { t } = useI18n()
   const { data: session } = useSession()
-  const channelId = channel.id
   const myId = session?.user?.id
-  const myName = (session?.user as { name?: string | null } | undefined)?.name ?? null
-  const myEmail = (session?.user as { email?: string | null } | undefined)?.email ?? ''
+  const channelId = channel.id
+  const api = useMemo(() => chatApi(workspaceId), [workspaceId])
 
   const [items, setItems] = useState<ChatItem[]>([])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [sendError, setSendError] = useState<string | null>(null)
-  const [pendingFile, setPendingFile] = useState<File | null>(null)
-  const [pendingPreview, setPendingPreview] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [hasOlder, setHasOlder] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  // Set after jumping to an old message: newer messages exist below and live
+  // messages must not be appended until the user returns to the latest.
+  const [detached, setDetached] = useState(false)
+  const [showJump, setShowJump] = useState(false)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [pinnedOpen, setPinnedOpen] = useState(false)
+  const [pinned, setPinned] = useState<MessageRow[] | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ChatItem | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const nearBottomRef = useRef(true)
-  const lastKnownRef = useRef<string | null>(null)
-  // The message listener must be stable, so it reads the directory through a ref.
+  const detachedRef = useRef(false)
+  detachedRef.current = detached
+  const itemsRef = useRef<ChatItem[]>([])
+  itemsRef.current = items
   const directoryRef = useRef(directory)
   directoryRef.current = directory
+  // Scroll-back keeps the reader's place: remember the height before prepending
+  const prependAnchor = useRef<{ height: number; top: number } | null>(null)
+  const scrollToBottomNext = useRef<'instant' | 'smooth' | null>(null)
 
-  /* ── History: archive is the source of truth for anything older than this session ── */
+  const toItems = useCallback((rows: MessageRow[]) => rows.map(r => rowToItem(r, directoryRef.current)), [])
 
-  // Fetch everything newer than the last confirmed message (or the newest page if we have
-  // none). Used for the initial load, on room attach, and after a discontinuity, so messages
-  // published while we were not listening are recovered from the archive. Merging (never
-  // replacing) keeps any live messages that arrived first.
-  const catchUp = useCallback(async () => {
-    let cursor = lastKnownRef.current
-    for (let page = 0; page < MAX_CATCH_UP_PAGES; page++) {
-      const qs = new URLSearchParams({ channelId, limit: String(PAGE_SIZE) })
-      if (cursor) qs.set('after', cursor)
-      let rows: MessageRow[]
-      try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/chat/messages?${qs}`)
-        if (!res.ok) return
-        rows = (await res.json()).messages ?? []
-      } catch {
-        return
-      }
-      if (rows.length) setItems((prev) => mergeItems(prev, rows.map((r) => rowToItem(r, directoryRef.current))))
-      if (!cursor || rows.length < PAGE_SIZE) return
-      cursor = rows[rows.length - 1].createdAt
+  /* ── Read markers ── */
+
+  const markReadTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const markRead = useCallback(() => {
+    if (markReadTimer.current) clearTimeout(markReadTimer.current)
+    markReadTimer.current = setTimeout(() => {
+      if (document.visibilityState !== 'visible') return
+      api.markRead(channelId).then(() => onMarkedRead(channelId)).catch(() => {})
+    }, MARK_READ_DELAY_MS)
+  }, [api, channelId, onMarkedRead])
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible' && nearBottomRef.current) markRead() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      if (markReadTimer.current) clearTimeout(markReadTimer.current)
     }
-  }, [workspaceId, channelId])
+  }, [markRead])
+
+  /* ── Loading ── */
+
+  const loadLatest = useCallback(async () => {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const data = await api.messages(channelId)
+      setItems(toItems(data.messages))
+      setHasOlder(!!data.hasMore)
+      setDetached(false)
+      scrollToBottomNext.current = 'instant'
+      markRead()
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : t('chat.loadFailed'))
+    } finally {
+      setLoading(false)
+    }
+  }, [api, channelId, toItems, markRead, t])
+
+  const loadAround = useCallback(async (messageId: string) => {
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const data = await api.messages(channelId, { around: messageId })
+      setItems(toItems(data.messages))
+      setHasOlder(!!data.hasMore)
+      setDetached(!!data.hasNewer)
+      setHighlightId(messageId)
+      requestAnimationFrame(() => {
+        document.getElementById(`msg-${messageId}`)?.scrollIntoView({ block: 'center' })
+      })
+      setTimeout(() => setHighlightId(cur => (cur === messageId ? null : cur)), 3000)
+    } catch {
+      // The message may have been deleted: fall back to the latest messages
+      await loadLatest()
+    } finally {
+      setLoading(false)
+    }
+  }, [api, channelId, toItems, loadLatest])
+
+  // Everything newer than the newest saved message we have. Runs on room
+  // (re)attach and discontinuities, so messages missed while offline appear.
+  const catchingUp = useRef(false)
+  const catchUp = useCallback(async () => {
+    if (detachedRef.current || catchingUp.current) return
+    catchingUp.current = true
+    try {
+      for (;;) {
+        const saved = itemsRef.current.filter(i => i.id && !i.pending)
+        const last = saved[saved.length - 1]
+        if (!last) return
+        const data = await api.messages(channelId, { after: cursorOf(last) })
+        if (data.messages.length) setItems(prev => mergeItems(prev, toItems(data.messages)))
+        if (!data.hasMore) return
+        // Let the state update land before computing the next cursor
+        await new Promise(r => setTimeout(r, 0))
+        itemsRef.current = mergeItems(itemsRef.current, toItems(data.messages))
+      }
+    } catch {
+      /* next attach/discontinuity retries */
+    } finally {
+      catchingUp.current = false
+    }
+  }, [api, channelId, toItems])
 
   useEffect(() => {
     if (!myId) return
-    let cancelled = false
-    setLoading(true)
-    catchUp().finally(() => {
-      if (!cancelled) setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [myId, catchUp])
+    setItems([])
+    setPinned(null)
+    setPinnedOpen(false)
+    if (focusMessageId) void loadAround(focusMessageId)
+    else void loadLatest()
+    // Only on channel switch / explicit focus changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myId, channelId, focusMessageId])
 
-  // Track the newest confirmed message so catch-up knows where to resume.
-  useEffect(() => {
-    let latest: string | null = null
-    for (const it of items) {
-      if (!it.pending && (latest === null || Date.parse(it.createdAt) > Date.parse(latest))) latest = it.createdAt
+  const loadOlder = useCallback(async () => {
+    const first = itemsRef.current.find(i => i.id)
+    if (!first || loadingOlder || !hasOlder) return
+    setLoadingOlder(true)
+    try {
+      const data = await api.messages(channelId, { before: cursorOf(first) })
+      const el = scrollRef.current
+      if (el) prependAnchor.current = { height: el.scrollHeight, top: el.scrollTop }
+      setItems(prev => mergeItems(prev, toItems(data.messages)))
+      setHasOlder(!!data.hasMore)
+    } catch {
+      /* the user can scroll up again to retry */
+    } finally {
+      setLoadingOlder(false)
     }
-    lastKnownRef.current = latest
+  }, [api, channelId, hasOlder, loadingOlder, toItems])
+
+  /* ── Scrolling ── */
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (prependAnchor.current) {
+      const { height, top } = prependAnchor.current
+      el.scrollTop = el.scrollHeight - height + top
+      prependAnchor.current = null
+      return
+    }
+    if (scrollToBottomNext.current) {
+      el.scrollTo({ top: el.scrollHeight, behavior: scrollToBottomNext.current === 'smooth' ? 'smooth' : 'auto' })
+      scrollToBottomNext.current = null
+    }
   }, [items])
 
-  /* ── Live: Ably Chat ── */
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+    nearBottomRef.current = near
+    if (near) {
+      setShowJump(false)
+      if (!detached) markRead()
+    }
+    if (el.scrollTop < LOAD_OLDER_AT_PX) void loadOlder()
+  }
+
+  const jumpToLatest = () => {
+    if (detached) void loadLatest()
+    else scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    setShowJump(false)
+  }
+
+  /** New messages arrived: follow them if the reader is at the bottom, otherwise offer a jump. */
+  const onNewArrivals = useCallback((fromMe: boolean) => {
+    if (fromMe || nearBottomRef.current) {
+      scrollToBottomNext.current = 'smooth'
+      if (!fromMe) markRead()
+    } else {
+      setShowJump(true)
+    }
+  }, [markRead])
+
+  /* ── Live: Ably room ── */
 
   const handleMessage = useCallback((event: ChatMessageEvent) => {
-    // Edit/delete are not supported yet (the archive would drift), so only handle new messages.
-    if (event.type !== ChatMessageEventType.Created) return
-    const item = messageToItem(event.message, directoryRef.current)
-    setItems((prev) => mergeItems(prev, [item]))
-  }, [])
+    if (detachedRef.current) return
+    const msg = event.message
+    if (event.type === ChatMessageEventType.Created) {
+      const item = liveToItem(msg, directoryRef.current)
+      if (!item) return
+      const known = itemsRef.current.some(i => (item.clientMsgId && i.clientMsgId === item.clientMsgId) || i.id === item.id)
+      setItems(prev => mergeItems(prev, [item]))
+      if (!known) onNewArrivals(item.userId === myId)
+    } else if (event.type === ChatMessageEventType.Updated) {
+      const item = liveToItem(msg, directoryRef.current)
+      if (item) setItems(prev => mergeItems(prev, [{ ...item, editedAt: item.editedAt ?? new Date().toISOString() }]))
+    } else if (event.type === ChatMessageEventType.Deleted) {
+      setItems(prev => prev.map(i => (i.serial === msg.serial
+        ? { ...i, text: '', fileUrl: null, fileName: null, fileType: null, deletedAt: new Date().toISOString(), reactions: {}, pinnedAt: null }
+        : i)))
+    }
+  }, [myId, onNewArrivals])
 
-  const handleRoomStatus = useCallback(
-    (change: RoomStatusChange) => {
-      // Covers the gap between the archive fetch and the room attaching, and any reattach.
-      if (change.current === RoomStatus.Attached) void catchUp()
-    },
-    [catchUp],
-  )
+  const handleRoomStatus = useCallback((change: RoomStatusChange) => {
+    if (change.current === RoomStatus.Attached) void catchUp()
+  }, [catchUp])
 
-  const { sendMessage: publishMessage } = useMessages({
-    listener: handleMessage,
-    onRoomStatusChange: handleRoomStatus,
-    onDiscontinuity: () => void catchUp(),
-  })
+  useMessages({ listener: handleMessage, onRoomStatusChange: handleRoomStatus, onDiscontinuity: () => void catchUp() })
 
   const { currentlyTyping, keystroke, stop } = useTyping()
-  usePresence({ initialData: { name: myName, email: myEmail } })
+  usePresence({ initialData: {} })
   const { presenceData } = usePresenceListener()
 
   const typingNames = useMemo(
-    () =>
-      Array.from(currentlyTyping)
-        .filter((id) => id !== myId)
-        .map((id) => directory[id]?.name ?? directory[id]?.email ?? 'Someone'),
-    [currentlyTyping, myId, directory],
+    () => Array.from(currentlyTyping).filter(id => id !== myId).map(id => directory[id]?.name ?? directory[id]?.email ?? t('chat.someone')),
+    [currentlyTyping, myId, directory, t],
   )
+  const typingText =
+    typingNames.length === 0 ? ''
+      : typingNames.length === 1 ? t('chat.typingOne', { name: typingNames[0] })
+        : typingNames.length === 2 ? t('chat.typingTwo', { first: typingNames[0], second: typingNames[1] })
+          : t('chat.typingMany')
 
-  // One entry per user: the same person in two tabs is two presence members.
+  // One entry per user (two tabs = two presence members); names from the trusted directory.
   const online = useMemo(() => {
     const seen = new Set<string>()
     const out: { id: string; name: string }[] = []
     for (const member of presenceData) {
       if (seen.has(member.clientId)) continue
       seen.add(member.clientId)
-      const data = (member.data ?? {}) as Record<string, unknown>
-      out.push({
-        id: member.clientId,
-        name: resolveDisplayName(member.clientId, directory, { name: str(data.name), email: str(data.email) }),
-      })
+      out.push({ id: member.clientId, name: resolveDisplayName(member.clientId, directory) })
     }
     return out
   }, [presenceData, directory])
 
-  /* ── Scrolling: don't yank someone who is reading history ── */
+  /* ── Workspace signals: reactions, pins, edits, thread replies, missed messages ── */
 
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
-  }
+  const refreshMessages = useCallback(async (ids: string[]) => {
+    const data = await api.messages(channelId, { ids: ids.join(',') }).catch(() => null)
+    if (data?.messages.length) setItems(prev => mergeItems(prev, toItems(data.messages)))
+  }, [api, channelId, toItems])
 
-  useEffect(() => {
-    const last = items[items.length - 1]
-    if (nearBottomRef.current || last?.userId === myId) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [items, myId])
-
-  /* ── Sending ── */
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPendingFile(file)
-    setPendingPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
-    e.target.value = ''
-  }
-
-  // Delivery to other clients already happened over Ably; this makes it permanent. Retried
-  // because a failure here means the message disappears from history on reload.
-  const archive = async (sent: Message, payload: { content: string; fileUrl: string | null; fileName: string | null; fileType: string | null }) => {
-    for (let attempt = 0; attempt <= ARCHIVE_RETRY_DELAYS_MS.length; attempt++) {
-      try {
-        const res = await fetch(`/api/workspaces/${workspaceId}/chat/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...payload,
-            channelId,
-            ablySerial: sent.serial,
-            createdAt: sent.timestamp.toISOString(),
-          }),
-        })
-        if (res.ok) {
-          const { message } = (await res.json()) as { message: MessageRow }
-          setItems((prev) => mergeItems(prev, [rowToItem(message, directoryRef.current)]))
-          return
-        }
-        // 4xx (other than rate limiting) will not succeed on retry.
-        if (res.status >= 400 && res.status < 500 && res.status !== 429) break
-      } catch {
-        /* network error: retry */
+  useChatSignal(workspaceId, (signal) => {
+    if (signal.type === 'channels-changed' || signal.channelId !== channelId) return
+    if (signal.type === 'message') {
+      if (signal.parentId) {
+        if (itemsRef.current.some(i => i.id === signal.parentId)) void refreshMessages([signal.parentId])
+      } else if (!itemsRef.current.some(i => i.id === signal.messageId)) {
+        // Normally the room delivers it; this covers a failed realtime publish.
+        setTimeout(() => {
+          if (!itemsRef.current.some(i => i.id === signal.messageId)) void catchUp()
+        }, 1500)
       }
-      if (attempt < ARCHIVE_RETRY_DELAYS_MS.length) await sleep(ARCHIVE_RETRY_DELAYS_MS[attempt])
+    } else if (signal.type === 'message-changed') {
+      const target = signal.parentId ?? signal.messageId
+      if (itemsRef.current.some(i => i.id === target)) void refreshMessages([target])
+      if (pinnedOpen) void loadPinned()
     }
-    setItems((prev) => mergeItems(prev, [{ ...messageToItem(sent, directoryRef.current), archiveFailed: true }]))
+  })
+
+  /* ── Pinned ── */
+
+  const loadPinned = useCallback(async () => {
+    const data = await api.messages(channelId, { pinned: '1' }).catch(() => null)
+    setPinned(data?.messages ?? [])
+  }, [api, channelId])
+
+  /* ── Actions ── */
+
+  const fail = (err: unknown) => {
+    setActionError(err instanceof Error ? err.message : t('chat.genericError'))
+    setTimeout(() => setActionError(null), 5000)
   }
 
-  const sendMessage = async () => {
-    const trimmed = input.trim()
-    if ((!trimmed && !pendingFile) || sending || !myId) return
-    setSending(true)
-    setSendError(null)
-
-    let fileUrl: string | null = null
-    let fileName: string | null = null
-    let fileType: string | null = null
-
-    if (pendingFile) {
-      setUploading(true)
-      try {
-        const fd = new FormData()
-        fd.append('file', pendingFile)
-        const uploadRes = await fetch(`/api/workspaces/${workspaceId}/chat/upload`, { method: 'POST', body: fd })
-        const uploadData = await uploadRes.json()
-        if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed')
-        fileUrl = uploadData.fileUrl
-        fileName = uploadData.fileName
-        fileType = uploadData.fileType
-      } catch (err) {
-        setSendError(err instanceof Error ? err.message : 'Could not upload the file')
-        setSending(false)
-        setUploading(false)
-        return
-      }
-      setUploading(false)
-    }
-
-    // Optimistic bubble, keyed by clientMsgId. The Ably echo carries the same id in its
-    // headers, so it patches this item in place instead of appending a duplicate.
+  const send = async ({ content, file }: ComposerSendInput) => {
+    if (!myId) return
     const clientMsgId = newClientMsgId()
+    if (detached) await loadLatest()
     const optimistic: ChatItem = {
       key: clientMsgId,
       clientMsgId,
-      text: trimmed,
+      text: content,
       userId: myId,
-      displayName: resolveDisplayName(myId, directory, { name: myName, email: myEmail }),
-      fileUrl: safeFileUrl(fileUrl),
-      fileName,
-      fileType,
+      displayName: resolveDisplayName(myId, directory, session?.user ?? undefined),
+      fileUrl: null,
+      fileName: file?.name ?? null,
+      fileType: file?.type ?? null,
       createdAt: new Date().toISOString(),
       pending: true,
     }
-    nearBottomRef.current = true
-    setItems((prev) => mergeItems(prev, [optimistic]))
-    setInput('')
-    setPendingFile(null)
-    setPendingPreview(null)
+    scrollToBottomNext.current = 'smooth'
+    setItems(prev => mergeItems(prev, [optimistic]))
     void stop().catch(() => {})
-    // Allow the next message while this one is in flight.
-    setSending(false)
-
     try {
-      const sent = await publishMessage({
-        // Ably may reject empty text, so file-only messages carry the file name (hidden in the UI).
-        text: trimmed || fileName || 'Attachment',
-        headers: { clientMsgId },
-        metadata: { fileUrl, fileName, fileType, fileOnly: !trimmed && !!fileUrl, name: myName, email: myEmail },
-      })
-      setItems((prev) => mergeItems(prev, [{ ...messageToItem(sent, directoryRef.current), clientMsgId }]))
-      void archive(sent, { content: trimmed, fileUrl, fileName, fileType })
+      const row = await sendWithAttachment(api, { channelId, content, file, clientMsgId })
+      setItems(prev => mergeItems(prev, [{ ...rowToItem(row, directoryRef.current), clientMsgId }]))
     } catch (err) {
-      setItems((prev) => prev.filter((it) => it.clientMsgId !== clientMsgId))
-      setInput((cur) => cur || trimmed)
-      setSendError(err instanceof Error && err.message ? `Message not sent: ${err.message}` : 'Message not sent. Check your connection and try again.')
+      setItems(prev => prev.filter(i => i.clientMsgId !== clientMsgId))
+      throw err
     }
   }
 
-  const onInputChange = (value: string) => {
-    setInput(value)
-    if (value) void keystroke().catch(() => {}) // rejects until the room is attached
+  const react = async (item: ChatItem, emoji: string) => {
+    if (!item.id || !myId) return
+    // Optimistic toggle
+    setItems(prev => prev.map(i => {
+      if (i.id !== item.id) return i
+      const users = i.reactions?.[emoji] ?? []
+      const nextUsers = users.includes(myId) ? users.filter(u => u !== myId) : [...users, myId]
+      return { ...i, reactions: { ...i.reactions, [emoji]: nextUsers } }
+    }))
+    try {
+      const { message } = await api.react(item.id, emoji)
+      setItems(prev => mergeItems(prev, [rowToItem(message, directoryRef.current)]))
+    } catch (err) {
+      void refreshMessages([item.id])
+      fail(err)
+    }
+  }
+
+  const edit = async (item: ChatItem, text: string) => {
+    if (!item.id) return
+    const { message } = await api.edit(item.id, text)
+    setItems(prev => mergeItems(prev, [rowToItem(message, directoryRef.current)]))
+  }
+
+  const pin = async (item: ChatItem, value: boolean) => {
+    if (!item.id) return
+    try {
+      const { message } = await api.pin(item.id, value)
+      setItems(prev => mergeItems(prev, [rowToItem(message, directoryRef.current)]))
+      if (pinnedOpen) void loadPinned()
+    } catch (err) {
+      fail(err)
+    }
+  }
+
+  const removeConfirmed = async () => {
+    const item = confirmDelete
+    if (!item?.id) return
+    const { message } = await api.remove(item.id)
+    setItems(prev => mergeItems(prev, [rowToItem(message, directoryRef.current)]))
+    setConfirmDelete(null)
+  }
+
+  const onTyping = (hasText: boolean) => {
+    if (!permissions.canWrite) return
+    if (hasText) void keystroke().catch(() => {}) // rejects until the room is attached
     else void stop().catch(() => {})
   }
 
+  /* ── Render ── */
+
+  const labels = { today: t('chat.today'), yesterday: t('chat.yesterday') }
+  const mentionable = channel.isPrivate ? channel.memberIds : undefined
+
   return (
-    <>
-      {/* Channel header */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-outline-variant/20 bg-surface-container-low shadow-sm flex-shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-secondary/10 flex items-center justify-center">
-          <Hash className="h-4 w-4 text-secondary" />
+    <div className="flex h-full min-w-0 flex-1 flex-col">
+      {/* Header */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-outline-variant/20 bg-surface-container-low px-3 py-3 shadow-sm sm:gap-3 sm:px-5">
+        <button type="button" onClick={onOpenSidebar} aria-label={t('chat.showChannels')} className="rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-container-high md:hidden">
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="hidden h-8 w-8 items-center justify-center rounded-xl bg-secondary/10 sm:flex">
+          {channel.isPrivate ? <Lock className="h-4 w-4 text-secondary" /> : <Hash className="h-4 w-4 text-secondary" />}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-on-surface">{channel.name}</h2>
-          {channel.description && (
-            <p className="text-[11px] text-on-surface-variant truncate">{channel.description}</p>
-          )}
+          <h2 className="flex items-center gap-1 truncate text-sm font-semibold text-on-surface">
+            <span className="sm:hidden">{channel.isPrivate ? <Lock className="inline h-3.5 w-3.5" /> : '#'}</span>
+            {channel.name}
+          </h2>
+          {channel.description && <p className="truncate text-[11px] text-on-surface-variant">{channel.description}</p>}
         </div>
+
         {online.length > 0 && (
-          <div className="flex items-center gap-2 flex-shrink-0" title={online.map((u) => u.name).join(', ')}>
+          <div className="hidden shrink-0 items-center gap-2 sm:flex" title={online.map(u => u.name).join(', ')}>
             <div className="flex -space-x-1.5">
-              {online.slice(0, MAX_VISIBLE_PRESENCE).map((u) => (
-                <div
-                  key={u.id}
-                  className="w-6 h-6 rounded-full bg-secondary/20 ring-2 ring-surface-container-low flex items-center justify-center text-[9px] font-bold text-secondary"
-                >
+              {online.slice(0, MAX_VISIBLE_PRESENCE).map(u => (
+                <div key={u.id} className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary/20 text-[9px] font-bold text-secondary ring-2 ring-surface-container-low">
                   {getInitials(u.name)}
                 </div>
               ))}
             </div>
             <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              {online.length} online
-              {online.length > MAX_VISIBLE_PRESENCE && ` (+${online.length - MAX_VISIBLE_PRESENCE})`}
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {t('chat.onlineCount', { count: online.length })}
             </span>
           </div>
         )}
+
+        {channel.isPrivate && onManageMembers && (
+          <button type="button" onClick={onManageMembers} aria-label={t('chat.members')} title={t('chat.members')} className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-on-surface-variant hover:bg-surface-container-high">
+            <Users className="h-4 w-4" />
+            <span className="tabular-nums">{channel.memberIds.length}</span>
+          </button>
+        )}
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setPinnedOpen(v => !v); if (!pinnedOpen) void loadPinned() }}
+            aria-label={t('chat.pinnedMessages')}
+            title={t('chat.pinnedMessages')}
+            aria-expanded={pinnedOpen}
+            className={`rounded-lg p-1.5 hover:bg-surface-container-high ${pinnedOpen ? 'text-secondary' : 'text-on-surface-variant'}`}
+          >
+            <Pin className="h-4 w-4" />
+          </button>
+          {pinnedOpen && (
+            <div className="absolute right-0 top-full z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-outline-variant/20 bg-surface-container-lowest shadow-2xl">
+              <div className="flex items-center justify-between border-b border-outline-variant/20 px-4 py-2.5">
+                <span className="text-sm font-semibold text-on-surface">{t('chat.pinnedMessages')}</span>
+                <button type="button" onClick={() => setPinnedOpen(false)} aria-label={t('common.close')} className="rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-high">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="max-h-80 overflow-y-auto p-2">
+                {pinned === null ? (
+                  <Loader2 className="mx-auto my-4 h-5 w-5 animate-spin text-on-surface-variant" />
+                ) : pinned.length === 0 ? (
+                  <p className="px-2 py-4 text-center text-xs text-on-surface-variant">{t('chat.noPinned')}</p>
+                ) : (
+                  pinned.map(row => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => { setPinnedOpen(false); void loadAround(row.id) }}
+                      className="block w-full rounded-xl px-3 py-2 text-left hover:bg-surface-container-high"
+                    >
+                      <span className="text-[11px] font-semibold text-on-surface-variant">
+                        {resolveDisplayName(row.userId, directory, row.user)} · {formatTime(row.createdAt)}
+                      </span>
+                      <div className="line-clamp-3 text-sm text-on-surface">
+                        {row.content ? <MessageText text={row.content} directory={directory} myId={myId} isOwn={false} /> : row.fileName}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
+      {actionError && (
+        <div role="alert" className="shrink-0 border-b border-red-500/20 bg-red-500/10 px-5 py-2 text-xs text-red-600 dark:text-red-400">{actionError}</div>
+      )}
+
       {/* Messages */}
-      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-5 py-4 space-y-1 custom-scrollbar">
-        {loading && items.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" />
-          </div>
-        )}
-        {!loading && items.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-on-surface-variant">
-            <div className="w-12 h-12 rounded-2xl bg-surface-container-high flex items-center justify-center">
-              <Hash className="h-6 w-6 opacity-30" />
+      <div className="relative min-h-0 flex-1">
+        <div ref={scrollRef} onScroll={handleScroll} className="custom-scrollbar h-full overflow-y-auto px-3 py-4 sm:px-5">
+          {loadingOlder && <Loader2 className="mx-auto mb-3 h-5 w-5 animate-spin text-on-surface-variant" />}
+          {!loading && !hasOlder && items.length > 0 && (
+            <div className="mb-6 px-1 text-xs text-on-surface-variant">
+              <p className="text-sm font-semibold text-on-surface">{t('chat.channelStart', { name: channel.name })}</p>
+              {channel.description && <p className="mt-0.5">{channel.description}</p>}
             </div>
-            <p className="text-sm font-medium">No messages in #{channel.name}</p>
-            <p className="text-xs opacity-60">Be the first to send a message!</p>
-          </div>
-        )}
-        <AnimatePresence initial={false}>
+          )}
+          {loading && items.length === 0 && (
+            <div className="flex h-full items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" />
+            </div>
+          )}
+          {loadError && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-on-surface-variant">
+              <p>{loadError}</p>
+              <button type="button" onClick={() => void loadLatest()} className="rounded-xl border border-outline-variant/30 px-4 py-2 text-xs font-medium hover:bg-surface-container">
+                {t('chat.retry')}
+              </button>
+            </div>
+          )}
+          {!loading && !loadError && items.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-on-surface-variant">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-high">
+                <Hash className="h-6 w-6 opacity-30" />
+              </div>
+              <p className="text-sm font-medium">{t('chat.emptyChannel', { name: channel.name })}</p>
+              {permissions.canWrite && <p className="text-xs opacity-60">{t('chat.beFirst')}</p>}
+            </div>
+          )}
+
           {items.map((msg, i) => {
             const prev = items[i - 1]
-            const isOwn = msg.userId === myId
-            const sameUser = prev?.userId === msg.userId
+            const newDay = !prev || dayKey(prev.createdAt) !== dayKey(msg.createdAt)
+            // Same author within 5 minutes reads as one group
+            const grouped = !newDay && prev?.userId === msg.userId && !prev.deletedAt &&
+              Date.parse(msg.createdAt) - Date.parse(prev.createdAt) < 5 * 60 * 1000
             return (
-              <motion.div
-                key={msg.key}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: msg.pending ? 0.6 : 1, y: 0 }}
-                transition={{ duration: 0.15 }}
-                className={sameUser ? 'mt-0.5' : 'mt-4'}
-              >
-                <MessageBubble message={msg} isOwn={isOwn} showAvatar={!sameUser} showName={!sameUser} />
-              </motion.div>
+              <Fragment key={msg.key}>
+                {newDay && (
+                  <div className="my-4 flex items-center gap-3" role="separator">
+                    <div className="h-px flex-1 bg-outline-variant/20" />
+                    <span className="text-[11px] font-semibold text-on-surface-variant">{dayLabel(msg.createdAt, labels)}</span>
+                    <div className="h-px flex-1 bg-outline-variant/20" />
+                  </div>
+                )}
+                <div id={msg.id ? `msg-${msg.id}` : undefined} className={grouped ? 'mt-0.5' : 'mt-3'}>
+                  <MessageBubble
+                    message={msg}
+                    isOwn={msg.userId === myId}
+                    showHeader={!grouped}
+                    directory={directory}
+                    myId={myId}
+                    canWrite={permissions.canWrite}
+                    canModerate={permissions.canModerate}
+                    highlighted={highlightId === msg.id || (!!activeThreadId && activeThreadId === msg.id)}
+                    actions={{
+                      onReact: (emoji) => void react(msg, emoji),
+                      onReply: msg.id ? () => onOpenThread(msg.id!) : undefined,
+                      onEdit: (text) => edit(msg, text),
+                      onDelete: () => setConfirmDelete(msg),
+                      onPin: (value) => void pin(msg, value),
+                    }}
+                  />
+                </div>
+              </Fragment>
             )
           })}
-        </AnimatePresence>
-        <div ref={bottomRef} />
+        </div>
+
+        {(showJump || detached) && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-secondary px-4 py-2 text-xs font-semibold text-on-secondary shadow-lg hover:opacity-90"
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+            {detached ? t('chat.jumpToLatest') : t('chat.newMessages')}
+          </button>
+        )}
       </div>
 
       {/* Typing indicator (height reserved so the composer doesn't jump) */}
-      <div className="h-5 px-5 flex-shrink-0 text-[11px] text-on-surface-variant" aria-live="polite">
-        {typingLabel(typingNames)}
+      <div className="h-5 shrink-0 truncate px-5 text-[11px] text-on-surface-variant" aria-live="polite">
+        {typingText}
       </div>
 
-      {/* Pending file preview */}
-      <AnimatePresence>
-        {pendingFile && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="px-5 py-2.5 border-t border-outline-variant/20 bg-surface-container-low flex items-center gap-3 flex-shrink-0 overflow-hidden"
-          >
-            {pendingPreview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pendingPreview} alt="preview" className="h-12 w-12 rounded-lg object-cover flex-shrink-0" />
-            ) : (
-              <div className="h-12 w-12 rounded-lg bg-surface-container-high flex items-center justify-center flex-shrink-0">
-                <span className="material-symbols-outlined text-on-surface-variant text-lg">attach_file</span>
-              </div>
-            )}
-            <span className="text-sm text-on-surface truncate flex-1">{pendingFile.name}</span>
-            <button
-              onClick={() => { setPendingFile(null); setPendingPreview(null) }}
-              className="p-1.5 rounded-lg hover:bg-surface-container-highest text-on-surface-variant transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Input */}
-      <div className="px-5 py-3.5 border-t border-outline-variant/20 bg-surface-container-low flex-shrink-0">
-        {sendError && (
-          <p role="alert" className="text-xs text-red-500 mb-2">{sendError}</p>
-        )}
-        <div className="flex items-end gap-2 bg-surface-container rounded-2xl border border-outline-variant/30 px-3 py-2.5 focus-within:border-secondary/50 focus-within:ring-2 focus-within:ring-secondary/10 transition-all duration-200">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending || uploading}
-            className="p-1.5 rounded-xl text-on-surface-variant hover:text-secondary hover:bg-secondary/10 transition-all flex-shrink-0 mb-0.5 disabled:opacity-40"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
-          <input ref={fileInputRef} type="file" className="hidden"
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
-            onChange={handleFileChange} />
-          <textarea
-            value={input}
-            onChange={(e) => onInputChange(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void sendMessage() } }}
-            placeholder={`Message #${channel.name}…`}
-            rows={1}
-            maxLength={4000}
-            className="flex-1 bg-transparent resize-none outline-none text-sm text-on-surface placeholder:text-on-surface-variant/40 min-h-[22px] max-h-32 leading-relaxed custom-scrollbar"
-            style={{ height: 'auto' }}
-            onInput={(e) => {
-              const el = e.currentTarget
-              el.style.height = 'auto'
-              el.style.height = `${Math.min(el.scrollHeight, 128)}px`
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => void sendMessage()}
-            disabled={(!input.trim() && !pendingFile) || sending || uploading}
-            className="p-1.5 rounded-xl bg-secondary text-on-secondary disabled:opacity-30 hover:opacity-90 active:scale-95 transition-all flex-shrink-0 mb-0.5 shadow-sm shadow-secondary/20"
-          >
-            {sending || uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
-        </div>
-        <p className="text-[10px] text-on-surface-variant/35 text-center mt-1.5">
-          Enter to send · Shift+Enter for new line
-        </p>
+      <div className="shrink-0 border-t border-outline-variant/20 bg-surface-container-low px-3 py-3 sm:px-5">
+        <MessageComposer
+          placeholder={t('chat.messagePlaceholder', { name: channel.name })}
+          directory={directory}
+          mentionableIds={mentionable}
+          readOnly={!permissions.canWrite}
+          onSend={send}
+          onTyping={onTyping}
+        />
       </div>
-    </>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t('chat.deleteMessageTitle')}
+          body={t('chat.deleteMessageBody')}
+          confirmLabel={t('chat.deleteMessage')}
+          danger
+          onConfirm={removeConfirmed}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+    </div>
   )
 }

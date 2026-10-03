@@ -7,6 +7,7 @@ import { ChatClient, ConnectionStatus } from '@ably/chat'
 import { ChatClientProvider, useChatConnection } from '@ably/chat/react'
 import { Loader2, WifiOff } from 'lucide-react'
 import { useSession } from 'next-auth/react'
+import { useI18n } from '@/i18n/I18nProvider'
 
 interface ChatRealtimeProviderProps {
   workspaceId: string
@@ -93,12 +94,13 @@ export function ChatRealtimeProvider({ workspaceId, children }: ChatRealtimeProv
 
 function ConnectionBanner() {
   const { currentStatus, error } = useChatConnection()
+  const { t } = useI18n()
 
   if (currentStatus === ConnectionStatus.Failed) {
     return (
       <div role="alert" className="flex items-center gap-2 px-4 py-2 text-xs bg-red-500/10 text-red-600 border-b border-red-500/20 flex-shrink-0">
         <WifiOff className="h-3.5 w-3.5 flex-shrink-0" />
-        <span>Live chat is unavailable{error?.message ? `: ${error.message}` : '.'} Reload the page to retry.</span>
+        <span>{t('chat.liveUnavailable')}{error?.message ? ` (${error.message})` : ''}</span>
       </div>
     )
   }
@@ -107,7 +109,7 @@ function ConnectionBanner() {
     return (
       <div role="status" className="flex items-center gap-2 px-4 py-2 text-xs bg-amber-500/10 text-amber-600 border-b border-amber-500/20 flex-shrink-0">
         <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />
-        <span>Reconnecting… you can send messages again once you&apos;re back online.</span>
+        <span>{t('chat.reconnecting')}</span>
       </div>
     )
   }

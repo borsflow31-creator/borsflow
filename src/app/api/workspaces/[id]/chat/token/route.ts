@@ -1,46 +1,47 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import type Ably from 'ably'
 import { getAblyRest } from '@/lib/ably'
-import { CHAT_CAPABILITY_OPERATIONS, workspaceCapabilityKey } from '@/lib/chatRooms'
+import { CHAT_CAPABILITY_OPERATIONS, chatRoomChannel, chatSignalChannel } from '@/lib/chatRooms'
+import { getChatAccess, visibleChannelIds } from '@/lib/chat/server'
 
 export const dynamic = 'force-dynamic'
 
-// Short-lived so a member removed from the workspace loses realtime access quickly.
+// Short-lived so a member removed from the workspace (or a private channel)
+// loses realtime access quickly. The client re-requests a token whenever its
+// channel list changes, so new channels are covered without waiting for expiry.
 // (Instant revocation would need Ably token revocation, a paid feature.)
 const TOKEN_TTL_MS = 30 * 60 * 1000
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 
-async function getMember(workspaceId: string, userId: string) {
-  return prisma.workspace.findFirst({
-    where: {
-      id: workspaceId,
-      OR: [{ ownerId: userId }, { members: { some: { userId } } }],
-    },
-    select: { id: true },
-  })
-}
-
 // GET /api/workspaces/[id]/chat/token
-// Issues an Ably TokenRequest scoped to this workspace's chat rooms only.
+// Issues an Ably TokenRequest covering only the rooms of channels this user can
+// see (so private channels stay private in realtime too), plus subscribe-only
+// access to the workspace signal channel.
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE })
+  const result = await getChatAccess(params.id)
+  if ('error' in result) {
+    result.error.headers.set('Cache-Control', 'no-store')
+    return result.error
   }
+  const { access } = result
 
-  const member = await getMember(params.id, session.user.id)
-  if (!member) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403, headers: NO_STORE })
+  const capability: Record<string, Ably.capabilityOp[]> = {
+    [chatSignalChannel(params.id)]: ['subscribe'],
+  }
+  // Viewers can watch and appear in presence but not type into the room.
+  const roomOps: Ably.capabilityOp[] = access.canWrite
+    ? [...CHAT_CAPABILITY_OPERATIONS]
+    : CHAT_CAPABILITY_OPERATIONS.filter(op => op !== 'publish')
+  for (const channelId of await visibleChannelIds(access)) {
+    capability[chatRoomChannel(params.id, channelId)] = roomOps
   }
 
   try {
     const tokenRequest = await getAblyRest().auth.createTokenRequest({
-      clientId: session.user.id,
+      clientId: access.userId,
       ttl: TOKEN_TTL_MS,
-      capability: { [workspaceCapabilityKey(params.id)]: [...CHAT_CAPABILITY_OPERATIONS] },
+      capability,
     })
     return NextResponse.json(tokenRequest, { headers: NO_STORE })
   } catch (err) {

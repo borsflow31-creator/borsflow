@@ -2380,7 +2380,74 @@ export interface Messages {
     goToDashboard: string;
   };
   chat: {
+    addReaction: string;
+    attachFile: string;
+    beFirst: string;
+    channelStart: string;
+    clearSearch: string;
+    composerHint: string;
+    copyText: string;
+    deleteChannelBody: string;
+    deleteChannelNamed: string;
+    deleteChannelTitle: string;
+    deleteMessage: string;
+    deleteMessageBody: string;
+    deleteMessageTitle: string;
+    editMessage: string;
+    edited: string;
+    emptyChannel: string;
+    fileTooLarge: string;
+    filterMembers: string;
+    genericError: string;
+    jumpToLatest: string;
+    liveUnavailable: string;
+    loadFailed: string;
+    members: string;
+    membersOf: string;
+    mentionSuggestions: string;
+    messageDeleted: string;
+    messagePlaceholder: string;
+    moreActions: string;
+    moreResults: string;
+    newChannel: string;
+    newMessages: string;
+    noMembersMatch: string;
+    noPinned: string;
+    noResults: string;
+    notSent: string;
+    onlineCount: string;
+    pin: string;
+    pinned: string;
+    pinnedMessages: string;
+    reactWith: string;
+    readOnly: string;
+    reconnecting: string;
+    removeAttachment: string;
+    replyCount: string;
+    replyInThread: string;
+    replyPlaceholder: string;
+    resultsCount: string;
+    retry: string;
+    searchPlaceholder: string;
+    searching: string;
+    send: string;
+    sendFailed: string;
+    showChannels: string;
+    someone: string;
+    thread: string;
+    today: string;
+    typingMany: string;
+    typingOne: string;
+    typingTwo: string;
+    unknownMember: string;
+    unpin: string;
+    unreadCount: string;
+    yesterday: string;
+    you: string;
     createModal: {
+      namePlaceholder: string;
+      private: string;
+      privateHint: string;
       failedError: string;
       title: string;
       nameLabel: string;
@@ -2939,7 +3006,74 @@ const en: Messages = {
     },
   },
   chat: {
+    addReaction: 'Add reaction',
+    attachFile: 'Attach a file',
+    beFirst: 'Be the first to send a message!',
+    channelStart: 'This is the start of #{name}',
+    clearSearch: 'Clear search',
+    composerHint: 'Enter to send · Shift+Enter for a new line · @ to mention',
+    copyText: 'Copy text',
+    deleteChannelBody: 'All of its messages, replies and files will be permanently deleted.',
+    deleteChannelNamed: 'Delete #{name}',
+    deleteChannelTitle: 'Delete #{name}?',
+    deleteMessage: 'Delete message',
+    deleteMessageBody: 'Everyone will see "Message deleted" instead.',
+    deleteMessageTitle: 'Delete this message?',
+    editMessage: 'Edit message',
+    edited: '(edited)',
+    emptyChannel: 'No messages in #{name} yet',
+    fileTooLarge: 'That file is larger than 10 MB.',
+    filterMembers: 'Filter members',
+    genericError: 'Something went wrong. Please try again.',
+    jumpToLatest: 'Jump to latest',
+    liveUnavailable: 'Live chat is unavailable. Reload the page to retry.',
+    loadFailed: 'Couldn’t load messages.',
+    members: 'Members',
+    membersOf: 'Members of #{name}',
+    mentionSuggestions: 'People to mention',
+    messageDeleted: 'Message deleted',
+    messagePlaceholder: 'Message #{name}…',
+    moreActions: 'More actions',
+    moreResults: 'Show more results',
+    newChannel: 'New channel',
+    newMessages: 'New messages',
+    noMembersMatch: 'No members match',
+    noPinned: 'No pinned messages yet. Pin one from its ⋯ menu.',
+    noResults: 'No messages found',
+    notSent: 'Not sent',
+    onlineCount: '{count} online',
+    pin: 'Pin to channel',
+    pinned: 'Pinned',
+    pinnedMessages: 'Pinned messages',
+    reactWith: 'React with {emoji}',
+    readOnly: 'You have view-only access, so you can read but not post.',
+    reconnecting: 'Reconnecting… you can send messages again once you’re back online.',
+    removeAttachment: 'Remove attachment',
+    replyCount: '{count} replies',
+    replyInThread: 'Reply in thread',
+    replyPlaceholder: 'Reply…',
+    resultsCount: '{count} results',
+    retry: 'Retry',
+    searchPlaceholder: 'Search messages',
+    searching: 'Searching…',
+    send: 'Send',
+    sendFailed: 'Message not sent. Check your connection and try again.',
+    showChannels: 'Show channels',
+    someone: 'Someone',
+    thread: 'Thread',
+    today: 'Today',
+    typingMany: 'Several people are typing…',
+    typingOne: '{name} is typing…',
+    typingTwo: '{first} and {second} are typing…',
+    unknownMember: 'Unknown member',
+    unpin: 'Unpin',
+    unreadCount: '{count} unread',
+    yesterday: 'Yesterday',
+    you: 'You',
     createModal: {
+      namePlaceholder: 'e.g. general',
+      private: 'Make private',
+      privateHint: 'Only the members you choose can see and join it.',
       failedError: 'Failed to create channel. Please try again.',
       title: 'Create channel',
       nameLabel: 'Channel name',
