@@ -6,6 +6,7 @@ import { ChevronDown, Plus, Check } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { cachedJson } from '@/lib/client-cache';
 
 interface Workspace {
     id: string;
@@ -34,11 +35,8 @@ export default function WorkspaceSwitcher({ currentWorkspace, onCreateWorkspace 
             
             setIsLoading(true);
             try {
-                const response = await fetch('/api/workspaces');
-                if (response.ok) {
-                    const data = await response.json();
-                    setWorkspaces(data.workspaces || []);
-                }
+                const data = await cachedJson('/api/workspaces');
+                setWorkspaces(data.workspaces || []);
             } catch (error) {
                 console.error('Error fetching workspaces:', error);
             } finally {

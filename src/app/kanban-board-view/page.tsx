@@ -16,6 +16,7 @@ import { DropResult } from '@hello-pangea/dnd';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n } from '@/i18n/I18nProvider';
+import { cachedJson } from '@/lib/client-cache';
 
 interface KanbanProject {
     id: string;
@@ -129,11 +130,8 @@ function KanbanBoardPageInner() {
 
     const fetchWorkspace = async () => {
         try {
-            const response = await fetch(`/api/workspaces/${effectiveWorkspaceId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setWorkspaceName(data.workspace.name);
-            }
+            const data = await cachedJson(`/api/workspaces/${effectiveWorkspaceId}`);
+            setWorkspaceName(data.workspace?.name || '');
         } catch (err) {
             console.error('Error fetching workspace:', err);
         }

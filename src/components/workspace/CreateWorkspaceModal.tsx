@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { invalidateCached } from '@/lib/client-cache';
 
 interface CreateWorkspaceModalProps {
     isOpen: boolean;
@@ -95,6 +96,7 @@ export default function CreateWorkspaceModal({
             });
 
             const data = await response.json();
+            if (response.ok) invalidateCached('/api/workspaces');
 
             if (!response.ok) {
                 setErrors({ submit: data.error || 'Failed to create workspace' });

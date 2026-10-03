@@ -8,10 +8,6 @@ import React, {
   useState,
 } from 'react';
 import en, { type Messages } from './messages/en';
-import fr from './messages/fr';
-import es from './messages/es';
-import ar from './messages/ar';
-import de from './messages/de';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +35,22 @@ interface I18nContextValue {
 
 // ─── Message catalogs ─────────────────────────────────────────────────────────
 
-const catalogs: Record<Locale, Messages> = { en, fr, es, ar, de };
+// English ships with the app (it's the fallback); the other catalogs are large
+// (~100 KB each) and are only downloaded when a user picks that language.
+const LOADERS: Record<Locale, () => Promise<Messages>> = {
+  en: async () => en,
+  fr: () => import('./messages/fr').then(m => m.default),
+  es: () => import('./messages/es').then(m => m.default),
+  ar: () => import('./messages/ar').then(m => m.default),
+  de: () => import('./messages/de').then(m => m.default),
+};
+
+const catalogs: Partial<Record<Locale, Messages>> = { en };
+
+async function loadCatalog(locale: Locale): Promise<Messages> {
+  if (!catalogs[locale]) catalogs[locale] = await LOADERS[locale]();
+  return catalogs[locale]!;
+}
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -64,11 +75,11 @@ const DEFAULT_LOCALE: Locale = 'en';
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
 
-  // Load persisted locale on mount
+  // Load persisted locale on mount (after its catalog has downloaded)
   useEffect(() => {
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-    if (saved && saved in catalogs) {
-      setLocaleState(saved);
+    if (saved && saved !== DEFAULT_LOCALE && saved in LOADERS) {
+      loadCatalog(saved).then(() => setLocaleState(saved)).catch(() => {});
     }
   }, []);
 
@@ -82,8 +93,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
-    setLocaleState(newLocale);
     localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+    // Keep showing the current language until the new catalog arrives
+    loadCatalog(newLocale).then(() => setLocaleState(newLocale)).catch(() => {});
   }, []);
 
   /**
@@ -91,8 +103,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
    */
   const t = useCallback(
     (key: MessageKey, values?: Record<string, string | number>): string => {
-      const catalog = catalogs[locale] as unknown as Record<string, unknown>;
+      const catalog = (catalogs[locale] ?? en) as unknown as Record<string, unknown>;
       let message = getNestedValue(catalog, key);
+      // A key missing from this language falls back to English
+      if (message === key && catalog !== (en as unknown)) {
+        message = getNestedValue(en as unknown as Record<string, unknown>, key);
+      }
 
       // Interpolate {variable} placeholders
       if (values && typeof message === 'string') {

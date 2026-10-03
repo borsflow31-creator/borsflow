@@ -16,6 +16,7 @@ import { useProductStore } from '@/store/productStore';
 import { buildPageWindow, errorFrom } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { CSVImportResult, Product } from '@/types';
+import { cachedJson } from '@/lib/client-cache';
 
 const PAGE_SIZE = 24;
 
@@ -236,11 +237,8 @@ function ProductsPageInner() {
 
     const fetchWorkspace = async () => {
       try {
-        const response = await fetch(`/api/workspaces/${workspaceId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setWorkspaceName(data.workspace?.name || '');
-        }
+        const data = await cachedJson(`/api/workspaces/${workspaceId}`);
+        setWorkspaceName(data.workspace?.name || '');
       } catch {
         setWorkspaceName('');
       }

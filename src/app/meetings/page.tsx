@@ -9,6 +9,7 @@ import IntegrationsPanel from '@/components/scheduling/IntegrationsPanel';
 import { useAppStore } from '@/store/appStore';
 import { useI18n } from '@/i18n/I18nProvider';
 import { CalendarDays, Link2, BarChart3, Video } from 'lucide-react';
+import { cachedJson } from '@/lib/client-cache';
 
 type ActiveTab = 'meetings' | 'integrations';
 
@@ -24,8 +25,7 @@ function MeetingsPageInner() {
 
   useEffect(() => {
     if (!effectiveId) return;
-    fetch(`/api/workspaces/${effectiveId}`)
-      .then(r => r.json())
+    cachedJson(`/api/workspaces/${effectiveId}`)
       .then(d => setWsName(d.workspace?.name || 'Workspace'))
       .catch(() => {});
   }, [effectiveId]);

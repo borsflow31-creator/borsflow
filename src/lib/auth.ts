@@ -111,7 +111,7 @@ export const authOptions: NextAuthOptions = {
             }
             return true;
         },
-        async jwt({ token, user, account }) {
+        async jwt({ token, user, account, trigger }) {
             // Tokens issued before emails were normalised carry the address as typed.
             if (token.email) token.email = normalizeEmail(token.email)
             if (user) {
@@ -129,8 +129,14 @@ export const authOptions: NextAuthOptions = {
                     token.notificationsPush = dbUser.notificationsPush;
                 }
             }
-            // Re-validate that the stored id still exists in the DB (guards against DB resets)
-            if (token.id && token.email) {
+            // Re-validate that the stored id still exists in the DB (guards against DB
+            // resets). This callback runs on every getServerSession, i.e. every API
+            // call, so only re-check on sign-in/update or every 10 minutes.
+            const RECHECK_MS = 10 * 60 * 1000
+            const due = !!user || !!account || trigger === 'update' ||
+                !token.checkedAt || Date.now() - (token.checkedAt as number) > RECHECK_MS
+            if (token.id && token.email && due) {
+                token.checkedAt = Date.now()
                 const exists = await prisma.user.findUnique({
                     where: { id: token.id as string },
                     select: { id: true, notificationsEmail: true, notificationsPush: true },

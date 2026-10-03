@@ -19,6 +19,8 @@ declare module 'next-auth' {
         theme?: 'light' | 'dark' | 'system'
         notificationsEmail?: boolean
         notificationsPush?: boolean
+        /** When the user row was last confirmed to exist (ms since epoch) */
+        checkedAt?: number
     }
 }
 

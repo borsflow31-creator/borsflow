@@ -18,17 +18,23 @@ import Toast from '@/components/Toast';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import WorkspaceList from '@/components/workspace/WorkspaceList';
-import CreateWorkspaceModal from '@/components/workspace/CreateWorkspaceModal';
-import InviteUsersModal from '@/components/workspace/InviteUsersModal';
-import PendingInvitationsModal from '@/components/workspace/PendingInvitationsModal';
+import dynamic from 'next/dynamic';
 import {
-    fetchPendingInvitations,
     respondToInvitation,
     type PendingInvitation,
 } from '@/lib/invitations-client';
+import { cachedJson, peekCached, invalidateCached } from '@/lib/client-cache';
 import { Workspace } from '@/types';
 import { Role } from '@/lib/workspace';
-import AIChatPanel from '@/components/AIChatPanel';
+// Only downloaded when first opened, so they don't weigh on every page load.
+const CreateWorkspaceModal    = dynamic(() => import('@/components/workspace/CreateWorkspaceModal'), { ssr: false });
+const InviteUsersModal        = dynamic(() => import('@/components/workspace/InviteUsersModal'), { ssr: false });
+const PendingInvitationsModal = dynamic(() => import('@/components/workspace/PendingInvitationsModal'), { ssr: false });
+const AIChatPanel             = dynamic(() => import('@/components/AIChatPanel'), { ssr: false });
+
+const WORKSPACES_URL   = '/api/workspaces';
+const INVITATIONS_URL  = '/api/invitations/pending';
+const workspaceUrl = (id: string) => `/api/workspaces/${id}`;
 
 /* ─── Nav config ─────────────────────────────────────────── */
 const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: string; icon: typeof Home; basePath: string }[] }[] = [
@@ -126,7 +132,7 @@ export default function AppShell({
     const [isSidebarHovered, setIsSidebarHovered] = useState(false);
     const [toast,          setToast]          = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-    const [workspaces,           setWorkspaces]           = useState<Workspace[]>([]);
+    const [workspaces,           setWorkspaces]           = useState<Workspace[]>(() => peekCached<{ workspaces?: Workspace[] }>(WORKSPACES_URL)?.workspaces || []);
     const [isLoadingWorkspaces,  setIsLoadingWorkspaces]  = useState(false);
     const [fetchedWorkspace,     setFetchedWorkspace]     = useState<{
         id: string; name: string; icon?: string;
@@ -138,12 +144,15 @@ export default function AppShell({
 
     const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
     const [showInviteUsersModal,     setShowInviteUsersModal]     = useState(false);
-    const [pendingInvitations,        setPendingInvitations]        = useState<PendingInvitation[]>([]);
+    const [pendingInvitations,        setPendingInvitations]        = useState<PendingInvitation[]>(() => peekCached<{ invitations?: PendingInvitation[] }>(INVITATIONS_URL)?.invitations || []);
     const [isLoadingInvitations,      setIsLoadingInvitations]      = useState(false);
     const [showPendingInvitations,    setShowPendingInvitations]    = useState(false);
     const [respondingInvitationId,    setRespondingInvitationId]    = useState<string | null>(null);
     const [respondingChoice,          setRespondingChoice]          = useState<'accept' | 'decline' | null>(null);
     const [aiPanelOpen,             setAiPanelOpen]              = useState(false);
+    // Keep the panel mounted after its first open so a closed chat keeps its history
+    const [aiPanelLoaded,           setAiPanelLoaded]            = useState(false);
+    useEffect(() => { if (aiPanelOpen) setAiPanelLoaded(true); }, [aiPanelOpen]);
     const [firstPageId,              setFirstPageId]              = useState<string | null>(null);
     const [showUserMenu,             setShowUserMenu]             = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
@@ -157,15 +166,14 @@ export default function AppShell({
     }, []);
 
     /* fetch all workspaces */
-    const fetchWorkspaces = useCallback(async () => {
+    const fetchWorkspaces = useCallback(async (force = false) => {
         if (!session?.user?.id) return;
-        setIsLoadingWorkspaces(true);
+        if (force) invalidateCached(WORKSPACES_URL);
+        // Only show the loading state when there's nothing cached to display
+        if (!peekCached(WORKSPACES_URL)) setIsLoadingWorkspaces(true);
         try {
-            const res = await fetch('/api/workspaces');
-            if (res.ok) {
-                const data = await res.json();
-                setWorkspaces(data.workspaces || []);
-            }
+            const data = await cachedJson<{ workspaces?: Workspace[] }>(WORKSPACES_URL);
+            setWorkspaces(data.workspaces || []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -176,11 +184,15 @@ export default function AppShell({
     useEffect(() => { fetchWorkspaces(); }, [fetchWorkspaces]);
 
     /* invitations addressed to the current user */
-    const loadPendingInvitations = useCallback(async () => {
+    const loadPendingInvitations = useCallback(async (force = false) => {
         if (!session?.user?.id) return;
-        setIsLoadingInvitations(true);
+        if (force) invalidateCached(INVITATIONS_URL);
+        if (!peekCached(INVITATIONS_URL)) setIsLoadingInvitations(true);
         try {
-            setPendingInvitations(await fetchPendingInvitations());
+            const data = await cachedJson<{ invitations?: PendingInvitation[] }>(INVITATIONS_URL);
+            setPendingInvitations(Array.isArray(data.invitations) ? data.invitations : []);
+        } catch {
+            setPendingInvitations([]);
         } finally {
             setIsLoadingInvitations(false);
         }
@@ -188,64 +200,50 @@ export default function AppShell({
 
     useEffect(() => { loadPendingInvitations(); }, [loadPendingInvitations]);
 
-    /* fetch current workspace details + role */
-    useEffect(() => {
-        const run = async () => {
-            const wsId = currentWorkspaceId || workspace?.id;
-            if (wsId) {
-                try {
-                    const res = await fetch(`/api/workspaces/${wsId}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (!workspace) setFetchedWorkspace(data.workspace);
-                        if (session?.user?.id && data.workspace) {
-                            const ws = data.workspace;
-                            if (ws.ownerId === session.user.id) {
-                                setUserRole('owner');
-                            } else {
-                                const member = ws.members?.find((m: { userId: string; role: string }) => m.userId === session.user.id);
-                                setUserRole(member ? (member.role as Role) : 'viewer');
-                            }
-                        }
-                    }
-                } catch (e) { console.error(e); }
-            } else if (!wsId) {
-                setFetchedWorkspace(null);
-                // Derive role from first available workspace so invite works on non-workspace pages
-                const fallbackWs = workspaces[0];
-                if (fallbackWs && session?.user?.id) {
-                    const res2 = await fetch(`/api/workspaces/${fallbackWs.id}`).catch(() => null);
-                    if (res2?.ok) {
-                        const data2 = await res2.json();
-                        const ws2 = data2.workspace;
-                        if (ws2?.ownerId === session.user.id) {
-                            setUserRole('owner');
-                        } else {
-                            const member = ws2?.members?.find((m: { userId: string; role: string }) => m.userId === session.user.id);
-                            setUserRole(member ? (member.role as Role) : 'viewer');
-                        }
-                    } else {
-                        setUserRole('viewer');
-                    }
-                } else {
-                    setUserRole('viewer');
-                }
+    /* current workspace details: role, first page, name — one cached request */
+    const applyWorkspaceDetail = useCallback((ws: any, isCurrent: boolean) => {
+        if (!ws) return;
+        if (isCurrent) {
+            if (!workspace) setFetchedWorkspace(ws);
+            setFirstPageId(ws.pages?.[0]?.id ?? null);
+        }
+        if (session?.user?.id) {
+            if (ws.ownerId === session.user.id) {
+                setUserRole('owner');
+            } else {
+                const member = ws.members?.find((m: { userId: string; role: string }) => m.userId === session.user.id);
+                setUserRole(member ? (member.role as Role) : 'viewer');
             }
-        };
-        run();
-    }, [currentWorkspaceId, workspace?.id, session?.user?.id, workspaces]);
+        }
+    }, [workspace, session?.user?.id]);
 
-    /* fetch first page id for Pages nav link */
+    const wsId = currentWorkspaceId || workspace?.id;
+    // The role fallback below needs a workspace only when none is selected; keying
+    // on its id (not the whole list) stops the effect re-running on every list refresh.
+    const fallbackWsId = wsId ? null : workspaces[0]?.id ?? null;
+
     useEffect(() => {
-        if (!currentWorkspaceId) { setFirstPageId(null); return; }
-        fetch(`/api/workspaces/${currentWorkspaceId}`)
-            .then(r => r.json())
-            .then(data => {
-                const pages = data.workspace?.pages;
-                setFirstPageId(pages?.[0]?.id ?? null);
-            })
-            .catch(() => setFirstPageId(null));
-    }, [currentWorkspaceId]);
+        let cancelled = false;
+        if (wsId) {
+            const cached = peekCached<{ workspace?: any }>(workspaceUrl(wsId));
+            if (cached?.workspace) applyWorkspaceDetail(cached.workspace, true);
+            cachedJson<{ workspace?: any }>(workspaceUrl(wsId))
+                .then(data => { if (!cancelled) applyWorkspaceDetail(data.workspace, true); })
+                .catch(() => { if (!cancelled) setFirstPageId(null); });
+        } else {
+            setFetchedWorkspace(null);
+            setFirstPageId(null);
+            // Derive role from the first available workspace so invite works on non-workspace pages
+            if (fallbackWsId && session?.user?.id) {
+                cachedJson<{ workspace?: any }>(workspaceUrl(fallbackWsId))
+                    .then(data => { if (!cancelled) applyWorkspaceDetail(data.workspace, false); })
+                    .catch(() => { if (!cancelled) setUserRole('viewer'); });
+            } else {
+                setUserRole('viewer');
+            }
+        }
+        return () => { cancelled = true; };
+    }, [wsId, fallbackWsId, session?.user?.id, applyWorkspaceDetail]);
 
     const effectiveWorkspace = workspace || fetchedWorkspace;
     const canInviteUsers     = ['owner', 'admin'].includes(userRole);
@@ -345,7 +343,7 @@ export default function AppShell({
 
     const handleCreateWorkspace = async (newWs: Workspace) => {
         setToast({ message: t('shell.workspaceCreated'), type: 'success' });
-        await fetchWorkspaces();
+        await fetchWorkspaces(true);
         handleWorkspaceSelect(newWs.id);
     };
 
@@ -366,7 +364,7 @@ export default function AppShell({
 
         if (choice === 'decline') {
             setToast({ message: t('shell.invitationDeclined'), type: 'success' });
-            await loadPendingInvitations();
+            await loadPendingInvitations(true);
             return;
         }
 
@@ -378,7 +376,7 @@ export default function AppShell({
         });
         // Refresh both lists: without the workspaces refetch the newly joined
         // workspace would be missing from the switcher until a full reload.
-        await Promise.all([fetchWorkspaces(), loadPendingInvitations()]);
+        await Promise.all([fetchWorkspaces(true), loadPendingInvitations(true)]);
         const workspaceId = result.workspaceId ?? invitation?.workspace.id;
         if (workspaceId) {
             setShowPendingInvitations(false);
@@ -812,19 +810,19 @@ export default function AppShell({
             )}
 
             {/* ── Modals ── */}
-            <CreateWorkspaceModal
+            {showCreateWorkspaceModal && <CreateWorkspaceModal
                 isOpen={showCreateWorkspaceModal}
                 onClose={() => setShowCreateWorkspaceModal(false)}
                 onSuccess={handleCreateWorkspace}
-            />
-            <InviteUsersModal
+            />}
+            {showInviteUsersModal && <InviteUsersModal
                 isOpen={showInviteUsersModal}
                 onClose={() => setShowInviteUsersModal(false)}
                 workspaceId={effectiveWorkspace?.id || workspaces[0]?.id || ''}
                 workspaceName={effectiveWorkspace?.name || workspaces[0]?.name || ''}
                 userRole={userRole}
-            />
-            <PendingInvitationsModal
+            />}
+            {showPendingInvitations && <PendingInvitationsModal
                 isOpen={showPendingInvitations}
                 onClose={() => setShowPendingInvitations(false)}
                 invitations={pendingInvitations}
@@ -832,10 +830,10 @@ export default function AppShell({
                 onRespond={handleRespondToInvitation}
                 respondingId={respondingInvitationId}
                 respondingChoice={respondingChoice}
-            />
+            />}
 
             {/* ── AI Chat Panel ── */}
-            <AIChatPanel isOpen={aiPanelOpen} onClose={() => setAiPanelOpen(false)} workspaceId={currentWorkspaceId} />
+            {aiPanelLoaded && <AIChatPanel isOpen={aiPanelOpen} onClose={() => setAiPanelOpen(false)} workspaceId={currentWorkspaceId} />}
         </div>
     );
 }

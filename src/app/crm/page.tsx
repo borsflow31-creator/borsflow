@@ -15,6 +15,7 @@ import ImportModal from '@/components/crm/ImportModal';
 import { useAppStore } from '@/store/appStore';
 import Toast from '@/components/Toast';
 import SelectRefined from '@/components/ui/SelectRefined';
+import { cachedJson } from '@/lib/client-cache';
 
 interface Pipeline {
     id: string;
@@ -140,11 +141,8 @@ function CRMPageInner() {
 
     const fetchWorkspace = async () => {
         try {
-            const response = await fetch(`/api/workspaces/${effectiveWorkspaceId}`);
-            if (response.ok) {
-                const data = await response.json();
-                setWorkspaceName(data.workspace.name);
-            }
+            const data = await cachedJson(`/api/workspaces/${effectiveWorkspaceId}`);
+            setWorkspaceName(data.workspace?.name || '');
         } catch (error) {
             console.error('Error fetching workspace:', error);
         }

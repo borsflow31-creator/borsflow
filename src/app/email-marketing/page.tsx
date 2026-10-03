@@ -53,6 +53,7 @@ import {
   RefreshCw,
   Server
 } from 'lucide-react'
+import { cachedJson, CachedFetchError } from '@/lib/client-cache'
 
 // Types based on Prisma schema
 interface EmailCampaign {
@@ -198,14 +199,13 @@ function EmailMarketingPageInner() {
   const fetchData = async (wsId: string, validateWorkspace = false) => {
     if (initialLoad) setLoading(true)
     try {
-      // On first load, verify the workspace still exists (guards against stale persisted IDs)
+      // On first load, verify the workspace still exists (guards against stale
+      // persisted IDs). Shares the shell's cached request and runs alongside the
+      // list fetches instead of before them.
       if (validateWorkspace) {
-        const wsCheck = await fetch(`/api/workspaces/${wsId}`)
-        if (wsCheck.status === 404) {
-          setWorkspace(null)
-          setLoading(false)
-          return
-        }
+        cachedJson(`/api/workspaces/${wsId}`).catch((err: unknown) => {
+          if (err instanceof CachedFetchError && err.status === 404) setWorkspace(null)
+        })
       }
 
       // Load every tab's list in parallel; one failing list doesn't block the others

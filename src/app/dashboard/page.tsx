@@ -8,6 +8,7 @@ import AppShell from '@/components/AppShell'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n/I18nProvider'
 import { TrendingUp, Clock, AlertCircle, FileText as FileTextIcon } from 'lucide-react'
+import { cachedJson, invalidateCached } from '@/lib/client-cache'
 
 interface Workspace {
     id: string
@@ -74,8 +75,7 @@ export default function DashboardPage() {
 
     const fetchWorkspaces = async () => {
         try {
-            const response = await fetch('/api/workspaces')
-            const data = await response.json()
+            const data = await cachedJson('/api/workspaces')
             const ws: Workspace[] = data.workspaces || []
             setWorkspaces(ws)
             // Load analytics once we have the first workspace id
@@ -132,6 +132,7 @@ export default function DashboardPage() {
             })
 
             if (response.ok) {
+                invalidateCached('/api/workspaces')
                 const data = await response.json()
                 setWorkspaces([...workspaces, data.workspace])
                 setNewWorkspaceName('')

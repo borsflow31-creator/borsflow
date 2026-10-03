@@ -10,6 +10,7 @@ import { EmailStarterTemplate } from '@/lib/email-starter-templates'
 import { useAppStore } from '@/store/appStore'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { useI18n } from '@/i18n/I18nProvider'
+import { cachedJson } from '@/lib/client-cache'
 
 function TemplatesPageInner() {
   const { t } = useI18n()
@@ -35,8 +36,7 @@ function TemplatesPageInner() {
     }
 
     if (session?.user) {
-      fetch('/api/workspaces')
-        .then((response) => response.json())
+      cachedJson('/api/workspaces')
         .then((data) => {
           const workspace = Array.isArray(data) ? data[0] : data?.workspaces?.[0]
           if (workspace?.id) {
