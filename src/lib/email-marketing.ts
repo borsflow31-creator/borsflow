@@ -18,6 +18,8 @@ export interface EmailData {
   from?: string
   replyTo?: string
   metadata?: Record<string, any>
+  /** Files such as a quote/invoice PDF. Buffers; each provider encodes them as its API needs. */
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
 }
 
 // Send result structure
@@ -196,6 +198,7 @@ export class EmailMarketingService {
               html: email.html,
               text: email.text,
               replyTo: email.replyTo || config.replyTo,
+              attachments: email.attachments?.map(a => ({ filename: a.filename, content: a.content })),
               tags: email.metadata ? Object.entries(email.metadata).filter(([_, v]) => v).map(([k, v]) => ({ name: k, value: String(v) })) : undefined
             })
             
@@ -215,6 +218,9 @@ export class EmailMarketingService {
               htmlContent: email.html,
             }
             if (email.text) payload.textContent = email.text
+            if (email.attachments?.length) {
+              payload.attachment = email.attachments.map(a => ({ name: a.filename, content: a.content.toString('base64') }))
+            }
             const replyToEmail = email.replyTo || config.replyTo
             if (replyToEmail) payload.replyTo = { email: replyToEmail }
             if (email.metadata) {

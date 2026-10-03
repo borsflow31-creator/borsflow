@@ -507,6 +507,15 @@ export interface Messages {
     workspaceNamePlaceholder: string;
     workspaceDescriptionPlaceholder: string;
   };
+  documentSender: {
+    sender: {
+      label: string;
+      workspaceDetail: string;
+      platformTitle: string;
+      platformDetail: string;
+      yourWorkspace: string;
+    };
+  };
   emailMarketing: {
     tabs: {
       campaigns: string;
@@ -4729,6 +4738,15 @@ const en: Messages = {
       downloadPdf: 'Download PDF',
       sentBy: 'Sent by {name}',
       notAvailableTitle: 'This document is not available',
+    },
+  },
+  documentSender: {
+    sender: {
+      label: 'Send from',
+      workspaceDetail: 'Your connected email address',
+      platformTitle: '{name} via BorsFlow',
+      platformDetail: "Sent from BorsFlow's address; replies go to your email",
+      yourWorkspace: 'Your workspace',
     },
   },
   emailMarketing: {

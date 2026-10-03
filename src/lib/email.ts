@@ -311,24 +311,44 @@ export interface EmailAttachment {
   contentType?: string
 }
 
+/**
+ * "Acme Ltd via BorsFlow <noreply@…>": the workspace's name, sent from the
+ * platform's verified address so it still passes SPF/DKIM. Quotes and invoices
+ * go out on behalf of a workspace, so its name is what the recipient expects.
+ */
+function getFromOnBehalfOf(senderName: string): string {
+  const configured = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
+  const address = configured.match(/<([^>]+)>/)?.[1] || configured
+  // Quotes, backslashes and line breaks would break or inject header fields
+  const name = senderName.replace(/["\\\r\n<>]/g, '').trim().slice(0, 80)
+  return name ? `"${name} via BorsFlow" <${address}>` : getFrom()
+}
+
 export async function sendTransactionalEmail({
   to,
   subject,
   html,
   attachments,
+  senderName,
+  replyTo,
 }: {
   to: string
   subject: string
   html: string
   attachments?: EmailAttachment[]
+  /** Shown as "<senderName> via BorsFlow"; omit for platform emails. */
+  senderName?: string
+  /** Where the recipient's reply goes, e.g. the user who sent the quote. */
+  replyTo?: string
 }): Promise<void> {
-  const from = getFrom()
+  const from = senderName ? getFromOnBehalfOf(senderName) : getFrom()
 
   if (EMAIL_PROVIDER === 'smtp') {
     const transporter = getSmtpTransporter()
     await transporter.sendMail({
       from,
       to,
+      replyTo,
       subject,
       html,
       // Nodemailer takes the buffer directly.
@@ -342,6 +362,7 @@ export async function sendTransactionalEmail({
     await sendViaResend({
       from,
       to,
+      replyTo,
       subject,
       html,
       // Resend's API expects the file contents base64-encoded.

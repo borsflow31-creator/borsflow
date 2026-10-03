@@ -44,13 +44,25 @@ export class MailgunProvider implements EmailProvider {
 
       const credentials = Buffer.from(`api:${this.config.apiKey}`).toString('base64')
 
+      // Files need multipart/form-data; fetch sets that content type (with its
+      // boundary) itself when given a FormData body.
+      let body: string | FormData = formData.toString()
+      const headers: Record<string, string> = { Authorization: `Basic ${credentials}` }
+      if (email.attachments?.length) {
+        const multipart = new FormData()
+        formData.forEach((value, key) => multipart.append(key, value))
+        for (const a of email.attachments) {
+          multipart.append('attachment', new Blob([new Uint8Array(a.content)], { type: a.contentType || 'application/octet-stream' }), a.filename)
+        }
+        body = multipart
+      } else {
+        headers['Content-Type'] = 'application/x-www-form-urlencoded'
+      }
+
       const res = await fetch(`${this.apiBase}/${this.domain}/messages`, {
         method: 'POST',
-        headers: {
-          Authorization: `Basic ${credentials}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: formData.toString()
+        headers,
+        body
       })
 
       if (!res.ok) {

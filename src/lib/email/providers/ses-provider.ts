@@ -32,15 +32,18 @@ export class SESProvider implements EmailProvider {
           : this.config.fromEmail,
         Destination: { ToAddresses: [email.to] },
         ReplyToAddresses: email.replyTo || this.config.replyTo ? [email.replyTo || this.config.replyTo!] : undefined,
-        Content: {
-          Simple: {
-            Subject: { Data: email.subject, Charset: 'UTF-8' },
-            Body: {
-              Html: { Data: email.html, Charset: 'UTF-8' },
-              ...(email.text ? { Text: { Data: email.text, Charset: 'UTF-8' } } : {})
+        // Simple content can't carry files; with attachments send a raw MIME message
+        Content: email.attachments?.length
+          ? { Raw: { Data: Buffer.from(buildMimeMessage(this.config, email)).toString('base64') } }
+          : {
+              Simple: {
+                Subject: { Data: email.subject, Charset: 'UTF-8' },
+                Body: {
+                  Html: { Data: email.html, Charset: 'UTF-8' },
+                  ...(email.text ? { Text: { Data: email.text, Charset: 'UTF-8' } } : {})
+                }
+              }
             }
-          }
-        }
       }
 
       const body = JSON.stringify(payload)
@@ -155,4 +158,56 @@ export class SESProvider implements EmailProvider {
       Authorization: authHeader
     }
   }
+}
+
+/** Base64 wrapped at 76 characters, as MIME requires. */
+function mimeBase64(data: Buffer | string): string {
+  return Buffer.from(data).toString('base64').replace(/.{76}(?=.)/g, '$&\r\n')
+}
+
+/** RFC 2047 encoding so non-ASCII subjects and names survive the headers. */
+function encodeHeader(value: string): string {
+  return /^[\x20-\x7e]*$/.test(value) ? value : `=?UTF-8?B?${Buffer.from(value).toString('base64')}?=`
+}
+
+/** multipart/mixed message: an HTML (+ text) body followed by the attachments. */
+function buildMimeMessage(config: EmailProviderConfig, email: EmailData): string {
+  const mixed = `bf-mixed-${Date.now().toString(36)}`
+  const alt = `bf-alt-${Date.now().toString(36)}`
+  const from = config.fromName ? `${encodeHeader(config.fromName)} <${config.fromEmail}>` : config.fromEmail
+  const replyTo = email.replyTo || config.replyTo
+  const lines = [
+    `From: ${from}`,
+    `To: ${email.to}`,
+    ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
+    `Subject: ${encodeHeader(email.subject)}`,
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/mixed; boundary="${mixed}"`,
+    '',
+    `--${mixed}`,
+    `Content-Type: multipart/alternative; boundary="${alt}"`,
+    '',
+    ...(email.text
+      ? [`--${alt}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', mimeBase64(email.text)]
+      : []),
+    `--${alt}`,
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    mimeBase64(email.html),
+    `--${alt}--`,
+  ]
+  for (const a of email.attachments || []) {
+    const name = a.filename.replace(/"/g, '')
+    lines.push(
+      `--${mixed}`,
+      `Content-Type: ${a.contentType || 'application/octet-stream'}; name="${name}"`,
+      `Content-Disposition: attachment; filename="${name}"`,
+      'Content-Transfer-Encoding: base64',
+      '',
+      mimeBase64(a.content)
+    )
+  }
+  lines.push(`--${mixed}--`, '')
+  return lines.join('\r\n')
 }

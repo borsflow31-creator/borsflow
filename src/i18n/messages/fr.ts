@@ -1883,6 +1883,15 @@ const fr: Messages = {
       notAvailableTitle: "Ce document n'est pas disponible",
     },
   },
+  documentSender: {
+    sender: {
+      label: 'Envoyer depuis',
+      workspaceDetail: 'Votre adresse e-mail connectée',
+      platformTitle: '{name} via BorsFlow',
+      platformDetail: 'Envoyé depuis l\'adresse de BorsFlow ; les réponses arrivent sur votre e-mail',
+      yourWorkspace: 'Votre espace de travail',
+    },
+  },
   emailMarketing: {
     tabs: {
       campaigns: 'Campagnes',

@@ -18,6 +18,8 @@ export interface EmailData {
   from?: string
   replyTo?: string
   metadata?: Record<string, any>
+  /** Files such as a quote/invoice PDF. Buffers; each provider encodes them as its API needs. */
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
 }
 
 export interface SendResult {

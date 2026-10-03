@@ -6,7 +6,7 @@ import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { escapeHtml, escapeHtmlMultiline } from '@/lib/html';
 import { renderDocumentPdf, pdfFilename } from '@/lib/documents/pdf';
 import { shareDocument } from '@/lib/documents/share';
-import { sendTransactionalEmail } from '@/lib/email';
+import { sendDocumentEmail, DocumentEmailError } from '@/lib/documents/send-email';
 
 // POST /api/invoices/[id]/send
 export async function POST(
@@ -49,6 +49,8 @@ export async function POST(
 
     const body = await request.json();
     const { to, subject, message } = body;
+    // 'workspace' = the workspace's own connected email; anything else = BorsFlow
+    const sendFrom = body.sendFrom === 'workspace' ? 'workspace' : 'platform';
 
     const recipientEmail = to || invoice.clientEmail;
     if (!recipientEmail) {
@@ -184,7 +186,11 @@ export async function POST(
       terms: invoice.terms,
     });
 
-    await sendTransactionalEmail({
+    await sendDocumentEmail({
+      sendFrom,
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+      replyTo: session.user.email,
       to: recipientEmail,
       subject: subject || `Invoice ${invoice.invoiceNumber} from ${workspace.name}`,
       html: emailHtml,
@@ -214,6 +220,9 @@ export async function POST(
       invoice: updatedInvoice,
     });
   } catch (error) {
+    if (error instanceof DocumentEmailError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error sending invoice:', error);
     return NextResponse.json({ error: 'Failed to send invoice' }, { status: 500 });
   }

@@ -34,7 +34,17 @@ export class SendGridProvider implements EmailProvider {
         content: [
           ...(email.text ? [{ type: 'text/plain', value: email.text }] : []),
           { type: 'text/html', value: email.html }
-        ]
+        ],
+        ...(email.attachments?.length
+          ? {
+              attachments: email.attachments.map(a => ({
+                content: a.content.toString('base64'),
+                filename: a.filename,
+                type: a.contentType || 'application/octet-stream',
+                disposition: 'attachment'
+              }))
+            }
+          : {})
       }
 
       const res = await fetch(SENDGRID_API_URL, {

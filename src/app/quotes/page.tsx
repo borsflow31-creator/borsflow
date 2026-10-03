@@ -17,6 +17,7 @@ import NoWorkspace from '@/components/NoWorkspace';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import type { Quote } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
+import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 interface Toast { id: number; message: string; type: 'success' | 'error' }
@@ -42,11 +43,13 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
 // ─── Send Email Modal ─────────────────────────────────────────────────────────
 function SendEmailModal({
   quoteId,
+  workspaceId,
   clientEmail,
   onClose,
   onSent,
 }: {
   quoteId: string;
+  workspaceId: string;
   clientEmail: string;
   onClose: () => void;
   onSent: () => void;
@@ -56,6 +59,7 @@ function SendEmailModal({
   const [subject, setSubject] = useState(t('quotes.list.sendModal.subjectDefault'));
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const sender = useDocumentSender(workspaceId);
 
   const handleSend = async () => {
     setSending(true);
@@ -63,7 +67,7 @@ function SendEmailModal({
       const res = await fetch(`/api/quotes/${quoteId}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, message }),
+        body: JSON.stringify({ to, subject, message, sendFrom: sender.sendFrom }),
       });
       if (!res.ok) throw new Error('Failed to send');
       onSent();
@@ -80,6 +84,7 @@ function SendEmailModal({
       <div className="bg-surface rounded-xl p-6 w-full max-w-md shadow-xl">
         <h2 className="text-lg font-semibold text-on-surface mb-4">{t('quotes.list.sendModal.title')}</h2>
         <div className="space-y-3 mb-4">
+          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.sendModal.to')}</label>
             <input
@@ -638,6 +643,7 @@ function QuotesPageInner() {
       {sendModal && (
         <SendEmailModal
           quoteId={sendModal.id}
+          workspaceId={sendModal.workspaceId}
           clientEmail={sendModal.clientEmail || ''}
           onClose={() => setSendModal(null)}
           onSent={() => addToast(t('quotes.list.toastSent'))}

@@ -17,6 +17,7 @@ import NoWorkspace from '@/components/NoWorkspace';
 import TemplatePickerModal from '@/components/templates/TemplatePickerModal';
 import type { Invoice } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
+import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
 // Loader2 is used in SendInvoiceModal
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -158,6 +159,7 @@ function SendInvoiceModal({
   const [subject, setSubject] = useState(t('invoices.sendModal.subjectTemplate', { number: invoice.invoiceNumber }));
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const sender = useDocumentSender(invoice.workspaceId);
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
@@ -167,7 +169,7 @@ function SendInvoiceModal({
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, message }),
+        body: JSON.stringify({ to, subject, message, sendFrom: sender.sendFrom }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -199,6 +201,7 @@ function SendInvoiceModal({
 
         {/* Fields */}
         <div className="space-y-3 mb-5">
+          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.sendModal.to')}</label>
             <input

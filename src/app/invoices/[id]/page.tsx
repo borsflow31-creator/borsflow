@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { Invoice, Payment } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
+import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({
@@ -145,6 +146,7 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
     dueDate: invoice.dueDate ? formatDate(invoice.dueDate, { month: 'short', day: 'numeric', year: 'numeric' }) : t('invoices.detail.sendModal.notAvailable'),
   }));
   const [sending, setSending] = useState(false);
+  const sender = useDocumentSender(invoice.workspaceId);
   const [error, setError] = useState<string | null>(null);
 
   const handleSend = async () => {
@@ -155,7 +157,7 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
       const res = await fetch(`/api/invoices/${invoice.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, message }),
+        body: JSON.stringify({ to, subject, message, sendFrom: sender.sendFrom }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -182,6 +184,7 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
         </div>
         <div className="p-6 space-y-4">
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
+          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.sendModal.to')}</label>
             <input type="email" value={to} onChange={(e) => setTo(e.target.value)}

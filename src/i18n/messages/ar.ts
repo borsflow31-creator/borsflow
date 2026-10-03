@@ -1883,6 +1883,15 @@ const ar: Messages = {
       notAvailableTitle: 'هذا المستند غير متاح',
     },
   },
+  documentSender: {
+    sender: {
+      label: 'الإرسال من',
+      workspaceDetail: 'عنوان بريدك الإلكتروني المتصل',
+      platformTitle: '{name} عبر BorsFlow',
+      platformDetail: 'يُرسل من عنوان BorsFlow؛ والردود تصل إلى بريدك',
+      yourWorkspace: 'مساحة عملك',
+    },
+  },
   emailMarketing: {
     tabs: {
       campaigns: 'الحملات',

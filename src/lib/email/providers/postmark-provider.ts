@@ -35,6 +35,13 @@ export class PostmarkProvider implements EmailProvider {
       }
 
       if (email.text) payload.TextBody = email.text
+      if (email.attachments?.length) {
+        payload.Attachments = email.attachments.map(a => ({
+          Name: a.filename,
+          Content: a.content.toString('base64'),
+          ContentType: a.contentType || 'application/octet-stream'
+        }))
+      }
       const replyTo = email.replyTo || this.config.replyTo
       if (replyTo) payload.ReplyTo = replyTo
       if (email.metadata) {
