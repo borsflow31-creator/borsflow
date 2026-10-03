@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { formatMoney } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { Product } from '@/types';
+import type { Product, ProductCustomField } from '@/types';
+import { formatCustomValue } from '@/lib/product-custom-fields';
+
+const MAX_CARD_CUSTOM_VALUES = 3;
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +16,8 @@ interface ProductCardProps {
   /** Viewers see the card read-only, with no actions menu. */
   canWrite?: boolean;
   currency?: string;
+  /** Workspace custom fields; up to 3 filled values show on the card */
+  customFields?: ProductCustomField[];
 }
 
 export default function ProductCard({
@@ -21,8 +26,14 @@ export default function ProductCard({
   onDelete,
   canWrite = true,
   currency = 'USD',
+  customFields = [],
 }: ProductCardProps) {
   const { t } = useI18n();
+  const boolLabels = { yes: t('products.customFields.yes'), no: t('products.customFields.no') };
+  const customValues = customFields
+    .map((field) => ({ field, text: formatCustomValue(product.customFields?.[field.key], boolLabels) }))
+    .filter((entry) => entry.text)
+    .slice(0, MAX_CARD_CUSTOM_VALUES);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -128,6 +139,20 @@ export default function ProductCard({
           </p>
         </div>
       </div>
+
+      {customValues.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {customValues.map(({ field, text }) => (
+            <span
+              key={field.id}
+              title={`${field.label}: ${text}`}
+              className="max-w-full truncate rounded-full bg-secondary/10 px-2.5 py-1 text-xs text-on-surface"
+            >
+              <span className="text-on-surface-variant">{field.label}:</span> {text}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

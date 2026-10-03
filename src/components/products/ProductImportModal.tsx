@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { FileSpreadsheet, Loader2, Upload, X } from 'lucide-react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FileSpreadsheet, Loader2, SlidersHorizontal, Upload, X } from 'lucide-react';
 import { MAX_IMPORT_PRODUCTS } from '@/lib/products';
 import {
   MAX_SPREADSHEET_BYTES,
@@ -17,6 +17,18 @@ import {
 } from '@/lib/spreadsheet';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { CSVImportResult, ProductCSVField } from '@/types';
+import {
+  CUSTOM_MAPPING_PREFIX,
+  coerceCustomValue,
+  guessFieldType,
+  normalizeHeader,
+} from '@/lib/product-custom-fields';
+import { useProductCustomFields } from './useProductCustomFields';
+import { NewCustomFieldForm, useFieldTypeLabels } from './ProductCustomFieldsModal';
+
+/** A column maps to a built-in field, a custom field (`custom:<key>`), or nothing. */
+type Mapping = ProductCSVField | `custom:${string}`;
+const NEW_FIELD_OPTION = '__new__';
 
 type Step = 'upload' | 'sheet' | 'map' | 'preview' | 'import' | 'done';
 
@@ -95,7 +107,14 @@ export default function ProductImportModal({
   const [sheetName, setSheetName] = useState('');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
-  const [mapping, setMapping] = useState<ProductCSVField[]>([]);
+  const [mapping, setMapping] = useState<Mapping[]>([]);
+  // Columns the user has set by hand; automatic matching never overrides those
+  const [touched, setTouched] = useState<Set<number>>(new Set());
+  // Column whose "create custom field" form is open
+  const [creatingFor, setCreatingFor] = useState<number | null>(null);
+  const { fields: customFields, create: createCustomField } = useProductCustomFields(workspaceId);
+  const typeLabels = useFieldTypeLabels();
+  const customByKey = useMemo(() => new Map(customFields.map((field) => [field.key, field])), [customFields]);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState<CSVImportResult | null>(null);
@@ -128,6 +147,8 @@ export default function ProductImportModal({
       setHeaders(headerRow);
       setRows(filledRows);
       setMapping(headerRow.map(autoMatch));
+      setTouched(new Set());
+      setCreatingFor(null);
       setError('');
       setStep('map');
     },
@@ -207,22 +228,83 @@ export default function ProductImportModal({
     [processFile]
   );
 
+  // Custom fields load after the file may already be mapped: match any column the
+  // user hasn't touched whose header equals a field's key or label.
+  useEffect(() => {
+    if (customFields.length === 0 || headers.length === 0) return;
+    setMapping((current) => current.map((value, index) => {
+      if (value !== '__skip__' || touched.has(index)) return value;
+      const header = normalizeHeader(headers[index] ?? '');
+      if (!header) return value;
+      const match = customFields.find(
+        (field) => normalizeHeader(field.key) === header || normalizeHeader(field.label) === header
+      );
+      return match ? (`${CUSTOM_MAPPING_PREFIX}${match.key}` as Mapping) : value;
+    }));
+  }, [customFields, headers, touched]);
+
+  const setColumnMapping = (index: number, value: Mapping) => {
+    setMapping((current) => {
+      const next = [...current];
+      next[index] = value;
+      return next;
+    });
+    setTouched((current) => new Set(current).add(index));
+  };
+
   const mappedProducts = useMemo(
     () =>
       rows.map((row) => {
-        const product: Record<string, string> = {};
+        const product: Record<string, string> & { customFields?: Record<string, string> } = {};
+        const custom: Record<string, string> = {};
         headers.forEach((_, index) => {
           const field = mapping[index];
-          if (field && field !== '__skip__') {
+          if (!field || field === '__skip__') return;
+          if (field.startsWith(CUSTOM_MAPPING_PREFIX)) {
+            custom[field.slice(CUSTOM_MAPPING_PREFIX.length)] = row[index] ?? '';
+          } else {
             product[field] = row[index] ?? '';
           }
         });
+        if (Object.keys(custom).length > 0) product.customFields = custom;
         return product;
       }),
     [headers, mapping, rows]
   );
 
-  const previewFields = PRODUCT_FIELDS.filter((field) => mapping.includes(field.key));
+  type PreviewColumn = { id: string; label: string; custom: boolean; read: (p: (typeof mappedProducts)[number]) => string };
+  const previewFields: PreviewColumn[] = [
+    ...PRODUCT_FIELDS.filter((field) => mapping.includes(field.key)).map((field) => ({
+      id: field.key, label: field.label, custom: false, read: (p: (typeof mappedProducts)[number]) => p[field.key] ?? '',
+    })),
+    ...customFields
+      .filter((field) => mapping.includes(`${CUSTOM_MAPPING_PREFIX}${field.key}` as Mapping))
+      .map((field) => ({
+        id: `${CUSTOM_MAPPING_PREFIX}${field.key}`, label: field.label, custom: true,
+        read: (p: (typeof mappedProducts)[number]) => p.customFields?.[field.key] ?? '',
+      })),
+  ];
+
+  // Same validation the server applies, so bad cells show before importing
+  const invalidCustomCells = useMemo(() => {
+    let count = 0;
+    for (const product of mappedProducts) {
+      for (const [key, raw] of Object.entries(product.customFields ?? {})) {
+        const def = customByKey.get(key);
+        if (def && !coerceCustomValue(def, raw).ok) count += 1;
+      }
+    }
+    return count;
+  }, [mappedProducts, customByKey]);
+
+  const createFieldForColumn = async (
+    index: number,
+    input: { label: string; key: string; type: import('@/types').ProductCustomFieldType }
+  ) => {
+    const field = await createCustomField(input);
+    setColumnMapping(index, `${CUSTOM_MAPPING_PREFIX}${field.key}` as Mapping);
+    setCreatingFor(null);
+  };
   const overRowLimit = mappedProducts.length > MAX_IMPORT_PRODUCTS;
   const canContinue = mapping.includes('name') && mapping.includes('price') && !overRowLimit;
 
@@ -436,6 +518,9 @@ export default function ProductImportModal({
           {step === 'map' ? (
             <div className="space-y-4">
               <p className="text-sm text-on-surface-variant">
+                {t('products.customFields.mappingHint')}
+              </p>
+              <p className="text-sm text-on-surface-variant">
                 {t('products.importModal.rowsFoundIn', {
                   count: rows.length.toLocaleString(),
                   source: sourceLabel,
@@ -459,7 +544,8 @@ export default function ProductImportModal({
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
                     {headers.map((header, index) => (
-                      <tr key={`${header}-${index}`}>
+                      <Fragment key={`${header}-${index}`}>
+                      <tr>
                         <td className="px-4 py-3 text-sm font-medium text-on-surface">
                           {header.trim() || t('products.importModal.unnamedColumn', { index: index + 1 })}
                         </td>
@@ -468,27 +554,59 @@ export default function ProductImportModal({
                         </td>
                         <td className="px-4 py-3">
                           <select
-                            value={mapping[index]}
+                            value={mapping[index] && (mapping[index] === '__skip__' || !mapping[index].startsWith(CUSTOM_MAPPING_PREFIX) || customByKey.has(mapping[index].slice(CUSTOM_MAPPING_PREFIX.length))) ? mapping[index] : '__skip__'}
                             aria-label={t('products.importModal.mapColumnAria', {
                               column: header.trim() || String(index + 1),
                             })}
                             onChange={(event) => {
-                              const next = [...mapping];
-                              next[index] = event.target.value as ProductCSVField;
-                              setMapping(next);
+                              if (event.target.value === NEW_FIELD_OPTION) {
+                                setCreatingFor(index);
+                                return;
+                              }
+                              setColumnMapping(index, event.target.value as Mapping);
                             }}
                             className="w-full rounded-lg bg-surface-container-high px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
                           >
                             <option value="__skip__">{t('products.importModal.skipOption')}</option>
-                            {PRODUCT_FIELDS.map((field) => (
-                              <option key={field.key} value={field.key}>
-                                {field.label}
-                                {field.required ? ' *' : ''}
-                              </option>
-                            ))}
+                            <optgroup label={t('products.customFields.builtInGroup')}>
+                              {PRODUCT_FIELDS.map((field) => (
+                                <option key={field.key} value={field.key}>
+                                  {field.label}
+                                  {field.required ? ' *' : ''}
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label={t('products.customFields.customGroup')}>
+                              {customFields.map((field) => (
+                                <option key={field.id} value={`${CUSTOM_MAPPING_PREFIX}${field.key}`}>
+                                  {field.label} ({typeLabels[field.type]})
+                                </option>
+                              ))}
+                              <option value={NEW_FIELD_OPTION}>{t('products.customFields.createFromColumn')}</option>
+                            </optgroup>
                           </select>
+                          {mapping[index]?.startsWith(CUSTOM_MAPPING_PREFIX) ? (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-secondary/10 px-2 py-0.5 text-[11px] font-medium text-secondary">
+                              <SlidersHorizontal className="h-3 w-3" />
+                              {t('products.customFields.customBadge')}
+                            </span>
+                          ) : null}
                         </td>
                       </tr>
+                      {creatingFor === index ? (
+                        <tr>
+                          <td colSpan={3} className="bg-surface-container-low/50 px-4 py-3">
+                            <NewCustomFieldForm
+                              compact
+                              initialLabel={header.trim()}
+                              initialType={guessFieldType(rows.slice(0, 50).map((row) => row[index] ?? ''))}
+                              onCreate={(input) => createFieldForColumn(index, input)}
+                              onCancel={() => setCreatingFor(null)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -501,6 +619,11 @@ export default function ProductImportModal({
               <p className="text-sm text-on-surface-variant">
                 {t('products.importModal.previewingRows', { count: Math.min(5, mappedProducts.length) })}
               </p>
+              {invalidCustomCells > 0 ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+                  {t('products.customFields.invalidSummary', { count: invalidCustomCells })}
+                </div>
+              ) : null}
 
               <div className="overflow-x-auto rounded-xl border border-outline-variant/10">
                 <table className="w-full min-w-[720px]">
@@ -508,10 +631,15 @@ export default function ProductImportModal({
                     <tr>
                       {previewFields.map((field) => (
                         <th
-                          key={field.key}
+                          key={field.id}
                           className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant"
                         >
                           {field.label}
+                          {field.custom ? (
+                            <span className="ml-1.5 rounded-full bg-secondary/10 px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-secondary">
+                              {t('products.customFields.customBadge')}
+                            </span>
+                          ) : null}
                         </th>
                       ))}
                     </tr>
@@ -519,11 +647,20 @@ export default function ProductImportModal({
                   <tbody className="divide-y divide-outline-variant/10">
                     {mappedProducts.slice(0, 5).map((product, index) => (
                       <tr key={`preview-${index}`}>
-                        {previewFields.map((field) => (
-                          <td key={field.key} className="px-4 py-3 text-sm text-on-surface">
-                            {product[field.key] || '—'}
-                          </td>
-                        ))}
+                        {previewFields.map((field) => {
+                          const value = field.read(product);
+                          const def = field.custom ? customByKey.get(field.id.slice(CUSTOM_MAPPING_PREFIX.length)) : undefined;
+                          const invalid = !!def && !coerceCustomValue(def, value).ok;
+                          return (
+                            <td
+                              key={field.id}
+                              title={invalid ? t('products.customFields.invalidCell', { type: typeLabels[def!.type] }) : undefined}
+                              className={`px-4 py-3 text-sm ${invalid ? 'bg-error/10 font-medium text-error' : 'text-on-surface'}`}
+                            >
+                              {value || '—'}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>

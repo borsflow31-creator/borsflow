@@ -19,6 +19,7 @@ export interface ProductRow {
   category: string | null;
   taxRate: number;
   stockQuantity: number | null;
+  customFields: Record<string, unknown> | null;
   isActive: boolean;
   createdById: string | null;
   createdAt: Date;

@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace';
 import { parseNumericField, toOptionalString, type ProductRow } from '@/lib/products';
-import { DUPLICATE_SKU_MESSAGE, isDuplicateSkuError } from '@/lib/products-server';
+import { DUPLICATE_SKU_MESSAGE, isDuplicateSkuError, loadCustomFieldDefs } from '@/lib/products-server';
+import { sanitizeCustomFields } from '@/lib/product-custom-fields';
 
 type AuthorizedProductResult =
   | { error: string; status: number }
@@ -85,6 +86,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: stockQuantity.message }, { status: 400 });
     }
 
+    // Only fields sent in the body change; others keep their stored value. A
+    // field sent as empty is cleared.
+    let customFieldsSql = Prisma.sql`"customFields"`;
+    if (body.customFields !== undefined) {
+      const defs = await loadCustomFieldDefs(result.product.workspaceId);
+      const custom = sanitizeCustomFields(defs, body.customFields);
+      if (!custom.ok) return NextResponse.json({ error: custom.message }, { status: 400 });
+      const sent = body.customFields && typeof body.customFields === 'object' ? Object.keys(body.customFields) : [];
+      const cleared = defs.map((def) => def.key).filter((key) => sent.includes(key) && !(key in custom.values));
+      customFieldsSql = Prisma.sql`(COALESCE("customFields", '{}'::jsonb) - ${cleared}::text[]) || ${JSON.stringify(custom.values)}::jsonb`;
+    }
+
     const [product] = await prisma.$queryRaw<ProductRow[]>(Prisma.sql`
       UPDATE "Product"
       SET
@@ -96,6 +109,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         "category" = ${toOptionalString(body.category)},
         "taxRate" = ${taxRate.value ?? 0},
         "stockQuantity" = ${stockQuantity.value},
+        "customFields" = ${customFieldsSql},
         "isActive" = ${body.isActive !== false},
         "updatedAt" = NOW()
       WHERE "id" = ${params.id}

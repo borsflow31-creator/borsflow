@@ -4,7 +4,9 @@
  * route handlers to be exported from `route.ts`.
  */
 import { Prisma } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import type { ProductSortKey } from '@/lib/products';
+import type { ProductCustomFieldType } from '@/types';
 
 /**
  * Whitelisted ORDER BY fragments. The client's `sort` value is narrowed to a known
@@ -38,3 +40,13 @@ export function isDuplicateSkuError(error: unknown) {
 }
 
 export const DUPLICATE_SKU_MESSAGE = 'A product with this SKU already exists in this workspace';
+
+/** The workspace's custom product field definitions, in display order. */
+export async function loadCustomFieldDefs(workspaceId: string) {
+  const rows = await prisma.productCustomField.findMany({
+    where: { workspaceId },
+    orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+    select: { id: true, workspaceId: true, key: true, label: true, type: true, position: true },
+  });
+  return rows.map((row) => ({ ...row, type: row.type as ProductCustomFieldType }));
+}

@@ -29,6 +29,7 @@ function NewProductPageInner() {
   const [taxRate, setTaxRate] = useState('0');
   const [stockQuantity, setStockQuantity] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -114,6 +115,7 @@ function NewProductPageInner() {
           taxRate,
           stockQuantity,
           isActive,
+          customFields: customFieldValues,
         }),
       });
 
@@ -201,6 +203,8 @@ function NewProductPageInner() {
             setIsActive={setIsActive}
             disabled={saving}
             openAIDefault={openAIDefault}
+            customFieldValues={customFieldValues}
+            onCustomFieldChange={(key, value) => setCustomFieldValues((current) => ({ ...current, [key]: value }))}
           />
         </div>
       </div>

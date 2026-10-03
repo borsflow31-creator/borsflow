@@ -29,6 +29,7 @@ function ProductDetailPageInner() {
   const [taxRate, setTaxRate] = useState('0');
   const [stockQuantity, setStockQuantity] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +91,9 @@ function ProductDetailPageInner() {
             : String(data.product.stockQuantity)
         );
         setIsActive(Boolean(data.product.isActive));
+        setCustomFieldValues(
+          data.product.customFields && typeof data.product.customFields === 'object' ? data.product.customFields : {}
+        );
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : t('products.detail.loadFailed'));
       } finally {
@@ -129,6 +133,7 @@ function ProductDetailPageInner() {
           taxRate,
           stockQuantity,
           isActive,
+          customFields: customFieldValues,
         }),
       });
 
@@ -257,6 +262,9 @@ function ProductDetailPageInner() {
               isActive={isActive}
               setIsActive={setIsActive}
               disabled={saving || !canWrite}
+              canManageFields={canWrite}
+              customFieldValues={customFieldValues}
+              onCustomFieldChange={(key, value) => setCustomFieldValues((current) => ({ ...current, [key]: value }))}
             />
           </div>
         )}

@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { CheckCircle, Package, Plus, Sparkles, Upload, XCircle } from 'lucide-react';
+import { CheckCircle, Package, Plus, SlidersHorizontal, Sparkles, Upload, XCircle } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import NoWorkspace from '@/components/NoWorkspace';
 import FilterBar from '@/components/documents/FilterBar';
@@ -11,6 +11,8 @@ import SelectRefined from '@/components/ui/SelectRefined';
 import ProductCard from '@/components/products/ProductCard';
 import ProductTable from '@/components/products/ProductTable';
 import ProductImportModal from '@/components/products/ProductImportModal';
+import ProductCustomFieldsModal from '@/components/products/ProductCustomFieldsModal';
+import { useProductCustomFields } from '@/components/products/useProductCustomFields';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
 import { buildPageWindow, errorFrom } from '@/lib/products';
@@ -109,6 +111,8 @@ function ProductsPageInner() {
   const [role, setRole] = useState<string | null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showFieldsModal, setShowFieldsModal] = useState(false);
+  const { fields: customFields } = useProductCustomFields(workspaceId);
   const [refreshKey, setRefreshKey] = useState(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -338,7 +342,7 @@ function ProductsPageInner() {
           </div>
 
           {canWrite ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => router.push(`/products/new?workspace=${workspaceId}&ai=1`)}
@@ -354,6 +358,17 @@ function ProductsPageInner() {
               >
                 <Upload className="h-4 w-4" strokeWidth={1.75} />
                 {t('products.import')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFieldsModal(true)}
+                className="flex items-center gap-2 rounded-lg border border-outline-variant/20 bg-surface px-4 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
+              >
+                <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
+                {t('products.customFields.title')}
+                {customFields.length > 0 ? (
+                  <span className="rounded-full bg-secondary/15 px-1.5 text-xs font-semibold text-secondary">{customFields.length}</span>
+                ) : null}
               </button>
               <button
                 type="button"
@@ -447,6 +462,7 @@ function ProductsPageInner() {
                 key={product.id}
                 product={product}
                 canWrite={canWrite}
+                customFields={customFields}
                 onEdit={() => router.push(`/products/${product.id}?workspace=${workspaceId}`)}
                 onDelete={() => handleDelete(product)}
               />
@@ -519,6 +535,10 @@ function ProductsPageInner() {
           </div>
         ) : null}
       </div>
+
+      {showFieldsModal ? (
+        <ProductCustomFieldsModal workspaceId={workspaceId} onClose={() => setShowFieldsModal(false)} />
+      ) : null}
 
       {showImportModal ? (
         <ProductImportModal

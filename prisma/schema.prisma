@@ -137,6 +137,7 @@ model Workspace {
   pipelines               Pipeline[]
   leadLists               LeadList[]
   channels                Channel[]
+  productCustomFields     ProductCustomField[]
   messages                Message[]
   comments                Comment[]
   invitations             Invitation[]
@@ -406,6 +407,8 @@ model Product {
   category      String?
   taxRate       Float     @default(0)
   stockQuantity Int?
+  // Values for the workspace's ProductCustomField definitions, keyed by field key.
+  customFields  Json      @default("{}")
   isActive      Boolean   @default(true)
   createdById   String?
   createdBy     User?     @relation("ProductCreator", fields: [createdById], references: [id])
@@ -417,6 +420,23 @@ model Product {
   @@index([workspaceId, updatedAt])
   @@index([category])
   @@index([isActive])
+}
+
+// A workspace-defined product attribute (e.g. unitsPerBox, brand). Values live
+// in Product.customFields under `key`, which never changes once created.
+model ProductCustomField {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  key         String
+  label       String
+  type        String    @default("text") // 'text' | 'number' | 'boolean' | 'date'
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, position])
 }
 
 model Message {

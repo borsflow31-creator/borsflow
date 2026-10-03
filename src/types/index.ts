@@ -430,10 +430,23 @@ export interface Product {
     category: string | null
     taxRate: number
     stockQuantity: number | null
+    /** Values for the workspace's custom product fields, keyed by field key */
+    customFields?: Record<string, unknown> | null
     isActive: boolean
     createdById: string | null
     createdAt: Date
     updatedAt: Date
+}
+
+export type ProductCustomFieldType = 'text' | 'number' | 'boolean' | 'date'
+
+export interface ProductCustomField {
+    id: string
+    workspaceId: string
+    key: string
+    label: string
+    type: ProductCustomFieldType
+    position: number
 }
 
 export interface ProductPickResult {

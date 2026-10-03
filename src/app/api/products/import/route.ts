@@ -9,7 +9,8 @@ import {
   toOptionalNumber,
   toOptionalString,
 } from '@/lib/products';
-import { DUPLICATE_SKU_MESSAGE, isDuplicateSkuError } from '@/lib/products-server';
+import { DUPLICATE_SKU_MESSAGE, isDuplicateSkuError, loadCustomFieldDefs } from '@/lib/products-server';
+import { coerceCustomValue } from '@/lib/product-custom-fields';
 
 interface ImportRow {
   name?: string;
@@ -20,6 +21,8 @@ interface ImportRow {
   category?: string;
   taxRate?: string | number;
   stockQuantity?: string | number;
+  /** Custom field key -> raw cell value */
+  customFields?: Record<string, unknown>;
 }
 
 export async function POST(request: NextRequest) {
@@ -46,6 +49,8 @@ export async function POST(request: NextRequest) {
     if ('error' in access) {
       return NextResponse.json({ error: access.error }, { status: access.status });
     }
+
+    const customDefs = await loadCustomFieldDefs(workspaceId);
 
     const result = {
       created: 0,
@@ -85,6 +90,22 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Custom values: unknown keys are ignored; a bad value skips the row like a bad price does.
+      const customValues: Record<string, string | number | boolean> = {};
+      let customError: string | null = null;
+      const rawCustom = row.customFields && typeof row.customFields === 'object' ? row.customFields : {};
+      for (const def of customDefs) {
+        if (!(def.key in rawCustom)) continue;
+        const coerced = coerceCustomValue(def, rawCustom[def.key]);
+        if (!coerced.ok) { customError = coerced.message; break; }
+        if (coerced.value !== null) customValues[def.key] = coerced.value;
+      }
+      if (customError) {
+        result.skipped += 1;
+        result.errors.push({ row: rowNumber, message: customError });
+        continue;
+      }
+
       try {
         const existing = row.sku
           ? await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
@@ -114,6 +135,7 @@ export async function POST(request: NextRequest) {
             "category",
             "taxRate",
             "stockQuantity",
+            "customFields",
             "isActive",
             "createdById",
             "createdAt",
@@ -130,6 +152,7 @@ export async function POST(request: NextRequest) {
             ${toOptionalString(row.category)},
             ${taxRate ?? 0},
             ${stockQuantity === null ? null : Math.round(stockQuantity)},
+            ${JSON.stringify(customValues)}::jsonb,
             true,
             ${access.session.user.id},
             NOW(),

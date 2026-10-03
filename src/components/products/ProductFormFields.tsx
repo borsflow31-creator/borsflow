@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, Sparkles, Wand2, X } from 'lucide-react';
+import { Loader2, Plus, SlidersHorizontal, Sparkles, Wand2, X } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useProductCustomFields } from './useProductCustomFields';
+import ProductCustomFieldsModal from './ProductCustomFieldsModal';
 
 interface ProductFormFieldsProps {
   workspaceId: string;
@@ -28,6 +30,11 @@ interface ProductFormFieldsProps {
   setIsActive: (value: boolean) => void;
   disabled?: boolean;
   openAIDefault?: boolean;
+  /** Custom field values keyed by field key (strings while editing, booleans for yes/no) */
+  customFieldValues?: Record<string, unknown>;
+  onCustomFieldChange?: (key: string, value: unknown) => void;
+  /** Viewers see values but can't open the field manager */
+  canManageFields?: boolean;
 }
 
 export default function ProductFormFields({
@@ -54,8 +61,13 @@ export default function ProductFormFields({
   setIsActive,
   disabled = false,
   openAIDefault = false,
+  customFieldValues = {},
+  onCustomFieldChange,
+  canManageFields = true,
 }: ProductFormFieldsProps) {
   const { t } = useI18n();
+  const { fields: customFields, loading: customFieldsLoading } = useProductCustomFields(workspaceId);
+  const [showFieldManager, setShowFieldManager] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -413,6 +425,79 @@ export default function ProductFormFields({
           />
         </div>
       </div>
+
+      {/* Custom fields defined for this workspace */}
+      <div className="rounded-xl border border-outline-variant/10 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium text-on-surface">
+              <SlidersHorizontal className="h-4 w-4 text-secondary" strokeWidth={1.75} />
+              {t('products.customFields.title')}
+            </p>
+            {customFields.length === 0 && !customFieldsLoading ? (
+              <p className="mt-1 text-sm text-on-surface-variant">{t('products.customFields.formEmpty')}</p>
+            ) : null}
+          </div>
+          {canManageFields ? (
+            <button
+              type="button"
+              onClick={() => setShowFieldManager(true)}
+              disabled={disabled}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-secondary transition-colors hover:bg-secondary/10 disabled:opacity-50"
+            >
+              <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
+              {t('products.customFields.manage')}
+            </button>
+          ) : null}
+        </div>
+
+        {customFields.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {customFields.map((field) => {
+              const value = customFieldValues[field.key];
+              const id = `custom-field-${field.key}`;
+              if (field.type === 'boolean') {
+                return (
+                  <div key={field.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-container-low px-3 py-2.5">
+                    <label htmlFor={id} className="text-sm font-medium text-on-surface-variant">{field.label}</label>
+                    <select
+                      id={id}
+                      value={value === true ? 'yes' : value === false ? 'no' : ''}
+                      onChange={(event) =>
+                        onCustomFieldChange?.(field.key, event.target.value === '' ? '' : event.target.value === 'yes')
+                      }
+                      disabled={disabled}
+                      className="rounded-lg bg-surface-container px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                    >
+                      <option value="">—</option>
+                      <option value="yes">{t('products.customFields.yes')}</option>
+                      <option value="no">{t('products.customFields.no')}</option>
+                    </select>
+                  </div>
+                );
+              }
+              return (
+                <div key={field.id}>
+                  <label htmlFor={id} className="mb-2 block text-sm font-medium text-on-surface-variant">{field.label}</label>
+                  <input
+                    id={id}
+                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                    step={field.type === 'number' ? 'any' : undefined}
+                    value={value === null || value === undefined ? '' : String(value)}
+                    onChange={(event) => onCustomFieldChange?.(field.key, event.target.value)}
+                    className={inputClassName}
+                    disabled={disabled}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+
+      {showFieldManager ? (
+        <ProductCustomFieldsModal workspaceId={workspaceId} onClose={() => setShowFieldManager(false)} />
+      ) : null}
 
       <div className="rounded-xl border border-outline-variant/10 bg-surface-container-low p-4">
         <div className="flex items-center justify-between gap-4">

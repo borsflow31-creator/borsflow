@@ -18,8 +18,10 @@ import {
 import {
   DUPLICATE_SKU_MESSAGE,
   isDuplicateSkuError,
+  loadCustomFieldDefs,
   PRODUCT_SORT_CLAUSES,
 } from '@/lib/products-server';
+import { sanitizeCustomFields } from '@/lib/product-custom-fields';
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
           OR COALESCE("description", '') ILIKE ${pattern}
           OR COALESCE("sku", '') ILIKE ${pattern}
           OR COALESCE("category", '') ILIKE ${pattern}
+          OR "customFields"::text ILIKE ${pattern}
         )`
       );
     }
@@ -144,6 +147,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: stockQuantity.message }, { status: 400 });
     }
 
+    const custom = sanitizeCustomFields(await loadCustomFieldDefs(workspaceId), body.customFields);
+    if (!custom.ok) return NextResponse.json({ error: custom.message }, { status: 400 });
+
     const productId = randomUUID();
 
     const [product] = await prisma.$queryRaw<ProductRow[]>(Prisma.sql`
@@ -158,6 +164,7 @@ export async function POST(request: NextRequest) {
         "category",
         "taxRate",
         "stockQuantity",
+        "customFields",
         "isActive",
         "createdById",
         "createdAt",
@@ -174,6 +181,7 @@ export async function POST(request: NextRequest) {
         ${toOptionalString(body.category)},
         ${taxRate.value ?? 0},
         ${stockQuantity.value},
+        ${JSON.stringify(custom.values)}::jsonb,
         ${body.isActive !== false},
         ${access.session.user.id},
         NOW(),

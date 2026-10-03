@@ -1858,6 +1858,42 @@ export interface Messages {
     };
   };
   products: {
+    customFields: {
+      title: string;
+      subtitle: string;
+      addField: string;
+      manage: string;
+      labelLabel: string;
+      labelPlaceholder: string;
+      typeLabel: string;
+      keyLabel: string;
+      keyHint: string;
+      typeText: string;
+      typeNumber: string;
+      typeBoolean: string;
+      typeDate: string;
+      yes: string;
+      no: string;
+      usage: string;
+      moveUp: string;
+      moveDown: string;
+      deleteNamed: string;
+      deleteTitle: string;
+      deleteBodyUsed: string;
+      deleteBodyUnused: string;
+      saveFailed: string;
+      emptyTitle: string;
+      emptyBody: string;
+      importHint: string;
+      formEmpty: string;
+      builtInGroup: string;
+      customGroup: string;
+      createFromColumn: string;
+      customBadge: string;
+      mappingHint: string;
+      invalidCell: string;
+      invalidSummary: string;
+    };
     detail: {
       loadFailed: string;
       saveFailed: string;
@@ -3476,6 +3512,42 @@ const en: Messages = {
     },
   },
   products: {
+    customFields: {
+      title: 'Custom fields',
+      subtitle: 'Add your own product attributes, like units per box, brand or weight. They appear on every product and in the import mapping.',
+      addField: 'Add field',
+      manage: 'Manage fields',
+      labelLabel: 'Field name',
+      labelPlaceholder: 'e.g. Units per box',
+      typeLabel: 'Type',
+      keyLabel: 'Key',
+      keyHint: 'Used to match spreadsheet columns. Can’t be changed later.',
+      typeText: 'Text',
+      typeNumber: 'Number',
+      typeBoolean: 'Yes / No',
+      typeDate: 'Date',
+      yes: 'Yes',
+      no: 'No',
+      usage: '{count} products with a value',
+      moveUp: 'Move up',
+      moveDown: 'Move down',
+      deleteNamed: 'Delete {name}',
+      deleteTitle: 'Delete the “{name}” field?',
+      deleteBodyUsed: 'Its value will be removed from {count} products. This can’t be undone.',
+      deleteBodyUnused: 'No products have a value for this field yet.',
+      saveFailed: 'Couldn’t save the field. Please try again.',
+      emptyTitle: 'No custom fields yet',
+      emptyBody: 'Create fields for anything your catalog needs. Existing products simply start with the field empty.',
+      importHint: 'Tip: when importing, pick “Create custom field from this column” to add a field without leaving the import.',
+      formEmpty: 'Add fields like brand or units per box to track more about each product.',
+      builtInGroup: 'Built-in fields',
+      customGroup: 'Custom fields',
+      createFromColumn: '+ Create custom field from this column…',
+      customBadge: 'Custom',
+      mappingHint: 'Map each column to a built-in field or one of your custom fields. Columns you don’t need can be skipped.',
+      invalidCell: 'Not a valid {type}',
+      invalidSummary: '{count} custom-field values don’t match their field type. Those rows will be skipped unless you fix the file or change the field type.',
+    },
     detail: {
       loadFailed: 'Failed to load product.',
       saveFailed: 'Failed to save product.',
