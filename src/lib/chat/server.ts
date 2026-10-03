@@ -1,11 +1,10 @@
 // Server-only helpers shared by the workspace chat API routes.
 //
-// Messages are written here first and then published to Ably by the server, as
-// the sending user. The database is the source of truth: what was saved is
+// Messages are written here first and then broadcast over Supabase Realtime by
+// the server. The database is the source of truth: what was saved is
 // exactly what was broadcast, and a message can't be lost from history because
 // the sender's tab closed between "sent live" and "archived".
 
-import Ably from 'ably'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { Prisma } from '@prisma/client'
@@ -13,7 +12,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { consumeRateLimits, rateLimitedResponse, type RateLimitRule } from '@/lib/api/rate-limit'
 import type { Role } from '@/lib/workspace'
-import { chatRoomName, chatSignalChannel } from '@/lib/chatRooms'
+import { chatRoomTopic, chatSignalChannel } from '@/lib/chatRooms'
 
 /* ─── Limits ──────────────────────────────────────────────────────────────── */
 
@@ -102,7 +101,7 @@ export function findVisibleChannel(access: ChatAccess, channelId: string) {
   return prisma.channel.findFirst({ where: { id: channelId, ...visibleChannelWhere(access) } })
 }
 
-/** Ids of every channel the user can see; used for search and the Ably token. */
+/** Ids of every channel the user can see; used for search. */
 export async function visibleChannelIds(access: ChatAccess): Promise<string[]> {
   const rows = await prisma.channel.findMany({ where: visibleChannelWhere(access), select: { id: true } })
   return rows.map(r => r.id)
@@ -152,7 +151,7 @@ export const messageInclude = {
 
 export type MessageWithRelations = Prisma.MessageGetPayload<{ include: typeof messageInclude }>
 
-/** Shape sent to the browser (REST responses and Ably metadata alike). */
+/** Shape sent to the browser (REST responses and realtime broadcasts alike). */
 export function presentMessage(m: MessageWithRelations) {
   const deleted = !!m.deletedAt
   const reactions: Record<string, string[]> = {}
@@ -174,7 +173,6 @@ export function presentMessage(m: MessageWithRelations) {
         : m.fileUrl,
     fileName: deleted ? null : m.fileName,
     fileType: deleted ? null : m.fileType,
-    ablySerial: m.ablySerial,
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
     deletedAt: m.deletedAt?.toISOString() ?? null,
@@ -188,56 +186,44 @@ export function presentMessage(m: MessageWithRelations) {
 
 export type PresentedMessage = ReturnType<typeof presentMessage>
 
-/* ─── Ably (server-side publishing) ───────────────────────────────────────── */
+/* ─── Realtime (server-side publishing) ──────────────────────────────────── */
 
-const ABLY_CHAT_API_VERSION = 4
-
-/** A REST client that publishes as `userId`, so receivers see the real author. */
-function ablyAs(userId: string) {
-  if (!process.env.ABLY_API_KEY) throw new Error('ABLY_API_KEY is not set')
-  return new Ably.Rest({ key: process.env.ABLY_API_KEY, clientId: userId, queryTime: true })
+/** What a chat channel's topic carries in its `message` event. */
+export type ChatMessageEvent = {
+  kind: 'created' | 'updated' | 'deleted'
+  message: PresentedMessage
+  /** Lets the sender's tab swap its optimistic bubble for the saved message. */
+  clientMsgId?: string
 }
 
-async function chatRequest(userId: string, method: 'POST' | 'PUT', path: string, body: unknown) {
-  const res = await ablyAs(userId).request(method, path, ABLY_CHAT_API_VERSION, {}, body as any)
-  if (!res.success) throw new Error(res.errorMessage || `Ably request failed (${res.statusCode})`)
-  return res.items[0] as { serial?: string; timestamp?: number } | undefined
+/**
+ * Broadcast on a private Supabase Realtime topic via `realtime.send`. Only the
+ * server writes messages and signals; RLS stops clients from doing the same.
+ */
+async function broadcast(topic: string, event: string, payload: unknown) {
+  await prisma.$executeRaw`select realtime.send(${JSON.stringify(payload)}::jsonb, ${event}, ${topic}, true)`
 }
 
-const roomPath = (workspaceId: string, channelId: string) =>
-  `/chat/v4/rooms/${encodeURIComponent(chatRoomName(workspaceId, channelId))}/messages`
+// Thread replies stay out of the channel topic; the thread panel follows them via signals.
+const roomOf = (m: PresentedMessage) =>
+  m.channelId && !m.parentId ? chatRoomTopic(m.workspaceId, m.channelId) : null
 
-/** Publish a saved message into its channel's room. Returns the Ably serial. */
-export async function publishChatMessage(
-  m: PresentedMessage,
-  clientMsgId: string | undefined,
-): Promise<string | undefined> {
-  if (!m.channelId) return undefined
-  const sent = await chatRequest(m.userId, 'POST', roomPath(m.workspaceId, m.channelId), {
-    text: m.content || m.fileName || 'Attachment',
-    // Ably metadata is a JSON object; receivers trust it because only the server publishes.
-    metadata: { messageId: m.id, fileOnly: !m.content && !!m.fileUrl, fileUrl: m.fileUrl, fileName: m.fileName, fileType: m.fileType },
-    headers: clientMsgId ? { clientMsgId } : {},
-  })
-  return sent?.serial
+/** Publish a saved message into its channel's topic. */
+export async function publishChatMessage(m: PresentedMessage, clientMsgId: string | undefined) {
+  const topic = roomOf(m)
+  if (topic) await broadcast(topic, 'message', { kind: 'created', message: m, clientMsgId } satisfies ChatMessageEvent)
 }
 
-/** Mirror an edit into the room so open clients update in place. */
+/** Mirror an edit into the topic so open clients update in place. */
 export async function publishChatEdit(m: PresentedMessage) {
-  if (!m.channelId || !m.ablySerial) return
-  await chatRequest(m.userId, 'PUT', `${roomPath(m.workspaceId, m.channelId)}/${encodeURIComponent(m.ablySerial)}`, {
-    message: {
-      text: m.content || m.fileName || 'Attachment',
-      metadata: { messageId: m.id, fileOnly: !m.content && !!m.fileUrl, fileUrl: m.fileUrl, fileName: m.fileName, fileType: m.fileType, editedAt: m.editedAt },
-      headers: {},
-    },
-  })
+  const topic = roomOf(m)
+  if (topic) await broadcast(topic, 'message', { kind: 'updated', message: m } satisfies ChatMessageEvent)
 }
 
-/** Mirror a delete into the room. `actorId` is whoever deleted it (author or moderator). */
-export async function publishChatDelete(m: PresentedMessage, actorId: string) {
-  if (!m.channelId || !m.ablySerial) return
-  await chatRequest(actorId, 'POST', `${roomPath(m.workspaceId, m.channelId)}/${encodeURIComponent(m.ablySerial)}/delete`, {})
+/** Mirror a delete into the topic. `m` is the already-tombstoned message. */
+export async function publishChatDelete(m: PresentedMessage) {
+  const topic = roomOf(m)
+  if (topic) await broadcast(topic, 'message', { kind: 'deleted', message: m } satisfies ChatMessageEvent)
 }
 
 export type ChatSignal =
@@ -248,13 +234,10 @@ export type ChatSignal =
 /**
  * Lightweight workspace-wide events (unread bumps, reactions, pins, thread
  * replies, channel list changes). Receivers only use them as a cue to refetch
- * from the API, so they carry ids, never content. Clients can subscribe but not
- * publish (see the token route).
+ * from the API, so they carry ids, never content.
  */
 export async function publishSignal(workspaceId: string, signal: ChatSignal) {
-  if (!process.env.ABLY_API_KEY) return
-  const rest = new Ably.Rest({ key: process.env.ABLY_API_KEY, queryTime: true })
-  await rest.channels.get(chatSignalChannel(workspaceId)).publish(signal.type, signal)
+  await broadcast(chatSignalChannel(workspaceId), 'signal', signal)
 }
 
 /** Realtime failures must not fail the request: the message is already saved. */

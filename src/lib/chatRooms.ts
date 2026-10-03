@@ -1,25 +1,16 @@
-// Pure naming helpers shared by the token route (server) and the chat UI (client).
-// Deliberately free of any `ably` import so it is safe in both bundles.
+// Pure naming helpers shared by the server (publishing) and the chat UI (subscribing).
+// The RLS policies in the chat_supabase_realtime migration parse these exact
+// formats, so change them together.
 
-/** Ably Chat room for one channel. The underlying Ably channel is `<room>::$chat`. */
-export function chatRoomName(workspaceId: string, channelId: string) {
-  return `ws:${workspaceId}:ch:${channelId}`
-}
-
-/** The Ably channel behind a chat room (Chat SDK convention). */
-export function chatRoomChannel(workspaceId: string, channelId: string) {
-  return `${chatRoomName(workspaceId, channelId)}::$chat`
+/** Supabase Realtime private topic for one chat channel: messages, typing, presence. */
+export function chatRoomTopic(workspaceId: string, channelId: string) {
+  return `chat:${workspaceId}:${channelId}`
 }
 
 /**
- * Workspace-wide signal channel: unread bumps, reactions, pins, thread replies,
- * channel list changes. Deliberately outside the `ws:` namespace so the room
- * capabilities never cover it; clients get subscribe-only access and only the
- * server publishes.
+ * Workspace-wide signal topic: unread bumps, reactions, pins, thread replies,
+ * channel list changes. Clients may only receive on it; only the server sends.
  */
 export function chatSignalChannel(workspaceId: string) {
   return `chatsig:${workspaceId}`
 }
-
-/** Typing and presence need publish/presence; history lets the SDK recover after reconnects. */
-export const CHAT_CAPABILITY_OPERATIONS = ['publish', 'subscribe', 'presence', 'history'] as const

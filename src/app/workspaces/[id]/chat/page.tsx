@@ -24,7 +24,7 @@ interface Workspace {
   members?: { user: WorkspaceUser }[];
 }
 
-// Client-only: keeps the Ably SDK out of the server bundle and guarantees no websocket is
+// Client-only: keeps the Realtime client out of the server bundle and guarantees no websocket is
 // ever opened during SSR.
 const ChatRealtimeProvider = dynamic(
   () => import("@/components/chat/ChatRealtimeProvider").then((m) => m.ChatRealtimeProvider),

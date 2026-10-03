@@ -104,7 +104,7 @@ export async function DELETE(_request: Request, { params }: Params) {
       .catch(logRealtimeError('remove attachment'))
   }
 
-  await publishChatDelete(deleted, access.userId).catch(logRealtimeError('publish delete'))
+  await publishChatDelete(deleted).catch(logRealtimeError('publish delete'))
   await publishSignal(params.id, {
     type: 'message-changed', channelId: message.channelId!, messageId: message.id, parentId: message.parentId,
   }).catch(logRealtimeError('signal'))

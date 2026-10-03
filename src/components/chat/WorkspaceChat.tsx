@@ -1,12 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useAbly } from 'ably/react'
-import { ChatRoomProvider } from '@ably/chat/react'
 import { Loader2, Hash, Lock, Plus, Trash2, ChevronDown, ChevronRight, Search, X } from 'lucide-react'
-import { chatRoomName } from '@/lib/chatRooms'
 import { useI18n } from '@/i18n/I18nProvider'
 import { ChannelView } from './ChannelView'
 import { ThreadPanel } from './ThreadPanel'
@@ -32,7 +29,6 @@ export function WorkspaceChat({ workspaceId, directory = EMPTY_DIRECTORY }: Work
   const { t } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const ably = useAbly()
   const api = useMemo(() => chatApi(workspaceId), [workspaceId])
 
   const [channels, setChannels] = useState<Channel[]>([])
@@ -106,13 +102,13 @@ export function WorkspaceChat({ workspaceId, directory = EMPTY_DIRECTORY }: Work
     setChannels(prev => prev.map(c => (c.id === channelId ? { ...c, unreadCount: 0 } : c)))
   }, [])
 
-  // Realtime: new messages elsewhere bump unread; channel changes refresh the list
-  // and the Ably token (so a new/joined private channel's room becomes reachable).
+  // Realtime: new messages elsewhere bump unread; channel changes refresh the list.
+  // No token refresh needed: Realtime checks channel membership when a topic is joined.
   const activeRef = useRef(activeChannelId)
   activeRef.current = activeChannelId
   useChatSignal(workspaceId, (signal) => {
     if (signal.type === 'channels-changed') {
-      void loadChannels().then(() => ably.auth.authorize().catch(() => {}))
+      void loadChannels()
       return
     }
     if (signal.type === 'message' && !signal.parentId && signal.userId !== myId && signal.channelId !== activeRef.current) {
@@ -329,8 +325,8 @@ export function WorkspaceChat({ workspaceId, directory = EMPTY_DIRECTORY }: Work
 
       <div className="flex min-w-0 flex-1">
         {activeChannel ? (
-          // One Ably room per channel; the key remounts room and view together on switch.
-          <ChatRoomProvider key={activeChannel.id} name={chatRoomName(workspaceId, activeChannel.id)}>
+          // The key remounts the view (and its Realtime topic) on channel switch.
+          <Fragment key={activeChannel.id}>
             <ChannelView
               workspaceId={workspaceId}
               channel={activeChannel}
@@ -354,7 +350,7 @@ export function WorkspaceChat({ workspaceId, directory = EMPTY_DIRECTORY }: Work
                 onClose={() => setUrl({ thread: null })}
               />
             )}
-          </ChatRoomProvider>
+          </Fragment>
         ) : (
           <div className="flex flex-1 flex-col">
             <div className="flex shrink-0 items-center gap-3 border-b border-outline-variant/20 bg-surface-container-low px-3 py-3 shadow-sm sm:px-5">
@@ -390,8 +386,7 @@ export function WorkspaceChat({ workspaceId, directory = EMPTY_DIRECTORY }: Work
           onCreated={(ch) => {
             setChannels(prev => (prev.some(c => c.id === ch.id) ? prev : [...prev, ch]))
             setShowCreateModal(false)
-            // The new room must be in our Ably token before we can attach to it
-            void ably.auth.authorize().catch(() => {}).finally(() => selectChannel(ch.id))
+            selectChannel(ch.id)
           }}
         />
       )}

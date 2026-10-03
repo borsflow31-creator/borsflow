@@ -63,7 +63,6 @@ export function rowToItem(row: MessageRow, directory: UserDirectory): ChatItem {
   return {
     key: row.id,
     id: row.id,
-    serial: row.ablySerial ?? undefined,
     text: row.content,
     userId: row.userId,
     displayName: resolveDisplayName(row.userId, directory, row.user),

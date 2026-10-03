@@ -15,7 +15,6 @@ export interface MessageRow {
   fileUrl: string | null
   fileName: string | null
   fileType: string | null
-  ablySerial?: string | null
   createdAt: string
   editedAt: string | null
   deletedAt: string | null
@@ -48,12 +47,18 @@ export interface ChatPermissions {
   canModerate: boolean
 }
 
+/** Payload of a channel topic's `message` broadcast (see ChatMessageEvent in src/lib/chat/server.ts). */
+export interface RoomMessageEvent {
+  kind: 'created' | 'updated' | 'deleted'
+  message: MessageRow
+  clientMsgId?: string
+}
+
 /** Unified view model for both API rows and live messages. */
 export interface ChatItem {
-  /** Stable React key: clientMsgId ?? id ?? serial. Never changes once assigned. */
+  /** Stable React key: clientMsgId ?? id. Never changes once assigned. */
   key: string
   clientMsgId?: string
-  serial?: string
   /** Database id; present once the server has saved the message. */
   id?: string
   text: string

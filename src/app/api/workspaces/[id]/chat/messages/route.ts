@@ -121,7 +121,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // POST /api/workspaces/[id]/chat/messages
-// Saves the message, then publishes it to the channel's Ably room as the sender.
+// Saves the message, then broadcasts it on the channel's Realtime topic.
 // Thread replies are not published to the room (they stay out of the main
 // timeline); open thread panels pick them up from the workspace signal.
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -177,20 +177,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     },
     include: messageInclude,
   })
-  let message = presentMessage(row)
+  const message = presentMessage(row)
 
-  if (!parentId) {
-    try {
-      const serial = await publishChatMessage(message, clientMsgId)
-      if (serial) {
-        const updated = await prisma.message.update({ where: { id: row.id }, data: { ablySerial: serial }, include: messageInclude })
-        message = presentMessage(updated)
-      }
-    } catch (err) {
-      // Saved but not delivered live: other members get it from catch-up / the signal.
-      logRealtimeError('publish message')(err)
-    }
-  }
+  // Saved but not delivered live: other members get it from catch-up / the signal.
+  if (!parentId) await publishChatMessage(message, clientMsgId).catch(logRealtimeError('publish message'))
 
   await publishSignal(params.id, {
     type: 'message',

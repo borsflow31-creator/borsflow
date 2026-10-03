@@ -6,8 +6,8 @@ type Params = { params: { id: string; channelId: string } }
 
 // PUT /api/workspaces/[id]/chat/channels/[channelId]/members  { memberIds: string[] }
 // Replaces a private channel's member list. The creator, owner or an admin can
-// manage it; the creator always stays a member. Removed members lose the room
-// from their next Ably token (at most 30 minutes) and the channel immediately.
+// manage it; the creator always stays a member. Removed members lose the channel
+// immediately and its Realtime topic the next time their client joins it.
 export async function PUT(req: Request, { params }: Params) {
   const result = await getChatAccess(params.id, { write: true })
   if ('error' in result) return result.error

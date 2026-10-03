@@ -3,14 +3,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { ArrowDown, Hash, Loader2, Lock, Menu, Pin, Users, X } from 'lucide-react'
-import {
-  ChatMessageEventType,
-  RoomStatus,
-  type ChatMessageEvent,
-  type Message,
-  type RoomStatusChange,
-} from '@ably/chat'
-import { useMessages, usePresence, usePresenceListener, useTyping } from '@ably/chat/react'
 import { useI18n } from '@/i18n/I18nProvider'
 import { MessageBubble, MessageText } from './MessageBubble'
 import { MessageComposer, type ComposerSendInput } from './MessageComposer'
@@ -18,7 +10,8 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { chatApi, newClientMsgId, sendWithAttachment } from './chatApi'
 import { dayKey, dayLabel, formatTime, getInitials, resolveDisplayName, rowToItem, safeFileUrl } from './chatFormat'
 import { useChatSignal } from './useChatSignal'
-import type { Channel, ChatItem, ChatPermissions, MessageRow, UserDirectory } from './types'
+import { useChannelRoom } from './useChannelRoom'
+import type { Channel, ChatItem, ChatPermissions, MessageRow, RoomMessageEvent, UserDirectory } from './types'
 
 const NEAR_BOTTOM_PX = 120
 const LOAD_OLDER_AT_PX = 80
@@ -28,8 +21,8 @@ const MARK_READ_DELAY_MS = 800
 /* ─── Merging rows, live messages and optimistic bubbles into one list ────── */
 
 /**
- * An incoming item that matches an existing one by clientMsgId, database id or
- * Ably serial REPLACES it in place (keeping its React key so the bubble doesn't
+ * An incoming item that matches an existing one by clientMsgId or database id
+ * REPLACES it in place (keeping its React key so the bubble doesn't
  * remount); otherwise it is added. Result is sorted by time, then id.
  */
 export function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
@@ -38,8 +31,7 @@ export function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
     next.findIndex(
       cur =>
         (inc.clientMsgId && cur.clientMsgId === inc.clientMsgId) ||
-        (inc.id && cur.id === inc.id) ||
-        (inc.serial && cur.serial === inc.serial),
+        (inc.id && cur.id === inc.id),
     )
   for (const inc of incoming) {
     const at = find(inc)
@@ -54,7 +46,6 @@ export function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
       key: cur.key,
       clientMsgId: cur.clientMsgId ?? inc.clientMsgId,
       id: inc.id ?? cur.id,
-      serial: inc.serial ?? cur.serial,
       pending: inc.pending ?? false,
       // A live echo can't know reactions/replies; keep what the API told us.
       reactions: inc.reactions ?? cur.reactions,
@@ -65,30 +56,6 @@ export function mergeItems(prev: ChatItem[], incoming: ChatItem[]): ChatItem[] {
   return next.sort(
     (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || ((a.id ?? a.key) < (b.id ?? b.key) ? -1 : 1),
   )
-}
-
-const str = (v: unknown) => (typeof v === 'string' ? v : null)
-
-/** A live Ably message becomes an item only if the server published it (carries our message id). */
-function liveToItem(message: Message, directory: UserDirectory): ChatItem | null {
-  const meta = (message.metadata ?? {}) as Record<string, unknown>
-  const id = str(meta.messageId)
-  if (!id) return null
-  const clientMsgId = str(message.headers?.clientMsgId) ?? undefined
-  return {
-    key: clientMsgId ?? id,
-    clientMsgId,
-    id,
-    serial: message.serial,
-    text: meta.fileOnly === true ? '' : message.text,
-    userId: message.clientId,
-    displayName: resolveDisplayName(message.clientId, directory),
-    fileUrl: safeFileUrl(meta.fileUrl),
-    fileName: str(meta.fileName),
-    fileType: str(meta.fileType),
-    createdAt: message.timestamp.toISOString(),
-    editedAt: str(meta.editedAt),
-  }
 }
 
 const cursorOf = (item: ChatItem) => `${item.createdAt}|${item.id}`
@@ -313,40 +280,29 @@ export function ChannelView({
     }
   }, [markRead])
 
-  /* ── Live: Ably room ── */
+  /* ── Live: the channel's Realtime topic ── */
 
-  const handleMessage = useCallback((event: ChatMessageEvent) => {
+  const handleMessage = useCallback((event: RoomMessageEvent) => {
     if (detachedRef.current) return
-    const msg = event.message
-    if (event.type === ChatMessageEventType.Created) {
-      const item = liveToItem(msg, directoryRef.current)
-      if (!item) return
+    const item = { ...rowToItem(event.message, directoryRef.current), clientMsgId: event.clientMsgId }
+    if (event.kind === 'created') {
       const known = itemsRef.current.some(i => (item.clientMsgId && i.clientMsgId === item.clientMsgId) || i.id === item.id)
       setItems(prev => mergeItems(prev, [item]))
       if (!known) onNewArrivals(item.userId === myId)
-    } else if (event.type === ChatMessageEventType.Updated) {
-      const item = liveToItem(msg, directoryRef.current)
-      if (item) setItems(prev => mergeItems(prev, [{ ...item, editedAt: item.editedAt ?? new Date().toISOString() }]))
-    } else if (event.type === ChatMessageEventType.Deleted) {
-      setItems(prev => prev.map(i => (i.serial === msg.serial
-        ? { ...i, text: '', fileUrl: null, fileName: null, fileType: null, deletedAt: new Date().toISOString(), reactions: {}, pinnedAt: null }
-        : i)))
+    } else if (itemsRef.current.some(i => i.id === item.id)) {
+      // Edits and deletes carry the full saved message, so they replace in place.
+      setItems(prev => mergeItems(prev, [item]))
     }
   }, [myId, onNewArrivals])
 
-  const handleRoomStatus = useCallback((change: RoomStatusChange) => {
-    if (change.current === RoomStatus.Attached) void catchUp()
-  }, [catchUp])
-
-  useMessages({ listener: handleMessage, onRoomStatusChange: handleRoomStatus, onDiscontinuity: () => void catchUp() })
-
-  const { currentlyTyping, keystroke, stop } = useTyping()
-  usePresence({ initialData: {} })
-  const { presenceData } = usePresenceListener()
+  const { onlineUserIds, typingUserIds, keystroke, stopTyping } = useChannelRoom(workspaceId, channelId, myId, {
+    onMessage: handleMessage,
+    onSubscribed: () => void catchUp(),
+  })
 
   const typingNames = useMemo(
-    () => Array.from(currentlyTyping).filter(id => id !== myId).map(id => directory[id]?.name ?? directory[id]?.email ?? t('chat.someone')),
-    [currentlyTyping, myId, directory, t],
+    () => typingUserIds.filter(id => id !== myId).map(id => directory[id]?.name ?? directory[id]?.email ?? t('chat.someone')),
+    [typingUserIds, myId, directory, t],
   )
   const typingText =
     typingNames.length === 0 ? ''
@@ -354,17 +310,11 @@ export function ChannelView({
         : typingNames.length === 2 ? t('chat.typingTwo', { first: typingNames[0], second: typingNames[1] })
           : t('chat.typingMany')
 
-  // One entry per user (two tabs = two presence members); names from the trusted directory.
-  const online = useMemo(() => {
-    const seen = new Set<string>()
-    const out: { id: string; name: string }[] = []
-    for (const member of presenceData) {
-      if (seen.has(member.clientId)) continue
-      seen.add(member.clientId)
-      out.push({ id: member.clientId, name: resolveDisplayName(member.clientId, directory) })
-    }
-    return out
-  }, [presenceData, directory])
+  // Presence is keyed by user id (two tabs = one entry); names from the trusted directory.
+  const online = useMemo(
+    () => onlineUserIds.map(id => ({ id, name: resolveDisplayName(id, directory) })),
+    [onlineUserIds, directory],
+  )
 
   /* ── Workspace signals: reactions, pins, edits, thread replies, missed messages ── */
 
@@ -423,7 +373,7 @@ export function ChannelView({
     }
     scrollToBottomNext.current = 'smooth'
     setItems(prev => mergeItems(prev, [optimistic]))
-    void stop().catch(() => {})
+    stopTyping()
     try {
       const row = await sendWithAttachment(api, { channelId, content, file, clientMsgId })
       setItems(prev => mergeItems(prev, [{ ...rowToItem(row, directoryRef.current), clientMsgId }]))
@@ -478,8 +428,8 @@ export function ChannelView({
 
   const onTyping = (hasText: boolean) => {
     if (!permissions.canWrite) return
-    if (hasText) void keystroke().catch(() => {}) // rejects until the room is attached
-    else void stop().catch(() => {})
+    if (hasText) keystroke()
+    else stopTyping()
   }
 
   /* ── Render ── */
