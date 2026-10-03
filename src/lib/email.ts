@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { Resend, type CreateEmailOptions } from 'resend'
 import nodemailer from 'nodemailer'
 import { escapeHtml } from '@/lib/html'
@@ -22,11 +23,20 @@ function getResend(): Resend {
  * like a successful send and the invitation UI reported "sent". Surface it as a
  * throw: every caller here already treats a throw as "not delivered".
  */
-async function sendViaResend(payload: CreateEmailOptions): Promise<void> {
-  const { error } = await getResend().emails.send(payload)
+async function sendViaResend(payload: CreateEmailOptions, idempotencyKey?: string): Promise<void> {
+  const { error } = await getResend().emails.send(payload, idempotencyKey ? { idempotencyKey } : undefined)
   if (error) {
     throw new Error(`${error.name}: ${error.message}`)
   }
+}
+
+/**
+ * The From header. A bare EMAIL_FROM shows up in inboxes as "noreply", so give
+ * it the product name unless the env value already carries a display name.
+ */
+function getFrom(): string {
+  const address = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
+  return address.includes('<') ? address : `BorsFlow <${address}>`
 }
 
 /**
@@ -221,15 +231,18 @@ export async function sendInvitationEmail(
   }
 
   const html = generateInvitationEmailTemplate(emailData)
-  const from = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
+  const from = getFrom()
   const subject = `You're invited to join ${workspaceName}`
 
   if (EMAIL_PROVIDER === 'smtp') {
     const transporter = getSmtpTransporter()
     await transporter.sendMail({ from, to: email, subject, html })
   } else {
-    // Default: Resend
-    await sendViaResend({ from, to: email, subject, html })
+    // Default: Resend. Every (re)send mints a new token, so keying on it lets
+    // Resend drop a duplicate of the same send without blocking a deliberate
+    // resend. Hashed: the token is the invitee's bearer credential.
+    const tokenHash = createHash('sha256').update(token).digest('hex').slice(0, 32)
+    await sendViaResend({ from, to: email, subject, html }, `invitation-${invitationId}-${tokenHash}`)
   }
 }
 
@@ -266,7 +279,7 @@ export async function sendVerificationEmail(
     footer: `Sent to ${escapeHtml(email)} because it was used to sign up for BorsFlow. Didn’t sign up? You can ignore this email.`,
   })
 
-  const from = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
+  const from = getFrom()
   const subject = `Verify your email address`
 
   if (EMAIL_PROVIDER === 'smtp') {
@@ -300,7 +313,7 @@ export async function sendTransactionalEmail({
   html: string
   attachments?: EmailAttachment[]
 }): Promise<void> {
-  const from = process.env.EMAIL_FROM || 'noreply@yourdomain.com'
+  const from = getFrom()
 
   if (EMAIL_PROVIDER === 'smtp') {
     const transporter = getSmtpTransporter()

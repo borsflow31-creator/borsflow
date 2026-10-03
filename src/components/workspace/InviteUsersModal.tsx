@@ -190,7 +190,7 @@ export default function InviteUsersModal({
             );
 
             const created: number = data.created ?? 0;
-            const undelivered = (data.undelivered ?? []) as { email: string; reason: 'suppressed' | 'provider_error' }[];
+            const undelivered = (data.undelivered ?? []) as { email: string; reason: 'suppressed' | 'provider_error'; message?: string }[];
 
             if (created > 0) {
                 if (undelivered.length === 0) {
@@ -204,7 +204,7 @@ export default function InviteUsersModal({
                     // The invitation rows exist even when no mail went out, so say
                     // which of the two actually happened rather than claiming "sent".
                     const suppressed = undelivered.filter(u => u.reason === 'suppressed').map(u => u.email);
-                    const failed = undelivered.filter(u => u.reason === 'provider_error').map(u => u.email);
+                    const failed = undelivered.filter(u => u.reason === 'provider_error');
                     const parts: string[] = [];
                     if (created - undelivered.length > 0) {
                         parts.push(`${created - undelivered.length} sent.`);
@@ -213,7 +213,14 @@ export default function InviteUsersModal({
                         parts.push(`Invitation created but no email was sent to ${suppressed.join(', ')} - that address has bounced before.`);
                     }
                     if (failed.length > 0) {
-                        parts.push(`Email delivery failed for ${failed.join(', ')}. Use Resend once email is configured.`);
+                        // Show the provider's own reason (usually an unverified sending
+                        // domain) - it is the one thing that tells the admin what to fix.
+                        const reasons = Array.from(new Set(failed.map(u => u.message).filter(Boolean)));
+                        parts.push(
+                            `Invitation created but the email to ${failed.map(u => u.email).join(', ')} was not sent` +
+                            (reasons.length > 0 ? `: ${reasons.join(' / ')}` : '.') +
+                            ' You can copy the invite link from the pending list.'
+                        );
                     }
                     setErrors({ submit: parts.join(' ') });
                 }

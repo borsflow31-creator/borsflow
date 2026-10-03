@@ -33,6 +33,8 @@ interface BulkError {
 interface Undelivered {
   email: string
   reason: 'suppressed' | 'provider_error'
+  /** The provider's own wording (e.g. Resend's "domain is not verified"), so the admin knows what to fix. */
+  message: string
 }
 
 /**
@@ -264,7 +266,7 @@ export async function POST(
         if (delivery.emailSent) {
           result.sent++
         } else {
-          result.undelivered.push({ email, reason: delivery.reason })
+          result.undelivered.push({ email, reason: delivery.reason, message: delivery.emailError })
         }
       } catch (error) {
         // Raw driver messages can leak schema details, so log them and give the
