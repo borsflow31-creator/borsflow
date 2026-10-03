@@ -41,3 +41,8 @@ brag-output*/
 # Claude Code folder: skills, agents and per-machine settings. The settings hold
 # allowed commands, which have included database credentials and local paths.
 /.claude/
+
+# Local helper scripts, reports and build cache (not part of the app)
+/scratch-*.ts
+/missing_*.json
+*.tsbuildinfo
