@@ -26,6 +26,7 @@ interface ModelPrice {
 export const MODEL_PRICING: Record<string, ModelPrice> = {
   'llama-3.1-8b-instant': { inputPerM: 0.05, outputPerM: 0.08 },
   'llama-3.3-70b-versatile': { inputPerM: 0.59, outputPerM: 0.79 },
+  'openai/gpt-oss-20b': { inputPerM: 0.075, outputPerM: 0.3 },
 }
 
 /** 1 credit = $0.001 of model spend. The single knob for what a credit is worth. */

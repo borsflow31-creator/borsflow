@@ -17,6 +17,8 @@ export interface EmailData {
   text?: string
   from?: string
   replyTo?: string
+  /** Display name for this one email, overriding the provider's configured name. */
+  fromName?: string
   metadata?: Record<string, any>
   /** Files such as a quote/invoice PDF. Buffers; each provider encodes them as its API needs. */
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>

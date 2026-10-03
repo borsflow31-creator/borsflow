@@ -97,7 +97,7 @@ interface InvitationEmailData {
 // grounds, and mail clients invert dark backgrounds unpredictably. Everything is
 // inline and table-based because clients drop CSS variables, clamp(), flexbox and
 // most <style> rules, so sizes are fixed steps from the documented type ramp.
-const EMAIL = {
+export const EMAIL = {
   ground: '#f7f7fa', // paper-base
   surface: '#ffffff', // paper-surface
   raised: '#f0f1f5', // paper-elevated
@@ -110,25 +110,57 @@ const EMAIL = {
 }
 
 /** One paragraph of body copy (the "lead" role at its email size). */
-function emailParagraph(html: string): string {
+export function emailParagraph(html: string): string {
   return `<p style="margin:0 0 12px;font-family:${EMAIL.text};font-size:16px;line-height:1.6;color:${EMAIL.ink};">${html}</p>`
+}
+
+/**
+ * Someone else's words quoted inside our own mail — a comment, a chat message, a
+ * cancellation reason. Set apart so the recipient can tell at a glance which
+ * part BorsFlow wrote and which part a person did. The raised ground and muted
+ * text carry that on their own; an accent rule down one side would only be
+ * decoration on top of a distinction the block already makes.
+ */
+export function emailQuote(html: string): string {
+  const { raised, muted, text } = EMAIL
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px;background:${raised};border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 16px;border-radius:12px;font-family:${text};font-size:14px;line-height:1.625;color:${muted};">${html}</td>
+                </tr>
+              </table>`
 }
 
 /**
  * The shared frame: wordmark, one card with a heading, the body, a single action
  * and a note, then a small footer saying why the mail arrived. Every argument
  * must already be escaped.
+ *
+ * `action` and `note` are optional: a notification about something that is over
+ * (a cancelled meeting) has nowhere useful to send the reader, and a bare button
+ * reading "Open meetings" is worse than no button at all.
  */
-function renderEmail(layout: {
+export function renderEmail(layout: {
   title: string
   preheader: string
   heading: string
   body: string
-  action: { label: string; url: string }
-  note: string
+  action?: { label: string; url: string }
+  note?: string
   footer: string
 }): string {
   const { ground, surface, hairline, ink, muted, signal, display, text } = EMAIL
+  const action = layout.action
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+                <tr>
+                  <td style="border-radius:9999px;background:${signal};">
+                    <a href="${layout.action.url}" style="display:inline-block;padding:14px 28px;font-family:${text};font-size:14px;line-height:1.4;font-weight:600;color:${surface};text-decoration:none;border-radius:9999px;">${layout.action.label}</a>
+                  </td>
+                </tr>
+              </table>`
+    : ''
+  const note = layout.note
+    ? `<p style="margin:${layout.action ? '0' : '24px 0 0'};font-family:${text};font-size:14px;line-height:1.625;color:${muted};">${layout.note}</p>`
+    : ''
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -151,14 +183,8 @@ function renderEmail(layout: {
             <td style="background:${surface};border:1px solid ${hairline};border-radius:20px;padding:32px;">
               <h1 style="margin:0 0 16px;font-family:${display};font-size:28px;line-height:1.25;font-weight:600;letter-spacing:-0.025em;color:${ink};">${layout.heading}</h1>
               ${layout.body}
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
-                <tr>
-                  <td style="border-radius:9999px;background:${signal};">
-                    <a href="${layout.action.url}" style="display:inline-block;padding:14px 28px;font-family:${text};font-size:14px;line-height:1.4;font-weight:600;color:${surface};text-decoration:none;border-radius:9999px;">${layout.action.label}</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:0;font-family:${text};font-size:14px;line-height:1.625;color:${muted};">${layout.note}</p>
+              ${action}
+              ${note}
             </td>
           </tr>
           <tr>
@@ -328,6 +354,7 @@ export async function sendTransactionalEmail({
   to,
   subject,
   html,
+  text,
   attachments,
   senderName,
   replyTo,
@@ -335,6 +362,12 @@ export async function sendTransactionalEmail({
   to: string
   subject: string
   html: string
+  /**
+   * The plain-text alternative. Worth passing: a mail with only an HTML part
+   * scores worse with spam filters, and it is what a watch, a screen reader or
+   * a text-only client actually shows.
+   */
+  text?: string
   attachments?: EmailAttachment[]
   /** Shown as "<senderName> via BorsFlow"; omit for platform emails. */
   senderName?: string
@@ -351,6 +384,7 @@ export async function sendTransactionalEmail({
       replyTo,
       subject,
       html,
+      text,
       // Nodemailer takes the buffer directly.
       attachments: attachments?.map((a) => ({
         filename: a.filename,
@@ -365,6 +399,7 @@ export async function sendTransactionalEmail({
       replyTo,
       subject,
       html,
+      text,
       // Resend's API expects the file contents base64-encoded.
       attachments: attachments?.map((a) => ({
         filename: a.filename,

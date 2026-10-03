@@ -1889,7 +1889,15 @@ const es: Messages = {
       workspaceDetail: 'Tu dirección de email conectada',
       platformTitle: '{name} vía BorsFlow',
       platformDetail: 'Se envía desde la dirección de BorsFlow; las respuestas llegan a tu email',
-      yourWorkspace: 'Tu espacio de trabajo',
+      you: 'Tú',
+    },
+    history: {
+      title: 'Historial de envíos',
+      empty: 'Aún no se ha enviado.',
+      loadFailed: 'No se pudo cargar el historial de envíos.',
+      sentTo: 'lo envió a',
+      from: 'De:',
+      unknownMember: 'Un antiguo miembro',
     },
   },
   emailMarketing: {

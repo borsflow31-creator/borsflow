@@ -185,8 +185,8 @@ export async function POST(
     await sendDocumentEmail({
       sendFrom,
       workspaceId: workspace.id,
-      workspaceName: workspace.name,
-      replyTo: session.user.email,
+      userId: session.user.id,
+      document: { kind: 'quote', id: quote.id, number: quote.quoteNumber },
       to: recipientEmail,
       subject: subject || `Quote ${quote.quoteNumber} from ${workspace.name}`,
       html: emailHtml,

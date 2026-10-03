@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import crypto from 'crypto';
 import { notify } from '@/lib/notifications/notify';
+import { formatNotificationTime } from '@/lib/notifications/email';
 
 /**
  * POST /api/scheduling/webhooks/calcom/:integrationId
@@ -67,6 +68,7 @@ export async function POST(
         const endTime   = new Date(payload.endTime);
         const duration  = Math.round((endTime.getTime() - startTime.getTime()) / 60000);
         const title     = payload.title || payload.eventType?.title || 'Cal.com Meeting';
+        const bookingTimeZone = payload.attendees?.[0]?.timeZone || 'UTC';
 
         const meeting = await prisma.meeting.upsert({
           where: { platformEventId_platform: { platformEventId: uid, platform: 'calcom' } },
@@ -86,7 +88,7 @@ export async function POST(
             startTime,
             endTime,
             duration,
-            timezone:              payload.attendees?.[0]?.timeZone || 'UTC',
+            timezone:              bookingTimeZone,
             meetingType:           'online',
             platform:              'calcom',
             platformEventId:       uid,
@@ -108,7 +110,10 @@ export async function POST(
             type: triggerEvent === 'BOOKING_RESCHEDULED' ? 'meetings.rescheduled' : 'meetings.booked',
             workspaceId: integration.workspaceId,
             title: `${triggerEvent === 'BOOKING_RESCHEDULED' ? 'Meeting rescheduled' : 'Meeting booked'}: ${title}`,
-            body: startTime.toLocaleString(),
+            // Cal.com reports the booking in the attendee's zone; say which one,
+            // since the recipient here is the host, not the attendee.
+            body: formatNotificationTime({ at: startTime, timeZone: bookingTimeZone }),
+            when: { at: startTime, timeZone: bookingTimeZone },
             href: `/meetings?workspace=${integration.workspaceId}`,
             dedupeKey: `meeting.${triggerEvent === 'BOOKING_RESCHEDULED' ? 'rescheduled' : 'booked'}:${meeting.id}:${startTime.toISOString()}`,
           });

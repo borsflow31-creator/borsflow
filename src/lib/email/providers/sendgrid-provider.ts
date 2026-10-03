@@ -24,8 +24,8 @@ export class SendGridProvider implements EmailProvider {
             ...(email.metadata ? { custom_args: Object.fromEntries(Object.entries(email.metadata).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)])) } : {})
           }
         ],
-        from: this.config.fromName
-          ? { email: this.config.fromEmail, name: this.config.fromName }
+        from: email.fromName || this.config.fromName
+          ? { email: this.config.fromEmail, name: email.fromName || this.config.fromName }
           : { email: this.config.fromEmail },
         ...(email.replyTo || this.config.replyTo
           ? { reply_to: { email: email.replyTo || this.config.replyTo! } }

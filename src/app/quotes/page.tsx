@@ -84,7 +84,7 @@ function SendEmailModal({
       <div className="bg-surface rounded-xl p-6 w-full max-w-md shadow-xl">
         <h2 className="text-lg font-semibold text-on-surface mb-4">{t('quotes.list.sendModal.title')}</h2>
         <div className="space-y-3 mb-4">
-          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
+          <SenderPicker connected={sender.connected} senderName={sender.senderName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('quotes.list.sendModal.to')}</label>
             <input

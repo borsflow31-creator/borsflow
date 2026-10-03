@@ -6,7 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { renderMergeTags, buildUnsubscribeUrl } from '@/lib/email/render'
+import { renderMergeTags, ensureUnsubscribeFooter } from '@/lib/email/render'
 import { filterSendable } from '@/lib/email/suppression'
 
 // Forms send '' for "none"; Prisma needs null for an empty optional relation.
@@ -40,19 +40,6 @@ function wrapLinksWithTracking(html: string, trackingId: string): string {
   )
 }
 
-function appendUnsubscribeFooter(html: string, recipientEmail: string, workspaceId: string): string {
-  const unsubUrl = buildUnsubscribeUrl(recipientEmail, workspaceId)
-  const footer = `
-<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7ee;text-align:center;font-size:12px;color:#52566b;">
-  <p>You are receiving this email because you signed up or were added to our list.</p>
-  <p><a href="${unsubUrl}" style="color:#52566b;">Unsubscribe</a></p>
-</div>`
-  // Insert before </body> or append
-  if (html.includes('</body>')) {
-    return html.replace('</body>', `${footer}</body>`)
-  }
-  return html + footer
-}
 
 // Campaign data structure
 export interface CampaignData {
@@ -365,14 +352,14 @@ export class EmailCampaignService {
         // Substitute merge tags before wrapping links, so URLs a tag injected
         // are click-tracked too.
         const trackingId = this.generateTrackingId()
-        const subject = renderMergeTags(campaign.subject, mergeContext)
+        const subject = renderMergeTags(campaign.subject, mergeContext, 'text')
         const baseHtml = renderMergeTags(campaign.template?.htmlContent || '', mergeContext)
         let htmlWithTracking = wrapLinksWithTracking(baseHtml, trackingId)
-        htmlWithTracking = appendUnsubscribeFooter(htmlWithTracking, recipient.email, campaign.workspaceId)
+        htmlWithTracking = ensureUnsubscribeFooter(htmlWithTracking, recipient.email, campaign.workspaceId)
         htmlWithTracking += buildTrackingPixel(trackingId)
 
         const textContent = campaign.template?.textContent
-          ? renderMergeTags(campaign.template.textContent, mergeContext)
+          ? renderMergeTags(campaign.template.textContent, mergeContext, 'text')
           : undefined
 
         // Create email record

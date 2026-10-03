@@ -27,8 +27,8 @@ export class SESProvider implements EmailProvider {
       const endpoint = `https://email.${this.region}.amazonaws.com/v2/email/outbound-emails`
 
       const payload = {
-        FromEmailAddress: this.config.fromName
-          ? `${this.config.fromName} <${this.config.fromEmail}>`
+        FromEmailAddress: email.fromName || this.config.fromName
+          ? `${email.fromName || this.config.fromName} <${this.config.fromEmail}>`
           : this.config.fromEmail,
         Destination: { ToAddresses: [email.to] },
         ReplyToAddresses: email.replyTo || this.config.replyTo ? [email.replyTo || this.config.replyTo!] : undefined,
@@ -174,7 +174,8 @@ function encodeHeader(value: string): string {
 function buildMimeMessage(config: EmailProviderConfig, email: EmailData): string {
   const mixed = `bf-mixed-${Date.now().toString(36)}`
   const alt = `bf-alt-${Date.now().toString(36)}`
-  const from = config.fromName ? `${encodeHeader(config.fromName)} <${config.fromEmail}>` : config.fromEmail
+  const fromName = email.fromName || config.fromName
+  const from = fromName ? `${encodeHeader(fromName)} <${config.fromEmail}>` : config.fromEmail
   const replyTo = email.replyTo || config.replyTo
   const lines = [
     `From: ${from}`,

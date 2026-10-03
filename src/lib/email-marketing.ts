@@ -17,6 +17,8 @@ export interface EmailData {
   text?: string
   from?: string
   replyTo?: string
+  /** Display name for this one email, overriding the provider's configured name. */
+  fromName?: string
   metadata?: Record<string, any>
   /** Files such as a quote/invoice PDF. Buffers; each provider encodes them as its API needs. */
   attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
@@ -191,8 +193,9 @@ export class EmailMarketingService {
 
           if (config.type === 'resend') {
             const resend = new Resend(config.apiKey)
+            const fromName = email.fromName || config.fromName
             const response = await resend.emails.send({
-              from: config.fromName ? `${config.fromName} <${config.fromEmail}>` : config.fromEmail,
+              from: fromName ? `${fromName} <${config.fromEmail}>` : config.fromEmail,
               to: email.to,
               subject: email.subject,
               html: email.html,
@@ -211,7 +214,7 @@ export class EmailMarketingService {
             const payload: Record<string, any> = {
               sender: {
                 email: config.fromEmail,
-                ...(config.fromName ? { name: config.fromName } : {})
+                ...(email.fromName || config.fromName ? { name: email.fromName || config.fromName } : {})
               },
               to: [{ email: email.to }],
               subject: email.subject,

@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isAuthorizedCron } from '@/lib/api/cron'
 import { notify } from '@/lib/notifications/notify'
+import { formatNotificationTime } from '@/lib/notifications/email'
 
 /** Read notifications older than this are cleared out; unread ones are kept regardless of age. */
 const READ_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
     const [upcomingMeetings, dueCards] = await Promise.all([
       prisma.meeting.findMany({
         where: { status: 'scheduled', startTime: { gte: now, lte: in1h } },
-        select: { id: true, workspaceId: true, userId: true, title: true, startTime: true },
+        select: { id: true, workspaceId: true, userId: true, title: true, startTime: true, timezone: true },
       }),
       prisma.kanbanCard.findMany({
         where: { status: { not: 'done' }, dueDate: { gte: now, lte: in24h } },
@@ -58,7 +59,9 @@ export async function POST(request: NextRequest) {
         type: 'meetings.reminder',
         workspaceId: meeting.workspaceId,
         title: `Starting soon: ${meeting.title}`,
-        body: meeting.startTime.toLocaleString(),
+        // The meeting's own zone, named, rather than the cron host's locale.
+        body: formatNotificationTime({ at: meeting.startTime, timeZone: meeting.timezone }),
+        when: { at: meeting.startTime, timeZone: meeting.timezone },
         href: `/meetings?workspace=${meeting.workspaceId}`,
         dedupeKey: `meeting.reminder:${meeting.id}`,
       })
@@ -76,7 +79,8 @@ export async function POST(request: NextRequest) {
         type: 'tasks.card_due_soon',
         workspaceId: card.workspaceId,
         title: `Due soon: "${card.title}"`,
-        body: card.dueDate ? card.dueDate.toLocaleString() : undefined,
+        body: card.dueDate ? formatNotificationTime({ at: card.dueDate }) : undefined,
+        when: card.dueDate ? { at: card.dueDate } : undefined,
         href: `/kanban-board-view?workspace=${card.workspaceId}`,
         dedupeKey: `card.due:${card.id}`,
       })

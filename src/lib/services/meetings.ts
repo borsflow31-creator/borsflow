@@ -4,6 +4,7 @@ import { decrypt } from '@/lib/encryption'
 import { leadBelongsToWorkspace } from '@/lib/api/workspace'
 import { ServiceError } from './errors'
 import { notify } from '@/lib/notifications/notify'
+import { formatNotificationTime } from '@/lib/notifications/email'
 
 /**
  * Create a meeting, and a Zoom meeting for it when `platform` is 'zoom' and the
@@ -84,7 +85,9 @@ export async function createMeeting(params: {
     workspaceId,
     actorId: userId,
     title: `Meeting booked: ${title}`,
-    body: start.toLocaleString(),
+    // The row has no `timezone` of its own here, so it is stored (and stated) as UTC.
+    body: formatNotificationTime({ at: start }),
+    when: { at: start },
     href: `/meetings?workspace=${workspaceId}`,
   })
 

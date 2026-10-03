@@ -215,6 +215,15 @@
         ],
         "createdAt": "2026-10-03T02:40:43.752Z",
         "reason": "user confirmed (same request): Georgia serif is the email heading font in exported HTML and its canvas preview"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/email-marketing/EmailBlockEditor.tsx"
+        ],
+        "createdAt": "2026-10-03T05:19:41.409Z",
+        "reason": "Claude assessment: pull-quote block in a user-authored email template, not app chrome. Preview at L834 mirrors sent HTML at L281, accent color is author-set via picker at L690. Pre-existing."
       }
     ]
   }

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendTransactionalEmail } from '@/lib/email';
-import { absoluteUrl } from '@/lib/url';
 import { resolvePrefs } from './prefs';
+import { renderNotificationEmail, type NotificationTime } from './email';
 import { TYPE_CATEGORY, isEmailableType, type NotificationType } from './types';
 
 export interface NotifyInput {
@@ -15,6 +15,12 @@ export interface NotifyInput {
   body?: string;
   /** In-app path the notification opens when clicked, e.g. `/quotes/abc123`. */
   href?: string;
+  /**
+   * When the event is about a moment in time (a meeting starting, a card due),
+   * pass it here rather than formatting it into `body`: the email then states it
+   * with its time zone named, which a bare `toLocaleString()` does not.
+   */
+  when?: NotificationTime;
   /**
    * Shared across every recipient of one event (e.g. `invoice.overdue:<id>`).
    * Combined with the recipient's own id, this is what keeps a cron re-run or a
@@ -86,55 +92,34 @@ export async function notify(input: NotifyInput): Promise<void> {
     }
 
     if (emailTargets.length > 0) {
+      // Only now, and only once for the whole event: the workspace name is for
+      // the email's "In <workspace>" line, so there is nothing to look up when
+      // every recipient has email notifications off.
+      const workspaceName = input.workspaceId
+        ? (
+            await prisma.workspace.findUnique({
+              where: { id: input.workspaceId },
+              select: { name: true },
+            })
+          )?.name ?? null
+        : null;
+
       await Promise.allSettled(
-        emailTargets.map((user) =>
-          sendTransactionalEmail({
-            to: user.email,
-            subject: input.title,
-            html: renderNotificationEmail({ name: user.name, title: input.title, body: input.body, href: input.href }),
-          })
-        )
+        emailTargets.map((user) => {
+          const { html, text } = renderNotificationEmail({
+            type: input.type,
+            recipient: { name: user.name, email: user.email },
+            workspaceName,
+            title: input.title,
+            body: input.body,
+            when: input.when,
+            href: input.href,
+          });
+          return sendTransactionalEmail({ to: user.email, subject: input.title, html, text });
+        })
       );
     }
   } catch (error) {
     console.error('[notifications] notify() failed:', error);
   }
-}
-
-function renderNotificationEmail({
-  name,
-  title,
-  body,
-  href,
-}: {
-  name: string | null;
-  title: string;
-  body?: string;
-  href?: string;
-}): string {
-  const greeting = name ? `Hi ${escapeHtml(name.split(' ')[0])},` : 'Hi,';
-  const cta = href
-    ? `<p style="margin-top:24px"><a href="${escapeHtml(absoluteUrl(href))}" style="display:inline-block;background:#111827;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600">View in BorsFlow</a></p>`
-    : '';
-  return `
-    <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111827;max-width:480px">
-      <p>${greeting}</p>
-      <p style="font-size:16px;font-weight:600;margin-bottom:4px">${escapeHtml(title)}</p>
-      ${body ? `<p style="color:#4b5563;margin-top:4px">${escapeHtml(body)}</p>` : ''}
-      ${cta}
-      <p style="margin-top:32px;font-size:12px;color:#9ca3af">
-        You're receiving this because of your notification settings in BorsFlow.
-        <a href="${escapeHtml(absoluteUrl('/settings?section=notifications'))}" style="color:#9ca3af">Manage preferences</a>.
-      </p>
-    </div>
-  `;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

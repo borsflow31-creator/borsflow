@@ -513,7 +513,15 @@ export interface Messages {
       workspaceDetail: string;
       platformTitle: string;
       platformDetail: string;
-      yourWorkspace: string;
+      you: string;
+    };
+    history: {
+      title: string;
+      empty: string;
+      loadFailed: string;
+      sentTo: string;
+      from: string;
+      unknownMember: string;
     };
   };
   emailMarketing: {
@@ -4746,7 +4754,15 @@ const en: Messages = {
       workspaceDetail: 'Your connected email address',
       platformTitle: '{name} via BorsFlow',
       platformDetail: "Sent from BorsFlow's address; replies go to your email",
-      yourWorkspace: 'Your workspace',
+      you: 'You',
+    },
+    history: {
+      title: 'Sent history',
+      empty: 'Not sent yet.',
+      loadFailed: "Couldn't load the send history.",
+      sentTo: 'sent it to',
+      from: 'From:',
+      unknownMember: 'A former member',
     },
   },
   emailMarketing: {

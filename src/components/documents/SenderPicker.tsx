@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { useI18n } from '@/i18n/I18nProvider'
 import { cachedJson } from '@/lib/client-cache'
 
@@ -23,8 +24,10 @@ interface ConnectedSender {
 
 /** The workspace's connected sender (or null) and the user's current choice. */
 export function useDocumentSender(workspaceId: string | undefined) {
+  // The email goes out under the sending member's name, not the workspace's
+  const { data: session } = useSession()
+  const senderName = session?.user?.name || session?.user?.email?.split('@')[0] || ''
   const [connected, setConnected] = useState<ConnectedSender | null>(null)
-  const [workspaceName, setWorkspaceName] = useState('')
   const [sendFrom, setSendFromState] = useState<DocumentSender>('platform')
 
   useEffect(() => {
@@ -44,9 +47,6 @@ export function useDocumentSender(workspaceId: string | undefined) {
         }
       })
       .catch(() => {})
-    cachedJson<{ name?: string; workspace?: { name?: string } }>(`/api/workspaces/${workspaceId}`)
-      .then((data) => { if (!cancelled) setWorkspaceName(data.workspace?.name || data.name || '') })
-      .catch(() => {})
     return () => { cancelled = true }
   }, [workspaceId])
 
@@ -58,17 +58,17 @@ export function useDocumentSender(workspaceId: string | undefined) {
   }
 
   // Without a connected email there is no choice to send to the API
-  return { connected, workspaceName, sendFrom: connected ? sendFrom : 'platform' as DocumentSender, setSendFrom }
+  return { connected, senderName, sendFrom: connected ? sendFrom : 'platform' as DocumentSender, setSendFrom }
 }
 
 export default function SenderPicker({
   connected,
-  workspaceName,
+  senderName,
   value,
   onChange,
 }: {
   connected: ConnectedSender | null
-  workspaceName: string
+  senderName: string
   value: DocumentSender
   onChange: (value: DocumentSender) => void
 }) {
@@ -78,12 +78,12 @@ export default function SenderPicker({
   const options: { id: DocumentSender; title: string; detail: string }[] = [
     {
       id: 'workspace',
-      title: connected.fromName ? `${connected.fromName} <${connected.fromEmail}>` : connected.fromEmail,
+      title: senderName ? `${senderName} <${connected.fromEmail}>` : connected.fromEmail,
       detail: t('documentSender.sender.workspaceDetail'),
     },
     {
       id: 'platform',
-      title: t('documentSender.sender.platformTitle', { name: workspaceName || t('documentSender.sender.yourWorkspace') }),
+      title: t('documentSender.sender.platformTitle', { name: senderName || t('documentSender.sender.you') }),
       detail: t('documentSender.sender.platformDetail'),
     },
   ]

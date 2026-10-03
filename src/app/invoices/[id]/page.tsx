@@ -16,6 +16,7 @@ import {
 import type { Invoice, Payment } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
+import SendHistory from '@/components/documents/SendHistory';
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({
@@ -184,7 +185,7 @@ function SendEmailModal({ invoice, onClose, onSent }: { invoice: Invoice; onClos
         </div>
         <div className="p-6 space-y-4">
           {error && <p className="text-sm text-error bg-error-container/10 px-3 py-2 rounded-lg">{error}</p>}
-          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
+          <SenderPicker connected={sender.connected} senderName={sender.senderName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.detail.sendModal.to')}</label>
             <input type="email" value={to} onChange={(e) => setTo(e.target.value)}
@@ -817,6 +818,8 @@ export default function InvoiceDetailPage() {
               onTaxRateChange={(r) => { setTaxRate(r); setHasChanges(true); }}
               readOnly={!isEditing}
             />
+
+            {!isNew && <SendHistory kind="invoice" documentId={invoiceId} refreshKey={currentInvoice?.sentAt} />}
 
             {/* Quick stats */}
             {!isEditing && !isNew && (

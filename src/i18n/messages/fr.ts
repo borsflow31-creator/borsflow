@@ -1889,7 +1889,15 @@ const fr: Messages = {
       workspaceDetail: 'Votre adresse e-mail connectée',
       platformTitle: '{name} via BorsFlow',
       platformDetail: 'Envoyé depuis l\'adresse de BorsFlow ; les réponses arrivent sur votre e-mail',
-      yourWorkspace: 'Votre espace de travail',
+      you: 'Vous',
+    },
+    history: {
+      title: 'Historique des envois',
+      empty: 'Pas encore envoyé.',
+      loadFailed: "Impossible de charger l'historique des envois.",
+      sentTo: "l'a envoyé à",
+      from: 'De :',
+      unknownMember: 'Un ancien membre',
     },
   },
   emailMarketing: {

@@ -1889,7 +1889,15 @@ const ar: Messages = {
       workspaceDetail: 'عنوان بريدك الإلكتروني المتصل',
       platformTitle: '{name} عبر BorsFlow',
       platformDetail: 'يُرسل من عنوان BorsFlow؛ والردود تصل إلى بريدك',
-      yourWorkspace: 'مساحة عملك',
+      you: 'أنت',
+    },
+    history: {
+      title: 'سجل الإرسال',
+      empty: 'لم يُرسل بعد.',
+      loadFailed: 'تعذر تحميل سجل الإرسال.',
+      sentTo: 'أرسله إلى',
+      from: 'من:',
+      unknownMember: 'عضو سابق',
     },
   },
   emailMarketing: {

@@ -70,6 +70,15 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
   // is updating us (onChange callback).
   const editorInitHtml = useRef<string>('')
 
+  // The plain-text part used to be derived only when it was empty, so after the
+  // first save it was frozen: every later edit to the design went out with the
+  // original plain text still attached, and text-only readers got a different
+  // email from everyone else. These two let `handleSubmit` tell apart a
+  // plain-text part the user wrote (keep it) from one we derived (re-derive it
+  // whenever the HTML has moved on).
+  const loadedHtml = useRef('')
+  const [textHandwritten, setTextHandwritten] = useState(false)
+
   // ── populate form when template/isOpen changes ──────────────────────────────
   useEffect(() => {
     if (!isOpen) return
@@ -91,6 +100,8 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
     setFormData(initial)
     initialSnapshot.current = JSON.stringify(initial)
     editorInitHtml.current = html
+    loadedHtml.current = html
+    setTextHandwritten(false)
     setMode(detectEditorMode(html))
     setModeMenuOpen(false)
     setEditorKey(k => k + 1)
@@ -181,8 +192,12 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
     if (!validate()) return
     setSaving(true); setSaveError(null)
     try {
-      // Every email gets a plain-text part, even if the user never wrote one
-      const textContent = formData.textContent.trim() ? formData.textContent : htmlToPlainText(formData.htmlContent)
+      // Every email gets a plain-text part, even if the user never wrote one,
+      // and a derived one is re-derived whenever the design has changed since
+      // this template was opened. A hand-written part is always kept.
+      const htmlChanged = formData.htmlContent !== loadedHtml.current
+      const keepText = Boolean(formData.textContent.trim()) && (textHandwritten || !htmlChanged)
+      const textContent = keepText ? formData.textContent : htmlToPlainText(formData.htmlContent)
       await onSave({ ...formData, textContent, workspaceId })
       onClose()
     } catch (err: any) {
@@ -563,7 +578,8 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
 
             <Section open={openSections.plaintext} onToggle={() => toggleSection('plaintext')} label={t('emailMarketing.templateModal.plainText')} icon={FileText}>
               <p className="text-[11px] text-on-surface-variant mb-1">{t('emailMarketing.templateModal.plainTextHint')}</p>
-              <textarea value={formData.textContent} onChange={e => set('textContent', e.target.value)}
+              <textarea value={formData.textContent}
+                onChange={e => { setTextHandwritten(true); set('textContent', e.target.value) }}
                 rows={5} placeholder={t('emailMarketing.templateModal.plainTextPlaceholder')}
                 className={`${inputCls()} font-mono text-[11px] resize-none`} />
             </Section>

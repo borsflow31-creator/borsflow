@@ -163,16 +163,22 @@ export function makeBlock(type: BlockType, uid: string): EmailBlock {
     case 'header':     return { ...base, headingText: 'Your headline here', headingLevel: 'h1', headingAlign: 'center', headingColor: '#111827' }
     case 'text':       return { ...base, bodyText: 'Write your message here. Keep it concise and compelling.', bodyAlign: 'left', bodyColor: '#4b5563', fontSize: 15 }
     case 'image':      return { ...base, imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=640&q=80', imageAlt: 'Email image', imageWidth: '100%' }
-    case 'button':     return { ...base, buttonText: 'Get started', buttonUrl: '{{cta_url}}', buttonColor: '#4f46e5', buttonTextColor: '#ffffff', buttonAlign: 'center' }
+    // No `{{cta_url}}` default: it looks like a merge tag but nothing defines
+    // one, so every button authored from the default shipped as href="".
+    // Empty instead, which the editor shows as a hint and blockToHtml refuses
+    // to turn into a dead link.
+    case 'button':     return { ...base, buttonText: 'Get started', buttonUrl: '', buttonColor: '#4f46e5', buttonTextColor: '#ffffff', buttonAlign: 'center' }
     case 'divider':    return { ...base, dividerColor: '#e5e7eb', paddingV: 8 }
     case 'spacer':     return { ...base, spacerHeight: 32, paddingV: 0, paddingH: 0 }
     case 'two-column': return { ...base, colLeftText: 'Left column content.', colRightText: 'Right column content.' }
+    // Empty urls, for the same reason as the button above. The social row
+    // renders only the icons that have a destination.
     case 'social':     return { ...base, paddingV: 20, socialLinks: [
-      { platform: 'twitter', url: '{{twitter_url}}' },
-      { platform: 'linkedin', url: '{{linkedin_url}}' },
-      { platform: 'instagram', url: '{{instagram_url}}' },
+      { platform: 'twitter', url: '' },
+      { platform: 'linkedin', url: '' },
+      { platform: 'instagram', url: '' },
     ]}
-    case 'video':      return { ...base, videoThumbnailUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=640&q=80', videoUrl: '{{video_url}}', videoCaption: 'Watch our latest video', videoPlayColor: '#4f46e5' }
+    case 'video':      return { ...base, videoThumbnailUrl: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=640&q=80', videoUrl: '', videoCaption: 'Watch our latest video', videoPlayColor: '#4f46e5' }
     case 'quote':      return { ...base, quoteText: 'This product changed the way we work. Highly recommended!', quoteAuthor: 'Jane Smith', quoteAuthorTitle: 'CEO, Acme Inc.', quoteAvatarUrl: '', quoteAccentColor: '#4f46e5', backgroundColor: '#f8f9ff' }
     default:           return base
   }
@@ -228,7 +234,16 @@ function blockToHtml(b: EmailBlock): string {
       return `<tr><td style="${cellStyle}text-align:center;"><img src="${b.imageUrl || ''}" alt="${b.imageAlt || ''}" width="${b.imageWidth || '100%'}" style="display:block;max-width:100%;height:auto;border-radius:8px;" /></td></tr>`
     case 'button': {
       const alignMap: Record<string, string> = { left: 'left', center: 'center', right: 'right' }
-      return `<tr><td style="${cellStyle}text-align:${alignMap[b.buttonAlign || 'center']};"><a href="${b.buttonUrl || '#'}" style="display:inline-block;padding:13px 28px;border-radius:999px;background:${b.buttonColor || '#4f46e5'};color:${b.buttonTextColor || '#ffffff'};text-decoration:none;font-weight:700;font-size:15px;">${b.buttonText || 'Click here'}</a></td></tr>`
+      const style = `display:inline-block;padding:13px 28px;border-radius:999px;background:${b.buttonColor || '#4f46e5'};color:${b.buttonTextColor || '#ffffff'};text-decoration:none;font-weight:700;font-size:15px;`
+      const label = b.buttonText || 'Click here'
+      // Unlinked rather than href="#" or href="" when there is no destination
+      // yet: a button that looks live and goes nowhere costs the sender a click
+      // and the reader their trust. It still looks like a button in the editor
+      // preview, so the gap is visible while there is time to fix it.
+      const inner = b.buttonUrl
+        ? `<a href="${b.buttonUrl}" style="${style}">${label}</a>`
+        : `<span style="${style}">${label}</span>`
+      return `<tr><td style="${cellStyle}text-align:${alignMap[b.buttonAlign || 'center']};">${inner}</td></tr>`
     }
     case 'divider':
       return `<tr><td style="${cellStyle}"><hr style="border:none;border-top:1px solid ${b.dividerColor || '#e5e7eb'};margin:0;" /></td></tr>`
@@ -238,9 +253,11 @@ function blockToHtml(b: EmailBlock): string {
       return `<tr><td style="${cellStyle}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td width="48%" style="vertical-align:top;padding-right:12px;font-size:15px;line-height:1.7;color:#4b5563;">${(b.colLeftText || '').replace(/\n/g, '<br/>')}</td><td width="4%"></td><td width="48%" style="vertical-align:top;padding-left:12px;font-size:15px;line-height:1.7;color:#4b5563;">${(b.colRightText || '').replace(/\n/g, '<br/>')}</td></tr></table></td></tr>`
     case 'social': {
       const links = b.socialLinks || []
+      // Only the accounts that actually have a profile url. An icon linking
+      // nowhere reads as a broken email, so an unfilled row renders as nothing.
       const icons = links.map(l => {
         const cfg = SOCIAL_CONFIG[l.platform]
-        if (!cfg) return ''
+        if (!cfg || !l.url) return ''
         return `<a href="${l.url}" style="display:inline-block;width:40px;height:40px;border-radius:50%;background:${cfg.color};text-align:center;line-height:40px;margin:0 6px;text-decoration:none;">${cfg.svg}</a>`
       }).join('')
       return `<tr><td style="${cellStyle}text-align:center;">${icons}</td></tr>`
@@ -249,7 +266,12 @@ function blockToHtml(b: EmailBlock): string {
       const thumb = b.videoThumbnailUrl || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=640&q=80'
       const playColor = b.videoPlayColor || '#4f46e5'
       const caption = b.videoCaption ? `<p style="margin:10px 0 0;font-size:13px;color:#6b7280;text-align:center;">${b.videoCaption}</p>` : ''
-      return `<tr><td style="${cellStyle}text-align:center;"><a href="${b.videoUrl || '#'}" style="display:block;position:relative;text-decoration:none;"><img src="${thumb}" alt="Watch video" style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>${caption}</td></tr>`
+      const poster = `<img src="${thumb}" alt="Watch video" style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div>`
+      // A play button that opens nothing is worse than a still image.
+      const framed = b.videoUrl
+        ? `<a href="${b.videoUrl}" style="display:block;position:relative;text-decoration:none;">${poster}</a>`
+        : `<div style="position:relative;">${poster}</div>`
+      return `<tr><td style="${cellStyle}text-align:center;">${framed}${caption}</td></tr>`
     }
     case 'quote': {
       const accent = b.quoteAccentColor || '#4f46e5'
@@ -375,7 +397,10 @@ export function htmlToBlocks(html: string, uid: string): EmailBlock[] | null {
           ...base,
           type: 'button',
           buttonText: anchor.textContent || 'Click here',
-          buttonUrl: anchor.getAttribute('href') || '#',
+          // Empty, not '#': an imported button with no real destination then
+          // falls under the same rule as a new one and ships unlinked rather
+          // than as a link that goes nowhere.
+          buttonUrl: anchor.getAttribute('href')?.trim() || '',
           buttonColor: bgAMatch?.[1]?.trim() || '#4f46e5',
           buttonTextColor: colorAMatch?.[1]?.trim() || '#ffffff',
           buttonAlign: (alignMatch?.[1]?.trim() as any) || 'center',
@@ -598,7 +623,7 @@ function BlockPropertyPanel({
 
       {block.type === 'button' && <>
         {field(t('emailMarketing.blockEditor.buttonLabelLabel'), input('buttonText', 'text', 'Click here'))}
-        {field(t('emailMarketing.blockEditor.urlVariableLabel'), input('buttonUrl', 'text', '{{cta_url}}'))}
+        {field(t('emailMarketing.blockEditor.urlVariableLabel'), input('buttonUrl', 'text', 'https://example.com/offer'))}
         {field(t('emailMarketing.blockEditor.alignLabel'), select('buttonAlign', alignOptions))}
         {colorRow(t('emailMarketing.blockEditor.buttonColorLabel'), 'buttonColor')}
         {colorRow(t('emailMarketing.blockEditor.textColorLabel'), 'buttonTextColor')}
@@ -652,7 +677,7 @@ function BlockPropertyPanel({
 
       {block.type === 'video' && <>
         {field(t('emailMarketing.blockEditor.thumbnailUrlLabel'), input('videoThumbnailUrl', 'text', 'https://…'))}
-        {field(t('emailMarketing.blockEditor.videoUrlLabel'), input('videoUrl', 'text', '{{video_url}}'))}
+        {field(t('emailMarketing.blockEditor.videoUrlLabel'), input('videoUrl', 'text', 'https://youtube.com/watch?v=...'))}
         {field(t('emailMarketing.blockEditor.captionLabel'), input('videoCaption', 'text', 'Watch our latest video'))}
         {colorRow(t('emailMarketing.blockEditor.playButtonColorLabel'), 'videoPlayColor')}
       </>}

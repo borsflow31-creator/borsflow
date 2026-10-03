@@ -3,6 +3,7 @@ import { getGroq } from '@/lib/groq'
 import { canAffordAnotherRound, settleAiCredits, type AiReservation } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens, estimateTokens, type TokenUsage } from '@/lib/billing/ai-pricing'
 import { toTokenUsage } from '@/lib/ai/billed-completion'
+import { reasoningOptions } from '@/lib/ai/models'
 import { runTool, toolDefinitions, toolLabel, type ToolContext } from './tools'
 
 /**
@@ -79,6 +80,7 @@ export async function runAgent(params: {
             stream: true,
             temperature: 0.3,
             max_completion_tokens: MAX_OUTPUT_TOKENS,
+            ...reasoningOptions(reservation.model),
           },
           { signal }
         )

@@ -1889,7 +1889,15 @@ const de: Messages = {
       workspaceDetail: 'Deine verbundene E-Mail-Adresse',
       platformTitle: '{name} über BorsFlow',
       platformDetail: 'Wird von der BorsFlow-Adresse gesendet; Antworten gehen an deine E-Mail',
-      yourWorkspace: 'Dein Workspace',
+      you: 'Du',
+    },
+    history: {
+      title: 'Versandverlauf',
+      empty: 'Noch nicht gesendet.',
+      loadFailed: 'Der Versandverlauf konnte nicht geladen werden.',
+      sentTo: 'hat es gesendet an',
+      from: 'Von:',
+      unknownMember: 'Ein ehemaliges Mitglied',
     },
   },
   emailMarketing: {

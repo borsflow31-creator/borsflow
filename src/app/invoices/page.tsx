@@ -201,7 +201,7 @@ function SendInvoiceModal({
 
         {/* Fields */}
         <div className="space-y-3 mb-5">
-          <SenderPicker connected={sender.connected} workspaceName={sender.workspaceName} value={sender.sendFrom} onChange={sender.setSendFrom} />
+          <SenderPicker connected={sender.connected} senderName={sender.senderName} value={sender.sendFrom} onChange={sender.setSendFrom} />
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1">{t('invoices.sendModal.to')}</label>
             <input

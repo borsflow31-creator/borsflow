@@ -25,8 +25,8 @@ export class PostmarkProvider implements EmailProvider {
       if (!this.serverToken) throw new Error('Postmark server token is not configured')
 
       const payload: Record<string, any> = {
-        From: this.config.fromName
-          ? `${this.config.fromName} <${this.config.fromEmail}>`
+        From: email.fromName || this.config.fromName
+          ? `${email.fromName || this.config.fromName} <${this.config.fromEmail}>`
           : this.config.fromEmail,
         To: email.to,
         Subject: email.subject,

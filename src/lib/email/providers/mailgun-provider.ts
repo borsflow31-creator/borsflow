@@ -29,7 +29,8 @@ export class MailgunProvider implements EmailProvider {
       if (!this.domain) throw new Error('Mailgun domain is not configured')
 
       const formData = new URLSearchParams()
-      formData.append('from', this.config.fromName ? `${this.config.fromName} <${this.config.fromEmail}>` : this.config.fromEmail)
+      const fromName = email.fromName || this.config.fromName
+      formData.append('from', fromName ? `${fromName} <${this.config.fromEmail}>` : this.config.fromEmail)
       formData.append('to', email.to)
       formData.append('subject', email.subject)
       formData.append('html', email.html)
