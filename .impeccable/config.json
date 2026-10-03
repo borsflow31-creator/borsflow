@@ -179,6 +179,42 @@
         ],
         "createdAt": "2026-10-01T17:11:37.255Z",
         "reason": "pre-existing hint text font size, unrelated to i18n migration task; not introduced or modified by this change"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "src/components/email-marketing/EmailBlockEditor.tsx"
+        ],
+        "createdAt": "2026-10-03T02:40:32.261Z",
+        "reason": "user confirmed: literal colors are email-content defaults and social brand colors rendered into exported email HTML, not app UI"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "src/components/email-marketing/EmailStarterTemplateGallery.tsx"
+        ],
+        "createdAt": "2026-10-03T02:40:32.356Z",
+        "reason": "user confirmed: dark image-overlay gradients and iframe fallback text inside email template previews, not app UI"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "src/components/email-marketing/EmailBlockEditor.tsx"
+        ],
+        "createdAt": "2026-10-03T02:40:43.654Z",
+        "reason": "user confirmed (same request as the colors): inline styles in blockToHtml are the exported email's HTML, where email clients need fixed px sizes"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "georgia",
+        "files": [
+          "src/components/email-marketing/EmailBlockEditor.tsx"
+        ],
+        "createdAt": "2026-10-03T02:40:43.752Z",
+        "reason": "user confirmed (same request): Georgia serif is the email heading font in exported HTML and its canvas preview"
       }
     ]
   }
