@@ -7,7 +7,7 @@ import NoWorkspace from '@/components/NoWorkspace';
 import { useI18n } from '@/i18n/I18nProvider';
 import PipelineBoard from '@/components/crm/PipelineBoard';
 import LeadListView from '@/components/crm/LeadListView';
-import LeadModal from '@/components/crm/LeadModal';
+import LeadModal, { type LeadModalTab } from '@/components/crm/LeadModal';
 import PipelineModal from '@/components/crm/PipelineModal';
 import LeadListModal from '@/components/crm/LeadListModal';
 import ViewToggle from '@/components/crm/ViewToggle';
@@ -78,6 +78,7 @@ function CRMPageInner() {
     const [showLeadListModal, setShowLeadListModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
     const [editingLead, setEditingLead] = useState<Lead | null>(null);
+    const [leadModalTab, setLeadModalTab] = useState<LeadModalTab>('details');
     const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null);
     const [editingLeadList, setEditingLeadList] = useState<LeadList | null>(null);
     const [stageLeadCounts, setStageLeadCounts] = useState<Record<string, number>>({});
@@ -410,8 +411,31 @@ function CRMPageInner() {
 
     const handleOpenLeadModal = (lead?: Lead) => {
         setEditingLead(lead || null);
+        setLeadModalTab('details');
         setShowLeadModal(true);
     };
+
+    // Deep link: /crm?lead=<id>&tab=files|history|meetings opens that prospect
+    // (used by notifications and links shared between teammates).
+    const deepLinkLeadId = searchParams.get('lead');
+    const deepLinkTab = searchParams.get('tab');
+    useEffect(() => {
+        if (!deepLinkLeadId) return;
+        let cancelled = false;
+        fetch(`/api/leads/${deepLinkLeadId}`)
+            .then(res => (res.ok ? res.json() : null))
+            .then(lead => {
+                if (cancelled || !lead?.id) return;
+                const tab = ['details', 'meetings', 'files', 'history'].includes(deepLinkTab ?? '')
+                    ? (deepLinkTab as LeadModalTab)
+                    : 'details';
+                setEditingLead(lead);
+                setLeadModalTab(tab);
+                setShowLeadModal(true);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [deepLinkLeadId, deepLinkTab]);
 
     const handleOpenPipelineModal = async (pipeline?: Pipeline) => {
         setEditingPipeline(pipeline || null);
@@ -581,6 +605,7 @@ function CRMPageInner() {
                         pipeline={selectedPipeline}
                         leadLists={leadLists}
                         workspaceId={effectiveWorkspaceId}
+                        initialTab={leadModalTab}
                         onSave={editingLead ? (data) => handleLeadUpdate(editingLead.id, data) : handleLeadCreate}
                         onClose={() => {
                             setShowLeadModal(false);

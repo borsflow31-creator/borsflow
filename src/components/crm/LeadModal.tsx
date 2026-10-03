@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { aiComplete, aiErrorMessage } from '@/lib/ai/client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import MeetingList from '@/components/scheduling/MeetingList';
+import LeadFiles from '@/components/crm/LeadFiles';
+import LeadTimeline from '@/components/crm/LeadTimeline';
 import SelectRefined from '@/components/ui/SelectRefined';
-import StatusBadge from '@/components/documents/StatusBadge';
 import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
@@ -60,7 +60,11 @@ interface LeadModalProps {
     workspaceId?: string;
     onSave: (data: Partial<Lead>) => void;
     onClose: () => void;
+    /** Open on this tab (deep links like ?lead=<id>&tab=files) */
+    initialTab?: LeadModalTab;
 }
+
+export type LeadModalTab = 'details' | 'meetings' | 'files' | 'history';
 
 interface ValidationErrors {
     firstName?: string;
@@ -76,157 +80,11 @@ interface ValidationErrors {
     notes?: string;
 }
 
-interface PurchaseHistoryItem {
-    id: string;
-    type: 'quote' | 'invoice';
-    number: string;
-    status: string;
-    total: number;
-    date: string;
-}
-
-function PurchaseHistory({
-    workspaceId,
-    leadId,
-}: {
-    workspaceId: string;
-    leadId: string;
-}) {
-    const { t, formatCurrency, formatDate } = useI18n();
-    const [items, setItems] = useState<PurchaseHistoryItem[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchHistory = async () => {
-            setLoading(true);
-
-            try {
-                const [quotesResponse, invoicesResponse] = await Promise.all([
-                    fetch(`/api/quotes?workspaceId=${workspaceId}&leadId=${leadId}&limit=100`),
-                    fetch(`/api/invoices?workspaceId=${workspaceId}&leadId=${leadId}&limit=100`),
-                ]);
-
-                const [quotesData, invoicesData] = await Promise.all([
-                    quotesResponse.json(),
-                    invoicesResponse.json(),
-                ]);
-
-                const quoteItems: PurchaseHistoryItem[] = (quotesData.quotes || []).map((quote: any) => ({
-                    id: quote.id,
-                    type: 'quote',
-                    number: quote.quoteNumber,
-                    status: quote.status,
-                    total: quote.total,
-                    date: quote.issueDate,
-                }));
-
-                const invoiceItems: PurchaseHistoryItem[] = (invoicesData.invoices || []).map((invoice: any) => ({
-                    id: invoice.id,
-                    type: 'invoice',
-                    number: invoice.invoiceNumber,
-                    status: invoice.status,
-                    total: invoice.total,
-                    date: invoice.issueDate,
-                }));
-
-                const mergedItems = [...quoteItems, ...invoiceItems].sort(
-                    (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()
-                );
-
-                setItems(mergedItems);
-            } catch {
-                setItems([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchHistory();
-    }, [leadId, workspaceId]);
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-secondary" strokeWidth={1.75} />
-            </div>
-        );
-    }
-
-    if (items.length === 0) {
-        return (
-            <div className="rounded-xl bg-surface-container-low p-6 text-center text-sm text-on-surface-variant">
-                {t('crm.leadModal.purchaseHistory.empty')}
-            </div>
-        );
-    }
-
-    const headings = [
-        t('crm.leadModal.purchaseHistory.colType'),
-        t('crm.leadModal.purchaseHistory.colDocument'),
-        t('crm.leadModal.purchaseHistory.colStatus'),
-        t('crm.leadModal.purchaseHistory.colTotal'),
-        t('crm.leadModal.purchaseHistory.colDate'),
-    ];
-
-    return (
-        <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-low">
-            <table className="w-full">
-                <thead className="bg-surface-container">
-                    <tr>
-                        {headings.map((heading) => (
-                            <th
-                                key={heading}
-                                className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-on-surface-variant"
-                            >
-                                {heading}
-                            </th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/10">
-                    {items.map((item) => (
-                        <tr key={`${item.type}-${item.id}`} className="transition-colors hover:bg-surface-container-high/60">
-                            <td className="px-4 py-3">
-                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                    item.type === 'quote'
-                                        ? 'bg-secondary/10 text-secondary'
-                                        : 'bg-primary/10 text-primary'
-                                }`}>
-                                    {item.type === 'quote' ? t('crm.leadModal.purchaseHistory.typeQuote') : t('crm.leadModal.purchaseHistory.typeInvoice')}
-                                </span>
-                            </td>
-                            <td className="px-4 py-3">
-                                <Link
-                                    href={`/${item.type === 'quote' ? 'quotes' : 'invoices'}/${item.id}`}
-                                    className="text-sm font-medium text-on-surface hover:text-secondary"
-                                >
-                                    {item.number}
-                                </Link>
-                            </td>
-                            <td className="px-4 py-3">
-                                <StatusBadge
-                                    status={item.status as any}
-                                    type={item.type}
-                                    size="sm"
-                                />
-                            </td>
-                            <td className="px-4 py-3 text-sm text-on-surface">
-                                {formatCurrency(item.total, 'USD')}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-on-surface-variant">
-                                {formatDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-
-export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose }: LeadModalProps) {
+export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose, initialTab = 'details' }: LeadModalProps) {
     const { t } = useI18n();
-    const [activeTab, setActiveTab] = useState<'details' | 'meetings' | 'history'>('details');
+    const [activeTab, setActiveTab] = useState<LeadModalTab>(lead ? initialTab : 'details');
+    // Shown on the Files tab label; starts from the list's count, updated by the tab
+    const [fileCount, setFileCount] = useState<number>((lead as (Lead & { fileCount?: number }) | null | undefined)?.fileCount ?? 0);
     const [formData, setFormData] = useState({
         firstName: lead?.firstName || '',
         lastName: lead?.lastName || '',
@@ -518,40 +376,28 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
 
                     {/* Tabs (only for existing leads) */}
                     {lead && workspaceId && (
-                        <div className="flex gap-1 border-b border-surface-container-high -mx-6 px-6">
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('details')}
-                                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-all ${
-                                    activeTab === 'details'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-variant hover:text-on-surface'
-                                }`}
-                            >
-                                {t('crm.leadModal.tabDetails')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('meetings')}
-                                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-all ${
-                                    activeTab === 'meetings'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-variant hover:text-on-surface'
-                                }`}
-                            >
-                                {t('crm.leadModal.tabMeetings')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('history')}
-                                className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-all ${
-                                    activeTab === 'history'
-                                        ? 'border-primary text-primary'
-                                        : 'border-transparent text-on-surface-variant hover:text-on-surface'
-                                }`}
-                            >
-                                {t('crm.leadModal.tabHistory')}
-                            </button>
+                        <div className="flex gap-1 overflow-x-auto border-b border-surface-container-high -mx-6 px-6" role="tablist">
+                            {([
+                                ['details', t('crm.leadModal.tabDetails')],
+                                ['meetings', t('crm.leadModal.tabMeetings')],
+                                ['files', fileCount > 0 ? `${t('crm.files.tab')} (${fileCount})` : t('crm.files.tab')],
+                                ['history', t('crm.leadModal.tabHistory')],
+                            ] as Array<[LeadModalTab, string]>).map(([id, label]) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={activeTab === id}
+                                    onClick={() => setActiveTab(id)}
+                                    className={`whitespace-nowrap px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-all ${
+                                        activeTab === id
+                                            ? 'border-primary text-primary'
+                                            : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -569,9 +415,15 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         </div>
                     )}
 
+                    {lead && workspaceId && activeTab === 'files' && (
+                        <div className="p-6">
+                            <LeadFiles leadId={lead.id} onCountChange={setFileCount} />
+                        </div>
+                    )}
+
                     {lead && workspaceId && activeTab === 'history' && (
                         <div className="p-6">
-                            <PurchaseHistory workspaceId={workspaceId} leadId={lead.id} />
+                            <LeadTimeline leadId={lead.id} workspaceId={workspaceId} />
                         </div>
                     )}
 

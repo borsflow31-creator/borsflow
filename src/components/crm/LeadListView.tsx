@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit, Trash2, Paperclip } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 
 interface Lead {
@@ -23,6 +23,10 @@ interface Lead {
     leadLists?: any[];
     createdAt?: string;
     updatedAt?: string;
+    /** Number of attached files (from the leads list) */
+    fileCount?: number;
+    /** Most recent history entry */
+    lastActivityAt?: string;
 }
 
 interface Pipeline {
@@ -531,8 +535,14 @@ export default function LeadListView({
                                 >
                                     <td className="px-3 sm:px-4 py-3">
                                         <div>
-                                            <div className="font-medium text-sm text-on-surface">
+                                            <div className="flex items-center gap-1.5 font-medium text-sm text-on-surface">
                                                 {lead.firstName} {lead.lastName}
+                                                {lead.fileCount ? (
+                                                    <span className="flex items-center gap-0.5 text-[11px] font-normal text-on-surface-variant" title={t('crm.files.countTitle', { count: lead.fileCount })}>
+                                                        <Paperclip className="h-3 w-3" />
+                                                        {lead.fileCount}
+                                                    </span>
+                                                ) : null}
                                             </div>
                                             {lead.position && (
                                                 <div className="text-xs text-on-surface-variant">{lead.position}</div>

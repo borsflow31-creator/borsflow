@@ -46,6 +46,7 @@ model User {
   createdKanbanCards            KanbanCard[]            @relation("KanbanCardCreator")
   createdPipelines              Pipeline[]              @relation("PipelineCreator")
   createdLeads                  Lead[]                  @relation("LeadCreator")
+  uploadedLeadFiles             LeadFile[]              @relation("LeadFileUploader")
   createdLeadLists              LeadList[]              @relation("LeadListCreator")
   createdQuotes                 Quote[]                 @relation("QuoteCreator")
   createdQuoteNotes             QuoteNote[]             @relation("QuoteNoteCreator")
@@ -138,6 +139,7 @@ model Workspace {
   leadLists               LeadList[]
   channels                Channel[]
   productCustomFields     ProductCustomField[]
+  leadFiles               LeadFile[]
   messages                Message[]
   comments                Comment[]
   invitations             Invitation[]
@@ -356,6 +358,7 @@ model Lead {
   // Meeting relationships
   meetings              Meeting[]              @relation("LeadMeetings")
   meetingAttendees      MeetingAttendee[]      @relation("LeadAttendees")
+  files                 LeadFile[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
@@ -364,6 +367,26 @@ model Lead {
   @@index([status])
   @@index([stage])
   @@index([createdById])
+}
+
+// A file attached to a prospect. Stored in the private storage bucket under
+// crm/<workspaceId>/<leadId>/ and only served through short-lived signed URLs.
+model LeadFile {
+  id           String    @id @default(cuid())
+  leadId       String
+  lead         Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  filePath     String
+  fileName     String
+  fileType     String
+  size         Int
+  uploadedById String?
+  uploadedBy   User?     @relation("LeadFileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([workspaceId])
 }
 
 model LeadList {

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { Paperclip } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { relativeTime } from '@/lib/relative-time';
 
 interface Lead {
     id: string;
@@ -21,6 +23,10 @@ interface Lead {
     pipelineId: string;
     order: number;
     leadLists?: any[];
+    /** Number of attached files (from the leads list) */
+    fileCount?: number;
+    /** Most recent history entry */
+    lastActivityAt?: string;
 }
 
 interface LeadList {
@@ -73,7 +79,7 @@ export default function PipelineBoard({
     onOpenLeadModal,
     onOpenPipelineModal,
 }: PipelineBoardProps) {
-    const { t, formatCurrency } = useI18n();
+    const { t, formatCurrency, locale } = useI18n();
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
@@ -339,6 +345,19 @@ export default function PipelineBoard({
                                                                         </span>
                                                                     )}
                                                                 </div>
+                                                                {(lead.fileCount || lead.lastActivityAt) ? (
+                                                                    <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-on-surface-variant">
+                                                                        {lead.fileCount ? (
+                                                                            <span className="flex items-center gap-1" title={t('crm.files.countTitle', { count: lead.fileCount })}>
+                                                                                <Paperclip className="h-3 w-3" />
+                                                                                {lead.fileCount}
+                                                                            </span>
+                                                                        ) : <span />}
+                                                                        {lead.lastActivityAt ? (
+                                                                            <span title={t('crm.timeline.lastActivity')}>{relativeTime(lead.lastActivityAt, locale)}</span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                ) : null}
                                                             </div>
                                                         )}
                                                     </Draggable>

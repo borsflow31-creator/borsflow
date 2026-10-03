@@ -190,6 +190,71 @@ export interface Messages {
     amount: string;
   };
   crm: {
+    files: {
+      tab: string;
+      dropPrompt: string;
+      limits: string;
+      empty: string;
+      loadFailed: string;
+      uploadFailed: string;
+      tooLarge: string;
+      preview: string;
+      download: string;
+      delete: string;
+      deleteTitle: string;
+      deleteBody: string;
+      deleteFailed: string;
+      unknownUser: string;
+      countTitle: string;
+    };
+    timeline: {
+      notePlaceholder: string;
+      noteHint: string;
+      addNote: string;
+      noteFailed: string;
+      deleteNote: string;
+      loadFailed: string;
+      loadMore: string;
+      emptyHistory: string;
+      filterAria: string;
+      filterAll: string;
+      filterNotes: string;
+      filterActivity: string;
+      filterFiles: string;
+      filterSales: string;
+      filterEmails: string;
+      filterMeetings: string;
+      someone: string;
+      noteBy: string;
+      created: string;
+      createdByImport: string;
+      source: string;
+      stageChanged: string;
+      updated: string;
+      changed: string;
+      empty: string;
+      fileAdded: string;
+      fileDeleted: string;
+      quote: string;
+      invoice: string;
+      meeting: string;
+      emailSent: string;
+      emailOpened: string;
+      emailNotOpened: string;
+      emailBounced: string;
+      lastActivity: string;
+      fieldFirstName: string;
+      fieldLastName: string;
+      fieldEmail: string;
+      fieldPhone: string;
+      fieldCompany: string;
+      fieldPosition: string;
+      fieldStatus: string;
+      fieldValue: string;
+      fieldSource: string;
+      fieldNotes: string;
+      fieldTags: string;
+    };
     page: {
       errors: {
         loadPipelinesFailed: string;
@@ -2020,6 +2085,16 @@ export interface Messages {
       previewingRows: string;
       importingTitle: string;
       importingBody: string;
+      progressCount: string;
+      secondsLeft: string;
+      minutesLeft: string;
+      createdCount: string;
+      skippedCount: string;
+      stopImport: string;
+      stopping: string;
+      stopHint: string;
+      stoppedSummary: string;
+      partialFailure: string;
       doneTitle: string;
       doneSummary: string;
       rowErrorsTitle: string;
@@ -3674,6 +3749,16 @@ const en: Messages = {
       previewingRows: 'Previewing the first {count} rows',
       importingTitle: 'Importing products…',
       importingBody: 'Importing {count} products. This may take a moment.',
+      progressCount: '{done} of {total} rows processed',
+      secondsLeft: 'about {count}s left',
+      minutesLeft: 'about {count} min left',
+      createdCount: '{count} imported',
+      skippedCount: '{count} skipped',
+      stopImport: 'Stop import',
+      stopping: 'Stopping after this batch…',
+      stopHint: 'Products already imported stay in your catalog.',
+      stoppedSummary: 'Import stopped: {remaining} rows were not imported.',
+      partialFailure: 'The import stopped early: {error}. The rows below were processed before it stopped.',
       doneTitle: 'Import complete',
       doneSummary: '{created} products created, {skipped} skipped',
       rowErrorsTitle: 'Some rows couldn’t be imported',
@@ -5125,6 +5210,71 @@ const en: Messages = {
     workspaceDescriptionPlaceholder: 'What is this workspace for? (optional)',
   },
   crm: {
+    files: {
+      tab: 'Files',
+      dropPrompt: 'Drop files here or click to add',
+      limits: 'PDF, images, Office documents, CSV, ZIP · up to 10 MB each',
+      empty: 'No files yet. Attach proposals, contracts or anything about this prospect.',
+      loadFailed: 'Couldn’t load files.',
+      uploadFailed: 'Upload failed.',
+      tooLarge: 'This file is larger than 10 MB.',
+      preview: 'Preview',
+      download: 'Download',
+      delete: 'Delete file',
+      deleteTitle: 'Delete “{name}”?',
+      deleteBody: 'The file is removed for everyone. This can’t be undone.',
+      deleteFailed: 'Couldn’t delete the file.',
+      unknownUser: 'Unknown',
+      countTitle: '{count} files attached',
+    },
+    timeline: {
+      notePlaceholder: 'Add a note about a call, a meeting, next steps…',
+      noteHint: 'Ctrl+Enter to save · notes are kept in the history',
+      addNote: 'Add note',
+      noteFailed: 'Couldn’t save the note.',
+      deleteNote: 'Delete note',
+      loadFailed: 'Couldn’t load the history.',
+      loadMore: 'Load older activity',
+      emptyHistory: 'Nothing here yet. Notes, changes, files, quotes, meetings and emails will appear as they happen.',
+      filterAria: 'Filter history',
+      filterAll: 'All',
+      filterNotes: 'Notes',
+      filterActivity: 'Changes',
+      filterFiles: 'Files',
+      filterSales: 'Quotes & invoices',
+      filterEmails: 'Emails',
+      filterMeetings: 'Meetings',
+      someone: 'Someone',
+      noteBy: 'Note by {name}',
+      created: 'Added by {name}',
+      createdByImport: 'Added by spreadsheet import',
+      source: 'Source: {source}',
+      stageChanged: 'Moved from “{from}” to “{to}”',
+      updated: '{name} updated details',
+      changed: 'changed',
+      empty: '(empty)',
+      fileAdded: '{name} added a file',
+      fileDeleted: '{name} deleted a file',
+      quote: 'Quote {number}',
+      invoice: 'Invoice {number}',
+      meeting: 'Meeting: {title}',
+      emailSent: 'Email sent: “{subject}”',
+      emailOpened: 'Opened {date}',
+      emailNotOpened: 'Not opened yet',
+      emailBounced: 'Bounced: not delivered',
+      lastActivity: 'Last activity',
+      fieldFirstName: 'First name',
+      fieldLastName: 'Last name',
+      fieldEmail: 'Email',
+      fieldPhone: 'Phone',
+      fieldCompany: 'Company',
+      fieldPosition: 'Position',
+      fieldStatus: 'Status',
+      fieldValue: 'Value',
+      fieldSource: 'Source',
+      fieldNotes: 'Notes',
+      fieldTags: 'Tags',
+    },
     page: {
       errors: {
         loadPipelinesFailed: 'Failed to load pipelines.',

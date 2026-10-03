@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         const defaultStage = pipelineStages[0] ?? 'new';
 
         const results = { created: 0, skipped: 0, stageCoerced: 0, errors: [] as string[] };
+        const createdIds: string[] = [];
 
         for (const row of leads) {
             if (!row.firstName?.trim() || !row.lastName?.trim()) {
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
                     ? row.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
                     : [];
 
-                await prisma.lead.create({
+                const created = await prisma.lead.create({
                     data: {
                         firstName: row.firstName.trim().slice(0, 50),
                         lastName: row.lastName.trim().slice(0, 50),
@@ -132,13 +133,31 @@ export async function POST(request: NextRequest) {
                         pipelineId,
                         order: nextOrder++,
                     },
+                    select: { id: true },
                 });
+                createdIds.push(created.id);
 
                 results.created++;
             } catch (err) {
                 results.errors.push(`Row ${results.created + results.skipped + 1}: ${err instanceof Error ? err.message : 'Unknown error'}`);
                 results.skipped++;
             }
+        }
+
+        // One "added by import" entry in each new prospect's history, written in a single query
+        if (createdIds.length > 0) {
+            await prisma.activity.createMany({
+                data: createdIds.map((leadId) => ({
+                    workspaceId: workspace.id,
+                    userId: session.user.id,
+                    type: 'lead_created',
+                    entityType: 'lead',
+                    entityId: leadId,
+                    leadId,
+                    description: 'Added by spreadsheet import',
+                    metadata: JSON.stringify({ via: 'import' }),
+                })),
+            }).catch((err) => console.error('Failed to log imported leads:', err));
         }
 
         return NextResponse.json(results, { status: 201 });

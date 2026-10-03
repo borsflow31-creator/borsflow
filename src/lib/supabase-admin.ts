@@ -19,3 +19,7 @@ export function getSupabaseAdmin(): SupabaseClient | null {
 }
 
 export const CHAT_BUCKET = process.env.SUPABASE_CHAT_BUCKET || 'chat-uploads'
+
+// CRM prospect files share the private chat bucket by default (under crm/...);
+// set SUPABASE_CRM_BUCKET to keep them in a separate private bucket.
+export const CRM_BUCKET = process.env.SUPABASE_CRM_BUCKET || CHAT_BUCKET

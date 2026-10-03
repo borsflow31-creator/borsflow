@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FileSpreadsheet, Loader2, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { CheckCircle2, FileSpreadsheet, Loader2, SlidersHorizontal, Upload, X, XCircle } from 'lucide-react';
 import { MAX_IMPORT_PRODUCTS } from '@/lib/products';
 import {
   MAX_SPREADSHEET_BYTES,
@@ -29,6 +29,18 @@ import { NewCustomFieldForm, useFieldTypeLabels } from './ProductCustomFieldsMod
 /** A column maps to a built-in field, a custom field (`custom:<key>`), or nothing. */
 type Mapping = ProductCSVField | `custom:${string}`;
 const NEW_FIELD_OPTION = '__new__';
+// Rows per request: small enough for frequent progress updates, large enough
+// that a 1,000-row import is ~40 requests.
+const IMPORT_BATCH_SIZE = 25;
+
+interface ImportProgress {
+  processed: number;
+  total: number;
+  created: number;
+  skipped: number;
+  startedAt: number;
+  stopping: boolean;
+}
 
 type Step = 'upload' | 'sheet' | 'map' | 'preview' | 'import' | 'done';
 
@@ -118,6 +130,10 @@ export default function ProductImportModal({
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
   const [result, setResult] = useState<CSVImportResult | null>(null);
+  const [progress, setProgress] = useState<ImportProgress | null>(null);
+  // Set when the user stops the import (or closes the dialog mid-import)
+  const stopRef = useRef(false);
+  const [stopped, setStopped] = useState(false);
 
   // The sheet picker only exists for multi-sheet workbooks, so the progress
   // rail is derived rather than fixed.
@@ -324,35 +340,83 @@ export default function ProductImportModal({
     setStep('map');
   };
 
+  // Imports in batches so progress can be shown live and the user can stop
+  // part-way. Rows already sent stay imported; nothing is rolled back.
   const handleImport = async () => {
-    setStep('import');
+    const total = mappedProducts.length;
+    const totals: CSVImportResult = { created: 0, skipped: 0, errors: [] };
+    stopRef.current = false;
+    setStopped(false);
     setError('');
+    setProgress({ processed: 0, total, created: 0, skipped: 0, startedAt: Date.now(), stopping: false });
+    setStep('import');
 
-    try {
+    const postBatch = async (batch: typeof mappedProducts, rowOffset: number) => {
       const response = await fetch('/api/products/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspaceId, products: mappedProducts }),
+        body: JSON.stringify({ workspaceId, products: batch, rowOffset }),
       });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || t('products.importModal.importFailed'));
+      return data as CSVImportResult;
+    };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || t('products.importModal.importFailed'));
+    let failure: string | null = null;
+    for (let start = 0; start < total; start += IMPORT_BATCH_SIZE) {
+      if (stopRef.current) break;
+      const batch = mappedProducts.slice(start, start + IMPORT_BATCH_SIZE);
+      let data: CSVImportResult | null = null;
+      // One retry absorbs a dropped connection without re-importing on a real error
+      for (let attempt = 0; attempt < 2 && !data; attempt++) {
+        try {
+          data = await postBatch(batch, start);
+        } catch (batchError) {
+          if (attempt === 1) failure = batchError instanceof Error ? batchError.message : t('products.importModal.importFailed');
+          else await new Promise((resolve) => setTimeout(resolve, 800));
+        }
       }
-
-      setResult(data);
-      setStep('done');
-      onImported(data);
-    } catch (importError) {
-      setError(importError instanceof Error ? importError.message : t('products.importModal.importFailed'));
-      setStep('preview');
+      if (!data) break;
+      totals.created += data.created;
+      totals.skipped += data.skipped;
+      totals.errors.push(...data.errors);
+      setProgress((current) => current && {
+        ...current,
+        processed: Math.min(total, start + batch.length),
+        created: totals.created,
+        skipped: totals.skipped,
+      });
     }
+
+    const wasStopped = stopRef.current;
+    if (failure && totals.created + totals.skipped === 0) {
+      // Nothing went through: back to the preview with the reason
+      setError(failure);
+      setStep('preview');
+      setProgress(null);
+      return;
+    }
+    if (failure) setError(t('products.importModal.partialFailure', { error: failure }));
+    setStopped(wasStopped);
+    setResult(totals);
+    setStep('done');
+    onImported(totals);
+  };
+
+  const stopImport = () => {
+    stopRef.current = true;
+    setProgress((current) => current && { ...current, stopping: true });
+  };
+
+  const handleClose = () => {
+    // Closing mid-import stops after the current batch instead of leaving it running unseen
+    if (step === 'import') stopImport();
+    onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { if (step !== 'import') handleClose(); }} />
 
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-outline-variant/10 px-6 py-5">
@@ -364,7 +428,7 @@ export default function ProductImportModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-lg p-2 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             aria-label={t('products.importModal.closeAria')}
           >
@@ -669,15 +733,69 @@ export default function ProductImportModal({
             </div>
           ) : null}
 
-          {step === 'import' ? (
-            <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
-              <Loader2 className="mb-4 h-10 w-10 animate-spin text-secondary" strokeWidth={1.75} />
-              <h3 className="text-lg font-semibold text-on-surface">{t('products.importModal.importingTitle')}</h3>
-              <p className="mt-2 max-w-md text-sm text-on-surface-variant">
-                {t('products.importModal.importingBody', { count: mappedProducts.length.toLocaleString() })}
-              </p>
-            </div>
-          ) : null}
+          {step === 'import' && progress ? (() => {
+            const percent = progress.total ? Math.round((progress.processed / progress.total) * 100) : 0;
+            const elapsed = Date.now() - progress.startedAt;
+            const remainingMs = progress.processed > 0
+              ? (elapsed / progress.processed) * (progress.total - progress.processed)
+              : null;
+            const remainingLabel = remainingMs === null || progress.processed === progress.total
+              ? null
+              : remainingMs < 60_000
+                ? t('products.importModal.secondsLeft', { count: Math.max(1, Math.round(remainingMs / 1000)) })
+                : t('products.importModal.minutesLeft', { count: Math.round(remainingMs / 60_000) });
+            return (
+              <div className="flex min-h-[260px] flex-col items-center justify-center px-2 text-center">
+                <Loader2 className="mb-4 h-9 w-9 animate-spin text-secondary" strokeWidth={1.75} />
+                <h3 className="text-lg font-semibold text-on-surface">
+                  {progress.stopping ? t('products.importModal.stopping') : t('products.importModal.importingTitle')}
+                </h3>
+                <p className="mt-1 text-sm text-on-surface-variant" aria-live="polite">
+                  {t('products.importModal.progressCount', {
+                    done: progress.processed.toLocaleString(),
+                    total: progress.total.toLocaleString(),
+                  })}
+                  {remainingLabel ? ` · ${remainingLabel}` : ''}
+                </p>
+
+                <div
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}
+                  aria-label={t('products.importModal.importingTitle')}
+                  className="mt-5 h-2.5 w-full max-w-md overflow-hidden rounded-full bg-surface-container-high"
+                >
+                  <div
+                    className="h-full rounded-full bg-secondary transition-[width] duration-300 ease-out"
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs font-semibold tabular-nums text-on-surface">{percent}%</p>
+
+                <div className="mt-5 flex items-center gap-6 text-sm">
+                  <span className="flex items-center gap-1.5 text-success">
+                    <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
+                    <span className="tabular-nums">{t('products.importModal.createdCount', { count: progress.created.toLocaleString() })}</span>
+                  </span>
+                  <span className={`flex items-center gap-1.5 ${progress.skipped > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
+                    <XCircle className="h-4 w-4" strokeWidth={1.75} />
+                    <span className="tabular-nums">{t('products.importModal.skippedCount', { count: progress.skipped.toLocaleString() })}</span>
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={stopImport}
+                  disabled={progress.stopping}
+                  className="mt-6 rounded-lg border border-outline-variant/30 px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low disabled:opacity-50"
+                >
+                  {t('products.importModal.stopImport')}
+                </button>
+                <p className="mt-2 max-w-sm text-xs text-on-surface-variant">{t('products.importModal.stopHint')}</p>
+              </div>
+            );
+          })() : null}
 
           {step === 'done' && result ? (
             <div className="space-y-5">
@@ -686,6 +804,13 @@ export default function ProductImportModal({
                 <p className="mt-2 text-sm text-on-surface-variant">
                   {t('products.importModal.doneSummary', { created: result.created, skipped: result.skipped })}
                 </p>
+                {stopped && progress ? (
+                  <p className="mt-2 text-sm text-on-surface-variant">
+                    {t('products.importModal.stoppedSummary', {
+                      remaining: (progress.total - progress.processed).toLocaleString(),
+                    })}
+                  </p>
+                ) : null}
               </div>
 
               {result.errors.length > 0 ? (
@@ -720,7 +845,7 @@ export default function ProductImportModal({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-lg px-4 py-2 text-sm font-medium text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
             >
               {step === 'done' ? t('common.close') : t('common.cancel')}

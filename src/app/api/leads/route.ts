@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { createLead } from '@/lib/services/leads';
 import { ServiceError } from '@/lib/services/errors';
+import { CrmLogger } from '@/lib/crm/logger';
 
 export async function GET(request: NextRequest) {
     try {
@@ -95,16 +96,29 @@ export async function GET(request: NextRequest) {
                     include: {
                         leadList: true
                     }
-                }
+                },
+                _count: { select: { files: true } },
             },
             orderBy: { order: 'asc' },
         });
 
+        // Most recent history entry per lead, for "last activity" on cards and rows
+        const lastActivity = leads.length
+            ? await prisma.activity.groupBy({
+                by: ['leadId'],
+                where: { leadId: { in: leads.map(l => l.id) } },
+                _max: { createdAt: true },
+            })
+            : [];
+        const lastActivityByLead = new Map(lastActivity.map(a => [a.leadId, a._max.createdAt]));
+
         // Parse tags JSON and format lead lists
-        const leadsWithParsedData = leads.map(lead => ({
+        const leadsWithParsedData = leads.map(({ _count, ...lead }) => ({
             ...lead,
             tags: lead.tags ? JSON.parse(lead.tags) : [],
-            leadLists: lead.leadLists.map(l => l.leadList)
+            leadLists: lead.leadLists.map(l => l.leadList),
+            fileCount: _count.files,
+            lastActivityAt: lastActivityByLead.get(lead.id) ?? lead.updatedAt,
         }));
 
         return NextResponse.json(leadsWithParsedData);
@@ -192,6 +206,14 @@ export async function POST(request: NextRequest) {
             notes,
             tags,
             leadListIds,
+        });
+
+        await CrmLogger.logCreated({
+            workspaceId: workspace.id,
+            userId: session.user.id,
+            leadId: lead.id,
+            leadName: `${firstName} ${lastName}`.trim(),
+            source: source || undefined,
         });
 
         // Fetch the lead with lead lists

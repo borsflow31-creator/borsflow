@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const workspaceId = body.workspaceId as string | undefined;
     const products = (body.products || []) as ImportRow[];
+    // The client imports in batches; the offset keeps reported row numbers
+    // matching the spreadsheet rather than the batch.
+    const rowOffset = Number.isInteger(body.rowOffset) && body.rowOffset > 0 ? body.rowOffset : 0;
 
     if (!workspaceId || !Array.isArray(products) || products.length === 0) {
       return NextResponse.json(
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
     };
 
     for (const [index, row] of products.entries()) {
-      const rowNumber = index + 2;
+      const rowNumber = rowOffset + index + 2;
       const name = String(row.name || '').trim();
 
       if (!name) {

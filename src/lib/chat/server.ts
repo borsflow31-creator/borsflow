@@ -264,25 +264,8 @@ export function logRealtimeError(context: string) {
 
 /* ─── Files ───────────────────────────────────────────────────────────────── */
 
-// Extension is derived from the validated MIME type, never from the client's
-// filename, so an upload can't be served back as HTML/SVG from our storage.
-export const CHAT_FILE_TYPES: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/jpg': 'jpg',
-  'image/png': 'png',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'application/pdf': 'pdf',
-  'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'application/vnd.ms-excel': 'xls',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-  'text/plain': 'txt',
-  'text/csv': 'csv',
-  'application/zip': 'zip',
-  'application/x-zip-compressed': 'zip',
-}
-export const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+// Shared with CRM prospect files (src/lib/uploads.ts)
+export { UPLOAD_FILE_TYPES as CHAT_FILE_TYPES, MAX_UPLOAD_SIZE as MAX_FILE_SIZE } from '@/lib/uploads'
 
 /* ─── Cursors ─────────────────────────────────────────────────────────────── */
 

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace';
 import { automationEngine } from '@/lib/automation-engine';
 import { CrmLogger } from '@/lib/crm/logger';
+import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin';
 
 export async function GET(
     request: NextRequest,
@@ -189,6 +190,18 @@ export async function PUT(
             }
         }
 
+        await CrmLogger.logUpdated({
+            workspaceId: lead.pipeline.workspaceId,
+            userId: session.user.id,
+            leadId: params.id,
+            leadName: `${lead.firstName} ${lead.lastName}`.trim(),
+            before: { ...lead, tags: lead.tags ? JSON.parse(lead.tags) : [] },
+            after: {
+                ...data,
+                ...(data.tags !== undefined && { tags: data.tags ? JSON.parse(data.tags) : [] }),
+            },
+        });
+
         // A real stage change is the CRM signal email automations run on. Covers both
         // entry points: drag & drop sends { stage, order }, LeadModal sends { stage }.
         if (stage !== undefined && stage !== lead.stage) {
@@ -288,10 +301,18 @@ export async function DELETE(
             return NextResponse.json({ error: access.error }, { status: access.status });
         }
 
+        // Stored files go too; their database rows cascade with the lead
+        const files = await prisma.leadFile.findMany({ where: { leadId: params.id }, select: { filePath: true } });
+
         // Delete lead (lead-list links cascade at the DB level)
         await prisma.lead.delete({
             where: { id: params.id },
         });
+
+        if (files.length > 0) {
+            const { error } = (await getSupabaseAdmin()?.storage.from(CRM_BUCKET).remove(files.map(f => f.filePath))) ?? { error: null };
+            if (error) console.error('Failed to remove deleted lead files from storage:', error.message);
+        }
 
         return NextResponse.json({ message: 'Lead deleted successfully' });
     } catch (error) {
