@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
-import { Check, Eye, FilePlus2, Loader2, Pencil, Search, Trash2, X, PenLine } from 'lucide-react'
+import { Check, Eye, FilePlus2, Loader2, Pencil, Search, Trash2, X } from 'lucide-react'
 import { EmailStarterTemplate, emailStarterTemplates, starterTemplateCategories } from '@/lib/email-starter-templates'
 
 export interface WorkspaceEmailTemplate {
@@ -27,34 +27,8 @@ interface EmailStarterTemplateGalleryProps {
   onCreateBlank?: () => void
   onEditWorkspaceTemplate?: (template: WorkspaceEmailTemplate) => void
   onDeleteWorkspaceTemplate?: (id: string) => void
-  onEditStarter?: (template: EmailStarterTemplate) => Promise<void>
   title?: string
   subtitle?: string
-}
-
-const STARTER_TEMPLATE_PREVIEW_IMAGES: Record<string, string> = {
-  'monthly-marketing-dispatch': 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80',
-  'inside-insights-monthly-marketing-roundup': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80',
-  'your-voice-matters': 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80',
-  'your-journey-in-review': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80',
-  'just-one-last-step': 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1600&q=80',
-  'voices-that-shape-us': 'https://images.unsplash.com/photo-1515169067868-5387ec356754?auto=format&fit=crop&w=1600&q=80',
-  'surprise-your-valentine': 'https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=1600&q=80',
-  'kids-fall-collection': 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?auto=format&fit=crop&w=1600&q=80',
-  'black-friday-watch-sale': 'https://images.unsplash.com/photo-1523170335258-f5ed11844a49?auto=format&fit=crop&w=1600&q=80',
-  'thanksgiving-staycation-email': 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
-  'the-season-of-gratitude': 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=1600&q=80',
-  'no-tricks-only-treats': 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?auto=format&fit=crop&w=1600&q=80',
-  'founders-notebook-product-launch': 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1600&q=80',
-  'creator-digest-weekly-drop': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80',
-  'onboarding-check-in-pulse': 'https://images.unsplash.com/photo-1551434678-e076c223a692?auto=format&fit=crop&w=1600&q=80',
-  'customer-story-spotlight': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1600&q=80',
-  'account-activation-reminder': 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1600&q=80',
-  'cyber-monday-tech-flash': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80',
-  'webinar-countdown-invite': 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1600&q=80',
-  'holiday-escape-weekend': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
-  'founder-thank-you-note': 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=1600&q=80',
-  'year-together-anniversary-recap': 'https://images.unsplash.com/photo-1516321165247-4aa89a48be28?auto=format&fit=crop&w=1600&q=80',
 }
 
 export default function EmailStarterTemplateGallery({
@@ -64,7 +38,6 @@ export default function EmailStarterTemplateGallery({
   onCreateBlank,
   onEditWorkspaceTemplate,
   onDeleteWorkspaceTemplate,
-  onEditStarter,
   title,
   subtitle,
 }: EmailStarterTemplateGalleryProps) {
@@ -74,7 +47,6 @@ export default function EmailStarterTemplateGallery({
   const [previewTemplate, setPreviewTemplate] = useState<EmailStarterTemplate | WorkspaceEmailTemplate | null>(null)
   const [cloningId, setCloningId] = useState<string | null>(null)
   const [clonedId, setClonedId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const importedNames = useMemo(
@@ -100,25 +72,7 @@ export default function EmailStarterTemplateGallery({
   }, [activeCategory, query])
 
   const resolvePreviewImage = (template: EmailStarterTemplate | WorkspaceEmailTemplate) =>
-    'highlights' in template ? STARTER_TEMPLATE_PREVIEW_IMAGES[template.id] ?? template.previewImage : null
-
-  const handleEditInBuilder = async (template: EmailStarterTemplate) => {
-    if (!workspaceId || !onEditStarter) {
-      setError(t('emailMarketing.starterGallery.workspaceRequiredEdit'))
-      return
-    }
-    setError(null)
-    setStatus(null)
-    setEditingId(template.id)
-    try {
-      await onEditStarter(template)
-    } catch (err: any) {
-      setError(err?.message || t('emailMarketing.starterGallery.editFailed'))
-      setTimeout(() => setError(null), 6000)
-    } finally {
-      setEditingId(null)
-    }
-  }
+    'highlights' in template ? template.previewImage : null
 
   const handleClone = async (template: EmailStarterTemplate) => {
     if (!workspaceId || !onCloneTemplate) {
@@ -408,19 +362,6 @@ export default function EmailStarterTemplateGallery({
                               : t('emailMarketing.starterGallery.cloneTemplate')}
                         </button>
                       </div>
-                      {onEditStarter && (
-                        <button
-                          type="button"
-                          onClick={() => handleEditInBuilder(template)}
-                          disabled={!workspaceId || editingId === template.id}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-secondary/30 bg-secondary/15 px-4 py-2.5 text-sm font-medium text-secondary transition hover:bg-secondary/25 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {editingId === template.id
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <PenLine className="h-4 w-4" />}
-                          {editingId === template.id ? t('emailMarketing.starterGallery.opening') : t('emailMarketing.starterGallery.editInBuilder')}
-                        </button>
-                      )}
                     </div>
                   </div>
                 </article>
@@ -468,7 +409,7 @@ export default function EmailStarterTemplateGallery({
                   <div
                     className="h-40 w-full rounded-[20px] bg-surface-container-high"
                     style={{
-                      backgroundImage: `linear-gradient(180deg, transparent 40%, rgba(17,24,39,0.5)), url(${resolvePreviewImage(previewTemplate) ?? previewTemplate.previewImage})`,
+                      backgroundImage: `linear-gradient(180deg, transparent 40%, rgba(17,24,39,0.5)), url(${previewTemplate.previewImage})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                     }}

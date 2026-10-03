@@ -432,44 +432,6 @@ function EmailMarketingPageInner() {
     await fetchData(workspaceId)
   }
 
-  const handleEditStarterTemplate = async (template: {
-    name: string
-    description: string
-    type: string
-    subject: string
-    htmlContent: string
-    textContent: string
-    variables: string[]
-    tags: string[]
-  }) => {
-    // Clone the starter template into the workspace first
-    const res = await fetch('/api/email-marketing/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        workspaceId,
-        name: template.name,
-        description: template.description,
-        type: template.type,
-        subject: template.subject,
-        htmlContent: template.htmlContent,
-        textContent: template.textContent,
-        variables: template.variables,
-        tags: template.tags,
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || t('emailMarketing.templatesTab.cloneForEditFailed'))
-
-    // Open the newly cloned template in the editor
-    const cloned = data.template
-    setSelectedTemplate(cloned)
-    setShowTemplateModal(true)
-
-    // Refresh list in background
-    fetchData(workspaceId)
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
@@ -613,7 +575,6 @@ function EmailMarketingPageInner() {
               templates={templates}
               loading={loading}
               onCloneStarter={handleCloneStarterTemplate}
-              onEditStarter={handleEditStarterTemplate}
               onEdit={(t) => { setSelectedTemplate(t); setShowTemplateModal(true); }}
               onCreate={() => { setSelectedTemplate(null); setShowTemplateModal(true); }}
               onDelete={handleDeleteTemplate}
@@ -1012,7 +973,6 @@ function TemplatesContent({
   templates,
   loading,
   onCloneStarter,
-  onEditStarter,
   onEdit,
   onCreate,
   onDelete,
@@ -1021,16 +981,6 @@ function TemplatesContent({
   templates: EmailTemplate[]
   loading: boolean
   onCloneStarter: (template: {
-    name: string
-    description: string
-    type: string
-    subject: string
-    htmlContent: string
-    textContent: string
-    variables: string[]
-    tags: string[]
-  }) => Promise<void>
-  onEditStarter: (template: {
     name: string
     description: string
     type: string
@@ -1064,7 +1014,6 @@ function TemplatesContent({
             workspaceId={workspaceId}
             workspaceTemplates={templates}
             onCloneTemplate={onCloneStarter}
-            onEditStarter={onEditStarter}
             onCreateBlank={onCreate}
             onEditWorkspaceTemplate={onEdit}
             onDeleteWorkspaceTemplate={onDelete}
