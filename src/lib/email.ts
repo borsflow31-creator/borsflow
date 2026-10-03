@@ -194,11 +194,20 @@ function generateInvitationEmailTemplate(data: InvitationEmailData): string {
                 </tr>
               </table>`
 
+  const senderEmail = escapeHtml(data.senderEmail)
+  // Say plainly who invited whom, to what, and on which product: a bare
+  // "Join Salam." read like spam to recipients who had never heard of BorsFlow.
+  const sender =
+    senderName === senderEmail ? `<strong>${senderName}</strong>` : `<strong>${senderName}</strong> (${senderEmail})`
+
   return renderEmail({
-    title: `Join ${workspaceName} on BorsFlow`,
-    preheader: `${senderName} invited you to ${workspaceName} on BorsFlow.`,
-    heading: `Join ${workspaceName}.`,
-    body: emailParagraph(`<strong>${senderName}</strong> invited you to work together in BorsFlow.`) + workspaceRow,
+    title: `You're invited to the ${workspaceName} workspace on BorsFlow`,
+    preheader: `${senderName} invited you to join the ${workspaceName} workspace on BorsFlow.`,
+    heading: `You’re invited to the ${workspaceName} workspace on BorsFlow.`,
+    body:
+      emailParagraph(
+        `${sender} invited you to join the <strong>${workspaceName}</strong> workspace on BorsFlow as ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role}.`
+      ) + workspaceRow,
     action: { label: 'Accept invitation', url: acceptUrl },
     note: 'The invitation expires in 7 days. No account yet? You’ll create one when you accept.',
     footer: `Sent to ${recipient} because ${senderName} invited you. Not expecting it? You can ignore this email.`,
@@ -232,7 +241,7 @@ export async function sendInvitationEmail(
 
   const html = generateInvitationEmailTemplate(emailData)
   const from = getFrom()
-  const subject = `You're invited to join ${workspaceName}`
+  const subject = `${senderName} invited you to the ${workspaceName} workspace on BorsFlow`
 
   if (EMAIL_PROVIDER === 'smtp') {
     const transporter = getSmtpTransporter()
