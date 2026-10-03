@@ -4,9 +4,15 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
 import {
   X, FileText, Code, Tag, Plus,
-  ChevronDown, ChevronUp, Save, Layout, Eye, Settings2
+  ChevronDown, ChevronUp, Save, Layout, Eye, Settings2, Mail, PenLine, Check
 } from 'lucide-react'
-import EmailBlockEditor, { blocksToHtml, htmlToBlocks } from './EmailBlockEditor'
+import EmailBlockEditor, { blocksToHtml, makeBlock } from './EmailBlockEditor'
+import SimpleEmailEditor from './SimpleEmailEditor'
+import InlineEmailEditor from './InlineEmailEditor'
+import {
+  EditorMode, detectEditorMode, htmlToPlainText, htmlToSimple, htmlToSimpleBody,
+  simpleBodyToBlockText, simpleToHtml,
+} from '@/lib/email-editor-mode'
 
 interface TemplateModalProps {
   isOpen: boolean
@@ -51,6 +57,11 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
   const [activeTab, setActiveTab]     = useState<EditorTab>('design')
   const [openSections, setOpenSections] = useState({ meta: true, variables: true, tags: false, plaintext: false })
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Which editor owns the content; null shows the "how do you want to write?" screen
+  const [mode, setMode] = useState<EditorMode | null>(null)
+  const [modeMenuOpen, setModeMenuOpen] = useState(false)
+  // Bumped to remount an editor after its content is replaced from outside
+  const [editorKey, setEditorKey] = useState(0)
   // Snapshot of the form when opened, used to detect unsaved changes
   const initialSnapshot = useRef('')
 
@@ -80,6 +91,9 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
     setFormData(initial)
     initialSnapshot.current = JSON.stringify(initial)
     editorInitHtml.current = html
+    setMode(detectEditorMode(html))
+    setModeMenuOpen(false)
+    setEditorKey(k => k + 1)
     setActiveTab('design')
     setErrors({})
     setSaveError(null)
@@ -110,15 +124,53 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
     if (t && !formData.tags.includes(t)) { set('tags', [...formData.tags, t]); setNewTag('') }
   }
 
-  // Called by EmailBlockEditor whenever blocks change → keep formData in sync
+  // Called by the active editor whenever content changes → keep formData in sync
   const handleDesignChange = useCallback((html: string) => {
     setFormData(prev => ({ ...prev, htmlContent: html }))
+    setErrors(prev => { const n = { ...prev }; delete n.htmlContent; return n })
   }, [])
+
+  /** Load new content into a freshly mounted editor of the given mode. */
+  const startMode = (next: EditorMode, html: string, tab: EditorTab = 'design') => {
+    editorInitHtml.current = html
+    setFormData(prev => ({ ...prev, htmlContent: html }))
+    setMode(next)
+    setEditorKey(k => k + 1)
+    setActiveTab(tab)
+    setModeMenuOpen(false)
+  }
+
+  const defaultDesignedHtml = () =>
+    blocksToHtml([makeBlock('header', 'd-0'), makeBlock('text', 'd-1'), makeBlock('button', 'd-2')])
+
+  /** Switching editors converts what it can; it's lossy, so confirm first. */
+  const switchMode = (next: 'simple' | 'blocks') => {
+    if (next === mode) { setModeMenuOpen(false); return }
+    const html = formData.htmlContent
+    const hasContent = !!html.trim()
+    if (hasContent && !window.confirm(
+      mode === 'inline' ? t('emailMarketing.templateModal.startOverConfirm') : t('emailMarketing.templateModal.switchConfirm')
+    )) return
+
+    if (next === 'blocks') {
+      if (mode === 'simple' && hasContent) {
+        const text = simpleBodyToBlockText(htmlToSimple(html).bodyHtml)
+        startMode('blocks', blocksToHtml([{ ...makeBlock('text', 's-0'), bodyText: text }]))
+      } else {
+        startMode('blocks', defaultDesignedHtml())
+      }
+    } else {
+      startMode('simple', mode === 'blocks' && hasContent
+        ? simpleToHtml(htmlToSimpleBody(html), { unsubscribe: true })
+        : '')
+    }
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}
     if (!formData.name.trim())    e.name    = t('common.required')
     if (!formData.subject.trim()) e.subject = t('common.required')
+    if (!formData.htmlContent.trim()) e.htmlContent = t('emailMarketing.templateModal.bodyRequired')
     setErrors(e)
     return !Object.keys(e).length
   }
@@ -129,7 +181,9 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
     if (!validate()) return
     setSaving(true); setSaveError(null)
     try {
-      await onSave({ ...formData, workspaceId })
+      // Every email gets a plain-text part, even if the user never wrote one
+      const textContent = formData.textContent.trim() ? formData.textContent : htmlToPlainText(formData.htmlContent)
+      await onSave({ ...formData, textContent, workspaceId })
       onClose()
     } catch (err: any) {
       setSaveError(err?.message || t('emailMarketing.templateModal.saveFailed'))
@@ -156,11 +210,19 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
   const inputCls = (err?: string) =>
     `w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50 ${err ? 'border-red-400' : 'border-outline-variant/40'}`
 
-  const tabs: { id: EditorTab; label: string; icon: React.ElementType }[] = [
-    { id: 'design',  label: t('emailMarketing.templateModal.tabDesign'),  icon: Layout },
-    { id: 'html',    label: t('emailMarketing.templateModal.tabHtml'),    icon: Code },
+  const editTab = mode === 'simple'
+    ? { id: 'design' as const, label: t('emailMarketing.templateModal.tabWrite'), icon: PenLine }
+    : mode === 'inline'
+      ? { id: 'design' as const, label: t('emailMarketing.templateModal.tabEdit'), icon: PenLine }
+      : { id: 'design' as const, label: t('emailMarketing.templateModal.tabDesign'), icon: Layout }
+  // Simple mode hides raw HTML: it's the "just write" editor
+  const tabs: { id: EditorTab; label: string; icon: React.ElementType }[] = mode === null ? [] : [
+    editTab,
+    ...(mode === 'simple' ? [] : [{ id: 'html' as const, label: t('emailMarketing.templateModal.tabHtml'), icon: Code }]),
     { id: 'preview', label: t('emailMarketing.templateModal.tabPreview'), icon: Eye },
   ]
+  // The Simple editor has its own subject line, like Gmail's compose window
+  const showTopSubject = !(mode === 'simple' && activeTab === 'design')
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -178,17 +240,61 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
             />
             {isDirty && <span className="absolute -right-1 top-1 h-2 w-2 rounded-full bg-secondary" />}
           </div>
-          <input
-            value={formData.subject}
-            onChange={e => set('subject', e.target.value)}
-            placeholder={t('emailMarketing.templateModal.subjectPlaceholder')}
-            aria-label={t('emailMarketing.templateModal.subjectLine')}
-            className={`min-w-0 flex-1 rounded-lg border bg-transparent px-2.5 py-1.5 text-sm text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 ${errors.subject ? 'border-red-400' : 'border-transparent hover:border-outline-variant/40'}`}
-          />
+          {showTopSubject && (
+            <input
+              value={formData.subject}
+              onChange={e => set('subject', e.target.value)}
+              placeholder={t('emailMarketing.templateModal.subjectPlaceholder')}
+              aria-label={t('emailMarketing.templateModal.subjectLine')}
+              className={`min-w-0 flex-1 rounded-lg border bg-transparent px-2.5 py-1.5 text-sm text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 ${errors.subject ? 'border-red-400' : 'border-transparent hover:border-outline-variant/40'}`}
+            />
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Design / HTML / Preview tabs */}
+          {/* Editor switcher */}
+          {mode !== null && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setModeMenuOpen(v => !v)}
+                aria-expanded={modeMenuOpen}
+                className="flex items-center gap-1.5 rounded-lg border border-outline-variant/40 px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:bg-surface-container-high transition"
+              >
+                {mode === 'simple' ? <Mail className="h-3.5 w-3.5" /> : mode === 'blocks' ? <Layout className="h-3.5 w-3.5" /> : <PenLine className="h-3.5 w-3.5" />}
+                {mode === 'simple'
+                  ? t('emailMarketing.templateModal.modeSimple')
+                  : mode === 'blocks' ? t('emailMarketing.templateModal.modeDesigned') : t('emailMarketing.templateModal.modeCustom')}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {modeMenuOpen && (
+                <div className="absolute right-0 top-full z-20 mt-1 w-64 overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest py-1 shadow-lg">
+                  {(['simple', 'blocks'] as const).map(m => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => switchMode(m)}
+                      className="flex w-full items-start gap-2.5 px-3 py-2 text-left transition hover:bg-surface-container-high"
+                    >
+                      {m === 'simple' ? <Mail className="mt-0.5 h-4 w-4 text-secondary" /> : <Layout className="mt-0.5 h-4 w-4 text-secondary" />}
+                      <span className="flex-1">
+                        <span className="block text-sm font-medium text-on-surface">
+                          {m === 'simple' ? t('emailMarketing.templateModal.modeSimple') : t('emailMarketing.templateModal.modeDesigned')}
+                        </span>
+                        <span className="block text-xs text-on-surface-variant">
+                          {m === 'simple' ? t('emailMarketing.templateModal.startSimpleDesc') : t('emailMarketing.templateModal.startDesignedDesc')}
+                        </span>
+                      </span>
+                      {mode === m && <Check className="mt-0.5 h-4 w-4 text-secondary" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Write|Design|Edit / HTML / Preview tabs */}
+          {tabs.length > 0 && (
           <div className="flex items-center rounded-lg border border-outline-variant/20 overflow-hidden text-xs font-medium">
             {tabs.map((tab, i) => (
               <button
@@ -206,6 +312,7 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
               </button>
             ))}
           </div>
+          )}
 
           <button
             type="button"
@@ -240,9 +347,9 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
       </div>
 
       {/* Errors get a full-width banner instead of a truncated pill */}
-      {(saveError || errors.name || errors.subject) && (
+      {(saveError || errors.name || errors.subject || errors.htmlContent) && (
         <div className="shrink-0 border-b border-red-200 bg-red-50 px-5 py-2 text-xs text-red-700">
-          {saveError || t('emailMarketing.templateModal.requiredFieldsNotice')}
+          {saveError || (errors.name || errors.subject ? t('emailMarketing.templateModal.requiredFieldsNotice') : errors.htmlContent)}
         </div>
       )}
 
@@ -252,11 +359,69 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
         {/* ── Editor area ── */}
         <main className="flex-1 overflow-hidden flex flex-col bg-background">
 
+          {/* Start screen — pick how to write */}
+          {mode === null && (
+            <div className="flex-1 overflow-y-auto px-4 py-12">
+              <div className="mx-auto max-w-3xl text-center">
+                <h2 className="text-2xl font-semibold tracking-tight text-on-surface">{t('emailMarketing.templateModal.startTitle')}</h2>
+                <p className="mt-2 text-sm text-on-surface-variant">{t('emailMarketing.templateModal.startSubtitle')}</p>
+                <div className="mt-8 grid gap-4 text-left sm:grid-cols-2">
+                  {([
+                    { m: 'simple' as const, icon: Mail, title: t('emailMarketing.templateModal.modeSimple'), desc: t('emailMarketing.templateModal.startSimpleDesc') },
+                    { m: 'blocks' as const, icon: Layout, title: t('emailMarketing.templateModal.modeDesigned'), desc: t('emailMarketing.templateModal.startDesignedDesc') },
+                  ]).map(({ m, icon: Icon, title, desc }) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => startMode(m, m === 'blocks' ? defaultDesignedHtml() : '')}
+                      className="group rounded-2xl border border-outline-variant/30 bg-surface-container-low p-6 transition hover:border-secondary/60 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                    >
+                      <span className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="block text-lg font-semibold text-on-surface">{title}</span>
+                      <span className="mt-1 block text-sm leading-6 text-on-surface-variant">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startMode('inline', '', 'html')}
+                  className="mt-6 text-sm text-on-surface-variant underline-offset-4 hover:text-secondary hover:underline"
+                >
+                  {t('emailMarketing.templateModal.startPasteHtml')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Simple (Gmail-style) editor */}
+          {mode === 'simple' && activeTab === 'design' && (
+            <div className="flex-1 overflow-hidden">
+              <SimpleEmailEditor
+                key={editorKey}
+                initialHtml={editorInitHtml.current}
+                subject={formData.subject}
+                onSubjectChange={v => set('subject', v)}
+                onChange={handleDesignChange}
+                variables={formData.variables}
+                subjectError={!!errors.subject}
+              />
+            </div>
+          )}
+
+          {/* Click-to-edit for imported/custom HTML */}
+          {mode === 'inline' && activeTab === 'design' && (
+            <div className="flex-1 overflow-hidden">
+              <InlineEmailEditor html={formData.htmlContent} onChange={handleDesignChange} />
+            </div>
+          )}
+
           {/* Design tab — full EmailBlockEditor */}
-          {activeTab === 'design' && (
+          {mode === 'blocks' && activeTab === 'design' && (
             <div className="flex-1 overflow-hidden">
               <EmailBlockEditor
-                key={editorInitHtml.current}
+                key={`${editorKey}-${editorInitHtml.current}`}
                 initialHtml={editorInitHtml.current}
                 variables={formData.variables}
                 onChange={handleDesignChange}
@@ -267,7 +432,7 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
           )}
 
           {/* HTML tab — raw textarea */}
-          {activeTab === 'html' && (
+          {mode !== null && activeTab === 'html' && (
             <div className="flex-1 flex flex-col p-4 gap-3 overflow-y-auto">
               {formData.variables.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-outline-variant/20 bg-surface-container-low px-3 py-2">
@@ -293,7 +458,7 @@ export default function TemplateModal({ isOpen, onClose, onSave, template, works
           )}
 
           {/* Preview tab — read-only iframe */}
-          {activeTab === 'preview' && (
+          {mode !== null && activeTab === 'preview' && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex items-center justify-center gap-4 border-b border-outline-variant/20 bg-surface-container-low py-2 px-4 text-xs font-medium text-on-surface-variant">
                 {t('emailMarketing.templateModal.previewReadOnly')}

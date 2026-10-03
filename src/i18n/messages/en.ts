@@ -1004,7 +1004,44 @@ export interface Messages {
       updateSegment: string;
       createSegmentButton: string;
     };
+    simpleEditor: {
+      subject: string;
+      body: string;
+      bodyPlaceholder: string;
+      bold: string;
+      italic: string;
+      underline: string;
+      link: string;
+      linkPrompt: string;
+      bulletList: string;
+      numberedList: string;
+      clearFormatting: string;
+      insertField: string;
+      unsubscribeToggle: string;
+    };
+    inlineEditor: {
+      hint: string;
+      editLink: string;
+      editImage: string;
+      linkUrl: string;
+      imageUrl: string;
+      imageAlt: string;
+      apply: string;
+    };
     templateModal: {
+      tabWrite: string;
+      tabEdit: string;
+      modeSimple: string;
+      modeDesigned: string;
+      modeCustom: string;
+      startTitle: string;
+      startSubtitle: string;
+      startSimpleDesc: string;
+      startDesignedDesc: string;
+      startPasteHtml: string;
+      switchConfirm: string;
+      startOverConfirm: string;
+      bodyRequired: string;
       saveFailed: string;
       tabDesign: string;
       tabHtml: string;
@@ -5191,7 +5228,44 @@ const en: Messages = {
       updateSegment: 'Update segment',
       createSegmentButton: 'Create segment',
     },
+    simpleEditor: {
+      subject: 'Subject',
+      body: 'Email body',
+      bodyPlaceholder: 'Hi {{first_name}},\n\nWrite your message here…',
+      bold: 'Bold',
+      italic: 'Italic',
+      underline: 'Underline',
+      link: 'Link',
+      linkPrompt: 'Link URL',
+      bulletList: 'Bulleted list',
+      numberedList: 'Numbered list',
+      clearFormatting: 'Clear formatting',
+      insertField: 'Insert field',
+      unsubscribeToggle: 'Add an unsubscribe link at the bottom',
+    },
+    inlineEditor: {
+      hint: 'Click any text to edit it. Click a button, link or image to change it.',
+      editLink: 'Edit link',
+      editImage: 'Edit image',
+      linkUrl: 'Link URL',
+      imageUrl: 'Image URL',
+      imageAlt: 'Image description (alt text)',
+      apply: 'Apply',
+    },
     templateModal: {
+      tabWrite: 'Write',
+      tabEdit: 'Edit',
+      modeSimple: 'Simple email',
+      modeDesigned: 'Designed email',
+      modeCustom: 'Custom design',
+      startTitle: 'How do you want to write this email?',
+      startSubtitle: 'You can switch later from the top bar.',
+      startSimpleDesc: 'Write it like in Gmail: text, bold, links and lists, with personal touches like {{first_name}}.',
+      startDesignedDesc: 'Drag and drop blocks: headings, images, buttons and columns.',
+      startPasteHtml: 'Paste HTML code instead',
+      switchConfirm: 'Switching editors converts your content and some formatting may be lost. Continue?',
+      startOverConfirm: 'This replaces the current design with a new, empty email. Continue?',
+      bodyRequired: 'Write something in the email before saving',
       saveFailed: 'Failed to save template',
       tabDesign: 'Design',
       tabHtml: 'HTML',

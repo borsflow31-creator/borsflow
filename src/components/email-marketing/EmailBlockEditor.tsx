@@ -157,7 +157,7 @@ function paletteDescription(type: BlockType, t: TFunction): string {
   return map[type]
 }
 
-function makeBlock(type: BlockType, uid: string): EmailBlock {
+export function makeBlock(type: BlockType, uid: string): EmailBlock {
   const base: EmailBlock = { id: uid, type, paddingV: 16, paddingH: 28, backgroundColor: '#ffffff' }
   switch (type) {
     case 'header':     return { ...base, headingText: 'Your headline here', headingLevel: 'h1', headingAlign: 'center', headingColor: '#111827' }
@@ -249,7 +249,7 @@ function blockToHtml(b: EmailBlock): string {
       const thumb = b.videoThumbnailUrl || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=640&q=80'
       const playColor = b.videoPlayColor || '#4f46e5'
       const caption = b.videoCaption ? `<p style="margin:10px 0 0;font-size:13px;color:#6b7280;text-align:center;">${b.videoCaption}</p>` : ''
-      return `<tr><td style="${cellStyle}text-align:center;"><a href="${b.videoUrl || '#'}" style="display:block;position:relative;text-decoration:none;"><img src="${thumb}" alt={t('misc.watchVideo')} style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>${caption}</td></tr>`
+      return `<tr><td style="${cellStyle}text-align:center;"><a href="${b.videoUrl || '#'}" style="display:block;position:relative;text-decoration:none;"><img src="${thumb}" alt="Watch video" style="display:block;max-width:100%;border-radius:8px;width:100%;" /><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:${playColor};display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg></div></a>${caption}</td></tr>`
     }
     case 'quote': {
       const accent = b.quoteAccentColor || '#4f46e5'
@@ -265,7 +265,7 @@ function blockToHtml(b: EmailBlock): string {
 
 export function blocksToHtml(blocks: EmailBlock[]): string {
   if (!blocks.length) return ''
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">${blocks.map(blockToHtml).join('')}<tr><td style="padding:20px 28px;background:#f9fafb;text-align:center;font-size:12px;color:#9ca3af;">© {{company_name}} · <a href="{{unsubscribe_url}}" style="color:#9ca3af;">{t('misc.unsubscribe')}</a></td></tr></table></td></tr></table></body></html>`
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><meta name="bf-editor" content="blocks"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">${blocks.map(blockToHtml).join('')}<tr><td style="padding:20px 28px;background:#f9fafb;text-align:center;font-size:12px;color:#9ca3af;">© {{company_name}} · <a href="{{unsubscribe_url}}" style="color:#9ca3af;">Unsubscribe</a></td></tr></table></td></tr></table></body></html>`
 }
 
 // Attempt to parse blocks from existing HTML (best-effort for re-editing)
