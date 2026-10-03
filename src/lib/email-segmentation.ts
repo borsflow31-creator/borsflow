@@ -13,6 +13,8 @@ export interface Criteria {
   field: string
   operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than' | 'in' | 'not_in' | 'is_null' | 'is_not_null' | 'is_empty' | 'is_not_empty'
   value: any
+  /** Always AND-ed, regardless of the rule's logicOperator */
+  required?: boolean
 }
 
 // Segment rule structure
@@ -312,10 +314,16 @@ export class EmailSegmentationService {
     logicOperator: 'AND' | 'OR'
   ): boolean {
     if (!Array.isArray(criteria) || criteria.length === 0) return true
+    // Required criteria (the pipeline/stage pick) scope the segment, so they
+    // must match even when the remaining conditions are combined with OR.
+    const required = criteria.filter(c => c.required)
+    if (!required.every(criterion => this.matchesCriterion(lead, criterion))) return false
+    const rest = criteria.filter(c => !c.required)
+    if (rest.length === 0) return true
     if (logicOperator === 'AND') {
-      return criteria.every(criterion => this.matchesCriterion(lead, criterion))
+      return rest.every(criterion => this.matchesCriterion(lead, criterion))
     } else {
-      return criteria.some(criterion => this.matchesCriterion(lead, criterion))
+      return rest.some(criterion => this.matchesCriterion(lead, criterion))
     }
   }
 
@@ -359,10 +367,11 @@ export class EmailSegmentationService {
         return typed ? fieldNum! > inputNum! : Number(fieldValue) > Number(criterion.value)
       case 'less_than':
         return typed ? fieldNum! < inputNum! : Number(fieldValue) < Number(criterion.value)
+      // Case-insensitive: new leads default to stage "new" while pipelines name it "New"
       case 'in':
-        return Array.isArray(criterion.value) && criterion.value.includes(fieldValue)
+        return Array.isArray(criterion.value) && criterion.value.some((v: any) => String(v).toLowerCase() === String(fieldValue ?? '').toLowerCase())
       case 'not_in':
-        return Array.isArray(criterion.value) && !criterion.value.includes(fieldValue)
+        return Array.isArray(criterion.value) && !criterion.value.some((v: any) => String(v).toLowerCase() === String(fieldValue ?? '').toLowerCase())
       case 'is_null':
       // SegmentModal labels these "is empty" / "is not empty"; accept both spellings
       // so criteria saved from the UI actually evaluate.

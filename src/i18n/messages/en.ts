@@ -943,6 +943,19 @@ export interface Messages {
       updateProvider: string;
       addProvider: string;
     };
+    pipelinePicker: {
+      sectionTitle: string;
+      sectionHint: string;
+      pipeline: string;
+      anyPipeline: string;
+      selectPipeline: string;
+      stages: string;
+      stagesHint: string;
+      audience: string;
+      crmPipeline: string;
+      pipelineRequired: string;
+      segmentCreateFailed: string;
+    };
     segmentModal: {
       fieldFirstName: string;
       fieldLastName: string;
@@ -5050,16 +5063,16 @@ const en: Messages = {
       emptyTitle: 'No saved templates yet',
       emptySubtitle: 'Start from a blank template or clone one from the gallery below.',
       createBlank: 'Create blank template',
-      browseDivider: 'Browse starter templates',
+      browseDivider: 'Model templates',
       searchPlaceholder: 'Search starter templates...',
-      browseSubtitle: 'Ready-made templates you can clone and customize for your campaigns.',
+      browseSubtitle: 'Import a model into your templates, then edit it before using it in a campaign.',
       noMatches: 'No templates match your search',
       industry: 'Industry',
       useCase: 'Use case',
       subject: 'Subject',
       imported: 'Imported',
-      cloning: 'Cloning...',
-      cloneTemplate: 'Clone template',
+      cloning: 'Importing...',
+      cloneTemplate: 'Import',
       opening: 'Opening...',
       editInBuilder: 'Edit in builder',
       savedTemplateFallback: 'Untitled template',
@@ -5117,6 +5130,19 @@ const en: Messages = {
       updateProvider: 'Update provider',
       addProvider: 'Add provider',
     },
+    pipelinePicker: {
+      sectionTitle: 'CRM pipeline',
+      sectionHint: 'Limit this segment to leads in one pipeline, and optionally to some of its stages.',
+      pipeline: 'Pipeline',
+      anyPipeline: 'Any pipeline',
+      selectPipeline: 'Select a pipeline',
+      stages: 'Stages',
+      stagesHint: 'Leave all unselected to include every stage.',
+      audience: 'Audience',
+      crmPipeline: 'CRM pipeline',
+      pipelineRequired: 'Choose a pipeline',
+      segmentCreateFailed: 'Could not create the pipeline audience',
+    },
     segmentModal: {
       fieldFirstName: 'First name',
       fieldLastName: 'Last name',
@@ -5144,7 +5170,7 @@ const en: Messages = {
       opIsEmpty: 'Is empty',
       opIsNotEmpty: 'Is not empty',
       nameRequired: 'Name is required',
-      criteriaRequired: 'At least one condition is required',
+      criteriaRequired: 'Choose a pipeline or add at least one condition',
       editTitle: 'Edit segment',
       createTitle: 'Create segment',
       basicInformation: 'Basic information',

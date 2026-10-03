@@ -8,12 +8,14 @@
 
 import { useState, useEffect } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
-import { X, Target, Plus, Trash2, Filter } from 'lucide-react'
+import { X, Target, Plus, Trash2, Filter, GitBranch } from 'lucide-react'
+import PipelineStagePicker, { pipelineCriteria, splitPipelineCriteria, usePipelines } from './PipelineStagePicker'
 
 interface Condition {
   field: string
   operator: string
   value: string
+  required?: boolean
 }
 
 interface SegmentModalProps {
@@ -39,6 +41,9 @@ export default function SegmentModal({
     criteria: [] as Condition[],
     tags: [] as string[]
   })
+  const [pipelineId, setPipelineId] = useState('')
+  const [stages, setStages] = useState<string[]>([])
+  const pipelines = usePipelines(workspaceId, isOpen)
 
   const [newTag, setNewTag] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -53,7 +58,6 @@ export default function SegmentModal({
     { value: 'phone', label: t('emailMarketing.segmentModal.fieldPhone') },
     { value: 'status', label: t('emailMarketing.segmentModal.fieldStatus') },
     { value: 'stage', label: t('emailMarketing.segmentModal.fieldStage') },
-    { value: 'pipelineId', label: t('emailMarketing.segmentModal.fieldPipeline') },
     { value: 'pipeline.name', label: t('emailMarketing.segmentModal.fieldPipelineName') },
     { value: 'value', label: t('emailMarketing.segmentModal.fieldDealValue') },
     { value: 'company', label: t('emailMarketing.segmentModal.fieldCompany') },
@@ -80,18 +84,24 @@ export default function SegmentModal({
   useEffect(() => {
     if (!isOpen) return
     if (segment) {
+      const saved: Condition[] = segment.criteria
+        ? (typeof segment.criteria === 'string' ? JSON.parse(segment.criteria) : segment.criteria)
+        : []
+      const split = splitPipelineCriteria(saved)
+      setPipelineId(split.pipelineId)
+      setStages(split.stages)
       setFormData({
         name: segment.name || '',
         description: segment.description || '',
         logicOperator: segment.logicOperator || 'AND',
-        criteria: segment.criteria
-          ? (typeof segment.criteria === 'string' ? JSON.parse(segment.criteria) : segment.criteria)
-          : [],
+        criteria: split.rest,
         tags: segment.tags
           ? (typeof segment.tags === 'string' ? JSON.parse(segment.tags) : segment.tags)
           : []
       })
     } else {
+      setPipelineId('')
+      setStages([])
       setFormData({ name: '', description: '', logicOperator: 'AND', criteria: [], tags: [] })
     }
     setErrors({})
@@ -156,7 +166,7 @@ export default function SegmentModal({
     if (!formData.name.trim()) {
       newErrors.name = t('emailMarketing.segmentModal.nameRequired')
     }
-    if (formData.criteria.length === 0) {
+    if (formData.criteria.length === 0 && !pipelineId) {
       newErrors.criteria = t('emailMarketing.segmentModal.criteriaRequired')
     }
 
@@ -177,7 +187,7 @@ export default function SegmentModal({
       const segmentData = {
         ...formData,
         workspaceId,
-        criteria: JSON.stringify(formData.criteria),
+        criteria: JSON.stringify([...pipelineCriteria(pipelineId, stages), ...formData.criteria]),
         tags: JSON.stringify(formData.tags)
       }
 
@@ -253,6 +263,26 @@ export default function SegmentModal({
                 />
               </div>
             </div>
+          </div>
+
+          {/* CRM pipeline */}
+          <div>
+            <h3 className="text-lg font-medium text-on-surface mb-1 flex items-center">
+              <GitBranch className="h-5 w-5 mr-2 text-secondary" />
+              {t('emailMarketing.pipelinePicker.sectionTitle')}
+            </h3>
+            <p className="mb-4 text-sm text-on-surface-variant">{t('emailMarketing.pipelinePicker.sectionHint')}</p>
+            <PipelineStagePicker
+              pipelines={pipelines}
+              pipelineId={pipelineId}
+              stages={stages}
+              emptyLabel={t('emailMarketing.pipelinePicker.anyPipeline')}
+              onChange={(id, nextStages) => {
+                setPipelineId(id)
+                setStages(nextStages)
+                if (id && errors.criteria) setErrors(({ criteria, ...rest }) => rest)
+              }}
+            />
           </div>
 
           {/* Criteria */}

@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react'
 import { aiComplete, aiErrorMessage, parseAiJson } from '@/lib/ai/client'
 import { useI18n } from '@/i18n/I18nProvider'
 import { X, Send, Calendar, Users, FileText, Target, Tag, Plus, Trash2, Loader2, Mail, Code, Eye } from 'lucide-react'
+import PipelineStagePicker, { pipelineCriteria, splitPipelineCriteria, usePipelines } from './PipelineStagePicker'
 
 // <input type="datetime-local"> wants local time; toISOString() would shift it by the UTC offset
 function toLocalInputValue(d: Date): string {
@@ -65,6 +66,13 @@ export default function CampaignModal({
   const [newTag, setNewTag] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+
+  // Audience: an existing segment, or a CRM pipeline (+ stages) that is saved
+  // as a segment on submit so sending keeps a single recipient path.
+  const [audienceMode, setAudienceMode] = useState<'segment' | 'pipeline'>('segment')
+  const [audiencePipelineId, setAudiencePipelineId] = useState('')
+  const [audienceStages, setAudienceStages] = useState<string[]>([])
+  const pipelines = usePipelines(workspaceId, isOpen)
 
   // AI state
   const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([])
@@ -163,6 +171,18 @@ export default function CampaignModal({
   }
 
   useEffect(() => {
+    // Reopen a campaign that targets a pipeline-only segment in pipeline mode
+    const linked = campaign?.segmentationRuleId ? segments.find(s => s.id === campaign.segmentationRuleId) : null
+    const split = linked ? splitPipelineCriteria(parseJson(linked.criteria, [] as any[])) : null
+    if (split && split.pipelineId && split.rest.length === 0) {
+      setAudienceMode('pipeline')
+      setAudiencePipelineId(split.pipelineId)
+      setAudienceStages(split.stages)
+    } else {
+      setAudienceMode('segment')
+      setAudiencePipelineId('')
+      setAudienceStages([])
+    }
     if (campaign) {
       setFormData({
         name: campaign.name || '',
@@ -195,6 +215,8 @@ export default function CampaignModal({
       })
       setErrors({})
     }
+    // segments is only read to restore the audience mode when a campaign opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaign])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -242,9 +264,37 @@ export default function CampaignModal({
     if (formData.replyTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.replyTo)) {
       newErrors.replyTo = t('emailMarketing.campaignModal.invalidEmail')
     }
+    if (audienceMode === 'pipeline' && !audiencePipelineId) {
+      newErrors.audience = t('emailMarketing.pipelinePicker.pipelineRequired')
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
+  }
+
+  /** Reuses a segment with exactly this pipeline/stage pick, or creates one. */
+  const resolvePipelineSegment = async (): Promise<string> => {
+    const criteria = pipelineCriteria(audiencePipelineId, audienceStages)
+    const key = JSON.stringify(criteria)
+    const existing = segments.find(s => JSON.stringify(parseJson(s.criteria, [] as any[])) === key)
+    if (existing) return existing.id
+
+    const pipeline = pipelines.find(p => p.id === audiencePipelineId)
+    const name = audienceStages.length > 0
+      ? `${pipeline?.name ?? ''}: ${audienceStages.join(', ')}`
+      : (pipeline?.name ?? '')
+    const res = await fetch('/api/email-marketing/segments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId, name, criteria, logicOperator: 'AND', tags: ['crm-pipeline'] })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || !data.segment?.id) {
+      const message = data.error || t('emailMarketing.pipelinePicker.segmentCreateFailed')
+      setErrors(prev => ({ ...prev, audience: message }))
+      throw new Error(message)
+    }
+    return data.segment.id
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,8 +307,12 @@ export default function CampaignModal({
     setSaving(true)
 
     try {
+      const segmentationRuleId = audienceMode === 'pipeline'
+        ? await resolvePipelineSegment()
+        : formData.segmentationRuleId
       const campaignData = {
         ...formData,
+        segmentationRuleId,
         workspaceId,
         // The API serializes these itself; sending strings stored them double-encoded
         tags: formData.tags,
@@ -638,23 +692,53 @@ export default function CampaignModal({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-on-surface mb-1">
-                  {t('emailMarketing.campaignModal.segment')}
-                </label>
-                <select
-                  name="segmentationRuleId"
-                  value={formData.segmentationRuleId}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
-                >
-                  <option value="">{t('emailMarketing.campaignModal.allRecipients')}</option>
-                  {segments.map(segment => (
-                    <option key={segment.id} value={segment.id}>
-                      {segment.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="md:col-span-2">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label className="block text-sm font-medium text-on-surface">
+                    {t('emailMarketing.pipelinePicker.audience')}
+                  </label>
+                  <div className="inline-flex rounded-full border border-outline-variant/40 p-0.5 text-sm">
+                    {(['segment', 'pipeline'] as const).map(mode => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setAudienceMode(mode)}
+                        aria-pressed={audienceMode === mode}
+                        className={`rounded-full px-3 py-1 transition ${audienceMode === mode ? 'bg-secondary text-on-secondary' : 'text-on-surface-variant hover:bg-surface-container-high'}`}
+                      >
+                        {mode === 'segment' ? t('emailMarketing.campaignModal.segment') : t('emailMarketing.pipelinePicker.crmPipeline')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {audienceMode === 'segment' ? (
+                  <select
+                    name="segmentationRuleId"
+                    value={formData.segmentationRuleId}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  >
+                    <option value="">{t('emailMarketing.campaignModal.allRecipients')}</option>
+                    {segments.map(segment => (
+                      <option key={segment.id} value={segment.id}>
+                        {segment.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <PipelineStagePicker
+                    pipelines={pipelines}
+                    pipelineId={audiencePipelineId}
+                    stages={audienceStages}
+                    emptyLabel={t('emailMarketing.pipelinePicker.selectPipeline')}
+                    onChange={(id, nextStages) => {
+                      setAudiencePipelineId(id)
+                      setAudienceStages(nextStages)
+                      if (errors.audience) setErrors(({ audience, ...rest }) => rest)
+                    }}
+                  />
+                )}
+                {errors.audience && <p className="mt-1 text-sm text-red-600">{errors.audience}</p>}
               </div>
             </div>
           </div>
