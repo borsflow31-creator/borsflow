@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { ChevronDown, FolderPlus, UserPlus, Check, Mail } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { Workspace } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
 
@@ -22,6 +23,18 @@ function getInitials(name: string) {
     return name ? name.charAt(0).toUpperCase() : '?';
 }
 
+/** Small "Invited" tag for workspaces the user joined through an invitation (doesn't own). */
+function InvitedBadge({ label, title }: { label: string; title: string }) {
+    return (
+        <span
+            title={title}
+            className="flex-shrink-0 rounded-full border border-secondary/30 bg-secondary/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-secondary"
+        >
+            {label}
+        </span>
+    );
+}
+
 export default function WorkspaceList({
     workspaces,
     currentWorkspaceId,
@@ -34,7 +47,16 @@ export default function WorkspaceList({
     onOpenInvitations,
 }: WorkspaceListProps) {
     const { t } = useI18n();
+    const myId = useSession().data?.user?.id;
     const [open, setOpen] = useState(false);
+
+    // A workspace the user doesn't own is one they were invited to
+    const isInvited = (ws: Workspace) => !!myId && !!ws.ownerId && ws.ownerId !== myId;
+    const invitedTitle = (ws: Workspace) => {
+        const owner = (ws as Workspace & { owner?: { name?: string | null; email?: string | null } }).owner;
+        const name = owner?.name || owner?.email;
+        return name ? t('workspace.list.invitedBy', { name }) : t('workspace.list.invitedTitle');
+    };
     const ref = useRef<HTMLDivElement>(null);
 
     const sortedWorkspaces = useMemo(() => {
@@ -79,8 +101,11 @@ export default function WorkspaceList({
                     </div>
                     {/* Name */}
                     <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-semibold text-on-surface truncate leading-tight">
-                            {active?.name ?? 'Select workspace'}
+                        <p className="flex items-center gap-1.5 text-sm font-semibold text-on-surface leading-tight min-w-0">
+                            <span className="truncate">{active?.name ?? 'Select workspace'}</span>
+                            {active && isInvited(active) && (
+                                <InvitedBadge label={t('workspace.list.invitedBadge')} title={invitedTitle(active)} />
+                            )}
                         </p>
                         <p className="text-[10px] text-on-surface-variant leading-tight">{t('workspace.list.label')}</p>
                     </div>
@@ -135,6 +160,9 @@ export default function WorkspaceList({
                                             {ws.icon || getInitials(ws.name)}
                                         </div>
                                         <span className="flex-1 text-sm font-medium truncate text-left">{ws.name}</span>
+                                        {isInvited(ws) && (
+                                            <InvitedBadge label={t('workspace.list.invitedBadge')} title={invitedTitle(ws)} />
+                                        )}
                                         {isSelected && <Check className="h-3.5 w-3.5 flex-shrink-0" />}
                                     </button>
                                 );

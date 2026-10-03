@@ -10,6 +10,8 @@ import { calculateDocumentTotals } from '@/lib/documents/calculations';
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
 import { ArrowLeft, Save, Loader2, Search, User, X, Plus } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { cachedJson } from '@/lib/client-cache';
+import { SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
 
 interface Lead {
   id: string;
@@ -20,21 +22,11 @@ interface Lead {
   company: string | null;
 }
 
-const CURRENCIES = [
-  { value: 'USD', nameKey: 'usd' as const },
-  { value: 'EUR', nameKey: 'eur' as const },
-  { value: 'GBP', nameKey: 'gbp' as const },
-  { value: 'CAD', nameKey: 'cad' as const },
-  { value: 'AUD', nameKey: 'aud' as const },
-  { value: 'DZD', nameKey: 'dzd' as const },
-  { value: 'MAD', nameKey: 'mad' as const },
-  { value: 'TND', nameKey: 'tnd' as const },
-];
 
 function NewInvoicePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { currentWorkspaceId } = useAppStore();
   const { addInvoice } = useDocumentStore();
 
@@ -58,6 +50,19 @@ function NewInvoicePageInner() {
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
   const [currency, setCurrency] = useState('USD');
+  // New documents start in the workspace currency (set on the Products page)
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+  useEffect(() => {
+    if (!workspaceId || currencyTouched) return;
+    cachedJson<{ workspace?: { currency?: string } }>(`/api/workspaces/${workspaceId}`)
+      .then((data) => {
+        const code = data.workspace?.currency;
+        if (code && isSupportedCurrency(code)) setCurrency(code);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
@@ -242,13 +247,11 @@ function NewInvoicePageInner() {
               <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.currency')}</label>
               <select
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => { setCurrency(e.target.value); setCurrencyTouched(true); }}
                 className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
               >
-                {CURRENCIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.value} — {t(`invoices.currencyName.${c.nameKey}` as Parameters<typeof t>[0])}
-                  </option>
+                {SUPPORTED_CURRENCIES.map((code) => (
+                  <option key={code} value={code}>{currencyLabel(code, locale)}</option>
                 ))}
               </select>
             </div>

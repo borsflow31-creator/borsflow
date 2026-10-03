@@ -133,6 +133,9 @@ const fr: Messages = {
       closeAriaLabel: 'Fermer',
     },
     list: {
+      invitedBadge: 'Invité',
+      invitedTitle: 'Vous avez été invité dans cet espace',
+      invitedBy: 'Invité par {name}',
       switchWorkspace: "Changer d'espace de travail",
       label: 'Espace de travail',
       invitePeople: 'Inviter des personnes',
@@ -798,6 +801,12 @@ const fr: Messages = {
     },
   },
   products: {
+    currency: {
+      title: 'Devise de l’espace',
+      hint: 'Utilisée pour les prix des produits et par défaut pour les nouveaux devis et factures. Les montants ne sont pas convertis.',
+      changed: 'Devise changée en {currency}',
+      saveFailed: 'Impossible de changer la devise.',
+    },
     customFields: {
       title: 'Champs personnalisés',
       subtitle: 'Ajoutez vos propres attributs produit, comme les unités par carton, la marque ou le poids. Ils apparaissent sur chaque produit et dans le mappage d’import.',

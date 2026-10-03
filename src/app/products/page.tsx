@@ -12,6 +12,7 @@ import ProductCard from '@/components/products/ProductCard';
 import ProductTable from '@/components/products/ProductTable';
 import ProductImportModal from '@/components/products/ProductImportModal';
 import ProductCustomFieldsModal from '@/components/products/ProductCustomFieldsModal';
+import CurrencySelect from '@/components/products/CurrencySelect';
 import { useProductCustomFields } from '@/components/products/useProductCustomFields';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
@@ -109,6 +110,7 @@ function ProductsPageInner() {
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
+  const [currency, setCurrency] = useState('USD');
   const [workspaceName, setWorkspaceName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFieldsModal, setShowFieldsModal] = useState(false);
@@ -213,6 +215,7 @@ function ProductsPageInner() {
         setProducts(data.products || []);
         setCategories(data.categories || []);
         setRole(data.role ?? null);
+        if (data.currency) setCurrency(data.currency);
         setTotal(data.pagination?.total ?? 0);
         setTotalPages(data.pagination?.totalPages || 1);
       } catch (fetchError) {
@@ -343,6 +346,16 @@ function ProductsPageInner() {
 
           {canWrite ? (
             <div className="flex flex-wrap items-center gap-2">
+              <CurrencySelect
+                workspaceId={workspaceId}
+                currency={currency}
+                canChange={role === 'owner' || role === 'admin'}
+                onChanged={(code) => {
+                  setCurrency(code);
+                  addToast(t('products.currency.changed', { currency: code }), 'success');
+                }}
+                onError={(message) => addToast(message, 'error')}
+              />
               <button
                 type="button"
                 onClick={() => router.push(`/products/new?workspace=${workspaceId}&ai=1`)}
@@ -462,6 +475,7 @@ function ProductsPageInner() {
                 key={product.id}
                 product={product}
                 canWrite={canWrite}
+                currency={currency}
                 customFields={customFields}
                 onEdit={() => router.push(`/products/${product.id}?workspace=${workspaceId}`)}
                 onDelete={() => handleDelete(product)}
@@ -474,6 +488,7 @@ function ProductsPageInner() {
           <ProductTable
             products={products}
             canWrite={canWrite}
+            currency={currency}
             onEdit={(product) => router.push(`/products/${product.id}?workspace=${workspaceId}`)}
             onDelete={handleDelete}
           />

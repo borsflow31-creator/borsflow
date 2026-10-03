@@ -1923,6 +1923,12 @@ export interface Messages {
     };
   };
   products: {
+    currency: {
+      title: string;
+      hint: string;
+      changed: string;
+      saveFailed: string;
+    };
     customFields: {
       title: string;
       subtitle: string;
@@ -2774,6 +2780,9 @@ export interface Messages {
       closeAriaLabel: string;
     };
     list: {
+      invitedBadge: string;
+      invitedTitle: string;
+      invitedBy: string;
       switchWorkspace: string;
       label: string;
       invitePeople: string;
@@ -2922,6 +2931,9 @@ const en: Messages = {
       closeAriaLabel: 'Close',
     },
     list: {
+      invitedBadge: 'Invited',
+      invitedTitle: 'You were invited to this workspace',
+      invitedBy: 'Invited by {name}',
       switchWorkspace: 'Switch workspace',
       label: 'Workspace',
       invitePeople: 'Invite people',
@@ -3587,6 +3599,12 @@ const en: Messages = {
     },
   },
   products: {
+    currency: {
+      title: 'Workspace currency',
+      hint: 'Used for product prices and as the default for new quotes and invoices. Amounts are not converted.',
+      changed: 'Currency changed to {currency}',
+      saveFailed: 'Couldn’t change the currency.',
+    },
     customFields: {
       title: 'Custom fields',
       subtitle: 'Add your own product attributes, like units per box, brand or weight. They appear on every product and in the import mapping.',

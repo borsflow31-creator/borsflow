@@ -6,6 +6,8 @@ import AppShell from '@/components/AppShell';
 import { useAppStore } from '@/store/appStore';
 import { useDocumentStore } from '@/store/documentStore';
 import { useI18n } from '@/i18n/I18nProvider';
+import { cachedJson } from '@/lib/client-cache';
+import { SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
 import LineItemsTable, { LineItem } from '@/components/documents/LineItemsTable';
 import { calculateDocumentTotals } from '@/lib/documents/calculations';
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
@@ -35,16 +37,8 @@ function NewQuotePageInner() {
   const { addQuote } = useDocumentStore();
   const { t } = useI18n();
 
-  const CURRENCIES = [
-    { value: 'USD', label: t('quotes.currency.usd') },
-    { value: 'EUR', label: t('quotes.currency.eur') },
-    { value: 'GBP', label: t('quotes.currency.gbp') },
-    { value: 'CAD', label: t('quotes.currency.cad') },
-    { value: 'AUD', label: t('quotes.currency.aud') },
-    { value: 'DZD', label: t('quotes.currency.dzd') },
-    { value: 'MAD', label: t('quotes.currency.mad') },
-    { value: 'TND', label: t('quotes.currency.tnd') },
-  ];
+  const { locale } = useI18n();
+  const CURRENCIES = SUPPORTED_CURRENCIES.map((code) => ({ value: code, label: currencyLabel(code, locale) }));
 
   const workspaceId = searchParams.get('workspace') || currentWorkspaceId || '';
 
@@ -66,6 +60,19 @@ function NewQuotePageInner() {
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [validUntil, setValidUntil] = useState('');
   const [currency, setCurrency] = useState('USD');
+  // New documents start in the workspace currency (set on the Products page)
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+  useEffect(() => {
+    if (!workspaceId || currencyTouched) return;
+    cachedJson<{ workspace?: { currency?: string } }>(`/api/workspaces/${workspaceId}`)
+      .then((data) => {
+        const code = data.workspace?.currency;
+        if (code && isSupportedCurrency(code)) setCurrency(code);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
@@ -256,7 +263,7 @@ function NewQuotePageInner() {
               </label>
               <select
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => { setCurrency(e.target.value); setCurrencyTouched(true); }}
                 className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm"
               >
                 {CURRENCIES.map((c) => (

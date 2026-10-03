@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isSupportedCurrency } from '@/lib/currencies'
 import { getAccessiblePageIds } from '@/lib/workspace'
 
 export async function GET(
@@ -105,12 +106,26 @@ export async function PATCH(
             return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
         }
 
-        if (workspace.ownerId !== session.user.id) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        const body = await request.json()
+        const { name, description, icon, currency } = body
+
+        // Name/description/icon are the owner's; the currency can also be set by an
+        // admin, since admins manage the catalog and billing documents.
+        const isOwner = workspace.ownerId === session.user.id
+        const changesIdentity = name !== undefined || description !== undefined || icon !== undefined
+        if (!isOwner) {
+            const membership = await prisma.workspaceMember.findFirst({
+                where: { workspaceId: params.id, userId: session.user.id },
+                select: { role: true },
+            })
+            if (changesIdentity || membership?.role !== 'admin') {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+            }
         }
 
-        const body = await request.json()
-        const { name, description, icon } = body
+        if (currency !== undefined && !isSupportedCurrency(currency)) {
+            return NextResponse.json({ error: 'Unsupported currency' }, { status: 400 })
+        }
 
         const updatedWorkspace = await prisma.workspace.update({
             where: { id: params.id },
@@ -118,6 +133,7 @@ export async function PATCH(
                 ...(name !== undefined && { name }),
                 ...(description !== undefined && { description }),
                 ...(icon !== undefined && { icon }),
+                ...(currency !== undefined && { currency }),
             },
         })
 

@@ -35,6 +35,8 @@ interface ProductFormFieldsProps {
   onCustomFieldChange?: (key: string, value: unknown) => void;
   /** Viewers see values but can't open the field manager */
   canManageFields?: boolean;
+  /** Workspace currency, shown next to the price */
+  currency?: string;
 }
 
 export default function ProductFormFields({
@@ -64,6 +66,7 @@ export default function ProductFormFields({
   customFieldValues = {},
   onCustomFieldChange,
   canManageFields = true,
+  currency,
 }: ProductFormFieldsProps) {
   const { t } = useI18n();
   const { fields: customFields, loading: customFieldsLoading } = useProductCustomFields(workspaceId);
@@ -366,7 +369,7 @@ export default function ProductFormFields({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-on-surface-variant">
-            {t('products.formFields.priceLabel')} <span className="text-error">*</span>
+            {t('products.formFields.priceLabel')}{currency ? ` (${currency})` : ''} <span className="text-error">*</span>
           </label>
           <input
             type="number"

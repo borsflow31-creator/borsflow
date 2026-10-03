@@ -133,6 +133,9 @@ const ar: Messages = {
       closeAriaLabel: 'إغلاق',
     },
     list: {
+      invitedBadge: 'مدعو',
+      invitedTitle: 'تمت دعوتك إلى مساحة العمل هذه',
+      invitedBy: 'دعاك {name}',
       switchWorkspace: 'تبديل مساحة العمل',
       label: 'مساحة العمل',
       invitePeople: 'دعوة أشخاص',
@@ -798,6 +801,12 @@ const ar: Messages = {
     },
   },
   products: {
+    currency: {
+      title: 'عملة مساحة العمل',
+      hint: 'تُستخدم لأسعار المنتجات وكعملة افتراضية لعروض الأسعار والفواتير الجديدة. لا يتم تحويل المبالغ.',
+      changed: 'تم تغيير العملة إلى {currency}',
+      saveFailed: 'تعذّر تغيير العملة.',
+    },
     customFields: {
       title: 'حقول مخصصة',
       subtitle: 'أضف سمات المنتج الخاصة بك، مثل الوحدات في كل علبة أو العلامة التجارية أو الوزن. تظهر في كل منتج وفي ربط الاستيراد.',

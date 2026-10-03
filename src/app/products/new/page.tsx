@@ -30,6 +30,7 @@ function NewProductPageInner() {
   const [stockQuantity, setStockQuantity] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, unknown>>({});
+  const [currency, setCurrency] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -58,6 +59,7 @@ function NewProductPageInner() {
         const data = await response.json();
         if (response.ok) {
           setCategories(data.categories || []);
+          setCurrency(data.currency);
           // The list endpoint reports the caller's role, so a viewer who reaches this
           // URL directly is sent back rather than filling in a form the API will reject.
           if (data.role === 'viewer') {
@@ -204,6 +206,7 @@ function NewProductPageInner() {
             disabled={saving}
             openAIDefault={openAIDefault}
             customFieldValues={customFieldValues}
+            currency={currency}
             onCustomFieldChange={(key, value) => setCustomFieldValues((current) => ({ ...current, [key]: value }))}
           />
         </div>

@@ -129,6 +129,8 @@ model Workspace {
   name                    String
   description             String?
   icon                    String?
+  // Currency for product prices and the default for new quotes and invoices
+  currency                String                  @default("USD")
   ownerId                 String
   owner                   User                    @relation(fields: [ownerId], references: [id])
   members                 WorkspaceMember[]

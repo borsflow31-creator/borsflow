@@ -133,6 +133,9 @@ const de: Messages = {
       closeAriaLabel: 'Schließen',
     },
     list: {
+      invitedBadge: 'Eingeladen',
+      invitedTitle: 'Sie wurden zu diesem Workspace eingeladen',
+      invitedBy: 'Eingeladen von {name}',
       switchWorkspace: 'Arbeitsbereich wechseln',
       label: 'Arbeitsbereich',
       invitePeople: 'Personen einladen',
@@ -798,6 +801,12 @@ const de: Messages = {
     },
   },
   products: {
+    currency: {
+      title: 'Workspace-Währung',
+      hint: 'Gilt für Produktpreise und als Standard für neue Angebote und Rechnungen. Beträge werden nicht umgerechnet.',
+      changed: 'Währung auf {currency} geändert',
+      saveFailed: 'Währung konnte nicht geändert werden.',
+    },
     customFields: {
       title: 'Benutzerdefinierte Felder',
       subtitle: 'Fügen Sie eigene Produktattribute hinzu, z. B. Stück pro Karton, Marke oder Gewicht. Sie erscheinen bei jedem Produkt und in der Import-Zuordnung.',

@@ -133,6 +133,9 @@ const es: Messages = {
       closeAriaLabel: 'Cerrar',
     },
     list: {
+      invitedBadge: 'Invitado',
+      invitedTitle: 'Te invitaron a este espacio',
+      invitedBy: 'Invitado por {name}',
       switchWorkspace: 'Cambiar de espacio de trabajo',
       label: 'Espacio de trabajo',
       invitePeople: 'Invitar personas',
@@ -798,6 +801,12 @@ const es: Messages = {
     },
   },
   products: {
+    currency: {
+      title: 'Moneda del espacio',
+      hint: 'Se usa para los precios de productos y por defecto en nuevos presupuestos y facturas. Los importes no se convierten.',
+      changed: 'Moneda cambiada a {currency}',
+      saveFailed: 'No se pudo cambiar la moneda.',
+    },
     customFields: {
       title: 'Campos personalizados',
       subtitle: 'Añade tus propios atributos de producto, como unidades por caja, marca o peso. Aparecen en cada producto y en el mapeo de importación.',

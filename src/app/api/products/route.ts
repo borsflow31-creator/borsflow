@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     const whereSql = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
 
-    const [products, totalRows, categories, role] = await Promise.all([
+    const [products, totalRows, categories, role, workspaceRow] = await Promise.all([
       prisma.$queryRaw<ProductRow[]>(Prisma.sql`
         SELECT *
         FROM "Product"
@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
       // Ships with the list so the client knows which write affordances to render
       // without paying for a second round trip.
       getWorkspaceRole(workspaceId, access.session.user.id),
+      prisma.workspace.findUnique({ where: { id: workspaceId }, select: { currency: true } }),
     ]);
 
     const total = Number(totalRows[0]?.total || 0);
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       products,
       role,
+      currency: workspaceRow?.currency ?? 'USD',
       categories: categories
         .map((item) => item.category)
         .filter((value): value is string => Boolean(value)),
