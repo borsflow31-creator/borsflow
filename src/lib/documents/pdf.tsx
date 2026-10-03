@@ -12,7 +12,8 @@
  */
 
 import React from 'react';
-import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@/i18n/I18nProvider';
+import en from '@/i18n/messages/en';
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
 
 export type PdfDocumentKind = 'quote' | 'invoice';
@@ -140,12 +141,22 @@ function day(date: Date | string | null | undefined): string {
   return parsed.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+// PDFs render on the server, outside I18nProvider, so the client-only
+// useI18n hook can't be called here. Labels come straight from the English
+// catalog, matching the English dates and amounts above.
+function t(key: MessageKey): string {
+  const value = key.split('.').reduce<unknown>(
+    (acc, part) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[part] : undefined),
+    en
+  );
+  return typeof value === 'string' ? value : key;
+}
+
 function statusLabel(status: string): string {
   return status.replace(/_/g, ' ');
 }
 
 export function DocumentPdf({ data }: { data: PdfDocumentData }) {
-  const { t } = useI18n();
   const isInvoice = data.kind === 'invoice';
   const accent = isInvoice ? COLORS.accentInvoice : COLORS.accentQuote;
   const payments = data.payments ?? [];
