@@ -23,7 +23,7 @@ export interface NormalizedStep {
   sendCondition: string | null
 }
 
-const SUPPORTED_TRIGGER_TYPES = ['stage_changed']
+const SUPPORTED_TRIGGER_TYPES = ['stage_changed', 'lead_created', 'mandate_expiring']
 
 /** Cap a single step's delay at one year so a typo can't park an enrollment forever. */
 const MAX_DELAY_MINUTES = 60 * 24 * 365
@@ -47,17 +47,37 @@ export function normalizeTriggers(input: unknown): Result<NormalizedTrigger[]> {
       return { error: 'Trigger conditions are required' }
     }
 
-    const toStage = conditions.toStage
-    if (typeof toStage !== 'string' || toStage.trim().length === 0) {
-      return { error: 'Trigger conditions must name the stage to enter (toStage)' }
-    }
-
-    const normalized: Record<string, string> = { toStage: toStage.trim() }
+    const normalized: Record<string, unknown> = {}
     if (typeof conditions.pipelineId === 'string' && conditions.pipelineId.trim()) {
       normalized.pipelineId = conditions.pipelineId.trim()
     }
-    if (typeof conditions.fromStage === 'string' && conditions.fromStage.trim()) {
-      normalized.fromStage = conditions.fromStage.trim()
+
+    if (type === 'stage_changed') {
+      const toStage = conditions.toStage
+      if (typeof toStage !== 'string' || toStage.trim().length === 0) {
+        return { error: 'Trigger conditions must name the stage to enter (toStage)' }
+      }
+      normalized.toStage = toStage.trim()
+      if (typeof conditions.fromStage === 'string' && conditions.fromStage.trim()) {
+        normalized.fromStage = conditions.fromStage.trim()
+      }
+    } else if (type === 'lead_created') {
+      // Fires when a subject is created: optionally only on one board, optionally
+      // only when it matches criteria (the same shape the segment builder saves).
+      if (conditions.criteria !== undefined) {
+        const list = conditions.criteria
+        const valid = Array.isArray(list) && list.every((c: any) => c && typeof c.field === 'string' && typeof c.operator === 'string')
+        if (!valid) return { error: 'Criteria must be a list of conditions, each with a field and an operator' }
+        if (list.length > 0) normalized.criteria = list
+      }
+    } else if (type === 'mandate_expiring') {
+      const days = Number(conditions.withinDays ?? 30)
+      if (!Number.isInteger(days) || days < 1 || days > 365) {
+        return { error: 'withinDays must be a whole number of days between 1 and 365' }
+      }
+      normalized.withinDays = days
+      // A mandate has no board, so a pipeline makes no sense here.
+      delete normalized.pipelineId
     }
 
     triggers.push({
@@ -143,4 +163,54 @@ export async function normalizeSteps(
   }
 
   return { value: steps }
+}
+
+/**
+ * The subject an automation enrolls, taken from the board its trigger watches.
+ *
+ * A stage_changed trigger names a pipeline, and what moves across a pipeline is
+ * decided by the pipeline's subject type: leads, a buyer's interest in a property,
+ * or properties. The automation inherits it, so there is no separate field to
+ * contradict the trigger -- an automation watching the buyer journey enrolls
+ * interests, once per interest, which is what lets one buyer sit in a
+ * viewing-follow-up sequence twice.
+ *
+ * Returns null when no trigger names a pipeline, so the automation keeps its
+ * current subject. Rejects a pipeline from another workspace.
+ */
+export async function automationSubjectFromTriggers(
+  workspaceId: string,
+  triggers: NormalizedTrigger[]
+): Promise<{ value: string | null } | { error: string }> {
+  // A mandate_expiring trigger is about mandates and nothing else.
+  if (triggers.some(t => t.type === 'mandate_expiring')) {
+    if (triggers.some(t => t.type !== 'mandate_expiring')) {
+      return { error: 'An automation that watches mandate expiry cannot also watch other events' }
+    }
+    return { value: 'Mandate' }
+  }
+
+  const ids = new Set<string>()
+  for (const trigger of triggers) {
+    try {
+      const pipelineId = JSON.parse(trigger.conditions)?.pipelineId
+      if (typeof pipelineId === 'string') ids.add(pipelineId)
+    } catch {
+      // normalizeTriggers produced this string, so it parses; keep the guard anyway.
+    }
+  }
+  // A lead_created trigger with no board is about new contacts.
+  if (ids.size === 0) return { value: triggers.some(t => t.type === 'lead_created') ? 'Lead' : null }
+
+  const pipelines = await prisma.pipeline.findMany({
+    where: { id: { in: Array.from(ids) }, workspaceId },
+    select: { id: true, subjectType: true },
+  })
+  if (pipelines.length !== ids.size) return { error: 'Board not found in this workspace' }
+
+  const subjects = new Set(pipelines.map(p => p.subjectType))
+  if (subjects.size > 1) {
+    return { error: 'An automation can only watch boards of one kind' }
+  }
+  return { value: pipelines[0].subjectType }
 }

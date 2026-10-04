@@ -67,6 +67,26 @@ model User {
   messageReactions              MessageReaction[]
   pinnedMessages                Message[]               @relation("PinnedMessages")
   createdProducts               Product[]               @relation("ProductCreator")
+  // Real estate: the agent who holds a listing, a mandate or a buyer's interest,
+  // who recorded a viewing, and who decided an offer. Optional everywhere, set
+  // null when the agent leaves, so attribution survives as history rather than
+  // blocking the delete.
+  ownedProperties               Property[]              @relation("PropertyOwner")
+  createdProperties             Property[]              @relation("PropertyCreator")
+  uploadedPropertyMedia         PropertyMedia[]         @relation("PropertyMediaUploader")
+  ownedMandates                 Mandate[]               @relation("MandateOwner")
+  createdMandates               Mandate[]               @relation("MandateCreator")
+  changedMandatePrices          MandatePriceChange[]    @relation("MandatePriceChanger")
+  ownedInterests                Interest[]              @relation("InterestOwner")
+  ownedSearchBriefs             SearchBrief[]           @relation("SearchBriefOwner")
+  commissionSplits              CommissionSplit[]       @relation("CommissionSplitUser")
+  createdCommissions            Commission[]            @relation("CommissionCreator")
+  createdPortalFeeds            PortalFeed[]            @relation("PortalFeedCreator")
+  createdSearchBriefs           SearchBrief[]           @relation("SearchBriefCreator")
+  createdInterests              Interest[]              @relation("InterestCreator")
+  createdOffers                 Offer[]                 @relation("OfferCreator")
+  decidedOffers                 Offer[]                 @relation("OfferDecider")
+  recordedViewingFeedback       ViewingFeedback[]       @relation("ViewingFeedbackRecorder")
   createdUniversalTemplates     UniversalTemplate[]     @relation("UniversalTemplateCreator")
 }
 
@@ -142,6 +162,17 @@ model Workspace {
   channels                Channel[]
   productCustomFields     ProductCustomField[]
   leadFiles               LeadFile[]
+  properties              Property[]
+  propertyMedia           PropertyMedia[]
+  mandates                Mandate[]
+  interests               Interest[]
+  offers                  Offer[]
+  viewingFeedback         ViewingFeedback[]
+  searchBriefs            SearchBrief[]
+  propertyMatches         PropertyMatch[]
+  commissions             Commission[]
+  commissionSplits        CommissionSplit[]
+  portalFeeds             PortalFeed[]
   messages                Message[]
   comments                Comment[]
   invitations             Invitation[]
@@ -314,19 +345,26 @@ model KanbanCard {
 }
 
 model Pipeline {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String?
   color       String? // Hex color for pipeline visualization
   workspaceId String
-  order       Int       @default(0)
-  stages      String    @default("[]") // JSON array of stage names
+  order       Int        @default(0)
+  stages      String     @default("[]") // JSON array of stage names
+  /// What moves across this board: 'Lead' (enquiries not yet attached to a
+  /// property), 'Interest' (one buyer's journey on one property) or 'Property'
+  /// (the owner-acquisition funnel). See PIPELINE_SUBJECT_TYPES in
+  /// src/lib/crm/subjects.ts.
+  subjectType String     @default("Lead")
   createdById String?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy   User?     @relation("PipelineCreator", fields: [createdById], references: [id])
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?      @relation("PipelineCreator", fields: [createdById], references: [id])
   leads       Lead[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  properties  Property[]
+  interests   Interest[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   @@index([workspaceId])
   @@index([createdById])
@@ -361,6 +399,15 @@ model Lead {
   meetings              Meeting[]              @relation("LeadMeetings")
   meetingAttendees      MeetingAttendee[]      @relation("LeadAttendees")
   files                 LeadFile[]
+  // Real estate. A lead is a buyer (interests, offers, viewing feedback) or a
+  // vendor (the properties and mandates it is selling).
+  vendorProperties      Property[]             @relation("PropertyVendor")
+  vendorMandates        Mandate[]              @relation("MandateVendor")
+  interests             Interest[]             @relation("InterestBuyer")
+  offers                Offer[]                @relation("OfferBuyer")
+  viewingFeedback       ViewingFeedback[]      @relation("ViewingFeedbackBuyer")
+  searchBriefs          SearchBrief[]          @relation("SearchBriefLead")
+  propertyMatches       PropertyMatch[]        @relation("PropertyMatchLead")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
@@ -453,6 +500,10 @@ model ProductCustomField {
   id          String    @id @default(cuid())
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Which table the values live on: 'product' (the services and fees catalog) or
+  /// 'property' (a listing). The definitions, validation and coercion are the
+  /// same for both, so properties reuse them rather than growing a second system.
+  entityType  String    @default("product")
   key         String
   label       String
   type        String    @default("text") // 'text' | 'number' | 'boolean' | 'date'
@@ -460,7 +511,7 @@ model ProductCustomField {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([workspaceId, key])
+  @@unique([workspaceId, entityType, key])
   @@index([workspaceId, position])
 }
 
@@ -877,6 +928,10 @@ model EmailAutomation {
   status         String                 @default("draft") // 'draft', 'active', 'paused', 'completed'
   workspaceId    String
   workspace      Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// The subject this automation enrolls: 'Lead', 'Property', 'Interest' or
+  /// 'Mandate'. A Lead automation must never fire on an Interest stage change, so
+  /// dispatch filters on this.
+  subjectType    String                 @default("Lead")
   triggers       AutomationTrigger[]
   steps          AutomationStep[]
   enrollments    AutomationEnrollment[]
@@ -896,6 +951,7 @@ model EmailAutomation {
   @@index([workspaceId])
   @@index([status])
   @@index([type])
+  @@index([subjectType])
   @@index([createdById])
 }
 
@@ -935,13 +991,30 @@ model AutomationStep {
   @@index([automationId])
 }
 
-/// One lead's progress through one automation. The unique pair gives dedupe for
-/// free: re-entering a stage upserts the existing row back to step 0 instead of
+/// One subject's progress through one automation. The unique triple gives dedupe
+/// for free: re-entering a stage revives the existing row at step 0 instead of
 /// creating a parallel enrollment.
+///
+/// Subject-typed rather than lead-typed because a buyer with interests in two
+/// properties must be enrolled twice in a viewing-follow-up sequence, once per
+/// interest, progressing independently. Keyed on (automationId, leadId) that was
+/// impossible -- the second enrollment collided with the first.
 model AutomationEnrollment {
   id               String          @id @default(cuid())
   automationId     String
   automation       EmailAutomation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  /// 'Lead' | 'Property' | 'Interest' | 'Mandate'. Enforced by a CHECK constraint.
+  subjectType      String
+  /// Polymorphic, so no foreign key. Rows orphaned by an Interest or Mandate
+  /// delete are swept by the statement triggers in
+  /// prisma/migrations/20261007060000_subject_purge_triggers -- which Prisma
+  /// cannot see, so do not infer from this schema that nothing cleans them up.
+  subjectId        String
+  /// The contact this enrollment mails: the lead itself, an interest's buyer, a
+  /// property's or a mandate's vendor. Never null -- a subject with no reachable
+  /// contact is not enrolled. Carries the cascade and feeds EmailRecipient.leadId.
+  /// Always derived through contactLeadIdFor() in src/lib/crm/subjects.ts, never
+  /// hand-built.
   leadId           String
   lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   workspaceId      String
@@ -957,8 +1030,9 @@ model AutomationEnrollment {
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  @@unique([automationId, leadId])
+  @@unique([automationId, subjectType, subjectId])
   @@index([status, nextStepAt])
+  @@index([subjectType, subjectId])
   @@index([leadId])
   @@index([workspaceId])
 }
@@ -969,6 +1043,10 @@ model SegmentationRule {
   description    String?
   workspaceId    String
   workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// The subject the criteria are evaluated against: 'Lead', 'Property',
+  /// 'Interest' or 'Mandate'. Decides which fields the builder offers and which
+  /// rows calculateSegmentSize loads.
+  subjectType    String          @default("Lead")
   criteria       String // JSON array of criteria
   logicOperator  String          @default("AND") // 'AND' or 'OR'
   isActive       Boolean         @default(true)
@@ -985,21 +1063,40 @@ model SegmentationRule {
 
   @@index([workspaceId])
   @@index([isActive])
+  @@index([subjectType])
   @@index([createdById])
 }
 
+/// One subject's membership of one segment, materialized by calculateSegmentSize.
 model SegmentMember {
   id                 String           @id @default(cuid())
   segmentationRuleId String
   segmentationRule   SegmentationRule @relation(fields: [segmentationRuleId], references: [id], onDelete: Cascade)
-  leadId             String
-  lead               Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// 'Lead' | 'Property' | 'Interest' | 'Mandate'. Matches the owning rule's
+  /// subjectType; a rule whose subjectType changes has its members swept.
+  subjectType        String
+  /// Polymorphic, so no foreign key. Rows orphaned by a Property, Interest or
+  /// Mandate delete are swept by the statement triggers in
+  /// prisma/migrations/20261007060000_subject_purge_triggers -- which Prisma
+  /// cannot see, so do not infer from this schema that nothing cleans them up.
+  subjectId          String
+  /// The contact this membership mails: the lead itself, an interest's buyer, a
+  /// property's or a mandate's vendor -- null only for a property whose vendor is
+  /// not recorded yet. Sits outside every unique index and is non-unique by
+  /// design (one buyer legitimately has many interest memberships). Kept
+  /// consistent with subjectType by a CHECK constraint, and always derived through
+  /// contactLeadIdFor() in src/lib/crm/subjects.ts.
+  leadId             String?
+  lead               Lead?            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   matchedAt          DateTime         @default(now())
-  score              Float? // Lead score within segment
-  metadata           String? // JSON object for additional data
+  score              Float? // Subject score within segment; see SubjectLoader.score
+  /// Legacy. Snapshotted {status, stage, value}, which was stale the moment it was
+  /// written and duplicates what subjectId already reaches. No longer written.
+  metadata           String?
 
-  @@unique([segmentationRuleId, leadId])
+  @@unique([segmentationRuleId, subjectType, subjectId])
   @@index([segmentationRuleId])
+  @@index([subjectType, subjectId])
   @@index([leadId])
 }
 
@@ -1255,6 +1352,14 @@ model Meeting {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Viewings. A viewing is a meeting plus the property shown, the buyer's
+  // interest in it, and structured feedback -- not a parallel appointment system.
+  propertyId      String?
+  property        Property?        @relation("PropertyMeetings", fields: [propertyId], references: [id], onDelete: SetNull)
+  interestId      String?
+  interest        Interest?        @relation("InterestMeetings", fields: [interestId], references: [id], onDelete: SetNull)
+  viewingFeedback ViewingFeedback?
+
   // Relations
   notes      MeetingNote[]
   activities Activity[]
@@ -1269,6 +1374,8 @@ model Meeting {
   @@index([calendarIntegrationId])
   @@index([isExternal])
   @@index([createdById])
+  @@index([propertyId, startTime])
+  @@index([interestId])
 }
 
 model MeetingAttendee {
@@ -1429,9 +1536,15 @@ model Activity {
   user   User   @relation("ActivityUser", fields: [userId], references: [id])
 
   // Related entities
-  meetingId String?
-  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
-  leadId    String?
+  meetingId  String?
+  meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  leadId     String?
+  // Real estate. Plain columns like leadId, with no foreign key: the feed is an
+  // append-only history and must outlive the rows it describes. They let one event
+  // appear on every timeline it belongs to -- a viewing's feedback shows on the
+  // property, on the buyer's interest and on the buyer's lead.
+  propertyId String?
+  interestId String?
 
   // Audit
   createdAt DateTime @default(now())
@@ -1441,6 +1554,8 @@ model Activity {
   @@index([meetingId])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([propertyId, createdAt])
+  @@index([interestId, createdAt])
 }
 
 // One row per delivered notification. `dedupeKey` is unique per recipient so a
@@ -1618,4 +1733,583 @@ model PlanWaitlist {
   createdAt        DateTime @default(now())
 
   @@unique([email, tier])
+}
+
+// ─── Real estate ─────────────────────────────────────────────────────────────
+
+/// A listing: the agency's inventory. Product stays as the catalog of billable
+/// services and fees (agency fee, photography, staging, EPC); it cannot carry a
+/// listing -- no images, no structured address, no coordinates.
+///
+/// Also the card on the owner (acquisition) board: its vendor is its contact, its
+/// `stage` is the column and its `status` is the lifecycle, which does not depend
+/// on any buyer.
+model Property {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// Agency-facing reference, e.g. "APT-0142". Unique per workspace.
+  reference       String
+  title           String
+  description     String?
+  /// 'apartment' | 'house' | 'land' | 'commercial' | 'parking' | 'building' | 'other'
+  propertyType    String
+  /// 'sale' | 'rent'. Sale-first: the column exists so rental is additive later,
+  /// but nothing here implements tenancy.
+  transactionType String    @default("sale")
+  /// Lifecycle, independent of any buyer: 'prospect' | 'valuation' | 'mandate' |
+  /// 'live' | 'under_offer' | 'sold' | 'withdrawn' | 'expired'
+  status          String    @default("prospect")
+
+  // Owner board
+  pipelineId String?
+  pipeline   Pipeline? @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  stage      String    @default("Prospect")
+  order      Int       @default(0)
+
+  // The seller. Optional because a prospect is sometimes recorded before the
+  // vendor is; it is the property's contact for mail and automations.
+  vendorId String?
+  vendor   Lead?   @relation("PropertyVendor", fields: [vendorId], references: [id], onDelete: SetNull)
+
+  // Price
+  price     Float     @default(0)
+  /// null = the workspace currency
+  currency  String?
+  soldAt    DateTime?
+  soldPrice Float?
+
+  // Address and geo. latitude/longitude are what a radius search and a map view
+  // need; a free-text category could never do either.
+  addressLine     String?
+  /// The street address is withheld from public pages unless this is set.
+  isAddressPublic Boolean @default(false)
+  city            String
+  district        String?
+  postalCode      String?
+  /// ISO 3166-1 alpha-2
+  countryCode     String?
+  latitude        Float?
+  longitude       Float?
+
+  // Characteristics
+  surfaceArea  Float? // m2
+  landArea     Float?
+  rooms        Int?
+  bedrooms     Int?
+  bathrooms    Int?
+  floor        Int?
+  buildYear    Int?
+  /// 'A'..'G'
+  energyRating String?
+  hasElevator  Boolean @default(false)
+  hasParking   Boolean @default(false)
+  hasBalcony   Boolean @default(false)
+  hasTerrace   Boolean @default(false)
+  hasGarden    Boolean @default(false)
+  hasPool      Boolean @default(false)
+  furnished    Boolean @default(false)
+  /// Values for the workspace's ProductCustomField definitions of entityType 'property'.
+  customFields Json    @default("{}")
+
+  // Publication. publicToken is the unguessable key of the public listing page.
+  isPublished          Boolean   @default(false)
+  publishedAt          DateTime?
+  /// When the property first went live; days-on-market counts from here.
+  listedAt             DateTime?
+  publicToken          String?   @unique
+  publicTokenCreatedAt DateTime?
+
+  /// The listing agent.
+  ownerId     String?
+  owner       User?   @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?   @relation("PropertyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  media           PropertyMedia[]
+  mandates        Mandate[]
+  interests       Interest[]
+  offers          Offer[]
+  meetings        Meeting[]         @relation("PropertyMeetings")
+  viewingFeedback ViewingFeedback[]
+  matches         PropertyMatch[]
+  commissions     Commission[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([workspaceId, reference])
+  @@index([workspaceId, status])
+  // The searches agents actually run: by area, price band, type and status.
+  @@index([workspaceId, status, price])
+  @@index([workspaceId, propertyType, status, price])
+  @@index([workspaceId, city, status, price])
+  @@index([workspaceId, bedrooms, status])
+  @@index([pipelineId, stage, order])
+  @@index([vendorId])
+  @@index([ownerId])
+  @@index([workspaceId, publishedAt])
+}
+
+/// An ordered, typed item attached to a listing. Stored the way LeadFile is:
+/// private bucket, path scoped per workspace, short-lived signed URLs. The bucket
+/// is never public -- public pages and portal feeds reach images through a proxy
+/// route that mints a fresh signed URL per request, so a URL handed to a portal
+/// cannot rot, and vendor paperwork sharing the bucket is never exposed.
+model PropertyMedia {
+  id           String    @id @default(cuid())
+  propertyId   String
+  property     Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// 'photo' | 'floorplan' | 'video' | 'virtual_tour'
+  kind         String    @default("photo")
+  /// crm/<workspaceId>/properties/<propertyId>/<uuid>.<ext>. Null for a video or
+  /// virtual tour that lives elsewhere, which is then described by externalUrl.
+  filePath     String?
+  externalUrl  String?
+  fileName     String?
+  fileType     String?
+  size         Int?
+  width        Int?
+  height       Int?
+  caption      String?
+  /// Display order within the property.
+  position     Int       @default(0)
+  /// At most one per property; enforced in the service because Prisma cannot
+  /// express a partial unique index.
+  isCover      Boolean   @default(false)
+  uploadedById String?
+  uploadedBy   User?     @relation("PropertyMediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+
+  @@index([propertyId, position])
+  @@index([workspaceId])
+}
+
+/// The authority to sell a property, with its expiry clock. Expiry drives a work
+/// queue: expiring within 30 days means a renewal call, expired means de-list.
+model Mandate {
+  id                   String               @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reference            String
+  propertyId           String
+  property             Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// The vendor.
+  leadId               String
+  lead                 Lead                 @relation("MandateVendor", fields: [leadId], references: [id], onDelete: Cascade)
+  /// 'simple' | 'exclusive' | 'semi_exclusive'
+  mandateType          String               @default("simple")
+  /// 'draft' | 'active' | 'expired' | 'terminated' | 'completed'
+  status               String               @default("draft")
+  startDate            DateTime?
+  endDate              DateTime?
+  /// Free-text renewal terms, e.g. "tacit renewal, 3 months, 15 days notice".
+  renewalTerms         String?
+  askingPrice          Float                @default(0)
+  /// What the vendor wants to receive after fees, when agreed.
+  netToVendor          Float?
+  /// 'percent' | 'fixed'
+  feeType              String               @default("percent")
+  commissionPercent    Float?
+  feeFixed             Float?
+  /// Who pays the fee: 'vendor' | 'buyer' | 'shared'
+  feePayer             String               @default("vendor")
+  signedAt             DateTime?
+  terminatedAt         DateTime?
+  terminationReason    String?
+  /// The signed document, in the private bucket.
+  documentPath         String?
+  documentName         String?
+  notes                String?
+  /// Key of the vendor report page; rotating it revokes the link.
+  publicToken          String?              @unique
+  publicTokenCreatedAt DateTime?
+  /// A vendor report is a recurring obligation on an exclusive mandate: how often
+  /// it is sent (days), and when the last one went. Null = no schedule.
+  reportEveryDays      Int?
+  lastReportSentAt     DateTime?
+  /// The listing agent. Attribution is captured here, not inferred later: it
+  /// decides who is paid on the listing side.
+  ownerId              String?
+  owner                User?                @relation("MandateOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById          String?
+  createdBy            User?                @relation("MandateCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  priceChanges         MandatePriceChange[]
+  commissions          Commission[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  @@unique([workspaceId, reference])
+  @@index([workspaceId, status])
+  @@index([propertyId])
+  @@index([leadId])
+  @@index([ownerId])
+  // The expiry work queue.
+  @@index([status, endDate])
+}
+
+/// One asking-price reduction. Days-on-market and price drops are the two
+/// numbers every seller asks about, and both feed the vendor report.
+model MandatePriceChange {
+  id          String   @id @default(cuid())
+  mandateId   String
+  mandate     Mandate  @relation(fields: [mandateId], references: [id], onDelete: Cascade)
+  fromPrice   Float
+  toPrice     Float
+  reason      String?
+  changedAt   DateTime @default(now())
+  changedById String?
+  changedBy   User?    @relation("MandatePriceChanger", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([mandateId, changedAt])
+}
+
+/// One buyer's journey on one property. This row, not the lead, is what moves
+/// across the buyer board: a buyer sits at "offer made" on property A and
+/// "viewing booked" on property B at the same time.
+model Interest {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pipelineId      String
+  pipeline        Pipeline          @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  /// The column on the buyer board. Stage names are workspace data, like
+  /// Pipeline.name, so code reads them through resolveStage() rather than
+  /// assuming a spelling.
+  stage           String
+  order           Int               @default(0)
+  /// The buyer.
+  leadId          String
+  lead            Lead              @relation("InterestBuyer", fields: [leadId], references: [id], onDelete: Cascade)
+  propertyId      String
+  property        Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// Outcome, not position: 'active' | 'won' | 'lost' | 'on_hold'
+  status          String            @default("active")
+  /// 'manual' | 'enquiry' | 'portal' | 'match' | 'walk_in' | 'referral'
+  source          String?
+  notes           String?
+  lostReason      String?
+  lastActivityAt  DateTime?
+  /// The agent working this buyer; the selling-side attribution.
+  ownerId         String?
+  owner           User?             @relation("InterestOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  /// When the interest came from a new-listing match: which brief found it, and
+  /// how well the property fit. Attribution is captured, not inferred later.
+  searchBriefId   String?
+  searchBrief     SearchBrief?      @relation(fields: [searchBriefId], references: [id], onDelete: SetNull)
+  matchScore      Float?
+  matches         PropertyMatch[]
+  createdById     String?
+  createdBy       User?             @relation("InterestCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  offers          Offer[]
+  commissions     Commission[]
+  meetings        Meeting[]         @relation("InterestMeetings")
+  viewingFeedback ViewingFeedback[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  /// One interest per buyer per property.
+  @@unique([propertyId, leadId])
+  @@index([workspaceId, status])
+  @@index([pipelineId, stage, order])
+  @@index([leadId])
+  @@index([ownerId])
+  @@index([searchBriefId])
+}
+
+/// An offer on a property. The pattern is Quote's -- an unguessable publicToken, a
+/// public accept/reject route, a status machine, a validity date -- but the table
+/// is not, because the direction is inverted: a quote is agency-to-client with
+/// line items and a computed total, an offer is buyer-to-seller with one amount,
+/// conditions, and competing siblings on the same property.
+model Offer {
+  id                   String       @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  propertyId           String
+  property             Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  interestId           String
+  interest             Interest     @relation(fields: [interestId], references: [id], onDelete: Cascade)
+  /// The buyer, denormalized so "offers by this contact" needs no join.
+  leadId               String
+  lead                 Lead         @relation("OfferBuyer", fields: [leadId], references: [id], onDelete: Cascade)
+  amount               Float
+  currency             String?
+  /// 'pending' | 'accepted' | 'rejected' | 'withdrawn' | 'expired'
+  status               String       @default("pending")
+  offeredAt            DateTime     @default(now())
+  expiresAt            DateTime?
+  decidedAt            DateTime?
+  decidedById          String?
+  decidedBy            User?        @relation("OfferDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  /// 'agent' | 'vendor_link'
+  decidedVia           String?
+  /// 'another_offer_accepted' | 'declined' | 'withdrawn' | free text
+  decisionReason       String?
+  /// [{ "type": "finance" | "survey" | "chain" | "other", "note": string }]
+  conditions           Json         @default("[]")
+  depositAmount        Float?
+  /// 'cash' | 'mortgage' | 'mixed'
+  financingType        String?
+  /// Key of the page where the vendor can accept or decline; rotating it revokes it.
+  publicToken          String?      @unique
+  publicTokenCreatedAt DateTime?
+  commissions          Commission[]
+  createdById          String?
+  createdBy            User?        @relation("OfferCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  // The competing-offers query: every pending offer on one property.
+  @@index([propertyId, status])
+  @@index([interestId])
+  @@index([workspaceId, status])
+  @@index([leadId])
+  @@index([status, expiresAt])
+}
+
+/// Structured feedback on a viewing, one per viewing. Load-bearing twice: it
+/// refines the buyer's search brief, and it is the substance of the vendor report.
+model ViewingFeedback {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  meetingId        String    @unique
+  meeting          Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  propertyId       String
+  property         Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  interestId       String?
+  interest         Interest? @relation(fields: [interestId], references: [id], onDelete: SetNull)
+  /// The buyer.
+  leadId           String
+  lead             Lead      @relation("ViewingFeedbackBuyer", fields: [leadId], references: [id], onDelete: Cascade)
+  attended         Boolean   @default(true)
+  /// A verdict per dimension, each 'negative' | 'neutral' | 'positive'.
+  priceVerdict     String?
+  conditionVerdict String?
+  locationVerdict  String?
+  layoutVerdict    String?
+  /// 1 (not interested) .. 5 (very interested)
+  interestLevel    Int?
+  comments         String?
+  recordedById     String?
+  recordedBy       User?     @relation("ViewingFeedbackRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // The vendor report: what viewers said about this property.
+  @@index([propertyId, createdAt])
+  @@index([interestId])
+  @@index([leadId])
+  @@index([workspaceId])
+}
+
+/// What a buyer is looking for, stored on the lead and evaluated against NEW
+/// properties -- the inverse of a segment, where criteria live on the rule and are
+/// evaluated against leads. A buyer routinely has two (own home, investment), so
+/// it is a table, not columns on Lead.
+///
+/// The columns are split on purpose. The numeric bands and must-have flags are
+/// scalars so Postgres can prefilter by index when a listing goes live, without
+/// loading every brief; the small sets (types, cities) are stringified JSON arrays
+/// filtered in code; and `criteria` is an escape hatch evaluated with the same
+/// matchesCriteria the segment builder uses.
+model SearchBrief {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leadId          String
+  lead            Lead      @relation("SearchBriefLead", fields: [leadId], references: [id], onDelete: Cascade)
+  name            String
+  isActive        Boolean   @default(true)
+  /// Whether the buyer is mailed about matches. Agents are alerted regardless.
+  notifyByEmail   Boolean   @default(true)
+  transactionType String    @default("sale")
+
+  priceMin         Float?
+  priceMax         Float?
+  surfaceMin       Float?
+  bedroomsMin      Int?
+  roomsMin         Int?
+  mustHaveParking  Boolean @default(false)
+  mustHaveElevator Boolean @default(false)
+  mustHaveGarden   Boolean @default(false)
+  mustHaveTerrace  Boolean @default(false)
+  mustHaveBalcony  Boolean @default(false)
+
+  /// JSON arrays; null or empty = any.
+  propertyTypes String?
+  cities        String?
+  districts     String?
+
+  /// JSON Criteria[], evaluated against the property row.
+  criteria      String?
+  logicOperator String  @default("AND")
+
+  notes         String?
+  lastMatchedAt DateTime?
+  matchCount    Int             @default(0)
+  ownerId       String?
+  owner         User?           @relation("SearchBriefOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdById   String?
+  createdBy     User?           @relation("SearchBriefCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  matches       PropertyMatch[]
+  interests     Interest[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([workspaceId, isActive])
+  @@index([leadId])
+  // The prefilter when a listing goes live: briefs whose band contains its price.
+  @@index([workspaceId, isActive, priceMax])
+  @@index([workspaceId, isActive, priceMin])
+}
+
+/// A property that fits a brief. Without this table a price drop would re-notify
+/// the same buyer forever, the agent would have no inbox of matches to action, and
+/// an interest would have no record of how it was found.
+///
+/// The unique pair is the whole idempotence mechanism: re-running the matcher is a
+/// createMany with skipDuplicates.
+model PropertyMatch {
+  id            String      @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  propertyId    String
+  property      Property    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  searchBriefId String
+  searchBrief   SearchBrief @relation(fields: [searchBriefId], references: [id], onDelete: Cascade)
+  leadId        String
+  lead          Lead        @relation("PropertyMatchLead", fields: [leadId], references: [id], onDelete: Cascade)
+  /// 0..100
+  score         Float
+  /// [{ "key": "price_fit", "weight": 40 }, ...] for the agent view and the email.
+  reasons       Json        @default("[]")
+  /// 'new' | 'notified' | 'dismissed' | 'interested' | 'converted'
+  status        String      @default("new")
+  notifiedAt    DateTime?
+  dismissedAt   DateTime?
+  /// Set when an agent turns the match into an interest.
+  interestId    String?
+  interest      Interest?   @relation(fields: [interestId], references: [id], onDelete: SetNull)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([propertyId, searchBriefId])
+  @@index([workspaceId, status])
+  @@index([searchBriefId, createdAt])
+  @@index([leadId, status])
+  // The digest cron's claim query.
+  @@index([status, createdAt])
+}
+
+/// What the agency earns on a sale. Revenue here is a percentage of the sale price,
+/// split between the listing agent, the selling agent and the agency, realized at
+/// closing and often paid through a notary or escrow rather than billed to the
+/// client -- so it is not an Invoice. (Quote and Invoice stay for what they are good
+/// at: billing the agency's own fees, such as photography or staging.)
+///
+/// It accrues when an offer is accepted, with the terms snapshotted from the
+/// mandate so a later renegotiation of the mandate cannot rewrite what was agreed on
+/// this sale. Attribution comes from the rows themselves -- Mandate.ownerId is the
+/// listing side, Interest.ownerId the selling side -- captured when the work was
+/// done rather than guessed at when it is time to pay.
+model Commission {
+  id          String            @id @default(cuid())
+  workspaceId String
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mandateId   String?
+  mandate     Mandate?          @relation(fields: [mandateId], references: [id], onDelete: SetNull)
+  interestId  String?
+  interest    Interest?         @relation(fields: [interestId], references: [id], onDelete: SetNull)
+  offerId     String?
+  offer       Offer?            @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  /// 'accrued' (offer accepted, sale pending) | 'realized' (sale closed) | 'paid' | 'cancelled'
+  status      String            @default("accrued")
+  /// The agreed sale price the fee is computed on.
+  basis       Float
+  /// Snapshot of the mandate's terms: 'percent' | 'fixed'
+  feeType     String            @default("percent")
+  feePercent  Float?
+  feeFixed    Float?
+  /// The total fee, before it is shared out.
+  grossAmount Float
+  currency    String?
+  realizedAt  DateTime?
+  paidAt      DateTime?
+  notes       String?
+  createdById String?
+  createdBy   User?             @relation("CommissionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  splits      CommissionSplit[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([propertyId])
+  @@index([offerId])
+}
+
+/// One person's (or the agency's) share of a commission.
+model CommissionSplit {
+  id           String     @id @default(cuid())
+  commissionId String
+  commission   Commission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  workspaceId  String
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// The member earning it; null is the agency's own share.
+  userId       String?
+  user         User?      @relation("CommissionSplitUser", fields: [userId], references: [id], onDelete: SetNull)
+  /// 'listing_agent' | 'selling_agent' | 'introducer' | 'agency' | 'manager'
+  role         String
+  /// Percentage of the commission's grossAmount, 0..100 (a CHECK enforces the range).
+  sharePercent Float
+  /// sharePercent resolved to money when the split is saved.
+  amount       Float
+  /// 'pending' | 'approved' | 'paid'
+  status       String     @default("pending")
+  approvedAt   DateTime?
+  paidAt       DateTime?
+  note         String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([commissionId])
+  @@index([userId, status])
+  @@index([workspaceId, status])
+}
+
+/// An outbound listing feed for a portal (SeLoger, Idealista, Rightmove, Immoweb,
+/// Zillow). The portal fetches it with the token, so the token is the credential:
+/// rotating it revokes the portal's access. Most demand arrives from portals, and
+/// this is how stock gets there; their enquiries come back through the same intake
+/// as every other enquiry.
+model PortalFeed {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name                String
+  /// 'generic' | 'seloger' | 'idealista' | 'rightmove' | 'immoweb' | 'zillow'
+  portal              String    @default("generic")
+  /// 'xml' | 'json'
+  format              String    @default("xml")
+  isActive            Boolean   @default(true)
+  token               String    @unique
+  tokenCreatedAt      DateTime  @default(now())
+  /// JSON arrays; null = the defaults (live listings only).
+  filterStatuses      String?
+  filterPropertyTypes String?
+  filterCities        String?
+  /// Include properties the agency has not marked as published.
+  includeUnpublished  Boolean   @default(false)
+  lastFetchedAt       DateTime?
+  fetchCount          Int       @default(0)
+  createdById         String?
+  createdBy           User?     @relation("PortalFeedCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([workspaceId, isActive])
 }

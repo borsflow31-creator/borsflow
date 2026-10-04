@@ -22,6 +22,14 @@ export const NOTIFICATION_TYPES = [
   'sales.invoice_viewed',
   'sales.invoice_paid',
   'sales.invoice_overdue',
+  // real estate. Filed under 'sales' so no new preference category is needed and
+  // nobody's saved notification settings change meaning.
+  'crm.offer_received',
+  'crm.offer_accepted',
+  'crm.offer_rejected',
+  'crm.mandate_expiring',
+  'crm.viewing_feedback',
+  'crm.property_matched',
   // meetings
   'meetings.booked',
   'meetings.rescheduled',
@@ -45,6 +53,12 @@ export const TYPE_CATEGORY: Record<NotificationType, NotificationCategory> = {
   'sales.invoice_viewed': 'sales',
   'sales.invoice_paid': 'sales',
   'sales.invoice_overdue': 'sales',
+  'crm.offer_received': 'sales',
+  'crm.offer_accepted': 'sales',
+  'crm.offer_rejected': 'sales',
+  'crm.mandate_expiring': 'sales',
+  'crm.viewing_feedback': 'sales',
+  'crm.property_matched': 'sales',
   'meetings.booked': 'meetings',
   'meetings.rescheduled': 'meetings',
   'meetings.cancelled': 'meetings',
@@ -66,7 +80,7 @@ export function isEmailableType(type: NotificationType): boolean {
 
 export const CATEGORY_LABELS: Record<NotificationCategory, { label: string; description: string }> = {
   team: { label: 'Team', description: 'Invitations accepted, mentions and replies' },
-  sales: { label: 'Sales & billing', description: 'Quotes viewed or decided, invoices paid or overdue' },
+  sales: { label: 'Sales & billing', description: 'Quotes, invoices, offers, mandates and new-listing matches' },
   meetings: { label: 'Meetings', description: 'Bookings, reschedules, cancellations and reminders' },
   tasks: { label: 'Tasks', description: 'Cards assigned to you, or due soon' },
 };

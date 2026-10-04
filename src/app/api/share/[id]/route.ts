@@ -26,7 +26,16 @@ export async function GET(
             return NextResponse.json({ error: 'This page is not publicly shared' }, { status: 403 })
         }
 
-        return NextResponse.json({ page })
+        // Block.content is stored as a JSON string; the read-only renderer expects objects.
+        const blocks = page.blocks.map((b) => {
+            try {
+                return { ...b, content: typeof b.content === 'string' ? JSON.parse(b.content) : b.content }
+            } catch {
+                return { ...b, content: {} }
+            }
+        })
+
+        return NextResponse.json({ page: { ...page, blocks } })
     } catch (error) {
         console.error('Error fetching shared page:', error)
         return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })

@@ -30,9 +30,20 @@ function planLines(plan: PlanDefinition, t: ReturnType<typeof useI18n>['t']): st
         l.aiCreditsPerMonth === null
             ? t('landing.pricing.limitUnlimitedAiCredits')
             : t('landing.pricing.limitAiCreditsPerMonth', { count: fmt(l.aiCreditsPerMonth) }),
-        l.crmContacts === null
+        l.contacts === null
             ? t('landing.pricing.limitUnlimitedCrmContacts')
-            : t('landing.pricing.limitCrmContacts', { count: fmt(l.crmContacts) }),
+            : t('landing.pricing.limitCrmContacts', { count: fmt(l.contacts) }),
+        l.properties === null
+            ? t('landing.pricing.limitUnlimitedProperties')
+            : t('landing.pricing.limitProperties', { count: fmt(l.properties) }),
+        l.activeMandates === null
+            ? t('landing.pricing.limitUnlimitedActiveMandates')
+            : t('landing.pricing.limitActiveMandates', { count: fmt(l.activeMandates) }),
+        l.portalFeeds === null
+            ? t('landing.pricing.limitUnlimitedPortalFeeds')
+            : l.portalFeeds === 0
+                ? t('landing.pricing.limitNoPortalFeeds')
+                : t('landing.pricing.limitPortalFeeds', { count: l.portalFeeds }),
         l.invoicesPerMonth === null
             ? t('landing.pricing.limitUnlimitedInvoices')
             : t('landing.pricing.limitInvoicesPerMonth', { count: l.invoicesPerMonth }),
@@ -125,7 +136,15 @@ function WaitlistForm({ tier, onDone }: { tier: PlanTier; onDone: () => void }) 
     )
 }
 
-function PlanCard({ plan, yearly }: { plan: PlanDefinition; yearly: boolean }) {
+function PlanCard({
+    plan,
+    yearly,
+    subHeading: SubHeading,
+}: {
+    plan: PlanDefinition
+    yearly: boolean
+    subHeading: 'h2' | 'h3'
+}) {
     const { t } = useI18n()
     const [waitlistOpen, setWaitlistOpen] = useState(false)
     const [joined, setJoined] = useState(false)
@@ -143,7 +162,7 @@ function PlanCard({ plan, yearly }: { plan: PlanDefinition; yearly: boolean }) {
             }`}
         >
             <div className="flex items-center justify-between gap-2">
-                <h3 className="font-display text-lg font-semibold text-[var(--n-text)]">{plan.name}</h3>
+                <SubHeading className="font-display text-lg font-semibold text-[var(--n-text)]">{plan.name}</SubHeading>
                 {isFree ? (
                     <span className="rounded-full bg-[var(--n-emerald)] px-2.5 py-0.5 text-xs font-semibold text-[var(--n-base)]">
                         {t('landing.pricing.availableNow')}
@@ -222,7 +241,7 @@ function PlanCard({ plan, yearly }: { plan: PlanDefinition; yearly: boolean }) {
     )
 }
 
-function TeamCalculator() {
+function TeamCalculator({ subHeading: SubHeading }: { subHeading: 'h2' | 'h3' }) {
     const { t } = useI18n()
     const [size, setSize] = useState(10)
     const plan = tierForTeam(size)
@@ -233,9 +252,9 @@ function TeamCalculator() {
         <div className="mt-14 rounded-2xl border border-[var(--n-border)] bg-[var(--n-surface)]/60 p-6 sm:p-8">
             <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
                 <div className="lg:col-span-5">
-                    <h3 className="font-display text-xl font-semibold text-[var(--n-text)]">
+                    <SubHeading className="font-display text-xl font-semibold text-[var(--n-text)]">
                         {t('landing.pricing.calcHeading')}
-                    </h3>
+                    </SubHeading>
                     <p className="mt-2 text-sm text-[var(--n-muted)]">
                         {t('landing.pricing.calcBody', { price: PER_SEAT_STACK_PRICE })}
                     </p>
@@ -279,6 +298,10 @@ export const PricingSection = ({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 
     const { t } = useI18n()
     const [yearly, setYearly] = useState(true)
     const Heading = headingLevel
+    /* The section heading is h1 on /pricing and h2 on the landing page, so the
+       cards under it have to shift too — an h1 followed by an h3 reads as a
+       missing level to anything parsing the outline. */
+    const SubHeading = headingLevel === 'h1' ? 'h2' : 'h3'
 
     const BILLING_OPTIONS = [
         { label: t('landing.pricing.yearly'), value: true, note: t('landing.pricing.twoMonthsFree') },
@@ -328,11 +351,11 @@ export const PricingSection = ({ headingLevel = 'h2' }: { headingLevel?: 'h1' | 
 
                 <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                     {PLAN_ORDER.map((tier) => (
-                        <PlanCard key={tier} plan={PLANS[tier]} yearly={yearly} />
+                        <PlanCard key={tier} plan={PLANS[tier]} yearly={yearly} subHeading={SubHeading} />
                     ))}
                 </div>
 
-                <TeamCalculator />
+                <TeamCalculator subHeading={SubHeading} />
 
                 <p className="mt-6 text-xs text-[var(--n-muted)]">
                     {t('landing.pricing.footnote')}

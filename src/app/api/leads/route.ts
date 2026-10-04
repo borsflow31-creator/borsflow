@@ -1,3 +1,4 @@
+import { capacityError } from '@/lib/billing/capacity'
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -6,6 +7,7 @@ import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { createLead } from '@/lib/services/leads';
 import { ServiceError } from '@/lib/services/errors';
 import { CrmLogger } from '@/lib/crm/logger';
+import { onSubjectCreated } from '@/lib/crm/subject-events';
 
 export async function GET(request: NextRequest) {
     try {
@@ -185,12 +187,16 @@ export async function POST(request: NextRequest) {
 
         if (!workspace) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
+        }
+
 
         // Membership is not enough to change content: viewers are read-only.
         if (!(await canEditContent(workspace.id, session.user.id))) {
             return NextResponse.json({ error: READ_ONLY_ERROR }, { status: 403 });
         }
+
+        const full = await capacityError(workspace.id, 'contacts');
+        if (full) return full;
 
         const lead = await createLead(pipeline, {
             firstName,
@@ -214,6 +220,14 @@ export async function POST(request: NextRequest) {
             leadId: lead.id,
             leadName: `${firstName} ${lastName}`.trim(),
             source: source || undefined,
+        });
+
+        // A new lead starts any `lead_created` automation for its board.
+        await onSubjectCreated({
+            subjectType: 'Lead',
+            subjectId: lead.id,
+            pipelineId: pipeline.id,
+            workspaceId: workspace.id,
         });
 
         // Fetch the lead with lead lists

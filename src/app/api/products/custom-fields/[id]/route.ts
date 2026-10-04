@@ -7,6 +7,11 @@ import type { ProductCustomFieldType } from '@/types';
 
 type Params = { params: { id: string } };
 
+/** The table a field's values live on. Raw SQL cannot take a table name as a parameter, so it is chosen from a fixed pair. */
+function valuesTable(entityType: string) {
+  return Prisma.raw(entityType === 'property' ? '"Property"' : '"Product"');
+}
+
 /** The field plus a write-permission check on its workspace. */
 async function authorize(id: string) {
   const field = await prisma.productCustomField.findUnique({ where: { id } });
@@ -50,9 +55,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!isCustomFieldType(body.type)) return NextResponse.json({ error: 'Unknown field type' }, { status: 400 });
     const nextType = body.type as ProductCustomFieldType;
     // Convert existing values to the new type; refuse if any can't be converted.
+    const table = valuesTable(field.entityType);
     const rows = await prisma.$queryRaw<Array<{ id: string; value: unknown }>>(Prisma.sql`
       SELECT "id", "customFields" -> ${field.key} AS value
-      FROM "Product"
+      FROM ${table}
       WHERE "workspaceId" = ${field.workspaceId} AND "customFields" ? ${field.key}
     `);
     const converted: Array<{ id: string; value: unknown }> = [];
@@ -69,9 +75,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     await prisma.$transaction(
       converted.map((row) =>
         row.value === null
-          ? prisma.$executeRaw(Prisma.sql`UPDATE "Product" SET "customFields" = "customFields" - ${field.key} WHERE "id" = ${row.id}`)
+          ? prisma.$executeRaw(Prisma.sql`UPDATE ${table} SET "customFields" = "customFields" - ${field.key} WHERE "id" = ${row.id}`)
           : prisma.$executeRaw(Prisma.sql`
-              UPDATE "Product"
+              UPDATE ${table}
               SET "customFields" = jsonb_set("customFields", ARRAY[${field.key}]::text[], ${JSON.stringify(row.value)}::jsonb)
               WHERE "id" = ${row.id}
             `)
@@ -97,7 +103,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   await prisma.$transaction([
     prisma.$executeRaw(Prisma.sql`
-      UPDATE "Product"
+      UPDATE ${valuesTable(field.entityType)}
       SET "customFields" = "customFields" - ${field.key}
       WHERE "workspaceId" = ${field.workspaceId} AND "customFields" ? ${field.key}
     `),

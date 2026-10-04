@@ -3,11 +3,12 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRightLeft, CalendarDays, FileText, Loader2, Mail, MessageSquareText, Paperclip,
+  ArrowRightLeft, Building2, CalendarDays, FileText, Loader2, Mail, MessageSquareText, Paperclip,
   Pencil, Receipt, Send, Sparkles, Trash2, UserPlus,
 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { relativeTime } from '@/lib/relative-time';
+import { REAL_ESTATE_ACTIVITY_TYPES, describeActivity } from '@/components/realestate/activity';
 
 interface TimelineEntry {
   id: string;
@@ -224,8 +225,17 @@ export default function LeadTimeline({ leadId, workspaceId }: { leadId: string; 
             </p>
           ),
         };
-      default:
-        return { icon: Pencil, tone: 'bg-surface-container-highest text-on-surface-variant', title: d.description ?? entry.type, body: null };
+      default: {
+        // Property, buyer-interest, mandate, offer and viewing events share this
+        // timeline: the same Activity row that shows on the property shows here.
+        const sentence = REAL_ESTATE_ACTIVITY_TYPES.has(entry.type) ? describeActivity(entry.type, d, t, formatCurrency) : null;
+        return {
+          icon: sentence ? Building2 : Pencil,
+          tone: sentence ? 'bg-teal-500/15 text-teal-600 dark:text-teal-400' : 'bg-surface-container-highest text-on-surface-variant',
+          title: sentence ?? d.description ?? entry.type,
+          body: null,
+        };
+      }
     }
   };
 

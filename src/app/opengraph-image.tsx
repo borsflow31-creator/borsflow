@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
-export const alt = 'BorsFlow — documents, CRM and billing on one database'
+export const alt = 'BorsFlow — the CRM for estate agencies'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -58,7 +58,7 @@ export default async function OpengraphImage() {
                             maxWidth: 940,
                         }}
                     >
-                        Documents, CRM and billing on one database.
+                        Listings, buyers, offers and commissions in one workspace.
                     </div>
                     <div style={{ marginTop: 28, fontSize: 30, color: '#8b8f9e', lineHeight: 1.4, maxWidth: 880 }}>
                         Draft a scope, attach a quote, get it paid — without leaving the tab.

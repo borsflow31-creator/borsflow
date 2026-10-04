@@ -6,8 +6,21 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { renderMergeTags, ensureUnsubscribeFooter } from '@/lib/email/render'
+import { renderMergeTags, ensureUnsubscribeFooter, type MergeContext } from '@/lib/email/render'
 import { filterSendable } from '@/lib/email/suppression'
+import { asSubjectType, type SubjectType } from '@/lib/crm/subjects'
+import { loaderFor } from '@/lib/crm/subject-registry'
+
+/** One resolved send target: who to mail, and the merge data to render for them. */
+export interface CampaignRecipient {
+  subjectType: SubjectType
+  subjectId: string
+  /** The contact the send is attributed to, written to EmailRecipient.leadId. */
+  leadId: string | null
+  email: string
+  name: string
+  mergeContext: Partial<MergeContext>
+}
 
 // Forms send '' for "none"; Prisma needs null for an empty optional relation.
 const idOrNull = (v: string | null | undefined) => (v ? v : null)
@@ -327,7 +340,7 @@ export class EmailCampaignService {
 
       const workspace = await prisma.workspace.findUnique({
         where: { id: campaign.workspaceId },
-        select: { name: true }
+        select: { name: true, currency: true }
       })
 
       // Update total recipients count
@@ -343,10 +356,11 @@ export class EmailCampaignService {
 
       for (const recipient of recipients) {
         const mergeContext = {
-          lead: recipient.lead,
+          ...recipient.mergeContext,
           recipientEmail: recipient.email,
           workspaceId: campaign.workspaceId,
-          workspaceName: workspace?.name ?? null
+          workspaceName: workspace?.name ?? null,
+          currency: workspace?.currency ?? null
         }
 
         // Substitute merge tags before wrapping links, so URLs a tag injected
@@ -429,50 +443,90 @@ export class EmailCampaignService {
   }
 
   /**
-   * Get campaign recipients
+   * Resolve a campaign's recipients through the segment's subject.
+   *
+   * A segment is not necessarily a set of leads any more: a segment of interests
+   * resolves to each interest's buyer, a segment of mandates or of properties to
+   * the vendor. A property whose vendor is not recorded has nobody to mail and is
+   * skipped.
+   *
+   * Addresses are de-duplicated per send. That fixes a pre-existing bug
+   * independent of real estate: a lead appearing twice in a merged segment, or
+   * two leads sharing a couple's address, used to receive the same campaign
+   * twice. It matters more now, because a buyer with interests in three
+   * properties would otherwise get three copies.
    */
-  private async getCampaignRecipients(
-    campaign: any
-  ): Promise<Array<{ leadId: string; email: string; name: string; lead: any }>> {
+  private async getCampaignRecipients(campaign: any): Promise<CampaignRecipient[]> {
+    const candidates: CampaignRecipient[] = []
+
     if (campaign.segmentationRuleId) {
-      // Get leads from segment. The pipeline is included so {{pipeline_name}}
-      // resolves; addresses are filtered here because segment membership does
-      // not require an email.
-      const segmentMembers = await prisma.segmentMember.findMany({
-        where: {
-          segmentationRuleId: campaign.segmentationRuleId,
-          lead: { email: { not: null } }
-        },
-        include: {
-          lead: { include: { pipeline: true } }
+      // Ordered so that "the first row for an address wins" is stable across
+      // resends rather than depending on row order.
+      const members = await prisma.segmentMember.findMany({
+        where: { segmentationRuleId: campaign.segmentationRuleId },
+        select: { subjectType: true, subjectId: true },
+        orderBy: [{ matchedAt: 'asc' }, { subjectId: 'asc' }],
+      })
+
+      // One batched load per subject type present, not one query per member.
+      const idsByType = new Map<SubjectType, string[]>()
+      for (const member of members) {
+        const type = asSubjectType(member.subjectType)
+        const ids = idsByType.get(type)
+        if (ids) ids.push(member.subjectId)
+        else idsByType.set(type, [member.subjectId])
+      }
+
+      for (const [type, ids] of idsByType) {
+        const loader = loaderFor(type)
+        const rows = await loader.loadMany(ids)
+        const byId = new Map(rows.map((row: any) => [row.id, row]))
+
+        // Walk `ids` rather than `rows` so the deterministic member order is kept.
+        for (const id of ids) {
+          const row = byId.get(id)
+          if (!row) continue
+          const recipient = loader.recipient(row)
+          if (!recipient?.email) continue
+          candidates.push({
+            subjectType: type,
+            subjectId: id,
+            leadId: recipient.leadId,
+            email: recipient.email,
+            name: recipient.name,
+            mergeContext: loader.mergeContext(row),
+          })
         }
-      })
-
-      return segmentMembers.map((member: any) => ({
-        leadId: member.leadId,
-        email: member.lead.email || '',
-        name: `${member.lead.firstName} ${member.lead.lastName}`.trim(),
-        lead: member.lead
-      }))
+      }
     } else {
-      // Get all leads from workspace
-      const leads = await prisma.lead.findMany({
-        where: {
-          pipeline: {
-            workspaceId: campaign.workspaceId
-          },
-          email: { not: null }
-        },
-        include: { pipeline: true }
-      })
+      // No segment: every contact in the workspace.
+      const loader = loaderFor('Lead')
+      const leads = await loader.loadAll(campaign.workspaceId)
 
-      return leads.map((lead: any) => ({
-        leadId: lead.id,
-        email: lead.email || '',
-        name: `${lead.firstName} ${lead.lastName}`.trim(),
-        lead
-      }))
+      for (const lead of leads) {
+        const recipient = loader.recipient(lead)
+        if (!recipient?.email) continue
+        candidates.push({
+          subjectType: 'Lead',
+          subjectId: lead.id,
+          leadId: recipient.leadId,
+          email: recipient.email,
+          name: recipient.name,
+          mergeContext: loader.mergeContext(lead),
+        })
+      }
     }
+
+    const seen = new Set<string>()
+    const recipients: CampaignRecipient[] = []
+    for (const candidate of candidates) {
+      const key = candidate.email.trim().toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      recipients.push(candidate)
+    }
+
+    return recipients
   }
 
   /**

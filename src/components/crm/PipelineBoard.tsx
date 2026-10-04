@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Paperclip } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { relativeTime } from '@/lib/relative-time';
+import type { MessageKey } from '@/i18n/I18nProvider';
+import { SUBJECT_ENDPOINTS } from '@/lib/crm/subjects';
+
+/** The three kinds of card a board can hold. */
+export type BoardSubjectType = 'Lead' | 'Interest' | 'Property';
+
 
 interface Lead {
     id: string;
@@ -28,6 +34,15 @@ interface Lead {
     /** Most recent history entry */
     lastActivityAt?: string;
 }
+
+/**
+ * A card on any board. Every card shares `id`, `stage` and `order` -- where it
+ * sits -- and the rest depends on the subject: a lead's name and contact details,
+ * an interest's buyer and property, a property's price and vendor. Typed as a
+ * lead with an open index so the original lead rendering stays checked, while the
+ * other subjects are drawn by `renderCard`.
+ */
+type BoardCard = Lead & { [key: string]: any };
 
 interface LeadList {
     id: string;
@@ -60,7 +75,22 @@ interface PipelineBoardProps {
     pipeline: Pipeline;
     leadLists: LeadList[];
     refreshKey?: number;
-    onLeadUpdate: (leadId: string, updates: Partial<Lead>) => Promise<boolean>;
+    /**
+     * What a card on this board is. A lead board is the original CRM; an interest
+     * board holds one buyer's journey on one property per card; a property board
+     * is the owner-acquisition funnel. The drag, the optimistic reorder and the
+     * rollback are the same for all three -- only where the cards come from and
+     * how one is drawn differ.
+     */
+    subjectType?: BoardSubjectType;
+    /** Needed to load interest and property cards. */
+    workspaceId?: string;
+    /** Draws a card for a non-lead board. */
+    renderCard?: (card: any) => ReactNode;
+    onOpenCard?: (card: any) => void;
+    /** Reports a failed move on a non-lead board so the page can show it. */
+    onMoveError?: (message: string) => void;
+    onLeadUpdate?: (leadId: string, updates: Partial<Lead>) => Promise<boolean>;
     onLeadDelete: (leadId: string) => Promise<boolean>;
     onPipelineUpdate: (pipelineId: string, updates: Partial<Pipeline>) => void;
     onPipelineDelete: (pipelineId: string) => void;
@@ -72,6 +102,11 @@ export default function PipelineBoard({
     pipeline,
     leadLists,
     refreshKey = 0,
+    subjectType = 'Lead',
+    workspaceId,
+    renderCard,
+    onOpenCard,
+    onMoveError,
     onLeadUpdate,
     onLeadDelete,
     onPipelineUpdate,
@@ -80,7 +115,7 @@ export default function PipelineBoard({
     onOpenPipelineModal,
 }: PipelineBoardProps) {
     const { t, formatCurrency, locale } = useI18n();
-    const [leads, setLeads] = useState<Lead[]>([]);
+    const [leads, setLeads] = useState<BoardCard[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
@@ -91,10 +126,18 @@ export default function PipelineBoard({
     const fetchLeads = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`/api/leads?pipelineId=${pipeline.id}`);
+            // Leads answer with a bare array; the newer endpoints with a named envelope.
+            const url = subjectType === 'Lead'
+                ? `/api/leads?pipelineId=${pipeline.id}`
+                : `${SUBJECT_ENDPOINTS[subjectType]}?workspaceId=${workspaceId ?? pipeline.workspaceId}&pipelineId=${pipeline.id}`;
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
-                setLeads(data);
+                setLeads(
+                    subjectType === 'Lead' ? data
+                    : subjectType === 'Interest' ? data.interests ?? []
+                    : data.properties ?? []
+                );
             }
         } catch (error) {
             console.error('Error fetching leads:', error);
@@ -122,7 +165,7 @@ export default function PipelineBoard({
         setUpdatingLeadId(draggableId);
 
         // Optimistically reorder the destination column so the card lands where it was dropped
-        const moved: Lead = {
+        const moved: BoardCard = {
             ...originalLead,
             stage: destination.droppableId,
             order: destination.index,
@@ -140,10 +183,7 @@ export default function PipelineBoard({
         ]);
 
         try {
-            const ok = await onLeadUpdate(draggableId, {
-                stage: destination.droppableId,
-                order: destination.index,
-            });
+            const ok = await moveCard(draggableId, destination.droppableId, destination.index);
             if (!ok) setLeads(previousLeads);
         } catch (error) {
             console.error('Error updating lead position:', error);
@@ -151,6 +191,35 @@ export default function PipelineBoard({
         } finally {
             // Clear updating state
             setUpdatingLeadId(null);
+        }
+    };
+
+    /**
+     * Persist a move. A lead goes through the page's handler (which also owns its
+     * toasts and refresh); the other subjects are a plain PUT of { stage, order },
+     * which their routes handle the same way the lead route does.
+     */
+    const moveCard = async (id: string, stage: string, order: number): Promise<boolean> => {
+        if (subjectType === 'Lead') {
+            return onLeadUpdate ? onLeadUpdate(id, { stage, order }) : false;
+        }
+        try {
+            const response = await fetch(`${SUBJECT_ENDPOINTS[subjectType]}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stage, order }),
+            });
+            if (response.ok) return true;
+            let message = t('realEstate.pipelines.moveFailed');
+            try {
+                const data = await response.json();
+                if (typeof data?.error === 'string') message = data.error;
+            } catch { /* keep the generic message */ }
+            onMoveError?.(message);
+            return false;
+        } catch {
+            onMoveError?.(t('realEstate.pipelines.moveFailed'));
+            return false;
         }
     };
 
@@ -277,8 +346,9 @@ export default function PipelineBoard({
                                                                         ? 'opacity-50 pointer-events-none' 
                                                                         : ''
                                                                 }`}
-                                                                onClick={() => onOpenLeadModal(lead)}
+                                                                onClick={() => (subjectType === 'Lead' ? onOpenLeadModal(lead as unknown as Lead) : onOpenCard?.(lead))}
                                                             >
+                                                                {subjectType !== 'Lead' ? (renderCard?.(lead) ?? null) : (<>
                                                                 {/* Lead Header */}
                                                                 <div className="mb-2 flex items-start justify-between">
                                                                     <div>
@@ -358,6 +428,7 @@ export default function PipelineBoard({
                                                                         ) : null}
                                                                     </div>
                                                                 ) : null}
+                                                                </>)}
                                                             </div>
                                                         )}
                                                     </Draggable>
@@ -365,7 +436,7 @@ export default function PipelineBoard({
                                                 {provided.placeholder}
                                                 {stageLeads.length === 0 && !snapshot.isDraggingOver && (
                                                     <p className="body-sm text-on-surface-variant text-center py-6">
-                                                        {t('crm.pipelineBoard.dropLeadsHere')}
+                                                        {subjectType === 'Lead' ? t('crm.pipelineBoard.dropLeadsHere') : t('realEstate.pipelines.dropHere')}
                                                     </p>
                                                 )}
                                             </div>

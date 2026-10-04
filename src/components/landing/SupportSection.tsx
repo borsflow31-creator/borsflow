@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { useI18n } from '@/i18n/I18nProvider'
 
@@ -35,6 +35,7 @@ export const SupportSection = () => {
                                 <h3>
                                     <button
                                         type="button"
+                                        id={`faq-question-${i}`}
                                         onClick={() => setOpen(isOpen ? null : i)}
                                         aria-expanded={isOpen}
                                         aria-controls={`faq-panel-${i}`}
@@ -49,20 +50,30 @@ export const SupportSection = () => {
                                         />
                                     </button>
                                 </h3>
-                                <AnimatePresence initial={false}>
-                                    {isOpen && (
-                                        <motion.div
-                                            id={`faq-panel-${i}`}
-                                            initial={reduce ? false : { height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={reduce ? undefined : { height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                                            className="overflow-hidden"
-                                        >
-                                            <p className="pb-6 text-sm leading-relaxed text-[var(--n-muted)]">{a}</p>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                {/* The panel collapses to zero height instead of
+                                    unmounting. An answer that is not in the server
+                                    HTML cannot be read by a crawler or lifted into a
+                                    snippet, and the FAQPage graph on this page claims
+                                    all six answers are here — so all six have to be.
+                                    initial={false} makes framer render the collapsed
+                                    geometry on the first pass rather than animating
+                                    five panels shut on hydration. */}
+                                <motion.div
+                                    id={`faq-panel-${i}`}
+                                    role="region"
+                                    aria-labelledby={`faq-question-${i}`}
+                                    aria-hidden={!isOpen}
+                                    initial={false}
+                                    animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
+                                    transition={
+                                        reduce
+                                            ? { duration: 0 }
+                                            : { duration: 0.25, ease: [0.16, 1, 0.3, 1] }
+                                    }
+                                    className="overflow-hidden"
+                                >
+                                    <p className="pb-6 text-sm leading-relaxed text-[var(--n-muted)]">{a}</p>
+                                </motion.div>
                             </div>
                         )
                     })}

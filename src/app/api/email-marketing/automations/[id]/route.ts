@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
-import { normalizeSteps, normalizeTriggers } from '@/lib/email/automation-validation'
+import { automationSubjectFromTriggers, normalizeSteps, normalizeTriggers } from '@/lib/email/automation-validation'
 
 async function loadAutomation(id: string) {
   return prisma.emailAutomation.findUnique({
@@ -46,7 +46,7 @@ export async function PATCH(
   try {
     const automation = await prisma.emailAutomation.findUnique({
       where: { id: params.id },
-      select: { id: true, workspaceId: true, status: true },
+      select: { id: true, workspaceId: true, status: true, subjectType: true },
     })
 
     if (!automation) {
@@ -82,6 +82,27 @@ export async function PATCH(
       return NextResponse.json({ error: normalizedSteps.error }, { status: 400 })
     }
 
+    // Re-pointing the trigger at a board of another kind changes what is enrolled.
+    // Existing enrollments are rows of the old kind, so that is refused rather than
+    // left to strand them.
+    let nextSubject: string | null = null
+    if (normalizedTriggers) {
+      const subject = await automationSubjectFromTriggers(automation.workspaceId, normalizedTriggers.value)
+      if ('error' in subject) {
+        return NextResponse.json({ error: subject.error }, { status: 400 })
+      }
+      if (subject.value && subject.value !== automation.subjectType) {
+        const enrolled = await prisma.automationEnrollment.count({ where: { automationId: params.id } })
+        if (enrolled > 0) {
+          return NextResponse.json(
+            { error: 'This automation already has enrollments, so it cannot be moved to a different kind of board' },
+            { status: 409 }
+          )
+        }
+        nextSubject = subject.value
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       if (normalizedTriggers) {
         await tx.automationTrigger.deleteMany({ where: { automationId: params.id } })
@@ -107,6 +128,7 @@ export async function PATCH(
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
           ...(type !== undefined && { type }),
+          ...(nextSubject && { subjectType: nextSubject }),
           ...(exitCriteria !== undefined && {
             exitCriteria: Array.isArray(exitCriteria) && exitCriteria.length > 0
               ? JSON.stringify(exitCriteria)

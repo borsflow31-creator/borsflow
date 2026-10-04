@@ -7,7 +7,9 @@
         "postinstall": "prisma generate",
         "build": "prisma generate && next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "verify": "tsx scripts/verify/run-all.ts",
+        "verify:one": "tsx"
     },
     "dependencies": {
         "@ducanh2912/next-pwa": "^10.2.9",
@@ -48,6 +50,7 @@
         "sharp": "^0.34.5",
         "tailwind-merge": "^2.3.0",
         "tailwindcss": "^3.4.1",
+        "tsx": "^4.23.15",
         "typescript": "^5",
         "webpack": "^5.106.1"
     },

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { PIPELINE_SUBJECT_TYPES, type SubjectType } from '@/lib/crm/subjects';
+import { DEFAULT_PIPELINES } from '@/lib/crm/lifecycle';
 
 interface Pipeline {
     id: string;
@@ -11,6 +13,8 @@ interface Pipeline {
     stages: string[];
     workspaceId: string;
     order: number;
+    /** What a card on this board is. Chosen when the board is created. */
+    subjectType?: SubjectType;
     leads?: any[];
     _count?: {
         leads: number;
@@ -31,7 +35,8 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
         name: pipeline?.name || '',
         description: pipeline?.description || '',
         color: pipeline?.color || '#3B82F6',
-        stages: pipeline?.stages || ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'],
+        stages: pipeline?.stages || DEFAULT_PIPELINES[0].stages,
+        subjectType: (pipeline?.subjectType ?? 'Lead') as SubjectType,
     });
 
     // Stages are identified by name, so a rename is otherwise indistinguishable
@@ -44,6 +49,16 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
     );
 
     const [newStage, setNewStage] = useState('');
+
+    // A new board starts with the stages of the seeded board of the same kind, so
+    // picking "Buyer interests" gives the buyer journey rather than lead stages.
+    // Only on create: an existing board's subject is fixed, because changing it
+    // would orphan every card on it.
+    const changeSubject = (subjectType: SubjectType) => {
+        const defaults = DEFAULT_PIPELINES.find(p => p.subjectType === subjectType)?.stages;
+        setFormData(prev => ({ ...prev, subjectType, stages: defaults ?? prev.stages }));
+        setStageOrigins((defaults ?? []).map(() => null));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -147,6 +162,26 @@ export default function PipelineModal({ pipeline, leadCountsByStage = {}, leadCo
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {!pipeline && (
+                            <div>
+                                <label className="block body-sm text-on-surface-variant mb-2">
+                                    {t('realEstate.pipelines.subject')}
+                                </label>
+                                <select
+                                    value={formData.subjectType}
+                                    onChange={(e) => changeSubject(e.target.value as SubjectType)}
+                                    className="premium-input w-full px-4 py-2.5 text-sm transition-all"
+                                >
+                                    {PIPELINE_SUBJECT_TYPES.map(type => (
+                                        <option key={type} value={type}>
+                                            {t(`realEstate.subjects.${type}` as MessageKey)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="body-xs text-on-surface-variant mt-1">{t('realEstate.pipelines.subjectHint')}</p>
+                            </div>
+                        )}
+
                         {/* Pipeline Details */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">

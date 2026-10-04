@@ -6,23 +6,30 @@
  * beginning with nothing reading them; this is the runtime.
  *
  * Flow:
- *   PUT /api/leads/[id] detects a stage change
- *     -> exitEnrollments()      ends sequences the lead just left
- *     -> dispatchStageChanged() enrolls the lead in matching automations
+ *   PUT /api/leads/[id] (and the interest/mandate equivalents) detects a stage change
+ *     -> exitEnrollments()      ends sequences the subject just left
+ *     -> dispatchStageChanged() enrolls the subject in matching automations
  *   cron /api/cron/process-automations
  *     -> processDueEnrollments() materializes one step per due enrollment
  *   cron /api/cron/process-email-queue
  *     -> sends what was enqueued
  *
  * Steps are advanced one at a time rather than enqueued upfront so each send
- * re-reads the lead: merge data stays fresh and sendCondition is evaluated
+ * re-reads the subject: merge data stays fresh and sendCondition is evaluated
  * against current state.
+ *
+ * Enrollments are keyed on (automationId, subjectType, subjectId), not on the
+ * lead. Real-estate state is per (lead x property): a buyer with interests in
+ * two properties must sit in a viewing-follow-up sequence twice, once per
+ * interest, progressing independently. Keyed on the lead that was impossible.
  */
 
 import { prisma } from '@/lib/prisma'
 import { renderMergeTags, ensureUnsubscribeFooter } from '@/lib/email/render'
 import { isSendable } from '@/lib/email/suppression'
-import { emailSegmentationService, type Criteria } from '@/lib/email-segmentation'
+import { matchesCriteria, parseJson as parseJsonColumn, type Criteria } from '@/lib/crm/criteria'
+import { asSubjectType, isAutomatable, type SubjectType } from '@/lib/crm/subjects'
+import { loaderFor, type SubjectRecipient } from '@/lib/crm/subject-registry'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
@@ -37,22 +44,37 @@ export interface StageChangedConditions {
 }
 
 export interface StageChangeEvent {
-  leadId: string
+  subjectType: SubjectType
+  subjectId: string
   pipelineId: string
   workspaceId: string
   fromStage: string
   toStage: string
 }
 
-function parseJson<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback
-  try {
-    const parsed = JSON.parse(raw)
-    return (parsed ?? fallback) as T
-  } catch {
-    return fallback
-  }
+/** Conditions stored on an AutomationTrigger of type 'lead_created'. */
+export interface CreatedConditions {
+  /** Only subjects created on this board. */
+  pipelineId?: string
+  /** Optional extra filter, in the same shape the segment builder produces. */
+  criteria?: Criteria[]
 }
+
+export interface SubjectCreatedEvent {
+  subjectType: SubjectType
+  subjectId: string
+  /** The board the subject landed on, when it sits on one. */
+  pipelineId: string | null
+  workspaceId: string
+}
+
+/** Conditions stored on an AutomationTrigger of type 'mandate_expiring'. */
+export interface MandateExpiringConditions {
+  /** Enroll a mandate once its end date is this many days away or fewer. */
+  withinDays: number
+}
+
+const parseJson = parseJsonColumn
 
 function buildTrackingPixel(trackingId: string): string {
   return `<img src="${APP_URL}/api/email-tracking/open/${trackingId}" width="1" height="1" style="display:none;" alt="" />`
@@ -78,19 +100,22 @@ export class AutomationEngine {
   }
 
   /**
-   * Enroll a lead in every active automation whose stage_changed trigger matches.
+   * Enroll a subject in every active automation whose stage_changed trigger
+   * matches.
    *
-   * Called fire-and-forget from the leads route: a failure here must never fail
+   * Called fire-and-forget from the board routes: a failure here must never fail
    * the user's drag-and-drop.
    */
   async dispatchStageChanged(event: StageChangeEvent): Promise<number> {
-    const lead = await prisma.lead.findUnique({
-      where: { id: event.leadId },
-      select: { id: true, email: true },
-    })
+    if (!isAutomatable(event.subjectType)) return 0
 
-    // No address, nothing to send. Don't create an enrollment that can only fail.
-    if (!lead?.email) return 0
+    const found = await loaderFor(event.subjectType).loadOne(event.subjectId)
+    if (!found) return 0
+
+    // No reachable contact, nothing to send. Don't create an enrollment that can
+    // only fail.
+    const recipient = loaderFor(event.subjectType).recipient(found.row)
+    if (!recipient?.email || !recipient.leadId) return 0
 
     const triggers = await prisma.automationTrigger.findMany({
       where: {
@@ -99,6 +124,9 @@ export class AutomationEngine {
         automation: {
           status: 'active',
           workspaceId: event.workspaceId,
+          // A lead automation must not fire on an interest's stage change, even
+          // though both carry a stage and both live on a pipeline.
+          subjectType: event.subjectType,
         },
       },
       include: { automation: { select: { id: true, steps: { select: { id: true, delayMinutes: true }, orderBy: { order: 'asc' } } } } },
@@ -113,20 +141,12 @@ export class AutomationEngine {
       if (conditions.pipelineId && conditions.pipelineId !== event.pipelineId) continue
       if (conditions.fromStage && conditions.fromStage !== event.fromStage) continue
 
-      // An automation with no steps would enroll leads into nothing.
+      // An automation with no steps would enroll subjects into nothing.
       if (trigger.automation.steps.length === 0) continue
 
       const automationId = trigger.automationId
       // Step 1's "delay after the stage change" applies from enrollment
       const firstStepAt = new Date(Date.now() + Math.max(0, trigger.automation.steps[0].delayMinutes || 0) * 60_000)
-
-      const existing = await prisma.automationEnrollment.findUnique({
-        where: { automationId_leadId: { automationId, leadId: event.leadId } },
-        select: { id: true, status: true },
-      })
-
-      // Already mid-sequence: leave it alone rather than restarting.
-      if (existing?.status === 'active') continue
 
       const triggerContext = JSON.stringify({
         triggerId: trigger.id,
@@ -135,36 +155,54 @@ export class AutomationEngine {
         toStage: event.toStage,
       })
 
-      await prisma.automationEnrollment.upsert({
-        where: { automationId_leadId: { automationId, leadId: event.leadId } },
-        create: {
+      // Enroll, or revive a finished enrollment, without ever reading first.
+      //
+      // This used to be findUnique -> decide -> upsert. Two concurrent stage
+      // changes could both read "not active" and both increment activeEnrolled,
+      // so the counter drifted above the number of live enrollments. Each
+      // statement below is atomic and its `count` *is* the decision, so there is
+      // no window between deciding and writing.
+      const created = await prisma.automationEnrollment.createMany({
+        data: [{
           automationId,
-          leadId: event.leadId,
+          subjectType: event.subjectType,
+          subjectId: event.subjectId,
+          leadId: recipient.leadId,
           workspaceId: event.workspaceId,
           status: 'active',
           currentStepOrder: 0,
           nextStepAt: firstStepAt,
           triggerContext,
-        },
-        // Re-entry restarts a completed or exited sequence from the top.
-        update: {
-          status: 'active',
-          currentStepOrder: 0,
-          nextStepAt: firstStepAt,
-          triggerContext,
-          completedAt: null,
-          exitedAt: null,
-          exitReason: null,
-        },
+        }],
+        skipDuplicates: true,
       })
 
-      await prisma.emailAutomation.update({
-        where: { id: automationId },
-        data: {
-          totalEnrolled: { increment: existing ? 0 : 1 },
-          activeEnrolled: { increment: 1 },
-        },
-      })
+      if (created.count === 1) {
+        await this.bumpCounters(automationId, { total: 1, active: 1 })
+      } else {
+        // Re-entry restarts a completed or exited sequence from the top. The
+        // status filter is the lock: a row already mid-sequence is left alone.
+        const revived = await prisma.automationEnrollment.updateMany({
+          where: {
+            automationId,
+            subjectType: event.subjectType,
+            subjectId: event.subjectId,
+            status: { not: 'active' },
+          },
+          data: {
+            status: 'active',
+            currentStepOrder: 0,
+            nextStepAt: firstStepAt,
+            triggerContext,
+            completedAt: null,
+            exitedAt: null,
+            exitReason: null,
+          },
+        })
+
+        if (revived.count === 0) continue
+        await this.bumpCounters(automationId, { total: 0, active: 1 })
+      }
 
       enrolled++
     }
@@ -173,26 +211,188 @@ export class AutomationEngine {
   }
 
   /**
-   * End active enrollments for a lead that has moved on, and cancel any step
+   * Enroll a newly created subject in every active automation with a matching
+   * `lead_created` trigger.
+   *
+   * The trigger type keeps its original name: it was already in the allowed-values
+   * list and the builder's copy, and nothing can depend on it having done anything
+   * before, because no dispatch existed. `automation.subjectType` says what is being
+   * created, so a `lead_created` trigger on an interest-subject automation fires
+   * when an interest is created -- no new trigger type, no migration.
+   *
+   * An enrollment made here carries no `toStage`, so it ends only on explicit
+   * exitCriteria or on completion. That is intended: a welcome sequence should not
+   * be cut short because the contact moved column.
+   *
+   * Creation happens once, so unlike a stage change there is no re-entry: an
+   * existing enrollment is simply left alone.
+   */
+  async dispatchCreated(event: SubjectCreatedEvent): Promise<number> {
+    if (!isAutomatable(event.subjectType)) return 0
+
+    const loader = loaderFor(event.subjectType)
+    const found = await loader.loadOne(event.subjectId)
+    if (!found) return 0
+    const recipient = loader.recipient(found.row)
+    if (!recipient?.email || !recipient.leadId) return 0
+
+    const triggers = await prisma.automationTrigger.findMany({
+      where: {
+        type: 'lead_created',
+        isActive: true,
+        automation: { status: 'active', workspaceId: event.workspaceId, subjectType: event.subjectType },
+      },
+      include: { automation: { select: { id: true, steps: { select: { id: true, delayMinutes: true }, orderBy: { order: 'asc' } } } } },
+    })
+
+    let enrolled = 0
+    for (const trigger of triggers) {
+      const conditions = parseJson<CreatedConditions>(trigger.conditions, {})
+      if (conditions.pipelineId && conditions.pipelineId !== event.pipelineId) continue
+      if (conditions.criteria?.length && !matchesCriteria(found.row, conditions.criteria, 'AND')) continue
+      if (trigger.automation.steps.length === 0) continue
+
+      const firstStepAt = new Date(Date.now() + Math.max(0, trigger.automation.steps[0].delayMinutes || 0) * 60_000)
+      const created = await prisma.automationEnrollment.createMany({
+        data: [{
+          automationId: trigger.automationId,
+          subjectType: event.subjectType,
+          subjectId: event.subjectId,
+          leadId: recipient.leadId,
+          workspaceId: event.workspaceId,
+          status: 'active',
+          currentStepOrder: 0,
+          nextStepAt: firstStepAt,
+          triggerContext: JSON.stringify({ triggerId: trigger.id, event: 'created', pipelineId: event.pipelineId }),
+        }],
+        skipDuplicates: true,
+      })
+      if (created.count === 1) {
+        await this.bumpCounters(trigger.automationId, { total: 1, active: 1 })
+        enrolled++
+      }
+    }
+    return enrolled
+  }
+
+  /**
+   * Enroll every active mandate that is within its trigger's window of ending.
+   * Run by the mandate-expiry cron, because "20 days before it ends" is a moment in
+   * time, not an event anything emits.
+   *
+   * An enrollment records the end date it was made for. A mandate that is renewed
+   * and later approaches a *new* end date runs the sequence again; the same end
+   * date never does, which is what stops a finished sequence being revived on every
+   * cron tick.
+   */
+  async dispatchMandateExpiring(now = new Date()): Promise<number> {
+    const triggers = await prisma.automationTrigger.findMany({
+      where: {
+        type: 'mandate_expiring',
+        isActive: true,
+        automation: { status: 'active', subjectType: 'Mandate' },
+      },
+      include: { automation: { select: { id: true, workspaceId: true, steps: { select: { id: true, delayMinutes: true }, orderBy: { order: 'asc' } } } } },
+    })
+
+    let enrolled = 0
+    for (const trigger of triggers) {
+      if (trigger.automation.steps.length === 0) continue
+      const { withinDays } = parseJson<MandateExpiringConditions>(trigger.conditions, { withinDays: 30 })
+      const horizon = new Date(now.getTime() + Math.max(1, withinDays || 30) * 86_400_000)
+
+      const mandates = await prisma.mandate.findMany({
+        where: {
+          workspaceId: trigger.automation.workspaceId,
+          status: 'active',
+          endDate: { not: null, gt: now, lte: horizon },
+        },
+        select: { id: true, leadId: true, endDate: true, lead: { select: { email: true } } },
+      })
+
+      for (const mandate of mandates) {
+        if (!mandate.lead.email || !mandate.endDate) continue
+        const term = mandate.endDate.toISOString()
+        const automationId = trigger.automationId
+        const firstStepAt = new Date(now.getTime() + Math.max(0, trigger.automation.steps[0].delayMinutes || 0) * 60_000)
+        const triggerContext = JSON.stringify({ triggerId: trigger.id, event: 'mandate_expiring', endDate: term })
+
+        const created = await prisma.automationEnrollment.createMany({
+          data: [{
+            automationId, subjectType: 'Mandate', subjectId: mandate.id, leadId: mandate.leadId,
+            workspaceId: trigger.automation.workspaceId, status: 'active', currentStepOrder: 0,
+            nextStepAt: firstStepAt, triggerContext,
+          }],
+          skipDuplicates: true,
+        })
+        if (created.count === 1) {
+          await this.bumpCounters(automationId, { total: 1, active: 1 })
+          enrolled++
+          continue
+        }
+
+        // Already enrolled once. Run again only for a new term, and only if the
+        // earlier run is over.
+        const existing = await prisma.automationEnrollment.findUnique({
+          where: { automationId_subjectType_subjectId: { automationId, subjectType: 'Mandate', subjectId: mandate.id } },
+          select: { status: true, triggerContext: true },
+        })
+        if (!existing || existing.status === 'active') continue
+        if (parseJson<{ endDate?: string }>(existing.triggerContext, {}).endDate === term) continue
+
+        const revived = await prisma.automationEnrollment.updateMany({
+          where: { automationId, subjectType: 'Mandate', subjectId: mandate.id, status: { not: 'active' } },
+          data: {
+            status: 'active', currentStepOrder: 0, nextStepAt: firstStepAt, triggerContext,
+            completedAt: null, exitedAt: null, exitReason: null,
+          },
+        })
+        if (revived.count === 1) {
+          await this.bumpCounters(automationId, { total: 0, active: 1 })
+          enrolled++
+        }
+      }
+    }
+    return enrolled
+  }
+
+  /** Keep EmailAutomation's cached counters in step with the enrollment rows. */
+  private async bumpCounters(
+    automationId: string,
+    delta: { total: number; active: number }
+  ): Promise<void> {
+    await prisma.emailAutomation.update({
+      where: { id: automationId },
+      data: {
+        totalEnrolled: { increment: delta.total },
+        activeEnrolled: { increment: delta.active },
+      },
+    })
+  }
+
+  /**
+   * End active enrollments for a subject that has moved on, and cancel any step
    * already sitting in the queue.
    *
-   * Default policy: an enrollment ends when the lead leaves the stage that
+   * Default policy: an enrollment ends when the subject leaves the stage that
    * created it. An automation can override that with exitCriteria, evaluated
-   * against the lead — when the criteria match, the enrollment exits.
+   * against the subject — when the criteria match, the enrollment exits.
+   *
+   * An enrollment created by something other than a stage change has no toStage
+   * in its context, so it falls through the default and exits only on explicit
+   * exitCriteria or on completion. That is intended: a welcome sequence should
+   * not abort because the contact moved column.
    */
-  async exitEnrollments(leadId: string, reason: string): Promise<number> {
+  async exitEnrollments(subjectType: SubjectType, subjectId: string, reason: string): Promise<number> {
     const enrollments = await prisma.automationEnrollment.findMany({
-      where: { leadId, status: 'active' },
+      where: { subjectType, subjectId, status: 'active' },
       include: { automation: { select: { id: true, exitCriteria: true } } },
     })
 
     if (enrollments.length === 0) return 0
 
-    const lead = await prisma.lead.findUnique({
-      where: { id: leadId },
-      include: { pipeline: true },
-    })
-    if (!lead) return 0
+    const found = await loaderFor(subjectType).loadOne(subjectId)
+    if (!found) return 0
 
     let exited = 0
 
@@ -201,9 +401,9 @@ export class AutomationEngine {
       const exitCriteria = parseJson<Criteria[]>(enrollment.automation.exitCriteria, [])
 
       const shouldExit = exitCriteria.length > 0
-        ? emailSegmentationService.matchesCriteria(lead, exitCriteria, 'AND')
-        // Default: the lead is no longer in the stage that enrolled it.
-        : !!context.toStage && lead.stage !== context.toStage
+        ? matchesCriteria(found.row, exitCriteria, 'AND')
+        // Default: the subject is no longer in the stage that enrolled it.
+        : !!context.toStage && found.row.stage !== context.toStage
 
       if (!shouldExit) continue
 
@@ -329,7 +529,6 @@ export class AutomationEngine {
             steps: { orderBy: { order: 'asc' }, include: { template: true } },
           },
         },
-        lead: { include: { pipeline: true } },
       },
     })
 
@@ -354,15 +553,26 @@ export class AutomationEngine {
       return false
     }
 
-    const lead = enrollment.lead
-    const recipientEmail = lead.email || ''
+    // Re-read the subject on every step so merge data is current and
+    // sendCondition is evaluated against the state the recipient is in now.
+    const subjectType = asSubjectType(enrollment.subjectType)
+    const found = await loaderFor(subjectType).loadOne(enrollment.subjectId)
 
-    if (!recipientEmail) {
+    if (!found) {
+      // The subject is gone. The purge triggers normally remove the enrollment
+      // with it, so this is the window between a delete and that sweep.
+      await this.closeEnrollment(enrollmentId, enrollment.automationId, 'exited', 'subject_missing')
+      return false
+    }
+
+    const recipient = loaderFor(subjectType).recipient(found.row)
+
+    if (!recipient?.email) {
       await this.closeEnrollment(enrollmentId, enrollment.automationId, 'exited', 'no_email')
       return false
     }
 
-    if (!(await isSendable(recipientEmail, enrollment.workspaceId))) {
+    if (!(await isSendable(recipient.email, enrollment.workspaceId))) {
       await this.closeEnrollment(enrollmentId, enrollment.automationId, 'exited', 'suppressed')
       return false
     }
@@ -370,14 +580,15 @@ export class AutomationEngine {
     // sendCondition skips this step without ending the sequence.
     const sendCondition = parseJson<Criteria[]>(step.sendCondition, [])
     const conditionMet = sendCondition.length === 0
-      || emailSegmentationService.matchesCriteria(lead, sendCondition, 'AND')
+      || matchesCriteria(found.row, sendCondition, 'AND')
 
     if (conditionMet && step.template) {
       await this.materializeStepEmail({
         enrollmentId,
         step,
-        lead,
-        recipientEmail,
+        subjectType,
+        row: found.row,
+        recipient,
         workspaceId: enrollment.workspaceId,
       })
     }
@@ -391,22 +602,26 @@ export class AutomationEngine {
   private async materializeStepEmail(params: {
     enrollmentId: string
     step: any
-    lead: any
-    recipientEmail: string
+    subjectType: SubjectType
+    row: any
+    recipient: SubjectRecipient
     workspaceId: string
   }): Promise<void> {
-    const { enrollmentId, step, lead, recipientEmail, workspaceId } = params
+    const { enrollmentId, step, subjectType, row, recipient, workspaceId } = params
+    const recipientEmail = recipient.email
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
-      select: { name: true },
+      select: { name: true, currency: true },
     })
 
     const mergeContext = {
-      lead,
+      // Each subject contributes its own merge-tag namespaces.
+      ...loaderFor(subjectType).mergeContext(row),
       recipientEmail,
       workspaceId,
       workspaceName: workspace?.name ?? null,
+      currency: workspace?.currency ?? null,
     }
 
     const trackingId = this.generateTrackingId()
@@ -438,9 +653,11 @@ export class AutomationEngine {
     await prisma.emailRecipient.create({
       data: {
         emailId: email.id,
-        leadId: lead.id,
+        // The contact, not the subject: an interest's mail is addressed to its
+        // buyer, and that is who an unsubscribe or a bounce belongs to.
+        leadId: recipient.leadId,
         recipientEmail,
-        recipientName: `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || null,
+        recipientName: recipient.name || null,
         status: 'pending',
       },
     })

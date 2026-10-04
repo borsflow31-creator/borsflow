@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
+import { asSubjectType, isPipelineSubject } from '@/lib/crm/subjects';
+import { boardTable, type BoardSubject } from '@/lib/crm/reorder';
 
 export async function GET(
     request: NextRequest,
@@ -94,7 +96,8 @@ export async function PUT(
 
         if (!workspace) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
+        }
+
 
         // Membership is not enough to change content: viewers are read-only.
         if (!(await canEditContent(workspace.id, session.user.id))) {
@@ -128,7 +131,15 @@ export async function PUT(
 
         // Update pipeline; leads sitting in a removed stage are moved to the first
         // remaining stage so they don't disappear from the board.
+        // Cards on this board are leads, buyer interests or properties depending on
+        // the board's subject; a stage edit has to move whichever they are.
+        const subject = asSubjectType(pipeline.subjectType);
+        if (!isPipelineSubject(subject)) {
+            return NextResponse.json({ error: 'This board cannot hold cards' }, { status: 400 });
+        }
+
         const updatedPipeline = await prisma.$transaction(async (tx) => {
+            const cards = boardTable(tx, subject as BoardSubject);
             if (stages !== undefined) {
                 let previousStages: string[] = [];
                 try {
@@ -143,7 +154,7 @@ export async function PUT(
                 for (const { from, to } of renames) {
                     if (!previousStages.includes(from) || !stages.includes(to)) continue;
 
-                    await tx.lead.updateMany({
+                    await cards.updateMany({
                         where: { pipelineId: params.id, stage: from },
                         data: { stage: to },
                     });
@@ -186,20 +197,20 @@ export async function PUT(
                 if (removed.length > 0) {
                     // Note: this is an admin edit, not a sales event — deliberately no
                     // automation dispatch. Triggers fire only from PUT /api/leads/[id].
-                    const moved = await tx.lead.updateMany({
+                    const moved = await cards.updateMany({
                         where: { pipelineId: params.id, stage: { in: removed } },
                         data: { stage: stages[0] },
                     });
 
                     if (moved.count > 0) {
-                        const column = await tx.lead.findMany({
+                        const column = await cards.findMany({
                             where: { pipelineId: params.id, stage: stages[0] },
                             orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
                             select: { id: true },
                         });
                         // Sequential: see note in /api/leads/[id]
                         for (const [position, l] of column.entries()) {
-                            await tx.lead.update({ where: { id: l.id }, data: { order: position } });
+                            await cards.update({ where: { id: l.id }, data: { order: position } });
                         }
                     }
                 }
@@ -264,7 +275,8 @@ export async function DELETE(
 
         if (!workspace) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
+        }
+
 
         // Membership is not enough to change content: viewers are read-only.
         if (!(await canEditContent(workspace.id, session.user.id))) {

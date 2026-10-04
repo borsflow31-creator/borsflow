@@ -50,6 +50,13 @@ const NOTIFICATION_EMAIL: Record<NotificationType, { action: string | null; note
     note: 'Resending the invoice from its page emails the client the same document with its payment link.',
   },
 
+  'crm.offer_received': { action: 'Open offer', note: 'Compare it with any competing offers before you take it to the vendor.' },
+  'crm.offer_accepted': { action: 'Open offer', note: 'The property is now under offer and competing offers were rejected.' },
+  'crm.offer_rejected': { action: 'Open offer' },
+  'crm.mandate_expiring': { action: 'Open mandate', note: 'Call the vendor to renew, or let it lapse and the listing comes off the market.' },
+  'crm.viewing_feedback': { action: 'Open property' },
+  'crm.property_matched': { action: 'Open matches', note: 'Buyers with a matching search brief are waiting to hear about it.' },
+
   'meetings.booked': { action: 'Open meetings', note: 'It is on your BorsFlow calendar.' },
   'meetings.rescheduled': { action: 'Open meetings', note: 'Your BorsFlow calendar already shows the new time.' },
   'meetings.cancelled': { action: null, note: 'Nothing to do — it is off your calendar.' },

@@ -16,6 +16,7 @@ interface Pipeline {
   id: string
   name: string
   stages: string[]
+  subjectType: string
 }
 
 interface StepDraft {
@@ -101,6 +102,10 @@ export default function AutomationModal({
     toStage: '',
     fromStage: '',
   })
+  // What starts the automation: a card entering a stage, something being created,
+  // or a mandate nearing its end date.
+  const [triggerType, setTriggerType] = useState<'stage_changed' | 'lead_created' | 'mandate_expiring'>('stage_changed')
+  const [withinDays, setWithinDays] = useState('30')
 
   const [steps, setSteps] = useState<StepDraft[]>([emptyStep(0)])
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -124,6 +129,7 @@ export default function AutomationModal({
             id: p.id,
             name: p.name,
             stages: Array.isArray(p.stages) ? p.stages : [],
+            subjectType: p.subjectType ?? 'Lead',
           }))
         )
       })
@@ -157,6 +163,9 @@ export default function AutomationModal({
         toStage: conditions.toStage || '',
         fromStage: conditions.fromStage || '',
       })
+      const savedType = automation.triggers?.[0]?.type
+      setTriggerType(savedType === 'lead_created' || savedType === 'mandate_expiring' ? savedType : 'stage_changed')
+      setWithinDays(String(conditions.withinDays ?? 30))
 
       const existing = (automation.steps || []).map((s: any, index: number) => ({
         name: s.name || `Step ${index + 1}`,
@@ -167,6 +176,8 @@ export default function AutomationModal({
       setSteps(existing.length > 0 ? existing : [emptyStep(0)])
     } else {
       setFormData({ name: '', description: '', pipelineId: '', toStage: '', fromStage: '' })
+      setTriggerType('stage_changed')
+      setWithinDays('30')
       setSteps([emptyStep(0)])
     }
 
@@ -206,8 +217,14 @@ export default function AutomationModal({
     const next: Record<string, string> = {}
 
     if (!formData.name.trim()) next.name = t('emailMarketing.automationModal.nameRequired')
-    if (!formData.pipelineId) next.pipelineId = t('emailMarketing.automationModal.pipelineRequired')
-    if (!formData.toStage) next.toStage = t('emailMarketing.automationModal.toStageRequired')
+    if (triggerType === 'stage_changed') {
+      if (!formData.pipelineId) next.pipelineId = t('emailMarketing.automationModal.pipelineRequired')
+      if (!formData.toStage) next.toStage = t('emailMarketing.automationModal.toStageRequired')
+    }
+    if (triggerType === 'mandate_expiring') {
+      const days = Number(withinDays)
+      if (!Number.isInteger(days) || days < 1 || days > 365) next.withinDays = t('realEstate.automations.withinDays')
+    }
 
     steps.forEach((step, index) => {
       if (!step.name.trim()) next[`step-${index}-name`] = t('emailMarketing.automationModal.stepNameRequired')
@@ -233,14 +250,18 @@ export default function AutomationModal({
         description: formData.description.trim() || undefined,
         type: 'trigger',
         triggers: [
-          {
-            type: 'stage_changed',
-            conditions: {
-              pipelineId: formData.pipelineId,
-              toStage: formData.toStage,
-              ...(formData.fromStage && { fromStage: formData.fromStage }),
-            },
-          },
+          triggerType === 'stage_changed'
+            ? {
+                type: 'stage_changed',
+                conditions: {
+                  pipelineId: formData.pipelineId,
+                  toStage: formData.toStage,
+                  ...(formData.fromStage && { fromStage: formData.fromStage }),
+                },
+              }
+            : triggerType === 'lead_created'
+              ? { type: 'lead_created', conditions: { ...(formData.pipelineId && { pipelineId: formData.pipelineId }) } }
+              : { type: 'mandate_expiring', conditions: { withinDays: Number(withinDays) } },
         ],
         // A running automation's steps are locked server-side; leave them out so
         // renaming or re-describing it still saves.
@@ -298,7 +319,7 @@ export default function AutomationModal({
                   type="text"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.automationModal.namePlaceholder')}
@@ -312,7 +333,7 @@ export default function AutomationModal({
                   value={formData.description}
                   onChange={e => setFormData({ ...formData, description: e.target.value })}
                   rows={2}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.automationModal.descriptionPlaceholder')}
                 />
               </div>
@@ -329,6 +350,37 @@ export default function AutomationModal({
               {t('emailMarketing.automationModal.triggerSubtitle')}
             </p>
 
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-on-surface mb-1">{t('realEstate.automations.triggerType')}</label>
+              <select
+                value={triggerType}
+                onChange={e => setTriggerType(e.target.value as typeof triggerType)}
+                disabled={Boolean(locked)}
+                className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+              >
+                <option value="stage_changed">{t('realEstate.automations.stageChanged')}</option>
+                <option value="lead_created">{t('realEstate.automations.created')}</option>
+                <option value="mandate_expiring">{t('realEstate.automations.mandateExpiring')}</option>
+              </select>
+              {triggerType === 'lead_created' && <p className="mt-1 text-sm text-on-surface-variant">{t('realEstate.automations.createdHint')}</p>}
+              {triggerType === 'mandate_expiring' && <p className="mt-1 text-sm text-on-surface-variant">{t('realEstate.automations.expiringHint')}</p>}
+            </div>
+
+            {triggerType === 'mandate_expiring' && (
+              <div className="max-w-xs">
+                <label className="block text-sm font-medium text-on-surface mb-1">{t('realEstate.automations.withinDays')}</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={withinDays}
+                  onChange={e => setWithinDays(e.target.value)}
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${errors.withinDays ? 'border-red-500' : 'border-outline-variant/40'}`}
+                />
+              </div>
+            )}
+
+            {triggerType !== 'mandate_expiring' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-on-surface mb-1">{t('emailMarketing.automationModal.pipeline')}</label>
@@ -338,27 +390,29 @@ export default function AutomationModal({
                     setFormData({ ...formData, pipelineId: e.target.value, toStage: '', fromStage: '' })
                   }
                   disabled={loadingPipelines}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.pipelineId ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                 >
-                  <option value="">{loadingPipelines ? t('emailMarketing.automationModal.loadingOption') : t('emailMarketing.automationModal.selectPipeline')}</option>
+                  <option value="">{loadingPipelines ? t('emailMarketing.automationModal.loadingOption') : triggerType === 'lead_created' ? t('realEstate.automations.anyBoard') : t('emailMarketing.automationModal.selectPipeline')}</option>
                   {pipelines.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {/* The board decides what is enrolled, so say which kind it is. */}
+                      {p.name} — {t(`realEstate.subjects.${p.subjectType}` as MessageKey)}
                     </option>
                   ))}
                 </select>
                 {errors.pipelineId && <p className="mt-1 text-sm text-error">{errors.pipelineId}</p>}
               </div>
 
+              {triggerType === 'stage_changed' && (<>
               <div>
                 <label className="block text-sm font-medium text-on-surface mb-1">{t('emailMarketing.automationModal.enteringStage')}</label>
                 <select
                   value={formData.toStage}
                   onChange={e => setFormData({ ...formData, toStage: e.target.value })}
                   disabled={!selectedPipeline}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.toStage ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                 >
@@ -380,7 +434,7 @@ export default function AutomationModal({
                   value={formData.fromStage}
                   onChange={e => setFormData({ ...formData, fromStage: e.target.value })}
                   disabled={!selectedPipeline}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 >
                   <option value="">{t('emailMarketing.automationModal.anyStage')}</option>
                   {selectedPipeline?.stages
@@ -392,9 +446,12 @@ export default function AutomationModal({
                     ))}
                 </select>
               </div>
+              </>)}
             </div>
 
-            {selectedPipeline && formData.toStage && (
+            )}
+
+            {triggerType === 'stage_changed' && selectedPipeline && formData.toStage && (
               <p className="mt-3 text-sm text-on-surface-variant">
                 {formData.fromStage
                   ? t('emailMarketing.automationModal.runsWhenFrom', {
@@ -475,7 +532,7 @@ export default function AutomationModal({
                         type="text"
                         value={step.name}
                         onChange={e => updateStep(index, { name: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                        className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                           errors[`step-${index}-name`] ? 'border-red-500' : 'border-outline-variant/40'
                         }`}
                         placeholder={t('emailMarketing.automationModal.stepNamePlaceholder')}
@@ -490,7 +547,7 @@ export default function AutomationModal({
                       <select
                         value={step.templateId}
                         onChange={e => updateStep(index, { templateId: e.target.value })}
-                        className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                        className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                           errors[`step-${index}-template`] ? 'border-red-500' : 'border-outline-variant/40'
                         }`}
                       >

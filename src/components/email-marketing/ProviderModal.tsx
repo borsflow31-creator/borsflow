@@ -242,7 +242,7 @@ export default function ProviderModal({
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.providerModal.providerNamePlaceholder')}
@@ -310,7 +310,7 @@ export default function ProviderModal({
                     name="region"
                     value={formData.region}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   >
                     {mailgunRegions.map(region => (
                       <option key={region.value} value={region.value}>
@@ -330,7 +330,7 @@ export default function ProviderModal({
                     name="region"
                     value={formData.region}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   >
                     <option value="">{t('emailMarketing.providerModal.selectRegion')}</option>
                     {sesRegions.map(region => (
@@ -415,7 +415,7 @@ export default function ProviderModal({
                   name="fromEmail"
                   value={formData.fromEmail}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.fromEmail ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.providerModal.fromEmailPlaceholder')}
@@ -434,7 +434,7 @@ export default function ProviderModal({
                   name="fromName"
                   value={formData.fromName}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.providerModal.fromNamePlaceholder')}
                 />
               </div>
@@ -448,7 +448,7 @@ export default function ProviderModal({
                   name="replyTo"
                   value={formData.replyTo}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.replyTo ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.providerModal.replyToPlaceholder')}
@@ -476,7 +476,7 @@ export default function ProviderModal({
                   name="dailyLimit"
                   value={formData.dailyLimit}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.providerModal.dailyLimitPlaceholder')}
                 />
               </div>
@@ -490,7 +490,7 @@ export default function ProviderModal({
                   name="monthlyLimit"
                   value={formData.monthlyLimit}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.providerModal.monthlyLimitPlaceholder')}
                 />
               </div>

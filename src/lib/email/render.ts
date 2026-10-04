@@ -48,8 +48,49 @@ export interface MergeLead {
   pipeline?: { name?: string | null } | null
 }
 
+/** Property shape the `property_*` tags read from. */
+export interface MergeProperty {
+  title?: string | null
+  reference?: string | null
+  city?: string | null
+  district?: string | null
+  propertyType?: string | null
+  price?: number | null
+  currency?: string | null
+  bedrooms?: number | null
+  surfaceArea?: number | null
+}
+
+/** Mandate shape the `mandate_*` tags read from. */
+export interface MergeMandate {
+  reference?: string | null
+  askingPrice?: number | null
+  endDate?: Date | string | null
+}
+
+/** Interest shape the `interest_*` tags read from. */
+export interface MergeInterest {
+  stage?: string | null
+}
+
 export interface MergeContext {
-  lead: MergeLead
+  /**
+   * Optional because an automation can now be driven by a subject that is not a
+   * lead. Every subject that gets mail resolves to a contact, so in practice
+   * this is set for the lead-shaped tags; the token map tolerates its absence so
+   * a property- or mandate-driven send does not have to invent one.
+   */
+  lead?: MergeLead | null
+  /** Set when the subject is, or points at, a property. */
+  property?: MergeProperty | null
+  mandate?: MergeMandate | null
+  interest?: MergeInterest | null
+  /**
+   * ISO 4217 code prices are shown in; the workspace currency. Falls back to USD
+   * only when a caller supplies none. A price tag in an agency's email must not
+   * silently say dollars.
+   */
+  currency?: string | null
   /** Falls back to `lead.email`; needed for the unsubscribe token. */
   recipientEmail?: string
   /** The sending workspace; the unsubscribe link is scoped to it. */
@@ -57,17 +98,29 @@ export interface MergeContext {
   workspaceName?: string | null
 }
 
-function formatValue(value: number | null | undefined): string {
+function formatValue(value: number | null | undefined, currency?: string | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) return ''
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value)
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 0,
+    }).format(value)
+  } catch {
+    // An unrecognised currency code throws a RangeError; show the bare number
+    // rather than failing the whole send.
+    return String(value)
+  }
+}
+
+function formatDay(value: Date | string | null | undefined): string {
+  if (!value) return ''
+  const d = value instanceof Date ? value : new Date(value)
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
 }
 
 function buildTokenMap(ctx: MergeContext): Record<string, string> {
-  const { lead } = ctx
+  const lead = ctx.lead ?? {}
   const first = (lead.firstName || '').trim()
   const last = (lead.lastName || '').trim()
   const recipientEmail = ctx.recipientEmail || lead.email || ''
@@ -84,8 +137,20 @@ function buildTokenMap(ctx: MergeContext): Record<string, string> {
     status: lead.status || '',
     stage: lead.stage || '',
     source: lead.source || '',
-    value: formatValue(lead.value),
+    value: formatValue(lead.value, ctx.currency),
     pipeline_name: lead.pipeline?.name || '',
+    property_title: ctx.property?.title || '',
+    property_reference: ctx.property?.reference || '',
+    property_city: ctx.property?.city || '',
+    property_district: ctx.property?.district || '',
+    property_type: ctx.property?.propertyType || '',
+    property_price: formatValue(ctx.property?.price, ctx.property?.currency || ctx.currency),
+    property_bedrooms: ctx.property?.bedrooms != null ? String(ctx.property.bedrooms) : '',
+    property_surface: ctx.property?.surfaceArea != null ? String(ctx.property.surfaceArea) : '',
+    mandate_reference: ctx.mandate?.reference || '',
+    asking_price: formatValue(ctx.mandate?.askingPrice, ctx.currency),
+    mandate_end_date: formatDay(ctx.mandate?.endDate),
+    interest_stage: ctx.interest?.stage || '',
     company_name: ctx.workspaceName || '',
     unsubscribe_url: recipientEmail ? buildUnsubscribeUrl(recipientEmail, ctx.workspaceId) : '',
   }

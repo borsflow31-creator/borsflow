@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
-import { normalizeSteps, normalizeTriggers } from '@/lib/email/automation-validation'
+import { automationSubjectFromTriggers, normalizeSteps, normalizeTriggers } from '@/lib/email/automation-validation'
 
 // GET /api/email-marketing/automations?workspaceId=
 export async function GET(request: NextRequest) {
@@ -69,9 +69,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: normalizedSteps.error }, { status: 400 })
     }
 
+    // What the automation enrolls follows the board its trigger watches.
+    const subject = await automationSubjectFromTriggers(workspaceId, normalizedTriggers.value)
+    if ('error' in subject) {
+      return NextResponse.json({ error: subject.error }, { status: 400 })
+    }
+
     const automation = await prisma.emailAutomation.create({
       data: {
         workspaceId,
+        ...(subject.value ? { subjectType: subject.value } : {}),
         name,
         description: description || null,
         type: type || 'trigger',

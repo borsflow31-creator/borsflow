@@ -370,7 +370,7 @@ export default function CampaignModal({
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.campaignModal.campaignNamePlaceholder')}
@@ -389,7 +389,7 @@ export default function CampaignModal({
                   value={formData.description}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.campaignModal.descriptionPlaceholder')}
                 />
               </div>
@@ -402,7 +402,7 @@ export default function CampaignModal({
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 >
                   <option value="broadcast">{t('emailMarketing.campaignModal.typeBroadcast')}</option>
                   <option value="drip">{t('emailMarketing.campaignModal.typeDrip')}</option>
@@ -421,7 +421,7 @@ export default function CampaignModal({
                   name="scheduledAt"
                   value={formData.scheduledAt}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 />
                 <p className="mt-1 text-xs text-on-surface-variant">{t('emailMarketing.campaignModal.scheduleHint')}</p>
               </div>
@@ -446,7 +446,7 @@ export default function CampaignModal({
                       name="subject"
                       value={formData.subject}
                       onChange={handleChange}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                      className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                         errors.subject ? 'border-red-500' : 'border-outline-variant/40'
                       }`}
                       placeholder={t('emailMarketing.campaignModal.subjectPlaceholder')}
@@ -681,7 +681,7 @@ export default function CampaignModal({
                   name="templateId"
                   value={formData.templateId}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 >
                   <option value="">{t('emailMarketing.campaignModal.selectTemplate')}</option>
                   {templates.map(template => (
@@ -716,7 +716,7 @@ export default function CampaignModal({
                     name="segmentationRuleId"
                     value={formData.segmentationRuleId}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                    className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   >
                     <option value="">{t('emailMarketing.campaignModal.allRecipients')}</option>
                     {segments.map(segment => (
@@ -759,7 +759,7 @@ export default function CampaignModal({
                   name="fromName"
                   value={formData.fromName}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.campaignModal.fromNamePlaceholder')}
                 />
               </div>
@@ -773,7 +773,7 @@ export default function CampaignModal({
                   name="fromEmail"
                   value={formData.fromEmail}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.fromEmail ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.campaignModal.fromEmailPlaceholder')}
@@ -792,7 +792,7 @@ export default function CampaignModal({
                   name="replyTo"
                   value={formData.replyTo}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.replyTo ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.campaignModal.replyToPlaceholder')}

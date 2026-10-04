@@ -16,7 +16,28 @@ export type CrmActivityType =
   | 'lead_imported'
   | 'file_added'
   | 'file_deleted'
-  | 'note_added';
+  | 'note_added'
+  // Real estate
+  | 'property_created'
+  | 'property_updated'
+  | 'property_status_changed'
+  | 'property_stage_changed'
+  | 'interest_created'
+  | 'interest_stage_changed'
+  | 'interest_status_changed'
+  | 'mandate_created'
+  | 'mandate_status_changed'
+  | 'mandate_renewed'
+  | 'price_changed'
+  | 'offer_made'
+  | 'offer_accepted'
+  | 'offer_rejected'
+  | 'offer_withdrawn'
+  | 'viewing_booked'
+  | 'viewing_feedback';
+
+/** What an Activity row is about. The default, for the original lead events, is 'lead'. */
+export type CrmEntityType = 'lead' | 'property' | 'interest' | 'mandate' | 'offer' | 'viewing';
 
 /** Fields whose before/after values are worth showing in the history. */
 export const TRACKED_LEAD_FIELDS = [
@@ -24,7 +45,52 @@ export const TRACKED_LEAD_FIELDS = [
   'status', 'value', 'source', 'notes', 'tags',
 ] as const;
 
+/** One activity row. Every id is optional so an event can appear on each timeline it belongs to. */
+export interface CrmActivityInput {
+  workspaceId: string;
+  userId: string;
+  type: CrmActivityType;
+  entityType: CrmEntityType;
+  entityId: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+  /** The buyer or vendor; puts the event on that contact's timeline. */
+  leadId?: string;
+  /** Puts the event on the property's timeline. */
+  propertyId?: string;
+  /** Puts the event on the buyer's interest timeline. */
+  interestId?: string;
+  meetingId?: string;
+}
+
 export class CrmLogger {
+  /**
+   * Record an event against any entity. A viewing's feedback, for example, is one
+   * row that shows on the property (propertyId), on the buyer's interest
+   * (interestId) and on the buyer's lead timeline (leadId) -- not three copies.
+   */
+  static async logEntity(input: CrmActivityInput) {
+    try {
+      return await prisma.activity.create({
+        data: {
+          workspaceId: input.workspaceId,
+          userId: input.userId,
+          type: input.type,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          description: input.description,
+          metadata: input.metadata ? JSON.stringify(input.metadata) : undefined,
+          leadId: input.leadId,
+          propertyId: input.propertyId,
+          interestId: input.interestId,
+          meetingId: input.meetingId,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to write CRM activity log to DB:', e);
+    }
+  }
+
   static async logActivity(
     workspaceId: string,
     userId: string,
@@ -34,22 +100,16 @@ export class CrmLogger {
     metadata?: Record<string, unknown>,
     leadId?: string
   ) {
-    try {
-      return await prisma.activity.create({
-        data: {
-          workspaceId,
-          userId,
-          type,
-          entityType: 'lead',
-          entityId,
-          description,
-          metadata: metadata ? JSON.stringify(metadata) : undefined,
-          leadId,
-        },
-      });
-    } catch (e) {
-      console.error('Failed to write CRM activity log to DB:', e);
-    }
+    return CrmLogger.logEntity({
+      workspaceId,
+      userId,
+      type,
+      entityType: 'lead',
+      entityId,
+      description,
+      metadata,
+      leadId,
+    });
   }
 
   static async logStageChange(params: {

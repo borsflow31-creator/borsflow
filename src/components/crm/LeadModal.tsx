@@ -6,6 +6,7 @@ import LeadFiles from '@/components/crm/LeadFiles';
 import LeadTimeline from '@/components/crm/LeadTimeline';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n } from '@/i18n/I18nProvider';
+import LeadInterests from '@/components/realestate/LeadInterests';
 
 interface Lead {
     id: string;
@@ -64,7 +65,7 @@ interface LeadModalProps {
     initialTab?: LeadModalTab;
 }
 
-export type LeadModalTab = 'details' | 'meetings' | 'files' | 'history';
+export type LeadModalTab = 'details' | 'interests' | 'meetings' | 'files' | 'history';
 
 interface ValidationErrors {
     firstName?: string;
@@ -379,6 +380,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         <div className="flex gap-1 overflow-x-auto border-b border-surface-container-high -mx-6 px-6" role="tablist">
                             {([
                                 ['details', t('crm.leadModal.tabDetails')],
+                                ['interests', t('realEstate.nav.properties')],
                                 ['meetings', t('crm.leadModal.tabMeetings')],
                                 ['files', fileCount > 0 ? `${t('crm.files.tab')} (${fileCount})` : t('crm.files.tab')],
                                 ['history', t('crm.leadModal.tabHistory')],
@@ -412,6 +414,12 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 leadName={`${lead.firstName} ${lead.lastName}`}
                                 compact
                             />
+                        </div>
+                    )}
+
+                    {lead && workspaceId && activeTab === 'interests' && (
+                        <div className="p-6">
+                            <LeadInterests workspaceId={workspaceId} lead={lead} />
                         </div>
                     )}
 

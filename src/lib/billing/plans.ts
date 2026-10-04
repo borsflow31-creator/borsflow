@@ -21,8 +21,16 @@ export interface PlanLimits {
   /** Invited members, not counting the owner. */
   maxMembers: number | null
   maxGuests: number | null
-  crmContacts: number | null
+  /** Contacts (buyers, vendors, enquiries). */
+  contacts: number | null
+  /** Boards per kind of record: each of the contacts, buyer-interest and listing boards. */
   pipelines: number | null
+  /** Properties still in play; sold, withdrawn and expired listings do not count. */
+  properties: number | null
+  /** Mandates in force. */
+  activeMandates: number | null
+  /** Outbound portal feeds. */
+  portalFeeds: number | null
   invoicesPerMonth: number | null
   emailSendsPerMonth: number | null
   emailAutomations: number | null
@@ -50,14 +58,17 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
   FREE: {
     tier: 'FREE',
     name: 'Free',
-    tagline: 'Everything a small team needs to run on BorsFlow.',
+    tagline: 'Everything a small agency needs to run on BorsFlow.',
     priceMonthly: 0,
     priceYearly: 0,
     limits: {
       maxMembers: 5,
       maxGuests: 5,
-      crmContacts: 500,
+      contacts: 500,
       pipelines: 1,
+      properties: 25,
+      activeMandates: 10,
+      portalFeeds: 0,
       invoicesPerMonth: 10,
       emailSendsPerMonth: 500,
       emailAutomations: 0,
@@ -67,7 +78,7 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     },
     features: [
       'Unlimited pages and docs',
-      'CRM, quotes and invoices',
+      'Listings, buyers, quotes and invoices',
       'Team chat and scheduling',
       'AI assistant included',
     ],
@@ -81,8 +92,11 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     limits: {
       maxMembers: 10,
       maxGuests: 20,
-      crmContacts: 5_000,
+      contacts: 5_000,
       pipelines: 5,
+      properties: 150,
+      activeMandates: 75,
+      portalFeeds: 1,
       invoicesPerMonth: null,
       emailSendsPerMonth: 5_000,
       emailAutomations: 3,
@@ -100,15 +114,18 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
   PRO: {
     tier: 'PRO',
     name: 'Pro',
-    tagline: 'The whole business OS for a team of up to 25.',
+    tagline: 'The whole agency OS for a team of up to 25.',
     priceMonthly: 49,
     priceYearly: 39,
     highlighted: true,
     limits: {
       maxMembers: 25,
       maxGuests: null,
-      crmContacts: 25_000,
+      contacts: 25_000,
       pipelines: null,
+      properties: 750,
+      activeMandates: 400,
+      portalFeeds: 3,
       invoicesPerMonth: null,
       emailSendsPerMonth: 25_000,
       emailAutomations: null,
@@ -132,8 +149,11 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     limits: {
       maxMembers: 75,
       maxGuests: null,
-      crmContacts: null,
+      contacts: null,
       pipelines: null,
+      properties: 3_000,
+      activeMandates: null,
+      portalFeeds: 10,
       invoicesPerMonth: null,
       emailSendsPerMonth: 100_000,
       emailAutomations: null,
@@ -158,8 +178,11 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
     limits: {
       maxMembers: null,
       maxGuests: null,
-      crmContacts: null,
+      contacts: null,
       pipelines: null,
+      properties: null,
+      activeMandates: null,
+      portalFeeds: null,
       invoicesPerMonth: null,
       emailSendsPerMonth: null,
       emailAutomations: null,
@@ -198,6 +221,13 @@ export const BILLING_ENABLED = process.env.NEXT_PUBLIC_BILLING_ENABLED === 'true
 
 export function isPlanTier(value: unknown): value is PlanTier {
   return typeof value === 'string' && (PLAN_ORDER as string[]).includes(value)
+}
+
+/** Stock limits: things that exist, counted live, as against the monthly flow in UsageMetric. */
+export type CapacityResource = 'contacts' | 'properties' | 'activeMandates' | 'pipelines' | 'portalFeeds'
+
+export function capacityLimit(limits: PlanLimits, resource: CapacityResource): number | null {
+  return limits[resource]
 }
 
 export function metricLimit(limits: PlanLimits, metric: UsageMetric): number | null {

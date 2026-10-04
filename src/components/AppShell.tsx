@@ -10,6 +10,7 @@ import {
     FileText as QuoteIcon, DollarSign, Loader2,
     Mail, ChevronRight, PanelLeftClose, PanelLeftOpen,
     UserPlus, CalendarDays, MessageSquare, Moon, Sun, LogOut, Package,
+    Building2, FileSignature, HandCoins, Percent, Eye,
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession, signOut } from 'next-auth/react';
@@ -50,11 +51,16 @@ const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: s
     {
         labelKey: 'nav.groupBusiness',
         items: [
-            { labelKey: 'nav.crm',            href: '__crm__',      icon: Users,        basePath: '/crm' },
-            { labelKey: 'nav.meetings',       href: '__meetings__', icon: CalendarDays, basePath: '/meetings' },
-            { labelKey: 'nav.emailMarketing', href: '/email-marketing', icon: Mail,    basePath: '/email-marketing' },
-            { labelKey: 'nav.products',       href: '__products__', icon: Package,      basePath: '/products' },
-            { labelKey: 'nav.quotes',         href: '__quotes__',   icon: QuoteIcon,    basePath: '/quotes' },
+            { labelKey: 'realEstate.nav.properties', href: '__properties__', icon: Building2,     basePath: '/properties' },
+            { labelKey: 'realEstate.nav.buyers',     href: '__crm__',        icon: Users,         basePath: '/crm' },
+            { labelKey: 'realEstate.nav.viewings',   href: '__viewings__',   icon: Eye,           basePath: '/viewings' },
+            { labelKey: 'realEstate.nav.mandates',   href: '__mandates__',   icon: FileSignature, basePath: '/mandates' },
+            { labelKey: 'realEstate.nav.offers',     href: '__offers__',     icon: HandCoins,     basePath: '/offers' },
+            { labelKey: 'realEstate.nav.commissions', href: '__commissions__', icon: Percent,    basePath: '/commissions' },
+            { labelKey: 'nav.meetings',              href: '__meetings__',   icon: CalendarDays,  basePath: '/meetings' },
+            { labelKey: 'nav.emailMarketing',        href: '/email-marketing', icon: Mail,        basePath: '/email-marketing' },
+            { labelKey: 'realEstate.nav.services',   href: '__products__',   icon: Package,       basePath: '/products' },
+            { labelKey: 'nav.quotes',                href: '__quotes__',     icon: QuoteIcon,     basePath: '/quotes' },
             { labelKey: 'nav.invoices',       href: '__invoices__', icon: DollarSign,   basePath: '/invoices' },
         ],
     },
@@ -84,6 +90,11 @@ function resolveHref(
         if (raw === '__kanban__')   return fallbackWorkspaceId ? `/kanban-board-view?workspace=${fallbackWorkspaceId}` : '/kanban-board-view';
         if (raw === '__crm__')      return '/crm';
         if (raw === '__meetings__') return '/meetings';
+        if (raw === '__properties__') return '/properties';
+        if (raw === '__viewings__') return '/viewings';
+        if (raw === '__mandates__') return '/mandates';
+        if (raw === '__offers__')   return '/offers';
+        if (raw === '__commissions__') return '/commissions';
         if (raw === '__products__') return '/products';
         if (raw === '__quotes__')   return '/quotes';
         if (raw === '__invoices__') return '/invoices';
@@ -96,6 +107,11 @@ function resolveHref(
     if (raw === '__kanban__')    return `/kanban-board-view?workspace=${workspace.id}`;
     if (raw === '__crm__')       return `/crm?workspace=${workspace.id}`;
     if (raw === '__meetings__')  return `/meetings?workspace=${workspace.id}`;
+    if (raw === '__properties__') return `/properties?workspace=${workspace.id}`;
+    if (raw === '__viewings__')  return `/viewings?workspace=${workspace.id}`;
+    if (raw === '__mandates__')  return `/mandates?workspace=${workspace.id}`;
+    if (raw === '__offers__')    return `/offers?workspace=${workspace.id}`;
+    if (raw === '__commissions__') return `/commissions?workspace=${workspace.id}`;
     if (raw === '__products__')  return `/products?workspace=${workspace.id}`;
     if (raw === '__quotes__')    return `/quotes?workspace=${workspace.id}`;
     if (raw === '__invoices__')  return `/invoices?workspace=${workspace.id}`;

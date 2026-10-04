@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ensureDefaultPipelines } from '@/lib/services/pipelines'
 
 export async function GET(request: Request) {
     try {
@@ -99,6 +100,10 @@ export async function POST(request: Request) {
                 },
             },
         })
+
+        // Every workspace is a real-estate agency: it starts with the contacts,
+        // buyer and owner boards rather than an empty CRM.
+        await ensureDefaultPipelines(workspace.id)
 
         return NextResponse.json({ workspace }, { status: 201 })
     } catch (error) {

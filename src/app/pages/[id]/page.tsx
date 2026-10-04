@@ -249,7 +249,7 @@ function SlashCommandMenu({ position, onSelect, onClose }: SlashCommandMenuProps
     return (
         <div
             ref={menuRef}
-            className="fixed bg-white dark:bg-surface-dim rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 max-w-sm overflow-hidden max-h-96 overflow-y-auto"
+            className="fixed bg-white dark:bg-surface-container rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 max-w-sm overflow-hidden max-h-96 overflow-y-auto"
             style={{ left: position.x, top: position.y }}
         >
             {Object.entries(groupedBlocks).map(([category, blocks], groupIndex) => (
@@ -307,7 +307,7 @@ function BlockContextMenu({ position, onClose, onDuplicate, onDelete, onTransfor
     return (
         <div
             ref={menuRef}
-            className="fixed bg-white dark:bg-surface-dim rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 min-w-[200px]"
+            className="fixed bg-white dark:bg-surface-container rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 min-w-[200px]"
             style={{ left: position.x + 10, top: position.y }}
         >
             <div className="flex flex-col">
@@ -337,7 +337,7 @@ function BlockContextMenu({ position, onClose, onDuplicate, onDelete, onTransfor
                         <ChevronRight className="h-4 w-4" />
                     </button>
                     {showTransformMenu && (
-                        <div className="absolute top-0 left-full ml-1 bg-white dark:bg-surface-dim rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 min-w-[200px] max-h-64 overflow-y-auto">
+                        <div className="absolute top-0 left-full ml-1 bg-white dark:bg-surface-container rounded-xl shadow-2xl border border-gray-200 dark:border-outline-variant/30 py-2 z-50 min-w-[200px] max-h-64 overflow-y-auto">
                             {blockTypes.slice(0, 9).map((bt) => (
                                 <button
                                     key={bt.type}
@@ -1306,6 +1306,7 @@ export default function PageEditorPage() {
         const isEmpty = target.value === ''
 
         if (e.key === '/' && isEmpty) {
+            e.preventDefault()
             const rect = target.getBoundingClientRect()
             // Clear the "/" character from block content so it doesn't appear in the output
             updateBlockContent(blockId, { ...(blocks.find(b => b.id === blockId)?.content ?? {}), text: '' })
@@ -1875,7 +1876,7 @@ export default function PageEditorPage() {
 
                         {/* Block Menu */}
                         {showBlockMenu && (
-                            <div className="mt-4 bg-white dark:bg-surface-dim rounded-xl shadow-xl border border-gray-200 dark:border-outline-variant/30 p-4 max-h-96 overflow-y-auto custom-scrollbar">
+                            <div className="mt-4 bg-white dark:bg-surface-container rounded-xl shadow-xl border border-gray-200 dark:border-outline-variant/30 p-4 max-h-96 overflow-y-auto custom-scrollbar">
                                 {Object.entries(getBlockTypes(t).reduce((acc, block) => {
                                     const category = block.category || t('documents.categories.basic')
                                     if (!acc[category]) {

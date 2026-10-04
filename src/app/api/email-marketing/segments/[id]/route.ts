@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { emailSegmentationService } from '@/lib/email-segmentation'
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
+import { DEFAULT_SUBJECT_TYPE, isSubjectType, type SubjectType } from '@/lib/crm/subjects'
+import { hasLoader } from '@/lib/crm/subject-registry'
+
+// A segment's subject decides which rows its criteria are evaluated against, so
+// it can only be one the server knows how to load. An unknown value would make
+// the segment silently match nothing.
+function parseSubjectType(value: unknown): SubjectType | null {
+  if (value === undefined || value === null || value === '') return DEFAULT_SUBJECT_TYPE
+  if (!isSubjectType(value) || !hasLoader(value)) return null
+  return value
+}
+
 
 /** Authorizes against the workspace that owns the segment; `write` also needs content permission. */
 async function authorize(id: string, write: boolean) {
@@ -70,6 +82,13 @@ export async function PATCH(
     const data: Record<string, any> = {}
     if (name !== undefined) data.name = name
     if (description !== undefined) data.description = description
+    if (body.subjectType !== undefined) {
+      const subjectType = parseSubjectType(body.subjectType)
+      if (!subjectType) {
+        return NextResponse.json({ error: 'Unknown segment subject' }, { status: 400 })
+      }
+      data.subjectType = subjectType
+    }
     if (criteria !== undefined) {
       const parsed = parseCriteria(criteria)
       if (!parsed) {
@@ -90,8 +109,9 @@ export async function PATCH(
     })
 
     // Membership is materialized, so a changed rule must be re-evaluated or
-    // campaigns keep targeting the members of the old rule.
-    if (data.criteria !== undefined || data.logicOperator !== undefined) {
+    // campaigns keep targeting the members of the old rule. A changed subject
+    // matters most: the stored members are rows of the previous type.
+    if (data.criteria !== undefined || data.logicOperator !== undefined || data.subjectType !== undefined) {
       await emailSegmentationService.calculateSegmentSize(params.id)
     }
 

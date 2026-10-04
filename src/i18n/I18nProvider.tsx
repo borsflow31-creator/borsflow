@@ -47,6 +47,20 @@ const LOADERS: Record<Locale, () => Promise<Messages>> = {
 
 const catalogs: Partial<Record<Locale, Messages>> = { en };
 
+/**
+ * Catalogs handed to the provider by a locale-prefixed route, kept apart from
+ * `catalogs`.
+ *
+ * A locale URL ships only the subtrees its page renders (landing, common,
+ * misc) so the server does not serialise ~100 KB of app strings into the HTML
+ * of a marketing page. If those partials were memoised as the real catalog,
+ * `loadCatalog` would consider the locale already downloaded and a visitor who
+ * walked from /fr into the app would get English for everything outside those
+ * three subtrees. Resolution reads `catalogs` first, so the full download
+ * supersedes a partial the moment it lands.
+ */
+const partials: Partial<Record<Locale, Messages>> = {};
+
 async function loadCatalog(locale: Locale): Promise<Messages> {
   if (!catalogs[locale]) catalogs[locale] = await LOADERS[locale]();
   return catalogs[locale]!;
@@ -72,16 +86,40 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
 const LOCALE_STORAGE_KEY = 'app_locale';
 const DEFAULT_LOCALE: Locale = 'en';
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+export function I18nProvider({
+  children,
+  initialLocale,
+  initialCatalog,
+}: {
+  children: React.ReactNode;
+  /**
+   * Pins the language, set by the locale-prefixed marketing routes. A URL is a
+   * shareable, crawlable statement about which language a page is in, so it
+   * outranks whatever this browser last stored.
+   */
+  initialLocale?: Locale;
+  /** Partial catalog for `initialLocale`, merged over English. */
+  initialCatalog?: Partial<Messages>;
+}) {
+  // Seeded during render rather than in an effect: the first paint — including
+  // the server's — has to already be in the pinned language, or a crawler and
+  // a reader both get English on a page that claims to be French.
+  if (initialLocale && initialCatalog && !partials[initialLocale]) {
+    partials[initialLocale] = { ...en, ...initialCatalog } as Messages;
+  }
 
-  // Load persisted locale on mount (after its catalog has downloaded)
+  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
+
+  // Load persisted locale on mount (after its catalog has downloaded). Skipped
+  // when the URL pinned a language: the stored preference must not quietly
+  // rewrite a page whose address says /fr.
   useEffect(() => {
+    if (initialLocale) return;
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
     if (saved && saved !== DEFAULT_LOCALE && saved in LOADERS) {
       loadCatalog(saved).then(() => setLocaleState(saved)).catch(() => {});
     }
-  }, []);
+  }, [initialLocale]);
 
   // Update html lang/dir attributes when locale changes. The initial paint's
   // attributes are set synchronously by the inline script in layout.tsx (same
@@ -103,7 +141,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
    */
   const t = useCallback(
     (key: MessageKey, values?: Record<string, string | number>): string => {
-      const catalog = (catalogs[locale] ?? en) as unknown as Record<string, unknown>;
+      const catalog = (catalogs[locale] ??
+        partials[locale] ??
+        en) as unknown as Record<string, unknown>;
       let message = getNestedValue(catalog, key);
       // A key missing from this language falls back to English
       if (message === key && catalog !== (en as unknown)) {

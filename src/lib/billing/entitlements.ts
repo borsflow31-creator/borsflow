@@ -7,6 +7,7 @@ import {
   MEMBER_PACK_SIZE,
   PLANS,
   metricLimit,
+  type CapacityResource,
   type PlanDefinition,
   type UsageMetric,
 } from './plans'
@@ -203,7 +204,7 @@ export async function releaseUsage(
 
 // ─── Responses ───────────────────────────────────────────────────────────────
 
-export type PlanLimitKind = UsageMetric | 'members'
+export type PlanLimitKind = UsageMetric | 'members' | CapacityResource
 
 /** Tells the client how to present a limit: waitlist while paid plans are not live. */
 export function upgradeHint() {

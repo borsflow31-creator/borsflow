@@ -1,8 +1,11 @@
+import { capacityError } from '@/lib/billing/capacity'
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
+import { asSubjectType, isPipelineSubject } from '@/lib/crm/subjects';
+import { DEFAULT_PIPELINES } from '@/lib/crm/lifecycle';
 
 export async function GET(request: NextRequest) {
     try {
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
             where: { workspaceId },
             include: {
                 _count: {
-                    select: { leads: true }
+                    select: { leads: true, interests: true, properties: true }
                 }
             },
             orderBy: { order: 'asc' },
@@ -72,6 +75,13 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const { name, description, color, workspaceId, stages } = body;
 
+        // What a card on this board is. Fixed at creation: a board of leads cannot
+        // later become a board of properties without orphaning every card on it.
+        const subjectType = body.subjectType === undefined ? 'Lead' : body.subjectType;
+        if (!isPipelineSubject(asSubjectType(subjectType)) || asSubjectType(subjectType) !== subjectType) {
+            return NextResponse.json({ error: 'Unknown board type' }, { status: 400 });
+        }
+
         if (!name || !workspaceId) {
             return NextResponse.json(
                 { error: 'Name and workspace ID are required' },
@@ -92,12 +102,16 @@ export async function POST(request: NextRequest) {
 
         if (!workspace) {
             return NextResponse.json({ error: 'Workspace not found or access denied' }, { status: 404 });
-        }
+        }
+
 
         // Membership is not enough to change content: viewers are read-only.
         if (!(await canEditContent(workspace.id, session.user.id))) {
             return NextResponse.json({ error: READ_ONLY_ERROR }, { status: 403 });
         }
+
+        const full = await capacityError(workspaceId, 'pipelines', { subjectType });
+        if (full) return full;
 
         // Get the highest order for this workspace
         const highestOrder = await prisma.pipeline.findFirst({
@@ -108,8 +122,8 @@ export async function POST(request: NextRequest) {
 
         const newOrder = (highestOrder?.order ?? 0) + 1;
 
-        // Default stages if not provided
-        const defaultStages = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+        // Default stages if not provided: the seeded board of the same type.
+        const defaultStages = DEFAULT_PIPELINES.find(p => p.subjectType === subjectType)?.stages ?? DEFAULT_PIPELINES[0].stages;
 
         // Create new pipeline
         const pipeline = await prisma.pipeline.create({
@@ -118,6 +132,7 @@ export async function POST(request: NextRequest) {
                 description,
                 color,
                 workspaceId,
+                subjectType,
                 stages: stages ? JSON.stringify(stages) : JSON.stringify(defaultStages),
                 order: newOrder,
             },

@@ -8,6 +8,8 @@ export interface PipelineOption {
   id: string
   name: string
   stages: string[]
+  /** What a card on the board is: 'Lead' | 'Interest' | 'Property'. */
+  subjectType: string
 }
 
 /** Criteria a pipeline/stage pick turns into. `required` keeps them AND-ed even in an "any of" segment. */
@@ -39,7 +41,7 @@ export function usePipelines(workspaceId: string, enabled = true) {
     cachedJson<any[]>(`/api/pipelines?workspaceId=${workspaceId}`)
       .then((data) => {
         if (cancelled || !Array.isArray(data)) return
-        setPipelines(data.map((p) => ({ id: p.id, name: p.name, stages: Array.isArray(p.stages) ? p.stages : [] })))
+        setPipelines(data.map((p) => ({ id: p.id, name: p.name, stages: Array.isArray(p.stages) ? p.stages : [], subjectType: p.subjectType ?? 'Lead' })))
       })
       .catch(() => {})
     return () => { cancelled = true }
@@ -70,7 +72,7 @@ export default function PipelineStagePicker({ pipelines, pipelineId, stages, onC
         <select
           value={pipelineId}
           onChange={(e) => onChange(e.target.value, [])}
-          className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+          className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
         >
           <option value="">{emptyLabel}</option>
           {pipelines.map((p) => (

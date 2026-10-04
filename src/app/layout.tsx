@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { DM_Sans, Albert_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { siteUrl } from '@/lib/seo/site'
 
 /* Three faces, one job each: DM Sans sets body and UI, Albert Sans carries
    display, JetBrains Mono carries data and measurement. All self-hosted
@@ -28,7 +29,7 @@ const jetbrainsMono = JetBrains_Mono({
     display: 'swap',
 })
 
-const siteUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+const siteOrigin = siteUrl()
 
 export const viewport: Viewport = {
     width: 'device-width',
@@ -42,28 +43,28 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-    metadataBase: new URL(siteUrl),
+    metadataBase: new URL(siteOrigin),
     title: {
-        default: 'BorsFlow — documents, CRM and billing on one database',
+        default: 'BorsFlow — the CRM for estate agencies',
         template: '%s · BorsFlow',
     },
     description:
-        'One workspace for block documents, a sales pipeline, quotes, invoices, email campaigns and scheduling. Draft a scope, attach a quote, get it paid — without leaving the tab.',
+        'Listings, owners, buyers, viewings, offers and commissions in one workspace. Win the mandate, match the buyer, take the offer and split the commission — without leaving the tab.',
     applicationName: 'BorsFlow',
     manifest: '/manifest.json',
     openGraph: {
         type: 'website',
-        url: siteUrl,
+        url: siteOrigin,
         siteName: 'BorsFlow',
-        title: 'BorsFlow — documents, CRM and billing on one database',
+        title: 'BorsFlow — the CRM for estate agencies',
         description:
-            'One workspace for block documents, a sales pipeline, quotes, invoices, email campaigns and scheduling.',
+            'Listings, owners, buyers, viewings, offers and commissions in one workspace for estate agencies.',
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'BorsFlow — documents, CRM and billing on one database',
+        title: 'BorsFlow — the CRM for estate agencies',
         description:
-            'One workspace for block documents, a sales pipeline, quotes, invoices, email campaigns and scheduling.',
+            'Listings, owners, buyers, viewings, offers and commissions in one workspace for estate agencies.',
     },
     appleWebApp: {
         capable: true,
@@ -71,6 +72,23 @@ export const metadata: Metadata = {
         title: 'BorsFlow',
     },
     formatDetection: { telephone: false },
+    /* Default for the marketing pages. The private routes are disallowed in
+       robots.txt and the shared document routes set their own `noindex`, so
+       the only thing this opens up is the landing and pricing pages — where the
+       large-image and long-snippet allowances are what let a result card carry
+       the OG image and a full sentence instead of a truncated one. */
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+            'max-video-preview': -1,
+        },
+    },
+    category: 'business software',
     icons: {
         // SVG first: browsers that support it use it for the tab, so the mark
         // stays sharp at 16px instead of being downscaled from a 192px raster.
@@ -94,8 +112,14 @@ const themeScript = `(function(){try{var t='system',r=localStorage.getItem('app-
 
 /* Same problem as themeScript, for locale: without this the page always
    paints lang="en" dir="ltr" first, then I18nProvider flips it on mount, so
-   an Arabic-locale visitor sees a flash of LTR layout before it mirrors to RTL. */
-const localeScript = `(function(){try{var l=localStorage.getItem('app_locale');if(l){var e=document.documentElement;e.lang=l;e.dir=(l==='ar')?'rtl':'ltr'}}catch(e){}})();`
+   an Arabic-locale visitor sees a flash of LTR layout before it mirrors to RTL.
+
+   The URL prefix is checked before the stored preference, because /ar is a
+   statement about the document and localStorage is only a statement about this
+   browser. There is one <html> for the whole app and it lives in this static
+   layout, so a route cannot set the attributes server-side; resolving them
+   here before first paint is the same trade this file already makes for theme. */
+const localeScript = `(function(){try{var p=location.pathname.split('/')[1],u=/^(fr|es|de|ar)$/.test(p)?p:null,l=u||localStorage.getItem('app_locale');if(l){var e=document.documentElement;e.lang=l;e.dir=(l==='ar')?'rtl':'ltr'}}catch(e){}})();`
 
 export default function RootLayout({
     children,

@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { ensureDefaultPipelines } from './services/pipelines'
 
 /**
  * The workspace and welcome page every new account starts with.
@@ -10,7 +11,7 @@ import { prisma } from './prisma'
  * Block rows, which is what the editor loads first.
  */
 export async function createStarterWorkspace(userId: string) {
-  return prisma.workspace.create({
+  const workspace = await prisma.workspace.create({
     data: {
       name: 'My Workspace',
       description: 'Welcome to your new workspace',
@@ -42,4 +43,10 @@ export async function createStarterWorkspace(userId: string) {
       },
     },
   })
+
+  // Every workspace is a real-estate agency: it starts with the contacts, buyer
+  // and owner boards rather than an empty CRM.
+  await ensureDefaultPipelines(workspace.id)
+
+  return workspace
 }

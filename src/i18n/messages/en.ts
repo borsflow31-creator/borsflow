@@ -1676,6 +1676,13 @@ export interface Messages {
       limitAiCreditsPerMonth: string;
       limitUnlimitedCrmContacts: string;
       limitCrmContacts: string;
+      limitProperties: string;
+      limitUnlimitedProperties: string;
+      limitActiveMandates: string;
+      limitUnlimitedActiveMandates: string;
+      limitPortalFeeds: string;
+      limitUnlimitedPortalFeeds: string;
+      limitNoPortalFeeds: string;
       limitUnlimitedInvoices: string;
       limitInvoicesPerMonth: string;
       limitCustomEmailVolume: string;
@@ -2865,6 +2872,802 @@ export interface Messages {
       createNew: string;
     };
   };
+  // <realEstate:type>
+  realEstate: {
+    nav: {
+      properties: string;
+      buyers: string;
+      viewings: string;
+      mandates: string;
+      offers: string;
+      services: string;
+      commissions: string;
+    };
+    subjects: {
+      Lead: string;
+      Interest: string;
+      Property: string;
+      Mandate: string;
+    };
+    fields: {
+      reference: string;
+      title: string;
+      propertyType: string;
+      propertyStatus: string;
+      stage: string;
+      pipelineName: string;
+      price: string;
+      city: string;
+      district: string;
+      postalCode: string;
+      countryCode: string;
+      surfaceArea: string;
+      rooms: string;
+      bedrooms: string;
+      bathrooms: string;
+      floor: string;
+      buildYear: string;
+      energyRating: string;
+      hasParking: string;
+      hasGarden: string;
+      daysOnMarket: string;
+      listedAt: string;
+      vendorEmail: string;
+      interestStatus: string;
+      buyerFirstName: string;
+      buyerLastName: string;
+      buyerEmail: string;
+      propertyTitle: string;
+      propertyCity: string;
+      propertyPrice: string;
+      lastActivityAt: string;
+      mandateType: string;
+      mandateStatus: string;
+      startDate: string;
+      endDate: string;
+      daysToExpiry: string;
+      askingPrice: string;
+      commissionPercent: string;
+      signedAt: string;
+      vendorFirstName: string;
+      vendorLastName: string;
+    };
+    properties: {
+      title: string;
+      subtitle: string;
+      new: string;
+      edit: string;
+      searchPlaceholder: string;
+      viewGrid: string;
+      viewBoard: string;
+      openBoard: string;
+      empty: {
+        title: string;
+        body: string;
+        filtered: string;
+      };
+      filters: {
+        status: string;
+        type: string;
+        city: string;
+        minPrice: string;
+        maxPrice: string;
+        minBedrooms: string;
+        all: string;
+        clear: string;
+      };
+      status: {
+        prospect: string;
+        valuation: string;
+        mandate: string;
+        live: string;
+        under_offer: string;
+        sold: string;
+        withdrawn: string;
+        expired: string;
+      };
+      types: {
+        apartment: string;
+        house: string;
+        land: string;
+        commercial: string;
+        parking: string;
+        building: string;
+        other: string;
+      };
+      transaction: {
+        sale: string;
+        rent: string;
+      };
+      form: {
+        sectionBasics: string;
+        sectionAddress: string;
+        sectionDetails: string;
+        sectionAmenities: string;
+        sectionPeople: string;
+        reference: string;
+        referencePlaceholder: string;
+        title: string;
+        description: string;
+        type: string;
+        transaction: string;
+        status: string;
+        price: string;
+        currency: string;
+        addressLine: string;
+        addressPublic: string;
+        city: string;
+        district: string;
+        postalCode: string;
+        country: string;
+        latitude: string;
+        longitude: string;
+        surface: string;
+        landArea: string;
+        rooms: string;
+        bedrooms: string;
+        bathrooms: string;
+        floor: string;
+        buildYear: string;
+        energyRating: string;
+        energyNone: string;
+        elevator: string;
+        parking: string;
+        balcony: string;
+        terrace: string;
+        garden: string;
+        pool: string;
+        furnished: string;
+        vendor: string;
+        vendorNone: string;
+        owner: string;
+        ownerNone: string;
+        customFields: string;
+        create: string;
+        save: string;
+        required: string;
+      };
+      card: {
+        daysOnMarket: string;
+        noPhoto: string;
+        bedrooms: string;
+        surface: string;
+        vendorUnknown: string;
+      };
+      detail: {
+        back: string;
+        delete: string;
+        deleteConfirm: string;
+        daysOnMarket: string;
+        listedOn: string;
+        notListed: string;
+        vendor: string;
+        agent: string;
+        tabs: {
+          overview: string;
+          media: string;
+          mandate: string;
+          interests: string;
+          offers: string;
+          viewings: string;
+          activity: string;
+          matches: string;
+        };
+        publish: {
+          title: string;
+          published: string;
+          draft: string;
+          hint: string;
+          publish: string;
+          copyLink: string;
+          unpublish: string;
+          rotate: string;
+          rotateConfirm: string;
+          copied: string;
+          link: string;
+          error: string;
+        };
+      };
+      errors: {
+        load: string;
+        loadOne: string;
+        save: string;
+        delete: string;
+        notFound: string;
+      };
+    };
+    media: {
+      title: string;
+      upload: string;
+      dropHint: string;
+      addLink: string;
+      linkUrl: string;
+      linkKind: string;
+      addLinkSubmit: string;
+      empty: string;
+      reorderHint: string;
+      kind: {
+        photo: string;
+        floorplan: string;
+        video: string;
+        virtual_tour: string;
+      };
+      cover: string;
+      setCover: string;
+      caption: string;
+      remove: string;
+      removeConfirm: string;
+      openLink: string;
+      errors: {
+        load: string;
+        upload: string;
+        badType: string;
+        tooLarge: string;
+        remove: string;
+        link: string;
+        storage: string;
+      };
+    };
+    mandates: {
+      title: string;
+      subtitle: string;
+      new: string;
+      edit: string;
+      empty: string;
+      emptyForProperty: string;
+      queue: {
+        expiring: string;
+        active: string;
+        expired: string;
+        all: string;
+      };
+      queueHint: string;
+      type: {
+        simple: string;
+        exclusive: string;
+        semi_exclusive: string;
+      };
+      status: {
+        draft: string;
+        active: string;
+        expired: string;
+        terminated: string;
+        completed: string;
+      };
+      fee: {
+        percent: string;
+        fixed: string;
+      };
+      payer: {
+        vendor: string;
+        buyer: string;
+        shared: string;
+      };
+      form: {
+        property: string;
+        vendor: string;
+        reference: string;
+        referencePlaceholder: string;
+        type: string;
+        status: string;
+        startDate: string;
+        endDate: string;
+        renewalTerms: string;
+        askingPrice: string;
+        netToVendor: string;
+        feeType: string;
+        commission: string;
+        feeFixed: string;
+        feePayer: string;
+        owner: string;
+        notes: string;
+        signedAt: string;
+        create: string;
+        save: string;
+        propertyRequired: string;
+        vendorRequired: string;
+      };
+      expiresIn: string;
+      endsToday: string;
+      expiredAgo: string;
+      noEnd: string;
+      renew: string;
+      renewTitle: string;
+      renewUntil: string;
+      terminate: string;
+      terminateTitle: string;
+      terminateReason: string;
+      markExpired: string;
+      activate: string;
+      delete: string;
+      deleteConfirm: string;
+      price: {
+        title: string;
+        reduce: string;
+        newPrice: string;
+        reason: string;
+        empty: string;
+        drop: string;
+        rise: string;
+        save: string;
+      };
+      errors: {
+        load: string;
+        save: string;
+        delete: string;
+        dates: string;
+        activeExists: string;
+      };
+      reportEvery: string;
+      reportNone: string;
+      vendorLink: string;
+      vendorLinkCopied: string;
+      previewReport: string;
+    };
+    interests: {
+      title: string;
+      new: string;
+      empty: string;
+      emptyForLead: string;
+      attachProperty: string;
+      status: {
+        active: string;
+        won: string;
+        lost: string;
+        on_hold: string;
+      };
+      source: {
+        manual: string;
+        enquiry: string;
+        portal: string;
+        match: string;
+        walk_in: string;
+        referral: string;
+      };
+      form: {
+        buyer: string;
+        buyerPlaceholder: string;
+        property: string;
+        stage: string;
+        owner: string;
+        source: string;
+        notes: string;
+        create: string;
+        save: string;
+        buyerRequired: string;
+        propertyRequired: string;
+      };
+      markWon: string;
+      markLost: string;
+      reopen: string;
+      lostReason: string;
+      remove: string;
+      removeConfirm: string;
+      errors: {
+        load: string;
+        save: string;
+        delete: string;
+        duplicate: string;
+        noPipeline: string;
+      };
+    };
+    offers: {
+      title: string;
+      subtitle: string;
+      new: string;
+      empty: string;
+      emptyForProperty: string;
+      status: {
+        pending: string;
+        accepted: string;
+        rejected: string;
+        withdrawn: string;
+        expired: string;
+      };
+      form: {
+        buyer: string;
+        amount: string;
+        expiresAt: string;
+        deposit: string;
+        financing: string;
+        financingNone: string;
+        conditions: string;
+        addCondition: string;
+        conditionNote: string;
+        create: string;
+        amountRequired: string;
+        buyerRequired: string;
+      };
+      financing: {
+        cash: string;
+        mortgage: string;
+        mixed: string;
+      };
+      condition: {
+        finance: string;
+        survey: string;
+        chain: string;
+        other: string;
+      };
+      competing: string;
+      highest: string;
+      accept: {
+        action: string;
+        title: string;
+        body: string;
+        competing: string;
+        confirm: string;
+      };
+      reject: {
+        action: string;
+        title: string;
+        confirm: string;
+      };
+      withdraw: {
+        action: string;
+        title: string;
+        body: string;
+        confirm: string;
+      };
+      decisionReason: {
+        another_offer_accepted: string;
+        declined: string;
+        withdrawn: string;
+      };
+      share: {
+        action: string;
+        copied: string;
+        rotate: string;
+        hint: string;
+      };
+      validUntil: string;
+      vendor: {
+        title: string;
+        intro: string;
+        amount: string;
+        conditions: string;
+        noConditions: string;
+        accept: string;
+        decline: string;
+        acceptedMsg: string;
+        declinedMsg: string;
+        closedMsg: string;
+        invalid: string;
+        failed: string;
+      };
+      errors: {
+        load: string;
+        save: string;
+        decide: string;
+        decided: string;
+        unavailable: string;
+      };
+    };
+    viewings: {
+      title: string;
+      subtitle: string;
+      new: string;
+      empty: string;
+      emptyForProperty: string;
+      upcoming: string;
+      past: string;
+      needsFeedback: string;
+      schedule: {
+        title: string;
+        property: string;
+        buyer: string;
+        buyerNone: string;
+        start: string;
+        duration: string;
+        notes: string;
+        submit: string;
+        titleFor: string;
+        propertyRequired: string;
+        startRequired: string;
+      };
+      status: {
+        scheduled: string;
+        in_progress: string;
+        completed: string;
+        cancelled: string;
+        no_show: string;
+      };
+      feedback: {
+        title: string;
+        add: string;
+        edit: string;
+        attended: string;
+        interestLevel: string;
+        dimensions: {
+          price: string;
+          condition: string;
+          location: string;
+          layout: string;
+        };
+        verdict: {
+          negative: string;
+          neutral: string;
+          positive: string;
+        };
+        verdictNone: string;
+        comments: string;
+        save: string;
+        recorded: string;
+        summary: string;
+        none: string;
+      };
+      errors: {
+        load: string;
+        save: string;
+        feedback: string;
+      };
+    };
+    activity: {
+      title: string;
+      empty: string;
+      propertyCreated: string;
+      propertyUpdated: string;
+      propertyStatus: string;
+      propertyStage: string;
+      interestCreated: string;
+      interestStage: string;
+      interestStatus: string;
+      mandateCreated: string;
+      mandateStatus: string;
+      mandateRenewed: string;
+      priceChanged: string;
+      offerMade: string;
+      offerAccepted: string;
+      offerRejected: string;
+      offerWithdrawn: string;
+      viewingBooked: string;
+      viewingFeedback: string;
+    };
+    pipelines: {
+      subject: string;
+      subjectHint: string;
+      subjectLocked: string;
+      interestEmpty: string;
+      propertyEmpty: string;
+      dropHere: string;
+      moveFailed: string;
+    };
+    briefs: {
+      title: string;
+      subtitle: string;
+      new: string;
+      edit: string;
+      empty: string;
+      matchedNow: string;
+      form: {
+        name: string;
+        namePlaceholder: string;
+        priceMin: string;
+        priceMax: string;
+        surfaceMin: string;
+        bedroomsMin: string;
+        roomsMin: string;
+        types: string;
+        cities: string;
+        districts: string;
+        listHint: string;
+        mustHave: string;
+        parking: string;
+        elevator: string;
+        garden: string;
+        terrace: string;
+        balcony: string;
+        notify: string;
+        active: string;
+        notes: string;
+        create: string;
+        save: string;
+        nameRequired: string;
+      };
+      delete: string;
+      deleteConfirm: string;
+      insights: {
+        title: string;
+        none: string;
+        viewings: string;
+        averageInterest: string;
+        suggestion: string;
+        apply: string;
+      };
+      errors: {
+        load: string;
+        save: string;
+        delete: string;
+      };
+    };
+    matches: {
+      title: string;
+      subtitle: string;
+      empty: string;
+      score: string;
+      status: {
+        new: string;
+        notified: string;
+        dismissed: string;
+        interested: string;
+        converted: string;
+      };
+      reasons: {
+        price_fit: string;
+        location: string;
+        type: string;
+        size: string;
+        must_haves: string;
+      };
+      actions: {
+        createInterest: string;
+        dismiss: string;
+      };
+      viaBrief: string;
+      errors: {
+        load: string;
+        update: string;
+      };
+    };
+    vendorReport: {
+      invalid: string;
+      failed: string;
+      updated: string;
+      askingPrice: string;
+      daysOnMarket: string;
+      enquiries: string;
+      viewings: string;
+      offers: string;
+      noOffers: string;
+      offersSummary: string;
+      feedback: string;
+      noFeedback: string;
+      feedbackIntro: string;
+      averageInterest: string;
+      pricePosition: string;
+      pricePositionBody: string;
+    };
+    automations: {
+      triggerType: string;
+      stageChanged: string;
+      created: string;
+      mandateExpiring: string;
+      withinDays: string;
+      createdHint: string;
+      expiringHint: string;
+      anyBoard: string;
+    };
+    intake: {
+      button: string;
+      title: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      message: string;
+      property: string;
+      submit: string;
+      created: string;
+      existing: string;
+      suppressed: string;
+      contactRequired: string;
+      errors: {
+        save: string;
+      };
+    };
+    listing: {
+      invalid: string;
+      gallery: string;
+      enquiryTitle: string;
+      sent: string;
+      failed: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      message: string;
+      send: string;
+    };
+    commissions: {
+      title: string;
+      subtitle: string;
+      mine: string;
+      empty: string;
+      basis: string;
+      markPaid: string;
+      markPaidConfirm: string;
+      tabs: {
+        forecast: string;
+        accrued: string;
+        realized: string;
+        paid: string;
+      };
+      status: {
+        accrued: string;
+        realized: string;
+        paid: string;
+        cancelled: string;
+      };
+      earnings: {
+        title: string;
+        accrued: string;
+        realized: string;
+        paid: string;
+      };
+      forecast: {
+        hint: string;
+        potential: string;
+        weighted: string;
+        empty: string;
+        listings: string;
+      };
+      roles: {
+        listing_agent: string;
+        selling_agent: string;
+        introducer: string;
+        agency: string;
+        manager: string;
+      };
+      shares: {
+        title: string;
+        role: string;
+        member: string;
+        percent: string;
+        add: string;
+        total: string;
+        over: string;
+        save: string;
+        edit: string;
+        agency: string;
+      };
+      errors: {
+        load: string;
+        save: string;
+      };
+    };
+    portalFeeds: {
+      title: string;
+      subtitle: string;
+      new: string;
+      empty: string;
+      onboardingNote: string;
+      portals: {
+        generic: string;
+        seloger: string;
+        idealista: string;
+        rightmove: string;
+        immoweb: string;
+        zillow: string;
+      };
+      includeUnpublished: string;
+      active: string;
+      paused: string;
+      url: string;
+      lastFetched: string;
+      neverFetched: string;
+      copy: string;
+      copied: string;
+      pause: string;
+      resume: string;
+      rotate: string;
+      rotateConfirm: string;
+      deleteConfirm: string;
+      form: {
+        name: string;
+        namePlaceholder: string;
+        portal: string;
+        format: string;
+        includeUnpublished: string;
+        create: string;
+      };
+      errors: {
+        load: string;
+        name: string;
+        save: string;
+      };
+    };
+  };
+  // </realEstate:type>
 }
 const en: Messages = {
   app: {
@@ -4083,7 +4886,7 @@ const en: Messages = {
       linkRolesTeam: 'Roles & team',
       linkQuotesInvoices: 'Quotes & invoices',
       linkPricing: 'Pricing',
-      tagline: 'The CRM, documents, scheduling and invoicing your team actually needs, in one workspace.',
+      tagline: 'The CRM for estate agencies: listings, owners, buyers, viewings, offers and commissions in one workspace.',
       productHeading: 'Product',
       copyright: '© {year} BorsFlow. All rights reserved.',
       signIn: 'Sign in',
@@ -4091,11 +4894,11 @@ const en: Messages = {
     },
     aiIntegration: {
       answerPages: 'Finds the exact page or doc you meant and reads it back to you.',
-      answerLeads: 'Pulls up a lead, its stage and its full history on request.',
+      answerLeads: 'Pulls up a buyer, their interests and their full history on request.',
       answerTasks: 'Lists what is open, overdue or assigned to you across every board.',
       answerFinancials: 'Reports quote and invoice status, totals and what is outstanding.',
       answerMeetings: 'Tells you what is booked next and who is on the call.',
-      answerProducts: 'Looks up products, prices and stock from your catalog.',
+      answerProducts: 'Looks up services, fees and prices from your catalog.',
       answerTemplates: 'Finds the right template so you are never starting from blank.',
       heading: 'An assistant that already knows your workspace',
       lead: 'Ask it a question instead of hunting through five screens. It reads your real data and answers in plain language.',
@@ -4113,16 +4916,16 @@ const en: Messages = {
       foundationSecretsDetail: 'API keys and credentials are encrypted at rest, never shown in plain text.',
       foundationPermissionsTerm: 'Role-based permissions',
       foundationPermissionsDetail: 'Every action is checked against the role of the person taking it.',
-      heading: 'One workspace, every pipeline',
-      lead: 'CRM, documents, scheduling and billing, built to share the same data instead of fighting over it.',
-      crmTitle: 'CRM & pipeline',
-      crmBody: 'Track leads from first contact to closed deal, with a kanban board your whole team can see and move.',
+      heading: 'One workspace, from mandate to completion',
+      lead: 'Listings, buyers, viewings and offers share the same data instead of living in five tools.',
+      crmTitle: 'Owners & buyers',
+      crmBody: 'Win mandates on one board and move buyers from enquiry to offer on another, with your whole team looking at the same status.',
       emailTitle: 'Email & templates',
       emailBody: 'Send on-brand emails from reusable templates, and let AI draft the first pass for you.',
       meetingsTitle: 'Scheduling',
       meetingsBody: 'Book meetings, sync calendars and keep everyone looking at the same time slot.',
-      catalogTitle: 'Products & catalog',
-      catalogBody: 'Keep products, prices and stock in one place, ready to drop straight into a quote.',
+      catalogTitle: 'Listings',
+      catalogBody: 'Every property with its photos, price history and days on market, ready to publish and to match against what buyers want.',
       underneathHeading: 'What it runs on',
     },
     demoVideo: {
@@ -4135,7 +4938,7 @@ const en: Messages = {
     },
     evidence: {
       editorTitle: 'Documents that write themselves around your data',
-      editorBody: 'Build pages and docs that pull live fields from your CRM and catalog, so they never fall out of sync with reality.',
+      editorBody: 'Build pages and docs that pull live fields from your listings and contacts, so they never fall out of sync with reality.',
       editorAlt: 'BorsFlow document editor showing a page built from live workspace data',
       financialsTitle: 'Quotes and invoices in the same place as the deal',
       financialsBody: 'Turn a quote into an invoice in one click, track what is paid and what is overdue, without leaving the workspace.',
@@ -4144,35 +4947,35 @@ const en: Messages = {
     finalCta: {
       step1: 'Create your workspace',
       step2: 'Invite your team',
-      step3: 'Import your contacts and products',
-      step4: 'Send your first quote',
-      heading: 'Run your whole business from one tab',
-      lead: 'No credit card, no setup call. Create a workspace and see your first pipeline in minutes.',
+      step3: 'Add your listings and contacts',
+      step4: 'Publish your first listing',
+      heading: 'Run your whole agency from one tab',
+      lead: 'No credit card, no setup call. Create a workspace and see your first buyer board in minutes.',
       createWorkspace: 'Create your workspace',
       signIn: 'Sign in',
       noSalesCall: 'Free to start. No sales call required.',
     },
     journey: {
-      stage1Title: 'Capture the lead',
-      stage1Body: 'Bring a contact in from anywhere and drop it straight onto your pipeline board.',
-      stage2Title: 'Work the deal',
-      stage2Body: 'Move it through stages, log activity and keep every teammate looking at the same status.',
-      stage3Title: 'Send the paperwork',
-      stage3Body: 'Turn the deal into a quote, then an invoice, without re-typing a single line.',
-      stage4Title: 'Get paid and keep going',
-      stage4Body: 'Track payment status and roll straight into the next meeting or renewal.',
-      heading: 'From first contact to paid invoice',
-      lead: 'Four stages, one record. Nothing gets re-entered, and nothing falls through the cracks between tools.',
+      stage1Title: 'Capture the enquiry',
+      stage1Body: 'Enquiries from your website and the portals land as buyers, tied to the property they asked about.',
+      stage2Title: 'Match and show',
+      stage2Body: 'New listings are matched to buyers’ search briefs, and viewings are booked with structured feedback.',
+      stage3Title: 'Take the offer',
+      stage3Body: 'Record competing offers on one property; accepting one rejects the rest and reserves the listing.',
+      stage4Title: 'Close and get paid',
+      stage4Body: 'The commission is split between listing agent, selling agent and agency, and realized when the sale completes.',
+      heading: 'From first enquiry to completed sale',
+      lead: 'Four stages, one record. A buyer, a property and an offer stay connected, and nothing is re-entered between tools.',
     },
     hero: {
       assuranceFree: 'Free to start',
       assuranceRoles: 'Role-based access for every teammate',
       assuranceData: 'Your data stays in your workspace',
-      titleLine1: 'The business toolkit',
-      titleLine2: 'your team won’t outgrow',
-      lead: 'CRM, documents, scheduling and invoicing in one workspace, so your team stops copying data between five different tabs.',
+      titleLine1: 'The CRM built',
+      titleLine2: 'for estate agencies',
+      lead: 'Listings, owners, buyers, viewings, offers and commissions in one workspace, so your agents stop copying data between five different tools.',
       startFree: 'Start free',
-      plateAlt: 'BorsFlow CRM pipeline board showing leads moving through stages',
+      plateAlt: 'BorsFlow board showing buyers moving from enquiry to offer',
     },
     header: {
       navPipeline: 'Pipeline',
@@ -4193,8 +4996,15 @@ const en: Messages = {
       limitUpToMembers: 'Up to {count} team members',
       limitUnlimitedAiCredits: 'Unlimited AI credits',
       limitAiCreditsPerMonth: '{count} AI credits / month',
-      limitUnlimitedCrmContacts: 'Unlimited CRM contacts',
-      limitCrmContacts: '{count} CRM contacts',
+      limitUnlimitedCrmContacts: 'Unlimited contacts',
+      limitCrmContacts: '{count} contacts',
+      limitProperties: '{count} properties in play',
+      limitUnlimitedProperties: 'Unlimited properties',
+      limitActiveMandates: '{count} active mandates',
+      limitUnlimitedActiveMandates: 'Unlimited active mandates',
+      limitPortalFeeds: 'Portal feeds: {count}',
+      limitUnlimitedPortalFeeds: 'Unlimited portal feeds',
+      limitNoPortalFeeds: 'Portal feeds not included',
       limitUnlimitedInvoices: 'Unlimited invoices',
       limitInvoicesPerMonth: '{count} invoices / month',
       limitCustomEmailVolume: 'Custom email volume',
@@ -4229,7 +5039,7 @@ const en: Messages = {
       twoMonthsFree: 'Two months free',
       monthly: 'Monthly',
       heading: 'Simple pricing that scales with your team',
-      lead: 'Start free. Upgrade when you need more seats, more AI credits, or more room to send.',
+      lead: 'Start free. Upgrade when you need more listings, more agents, or more room to send.',
       betaStrong: 'Founding member pricing:',
       betaBody: 'lock in {percent}% off for as long as you stay subscribed, while we’re in beta.',
       billingPeriodAria: 'Billing period',
@@ -4237,13 +5047,13 @@ const en: Messages = {
     },
     support: {
       faq1q: 'Is there really a free plan?',
-      faq1a: 'Yes. You can run a full pipeline, send invoices and invite teammates on the free plan with no credit card and no trial countdown.',
-      faq2q: 'Can I import my existing contacts and products?',
-      faq2a: 'Yes, you can bring in your contacts and product catalog from a CSV in a few clicks when you set up your workspace.',
+      faq1a: 'Yes. You can run listings, buyers, viewings and offers and invite your agents on the free plan, with no credit card and no trial countdown.',
+      faq2q: 'Can I import my existing contacts and listings?',
+      faq2a: 'Yes, you can bring in your contacts from a CSV in a few clicks, and add listings one by one or in bulk when you set up your workspace.',
       faq3q: 'How does the AI assistant access my data?',
       faq3a: 'It reads directly from your workspace, scoped to your permissions, and only answers with what you’re allowed to see.',
       faq4q: 'What happens if I go over my plan’s limits?',
-      faq4a: 'We’ll let you know before you hit a hard limit, and you can upgrade in a click whenever you’re ready.',
+      faq4a: 'Plans limit how many contacts, listings and active mandates you hold at once. We will tell you before you hit a limit, and a sold or withdrawn listing frees its place straight away.',
       faq5q: 'Can I control what each teammate can see or edit?',
       faq5a: 'Yes, every workspace has four roles, from read-only viewers to owners, so access matches responsibility.',
       faq6q: 'Is my data secure?',
@@ -4275,12 +5085,12 @@ const en: Messages = {
       workspacesBody: 'Separate clients, departments or brands into their own workspace, each with its own team and data.',
     },
     whyChoose: {
-      seam1: 'Contacts live in one tool, invoices in another, so every deal gets re-typed at least twice.',
-      seam2: 'Nobody can say what a deal is actually worth without opening three different dashboards.',
+      seam1: 'Listings live in one tool, buyers in another, so every enquiry gets re-typed at least twice.',
+      seam2: 'Nobody can say what the pipeline is worth in commission without opening three different dashboards.',
       seam3: 'Each tool bills per seat, so adding one teammate means five new invoices.',
       seam4: 'Permissions are set per tool, so a leaver’s access has to be revoked five separate times.',
-      join1: 'One record per lead, from first contact through to paid invoice.',
-      join2: 'One dashboard shows pipeline, documents, meetings and revenue together.',
+      join1: 'One record per buyer and property, from first enquiry through to completion.',
+      join2: 'One dashboard shows listings, viewings, offers and commissions together.',
       join3: 'One bill per workspace, whatever mix of tools your team actually uses.',
       join4: 'One role per person, enforced everywhere at once.',
       heading: 'Five tools stitched together, or one that was built whole',
@@ -5732,6 +6542,802 @@ const en: Messages = {
     templatePreview: 'Template preview',
     amount: 'Amount',
   },
+  // <realEstate:value>
+  realEstate: {
+    nav: {
+      properties: 'Properties',
+      buyers: 'Buyers',
+      viewings: 'Viewings',
+      mandates: 'Mandates',
+      offers: 'Offers',
+      services: 'Services & fees',
+      commissions: 'Commissions',
+    },
+    subjects: {
+      Lead: 'Enquiries',
+      Interest: 'Buyer interests',
+      Property: 'Properties',
+      Mandate: 'Mandates',
+    },
+    fields: {
+      reference: 'Reference',
+      title: 'Title',
+      propertyType: 'Property type',
+      propertyStatus: 'Property status',
+      stage: 'Stage',
+      pipelineName: 'Board name',
+      price: 'Asking price',
+      city: 'City',
+      district: 'District',
+      postalCode: 'Postal code',
+      countryCode: 'Country',
+      surfaceArea: 'Surface (m²)',
+      rooms: 'Rooms',
+      bedrooms: 'Bedrooms',
+      bathrooms: 'Bathrooms',
+      floor: 'Floor',
+      buildYear: 'Year built',
+      energyRating: 'Energy rating',
+      hasParking: 'Has parking',
+      hasGarden: 'Has garden',
+      daysOnMarket: 'Days on market',
+      listedAt: 'Listed on',
+      vendorEmail: 'Vendor email',
+      interestStatus: 'Interest status',
+      buyerFirstName: 'Buyer first name',
+      buyerLastName: 'Buyer last name',
+      buyerEmail: 'Buyer email',
+      propertyTitle: 'Property title',
+      propertyCity: 'Property city',
+      propertyPrice: 'Property price',
+      lastActivityAt: 'Last activity',
+      mandateType: 'Mandate type',
+      mandateStatus: 'Mandate status',
+      startDate: 'Start date',
+      endDate: 'End date',
+      daysToExpiry: 'Days to expiry',
+      askingPrice: 'Asking price',
+      commissionPercent: 'Commission (%)',
+      signedAt: 'Signed on',
+      vendorFirstName: 'Vendor first name',
+      vendorLastName: 'Vendor last name',
+    },
+    properties: {
+      title: 'Properties',
+      subtitle: 'Your listings and the owners you are courting.',
+      new: 'New property',
+      edit: 'Edit property',
+      searchPlaceholder: 'Search by title, reference, city…',
+      viewGrid: 'Grid',
+      viewBoard: 'Owner board',
+      openBoard: 'Open the owner board',
+      empty: {
+        title: 'No properties yet',
+        body: 'Add your first property to start tracking owners, mandates, buyers and offers.',
+        filtered: 'No property matches these filters.',
+      },
+      filters: {
+        status: 'Status',
+        type: 'Type',
+        city: 'City',
+        minPrice: 'Min price',
+        maxPrice: 'Max price',
+        minBedrooms: 'Min bedrooms',
+        all: 'All',
+        clear: 'Clear filters',
+      },
+      status: {
+        prospect: 'Prospect',
+        valuation: 'Valuation',
+        mandate: 'Mandate',
+        live: 'Live',
+        under_offer: 'Under offer',
+        sold: 'Sold',
+        withdrawn: 'Withdrawn',
+        expired: 'Expired',
+      },
+      types: {
+        apartment: 'Apartment',
+        house: 'House',
+        land: 'Land',
+        commercial: 'Commercial',
+        parking: 'Parking',
+        building: 'Building',
+        other: 'Other',
+      },
+      transaction: {
+        sale: 'For sale',
+        rent: 'For rent',
+      },
+      form: {
+        sectionBasics: 'Basics',
+        sectionAddress: 'Address',
+        sectionDetails: 'Details',
+        sectionAmenities: 'Amenities',
+        sectionPeople: 'People',
+        reference: 'Reference',
+        referencePlaceholder: 'Generated if left empty',
+        title: 'Title',
+        description: 'Description',
+        type: 'Type',
+        transaction: 'Transaction',
+        status: 'Status',
+        price: 'Asking price',
+        currency: 'Currency',
+        addressLine: 'Street address',
+        addressPublic: 'Show the street address on public pages',
+        city: 'City',
+        district: 'District',
+        postalCode: 'Postal code',
+        country: 'Country code',
+        latitude: 'Latitude',
+        longitude: 'Longitude',
+        surface: 'Surface (m²)',
+        landArea: 'Land (m²)',
+        rooms: 'Rooms',
+        bedrooms: 'Bedrooms',
+        bathrooms: 'Bathrooms',
+        floor: 'Floor',
+        buildYear: 'Year built',
+        energyRating: 'Energy rating',
+        energyNone: 'Not rated',
+        elevator: 'Elevator',
+        parking: 'Parking',
+        balcony: 'Balcony',
+        terrace: 'Terrace',
+        garden: 'Garden',
+        pool: 'Pool',
+        furnished: 'Furnished',
+        vendor: 'Vendor',
+        vendorNone: 'Not recorded yet',
+        owner: 'Listing agent',
+        ownerNone: 'Unassigned',
+        customFields: 'Custom fields',
+        create: 'Create property',
+        save: 'Save changes',
+        required: 'Title and city are required',
+      },
+      card: {
+        daysOnMarket: '{count} days on market',
+        noPhoto: 'No photo',
+        bedrooms: '{count} bd',
+        surface: '{count} m²',
+        vendorUnknown: 'Vendor not recorded',
+      },
+      detail: {
+        back: 'All properties',
+        delete: 'Delete property',
+        deleteConfirm: 'Delete "{title}"? Its mandates, interests, offers and photos are deleted with it.',
+        daysOnMarket: 'Days on market',
+        listedOn: 'Listed on {date}',
+        notListed: 'Not listed yet',
+        vendor: 'Vendor',
+        agent: 'Listing agent',
+        tabs: {
+          overview: 'Overview',
+          media: 'Media',
+          mandate: 'Mandate',
+          interests: 'Buyers',
+          offers: 'Offers',
+          viewings: 'Viewings',
+          activity: 'Activity',
+          matches: 'Matches',
+        },
+        publish: {
+          title: 'Public listing',
+          published: 'Published',
+          draft: 'Not published',
+          hint: 'Publishing turns on the public listing page and includes this property in portal feeds. An unpublished property shows nothing, even to someone with the link.',
+          publish: 'Publish and copy link',
+          copyLink: 'Copy listing link',
+          unpublish: 'Unpublish',
+          rotate: 'Replace link',
+          rotateConfirm: 'Replace the listing link? The old link will stop working.',
+          copied: 'Listing link copied.',
+          link: 'Listing link',
+          error: 'Could not update the listing.',
+        },
+      },
+      errors: {
+        load: 'Could not load properties',
+        loadOne: 'Could not load this property',
+        save: 'Could not save the property',
+        delete: 'Could not delete the property',
+        notFound: 'Property not found',
+      },
+    },
+    media: {
+      title: 'Photos and media',
+      upload: 'Upload photos',
+      dropHint: 'Drop images here, or click to choose. JPEG, PNG or WebP.',
+      addLink: 'Add a video or virtual tour',
+      linkUrl: 'Link (https://…)',
+      linkKind: 'Type',
+      addLinkSubmit: 'Add link',
+      empty: 'No media yet. A listing without photos does not sell.',
+      reorderHint: 'Drag to reorder. The first photo is the cover unless you choose another.',
+      kind: {
+        photo: 'Photo',
+        floorplan: 'Floor plan',
+        video: 'Video',
+        virtual_tour: 'Virtual tour',
+      },
+      cover: 'Cover',
+      setCover: 'Make cover',
+      caption: 'Caption',
+      remove: 'Remove',
+      removeConfirm: 'Remove this item?',
+      openLink: 'Open link',
+      errors: {
+        load: 'Could not load media',
+        upload: 'Upload failed',
+        badType: 'Only JPEG, PNG and WebP images can be uploaded',
+        tooLarge: 'That file is too large',
+        remove: 'Could not remove this item',
+        link: 'Enter a valid https link',
+        storage: 'File uploads are not configured',
+      },
+    },
+    mandates: {
+      title: 'Mandates',
+      subtitle: 'The authority to sell, and when it runs out.',
+      new: 'New mandate',
+      edit: 'Edit mandate',
+      empty: 'No mandates here.',
+      emptyForProperty: 'No mandate on this property yet.',
+      queue: {
+        expiring: 'Expiring soon',
+        active: 'Active',
+        expired: 'Expired',
+        all: 'All',
+      },
+      queueHint: 'Mandates ending within {days} days: call the vendor to renew, or let them lapse.',
+      type: {
+        simple: 'Simple',
+        exclusive: 'Exclusive',
+        semi_exclusive: 'Semi-exclusive',
+      },
+      status: {
+        draft: 'Draft',
+        active: 'Active',
+        expired: 'Expired',
+        terminated: 'Terminated',
+        completed: 'Completed',
+      },
+      fee: {
+        percent: 'Percentage',
+        fixed: 'Fixed fee',
+      },
+      payer: {
+        vendor: 'Vendor',
+        buyer: 'Buyer',
+        shared: 'Shared',
+      },
+      form: {
+        property: 'Property',
+        vendor: 'Vendor',
+        reference: 'Reference',
+        referencePlaceholder: 'Generated if left empty',
+        type: 'Mandate type',
+        status: 'Status',
+        startDate: 'Start date',
+        endDate: 'End date',
+        renewalTerms: 'Renewal terms',
+        askingPrice: 'Agreed asking price',
+        netToVendor: 'Net to vendor',
+        feeType: 'Fee type',
+        commission: 'Commission (%)',
+        feeFixed: 'Fixed fee',
+        feePayer: 'Fee paid by',
+        owner: 'Listing agent',
+        notes: 'Notes',
+        signedAt: 'Signed on',
+        create: 'Create mandate',
+        save: 'Save changes',
+        propertyRequired: 'Pick a property',
+        vendorRequired: 'Pick the vendor',
+      },
+      expiresIn: 'Ends in {days} days',
+      endsToday: 'Ends today',
+      expiredAgo: 'Expired {days} days ago',
+      noEnd: 'No end date',
+      renew: 'Renew',
+      renewTitle: 'Renew mandate',
+      renewUntil: 'New end date',
+      terminate: 'Terminate',
+      terminateTitle: 'Terminate mandate',
+      terminateReason: 'Reason',
+      markExpired: 'Mark expired and de-list',
+      activate: 'Activate',
+      delete: 'Delete mandate',
+      deleteConfirm: 'Delete mandate {reference}?',
+      price: {
+        title: 'Price history',
+        reduce: 'Record a price change',
+        newPrice: 'New asking price',
+        reason: 'Reason',
+        empty: 'No price changes yet.',
+        drop: 'Reduced by {percent}%',
+        rise: 'Raised by {percent}%',
+        save: 'Save price change',
+      },
+      errors: {
+        load: 'Could not load mandates',
+        save: 'Could not save the mandate',
+        delete: 'Could not delete the mandate',
+        dates: 'The end date must be after the start date',
+        activeExists: 'This property already has an active mandate',
+      },
+      reportEvery: 'Send the vendor a report every (days)',
+      reportNone: 'No scheduled report',
+      vendorLink: 'Vendor report link',
+      vendorLinkCopied: 'Link copied',
+      previewReport: 'Preview the report',
+    },
+    interests: {
+      title: 'Buyer interests',
+      new: 'Add a buyer',
+      empty: 'No buyer is attached to this property yet.',
+      emptyForLead: 'This contact is not attached to any property yet.',
+      attachProperty: 'Attach to a property',
+      status: {
+        active: 'Active',
+        won: 'Won',
+        lost: 'Lost',
+        on_hold: 'On hold',
+      },
+      source: {
+        manual: 'Added by hand',
+        enquiry: 'Website enquiry',
+        portal: 'Portal',
+        match: 'New-listing match',
+        walk_in: 'Walk-in',
+        referral: 'Referral',
+      },
+      form: {
+        buyer: 'Buyer',
+        buyerPlaceholder: 'Search a contact…',
+        property: 'Property',
+        stage: 'Stage',
+        owner: 'Selling agent',
+        source: 'Source',
+        notes: 'Notes',
+        create: 'Add interest',
+        save: 'Save changes',
+        buyerRequired: 'Pick a buyer',
+        propertyRequired: 'Pick a property',
+      },
+      markWon: 'Mark won',
+      markLost: 'Mark lost',
+      reopen: 'Reopen',
+      lostReason: 'Why was it lost?',
+      remove: 'Remove',
+      removeConfirm: 'Remove this buyer from the property?',
+      errors: {
+        load: 'Could not load interests',
+        save: 'Could not save the interest',
+        delete: 'Could not remove the interest',
+        duplicate: 'This buyer is already attached to this property',
+        noPipeline: 'There is no buyer board in this workspace',
+      },
+    },
+    offers: {
+      title: 'Offers',
+      subtitle: 'Buyer offers, and the competition between them.',
+      new: 'Record an offer',
+      empty: 'No offers here.',
+      emptyForProperty: 'No offers on this property yet.',
+      status: {
+        pending: 'Pending',
+        accepted: 'Accepted',
+        rejected: 'Rejected',
+        withdrawn: 'Withdrawn',
+        expired: 'Expired',
+      },
+      form: {
+        buyer: 'Buyer',
+        amount: 'Offer amount',
+        expiresAt: 'Valid until',
+        deposit: 'Deposit',
+        financing: 'Financing',
+        financingNone: 'Not specified',
+        conditions: 'Conditions',
+        addCondition: 'Add a condition',
+        conditionNote: 'Details',
+        create: 'Record offer',
+        amountRequired: 'Enter the offer amount',
+        buyerRequired: 'Pick a buyer attached to this property',
+      },
+      financing: {
+        cash: 'Cash',
+        mortgage: 'Mortgage',
+        mixed: 'Mixed',
+      },
+      condition: {
+        finance: 'Finance',
+        survey: 'Survey',
+        chain: 'Chain',
+        other: 'Other',
+      },
+      competing: '{count} competing offers',
+      highest: 'Highest',
+      accept: {
+        action: 'Accept',
+        title: 'Accept this offer?',
+        body: 'The property will be marked under offer and the buyer moved on.',
+        competing: 'These {count} competing offers will be rejected at the same time:',
+        confirm: 'Accept offer',
+      },
+      reject: {
+        action: 'Reject',
+        title: 'Reject this offer?',
+        confirm: 'Reject offer',
+      },
+      withdraw: {
+        action: 'Withdraw',
+        title: 'Withdraw this offer?',
+        body: 'If this offer had been accepted, the property goes back on the market.',
+        confirm: 'Withdraw offer',
+      },
+      decisionReason: {
+        another_offer_accepted: 'Another offer was accepted',
+        declined: 'Declined',
+        withdrawn: 'Withdrawn by the buyer',
+      },
+      share: {
+        action: 'Vendor link',
+        copied: 'Link copied',
+        rotate: 'Create a new link',
+        hint: 'The vendor can accept or decline from this link, no account needed.',
+      },
+      validUntil: 'Valid until {date}',
+      vendor: {
+        title: 'Offer on {property}',
+        intro: 'An offer has been made on your property.',
+        amount: 'Offer',
+        conditions: 'Conditions',
+        noConditions: 'No conditions',
+        accept: 'Accept this offer',
+        decline: 'Decline',
+        acceptedMsg: 'You accepted this offer. Your agent will be in touch.',
+        declinedMsg: 'You declined this offer.',
+        closedMsg: 'This offer has already been decided.',
+        invalid: 'This link is no longer valid',
+        failed: 'Something went wrong. Please try again.',
+      },
+      errors: {
+        load: 'Could not load offers',
+        save: 'Could not save the offer',
+        decide: 'Could not update the offer',
+        decided: 'This offer has already been decided',
+        unavailable: 'This property is no longer available',
+      },
+    },
+    viewings: {
+      title: 'Viewings',
+      subtitle: 'Visits, and what buyers made of them.',
+      new: 'Book a viewing',
+      empty: 'No viewings here.',
+      emptyForProperty: 'No viewings on this property yet.',
+      upcoming: 'Upcoming',
+      past: 'Past',
+      needsFeedback: 'Feedback needed',
+      schedule: {
+        title: 'Book a viewing',
+        property: 'Property',
+        buyer: 'Buyer',
+        buyerNone: 'No buyer yet',
+        start: 'Date and time',
+        duration: 'Duration (minutes)',
+        notes: 'Notes',
+        submit: 'Book viewing',
+        titleFor: 'Viewing: {property}',
+        propertyRequired: 'Pick a property',
+        startRequired: 'Pick a date and time',
+      },
+      status: {
+        scheduled: 'Scheduled',
+        in_progress: 'In progress',
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+        no_show: 'No show',
+      },
+      feedback: {
+        title: 'Viewing feedback',
+        add: 'Record feedback',
+        edit: 'Edit feedback',
+        attended: 'The buyer attended',
+        interestLevel: 'Interest level',
+        dimensions: {
+          price: 'Price',
+          condition: 'Condition',
+          location: 'Location',
+          layout: 'Layout',
+        },
+        verdict: {
+          negative: 'Negative',
+          neutral: 'Neutral',
+          positive: 'Positive',
+        },
+        verdictNone: 'No view',
+        comments: 'Comments',
+        save: 'Save feedback',
+        recorded: 'Feedback recorded',
+        summary: 'Interest {level}/5',
+        none: 'No feedback yet',
+      },
+      errors: {
+        load: 'Could not load viewings',
+        save: 'Could not book the viewing',
+        feedback: 'Could not save the feedback',
+      },
+    },
+    activity: {
+      title: 'Activity',
+      empty: 'Nothing has happened yet.',
+      propertyCreated: '{title} was added',
+      propertyUpdated: '{title} was updated',
+      propertyStatus: '{title} moved from {from} to {to}',
+      propertyStage: '{title} moved from "{from}" to "{to}"',
+      interestCreated: '{buyer} is now interested in {property}',
+      interestStage: '{buyer} moved from "{from}" to "{to}" on {property}',
+      interestStatus: '{buyer}: {property} is now {status}',
+      mandateCreated: 'Mandate {reference} created for {property}',
+      mandateStatus: 'Mandate {reference} is now {status}',
+      mandateRenewed: 'Mandate {reference} renewed until {date}',
+      priceChanged: 'Price of {property} changed from {from} to {to}',
+      offerMade: '{buyer} offered {amount} on {property}',
+      offerAccepted: 'Offer of {amount} by {buyer} accepted on {property}',
+      offerRejected: 'Offer of {amount} by {buyer} rejected on {property}',
+      offerWithdrawn: 'Offer of {amount} by {buyer} withdrawn on {property}',
+      viewingBooked: 'Viewing booked: {property}',
+      viewingFeedback: 'Feedback on {property}: interest {level}/5',
+    },
+    pipelines: {
+      subject: 'This board holds',
+      subjectHint: 'Decides what a card on this board is.',
+      subjectLocked: 'The subject cannot change once the board has cards.',
+      interestEmpty: 'No buyer interests yet. Attach a buyer to a property to see it here.',
+      propertyEmpty: 'No properties here.',
+      dropHere: 'Drop cards here',
+      moveFailed: 'Could not move the card',
+    },
+    briefs: {
+      title: 'Search briefs',
+      subtitle: 'What this buyer is looking for. New listings are checked against it.',
+      new: 'New search brief',
+      edit: 'Edit search brief',
+      empty: 'No search brief yet. Record what this buyer wants and new listings will find them.',
+      matchedNow: '{count} properties already on the market fit this brief.',
+      form: {
+        name: 'Name',
+        namePlaceholder: 'e.g. Family home in Cascais',
+        priceMin: 'Minimum price',
+        priceMax: 'Maximum price',
+        surfaceMin: 'Minimum surface (m²)',
+        bedroomsMin: 'Minimum bedrooms',
+        roomsMin: 'Minimum rooms',
+        types: 'Property types',
+        cities: 'Cities',
+        districts: 'Districts',
+        listHint: 'Separate with commas. Leave empty for any.',
+        mustHave: 'Must have',
+        parking: 'Parking',
+        elevator: 'Elevator',
+        garden: 'Garden',
+        terrace: 'Terrace',
+        balcony: 'Balcony',
+        notify: 'Email this buyer about matches',
+        active: 'Active',
+        notes: 'Notes',
+        create: 'Save brief',
+        save: 'Save changes',
+        nameRequired: 'Give the brief a name',
+      },
+      delete: 'Delete brief',
+      deleteConfirm: 'Delete "{name}"? Its matches are deleted with it.',
+      insights: {
+        title: 'What their viewings say',
+        none: 'No viewing feedback yet.',
+        viewings: '{count} viewings with feedback',
+        averageInterest: 'Average interest {level}/5',
+        suggestion: 'They called the price too high on a property at {price}. Consider a ceiling below that.',
+        apply: 'Set maximum to {price}',
+      },
+      errors: {
+        load: 'Could not load search briefs',
+        save: 'Could not save the search brief',
+        delete: 'Could not delete the search brief',
+      },
+    },
+    matches: {
+      title: 'Matching buyers',
+      subtitle: 'Buyers whose search brief fits this property.',
+      empty: 'No buyer matches yet.',
+      score: '{score}% fit',
+      status: {
+        new: 'New',
+        notified: 'Buyer told',
+        dismissed: 'Dismissed',
+        interested: 'Interested',
+        converted: 'Attached',
+      },
+      reasons: {
+        price_fit: 'Price',
+        location: 'Location',
+        type: 'Type',
+        size: 'Size',
+        must_haves: 'Must-haves',
+      },
+      actions: {
+        createInterest: 'Attach as buyer',
+        dismiss: 'Dismiss',
+      },
+      viaBrief: 'Brief: {name}',
+      errors: {
+        load: 'Could not load matches',
+        update: 'Could not update the match',
+      },
+    },
+    vendorReport: {
+      invalid: 'This link is no longer valid',
+      failed: 'This report could not be loaded',
+      updated: 'Updated {date}',
+      askingPrice: 'Asking price',
+      daysOnMarket: 'Days on the market',
+      enquiries: 'Enquiries',
+      viewings: 'Viewings',
+      offers: 'Offers',
+      noOffers: 'No offers yet.',
+      offersSummary: '{count} offers received, the highest {highest}.',
+      feedback: 'What viewers said',
+      noFeedback: 'No feedback has been recorded yet.',
+      feedbackIntro: 'From {count} viewings',
+      averageInterest: 'average interest {level}/5',
+      pricePosition: 'Where your price sits',
+      pricePositionBody: 'Per square metre, your property is priced above {percentile}% of the {count} comparable properties we are selling.',
+    },
+    automations: {
+      triggerType: 'Start when',
+      stageChanged: 'A card enters a stage',
+      created: 'Something is created',
+      mandateExpiring: 'A mandate is about to expire',
+      withinDays: 'Days before the end date',
+      createdHint: 'Starts when a contact, interest or property is created on the chosen board.',
+      expiringHint: 'Starts once for each mandate that is within this many days of its end date.',
+      anyBoard: 'Any board of this kind',
+    },
+    intake: {
+      button: 'Log an enquiry',
+      title: 'Log an enquiry',
+      firstName: 'First name',
+      lastName: 'Last name',
+      email: 'Email',
+      phone: 'Phone',
+      message: 'What they asked',
+      property: 'Property they asked about',
+      submit: 'Record enquiry',
+      created: 'Enquiry recorded as a new contact.',
+      existing: 'Enquiry added to the existing contact.',
+      suppressed: 'This address has unsubscribed, so no automated emails will be sent to it.',
+      contactRequired: 'An email address or a phone number is required',
+      errors: {
+        save: 'Could not record the enquiry',
+      },
+    },
+    listing: {
+      invalid: 'This listing is no longer available.',
+      gallery: 'Photo gallery',
+      enquiryTitle: 'Ask about this property',
+      sent: 'Thank you. The agency has your message and will be in touch shortly.',
+      failed: 'We could not send your message. Please try again.',
+      firstName: 'First name',
+      lastName: 'Last name',
+      email: 'Email',
+      phone: 'Phone',
+      message: 'Your message',
+      send: 'Send enquiry',
+    },
+    commissions: {
+      title: 'Commissions',
+      subtitle: 'What the agency earns on sales, and each member\'s share.',
+      mine: 'Only my shares',
+      empty: 'No commissions here yet. One is recorded when an offer is accepted.',
+      basis: 'Sale price',
+      markPaid: 'Mark as paid',
+      markPaidConfirm: 'Mark this commission as paid? This cannot be undone.',
+      tabs: {
+        forecast: 'Forecast',
+        accrued: 'Accrued',
+        realized: 'Earned',
+        paid: 'Paid',
+      },
+      status: {
+        accrued: 'Accrued',
+        realized: 'Earned',
+        paid: 'Paid',
+        cancelled: 'Cancelled',
+      },
+      earnings: {
+        title: 'Earnings',
+        accrued: 'Accrued (offer accepted)',
+        realized: 'Earned (sale closed)',
+        paid: 'Paid out',
+      },
+      forecast: {
+        hint: 'A planning figure: the fee on each active listing at its asking price, weighted by how far it has progressed. Nothing here is owed yet.',
+        potential: 'If everything sells',
+        weighted: 'Weighted forecast',
+        empty: 'No active mandates on the market to forecast.',
+        listings: '{count} listings',
+      },
+      roles: {
+        listing_agent: 'Listing agent',
+        selling_agent: 'Selling agent',
+        introducer: 'Introducer',
+        agency: 'Agency',
+        manager: 'Manager',
+      },
+      shares: {
+        title: 'Commission shares',
+        role: 'Role',
+        member: 'Member',
+        percent: 'Share (%)',
+        add: 'Add a share',
+        total: 'Total: {total}%',
+        over: 'The shares add up to {total}%, which is more than 100%.',
+        save: 'Save shares',
+        edit: 'Edit shares',
+        agency: 'Agency',
+      },
+      errors: {
+        load: 'Could not load commissions.',
+        save: 'Could not save this change.',
+      },
+    },
+    portalFeeds: {
+      title: 'Portal feeds',
+      subtitle: 'Send your published listings to property portals and receive their enquiries.',
+      new: 'New feed',
+      empty: 'No feeds yet. Create one and give its URL to your portal.',
+      onboardingNote: 'A feed is a starting point, not a certified integration: each portal has its own onboarding and may need its own field mapping. Treat the feed URL as a password.',
+      portals: {
+        generic: 'Generic',
+        seloger: 'SeLoger',
+        idealista: 'Idealista',
+        rightmove: 'Rightmove',
+        immoweb: 'Immoweb',
+        zillow: 'Zillow',
+      },
+      includeUnpublished: 'Includes unpublished',
+      active: 'Active',
+      paused: 'Paused',
+      url: 'Feed URL',
+      lastFetched: 'Last fetched {date} · {count} fetches',
+      neverFetched: 'Not fetched yet',
+      copy: 'Copy URL',
+      copied: 'Feed URL copied.',
+      pause: 'Pause',
+      resume: 'Resume',
+      rotate: 'Replace URL',
+      rotateConfirm: 'Replace the feed URL? The portal will lose access until you give it the new one.',
+      deleteConfirm: 'Delete the feed "{name}"?',
+      form: {
+        name: 'Name',
+        namePlaceholder: 'e.g. Idealista',
+        portal: 'Portal',
+        format: 'Format',
+        includeUnpublished: 'Include properties that are not published',
+        create: 'Create feed',
+      },
+      errors: {
+        load: 'Could not load portal feeds.',
+        name: 'Give the feed a name.',
+        save: 'Could not save this change.',
+      },
+    },
+  },
+  // </realEstate:value>
 };
 
 export default en;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AppShell from '@/components/AppShell';
 import NoWorkspace from '@/components/NoWorkspace';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -16,6 +16,12 @@ import { useAppStore } from '@/store/appStore';
 import Toast from '@/components/Toast';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { cachedJson } from '@/lib/client-cache';
+import { InterestBoardCard, PropertyBoardCard } from '@/components/realestate/cards';
+import InterestModal from '@/components/realestate/InterestModal';
+import PropertyFormModal from '@/components/realestate/PropertyFormModal';
+import { useWorkspaceInfo } from '@/components/realestate/ui';
+import { SUBJECT_ENDPOINTS, type SubjectType } from '@/lib/crm/subjects';
+import EnquiryModal from '@/components/realestate/EnquiryModal';
 
 interface Pipeline {
     id: string;
@@ -25,9 +31,13 @@ interface Pipeline {
     stages: string[];
     workspaceId: string;
     order: number;
+    /** What a card on this board is: a lead, a buyer's interest in a property, or a property. */
+    subjectType?: SubjectType;
     leads?: Lead[];
     _count?: {
         leads: number;
+        interests?: number;
+        properties?: number;
     };
 }
 
@@ -66,6 +76,7 @@ interface LeadList {
 function CRMPageInner() {
     const { t } = useI18n();
     const searchParams = useSearchParams();
+    const router = useRouter();
     const workspaceId = searchParams.get('workspace') || '';
     const { currentWorkspaceId } = useAppStore();
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -89,6 +100,15 @@ function CRMPageInner() {
     const [hydrated, setHydrated] = useState(false);
 
     const effectiveWorkspaceId = workspaceId || currentWorkspaceId || '';
+    const workspaceInfo = useWorkspaceInfo(effectiveWorkspaceId);
+    const [showInterestModal, setShowInterestModal] = useState(false);
+    const [showPropertyModal, setShowPropertyModal] = useState(false);
+    const [showEnquiryModal, setShowEnquiryModal] = useState(false);
+
+    // Lead boards are the original CRM; interest and property boards hold the
+    // buyer journey and the owner funnel. Which one is selected decides what the
+    // header offers and what the board draws.
+    const boardSubject: SubjectType = selectedPipeline?.subjectType ?? 'Lead';
 
     // currentWorkspaceId is restored from localStorage after the first render; without this
     // gate a direct visit to /crm flashes the "no workspace" screen before the board appears.
@@ -157,6 +177,9 @@ function CRMPageInner() {
                 const data = await response.json();
                 setPipelines(data);
                 setSelectedPipeline(prev => {
+                    // /crm?pipeline=<id> opens that board (the properties page links here).
+                    const wanted = !prev ? data.find((p: Pipeline) => p.id === searchParams.get('pipeline')) : null;
+                    if (wanted) return wanted;
                     if (!prev) return data[0] || null;
                     // Keep current pipeline selected but with updated data
                     return data.find((p: Pipeline) => p.id === prev.id) || data[0] || null;
@@ -316,7 +339,7 @@ function CRMPageInner() {
 
     const handlePipelineDelete = async (pipelineId: string) => {
         const target = pipelines.find(p => p.id === pipelineId);
-        const leadCount = target?._count?.leads ?? 0;
+        const leadCount = (target?._count?.leads ?? 0) + (target?._count?.interests ?? 0) + (target?._count?.properties ?? 0);
         const name = target?.name ?? t('crm.page.thisPipelineFallback');
         const warning = leadCount > 0
             ? t('crm.page.confirmDeletePipelineWithLeads', { name, count: leadCount })
@@ -426,7 +449,7 @@ function CRMPageInner() {
             .then(res => (res.ok ? res.json() : null))
             .then(lead => {
                 if (cancelled || !lead?.id) return;
-                const tab = ['details', 'meetings', 'files', 'history'].includes(deepLinkTab ?? '')
+                const tab = ['details', 'interests', 'meetings', 'files', 'history'].includes(deepLinkTab ?? '')
                     ? (deepLinkTab as LeadModalTab)
                     : 'details';
                 setEditingLead(lead);
@@ -448,14 +471,19 @@ function CRMPageInner() {
             return;
         }
 
-        // Used to warn before removing a stage that still holds leads
+        // Used to warn before removing a stage that still holds cards
         try {
-            const response = await fetch(`/api/leads?pipelineId=${pipeline.id}`);
+            const subject = pipeline.subjectType ?? 'Lead';
+            const url = subject === 'Lead'
+                ? `/api/leads?pipelineId=${pipeline.id}`
+                : `${SUBJECT_ENDPOINTS[subject]}?workspaceId=${effectiveWorkspaceId}&pipelineId=${pipeline.id}`;
+            const response = await fetch(url);
             if (!response.ok) return;
-            const leads: Lead[] = await response.json();
+            const body = await response.json();
+            const cards: { stage: string }[] = subject === 'Lead' ? body : (body.interests ?? body.properties ?? []);
             setStageLeadCounts(
-                leads.reduce<Record<string, number>>((counts, lead) => {
-                    counts[lead.stage] = (counts[lead.stage] || 0) + 1;
+                cards.reduce<Record<string, number>>((counts, card) => {
+                    counts[card.stage] = (counts[card.stage] || 0) + 1;
                     return counts;
                 }, {})
             );
@@ -487,14 +515,16 @@ function CRMPageInner() {
             currentPage={undefined}
             breadcrumbs={[
                 { label: t('nav.dashboard'), href: '/dashboard' },
-                { label: t('nav.crm'), href: `/crm?workspace=${effectiveWorkspaceId}` },
+                { label: t('realEstate.nav.buyers'), href: `/crm?workspace=${effectiveWorkspaceId}` },
             ]}
         >
             <div className="p-4 sm:p-6 h-full">
                 {/* Header */}
                 <div className="mb-6 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                        <h1 className="display-md text-on-surface">{t('nav.crm')}</h1>
+                        <h1 className="display-md text-on-surface">
+                            {boardSubject === 'Property' ? t('realEstate.nav.properties') : t('realEstate.nav.buyers')}
+                        </h1>
 
                         {/* Pipeline Selector */}
                         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -521,7 +551,7 @@ function CRMPageInner() {
                         </div>
 
                         {/* View Toggle */}
-                        {selectedPipeline && (
+                        {selectedPipeline && boardSubject === 'Lead' && (
                             <ViewToggle
                                 viewMode={viewMode}
                                 onViewModeChange={handleViewModeChange}
@@ -530,6 +560,29 @@ function CRMPageInner() {
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
+                        {boardSubject === 'Interest' && (
+                            <button
+                                onClick={() => setShowInterestModal(true)}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
+                            >
+                                {t('realEstate.interests.new')}
+                            </button>
+                        )}
+                        {boardSubject === 'Property' && (
+                            <button
+                                onClick={() => setShowPropertyModal(true)}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
+                            >
+                                {t('realEstate.properties.new')}
+                            </button>
+                        )}
+                        {boardSubject === 'Lead' && (<>
+                        <button
+                            onClick={() => setShowEnquiryModal(true)}
+                            className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
+                        >
+                            {t('realEstate.intake.button')}
+                        </button>
                         <button
                             onClick={() => handleOpenLeadListModal()}
                             className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
@@ -554,13 +607,36 @@ function CRMPageInner() {
                         >
                             {t('crm.page.addLeadButton')}
                         </button>
+                        </>)}
                     </div>
                 </div>
 
                 {/* Pipeline Board / List View */}
                 {selectedPipeline ? (
                     <div className="h-[calc(100vh-180px)]">
-                        {viewMode === 'kanban' ? (
+                        {boardSubject !== 'Lead' ? (
+                            <PipelineBoard
+                                pipeline={selectedPipeline}
+                                leadLists={leadLists}
+                                subjectType={boardSubject as 'Interest' | 'Property'}
+                                workspaceId={effectiveWorkspaceId}
+                                refreshKey={boardRefreshKey}
+                                renderCard={boardSubject === 'Interest'
+                                    ? (card) => <InterestBoardCard interest={card} currency={workspaceInfo.currency} />
+                                    : (card) => <PropertyBoardCard property={card} currency={workspaceInfo.currency} />}
+                                onOpenCard={(card) => router.push(
+                                    boardSubject === 'Interest'
+                                        ? `/properties/${card.propertyId}?workspace=${effectiveWorkspaceId}&tab=interests`
+                                        : `/properties/${card.id}?workspace=${effectiveWorkspaceId}`
+                                )}
+                                onMoveError={showError}
+                                onLeadDelete={handleLeadDelete}
+                                onPipelineUpdate={handlePipelineUpdate}
+                                onPipelineDelete={handlePipelineDelete}
+                                onOpenLeadModal={handleOpenLeadModal}
+                                onOpenPipelineModal={handleOpenPipelineModal}
+                            />
+                        ) : viewMode === 'kanban' ? (
                             <PipelineBoard
                                 pipeline={selectedPipeline}
                                 leadLists={leadLists}
@@ -636,6 +712,40 @@ function CRMPageInner() {
                         onClose={() => {
                             setShowLeadListModal(false);
                             setEditingLeadList(null);
+                        }}
+                    />
+                )}
+
+                {showEnquiryModal && (
+                    <EnquiryModal
+                        workspaceId={effectiveWorkspaceId}
+                        onClose={() => setShowEnquiryModal(false)}
+                        onDone={(message) => {
+                            setShowEnquiryModal(false);
+                            setToast({ message, type: 'success' });
+                            setBoardRefreshKey(k => k + 1);
+                        }}
+                    />
+                )}
+
+                {showInterestModal && (
+                    <InterestModal
+                        workspaceId={effectiveWorkspaceId}
+                        onClose={() => setShowInterestModal(false)}
+                        onSaved={() => {
+                            setShowInterestModal(false);
+                            setBoardRefreshKey(k => k + 1);
+                        }}
+                    />
+                )}
+
+                {showPropertyModal && (
+                    <PropertyFormModal
+                        workspaceId={effectiveWorkspaceId}
+                        onClose={() => setShowPropertyModal(false)}
+                        onSaved={() => {
+                            setShowPropertyModal(false);
+                            setBoardRefreshKey(k => k + 1);
                         }}
                     />
                 )}

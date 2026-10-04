@@ -8,11 +8,12 @@ import {
   MAX_CUSTOM_LABEL,
   isCustomFieldType,
   isValidFieldKey,
+  parseCustomFieldEntity,
   toFieldKey,
 } from '@/lib/product-custom-fields';
 
-// GET /api/products/custom-fields?workspaceId=…
-// The workspace's custom product fields, in display order.
+// GET /api/products/custom-fields?workspaceId=…&entityType=product|property
+// The workspace's custom fields for products (default) or properties, in display order.
 export async function GET(request: NextRequest) {
   const workspaceId = new URL(request.url).searchParams.get('workspaceId');
   if (!workspaceId) return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 });
@@ -20,13 +21,15 @@ export async function GET(request: NextRequest) {
   const access = await requireWorkspaceAccess(workspaceId);
   if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
 
-  const fields = await loadCustomFieldDefs(workspaceId);
+  const entityType = parseCustomFieldEntity(new URL(request.url).searchParams.get('entityType'));
+  const fields = await loadCustomFieldDefs(workspaceId, entityType);
 
-  // How many products hold a value for each field, so deleting one can say what it removes.
+  // How many rows hold a value for each field, so deleting one can say what it removes.
+  const table = Prisma.raw(entityType === 'property' ? '"Property"' : '"Product"');
   const counts = fields.length
     ? await prisma.$queryRaw<Array<{ key: string; count: bigint }>>(Prisma.sql`
         SELECT k AS key, COUNT(*)::bigint AS count
-        FROM "Product", jsonb_object_keys("customFields") AS k
+        FROM ${table}, jsonb_object_keys("customFields") AS k
         WHERE "workspaceId" = ${workspaceId}
         GROUP BY k
       `)
@@ -48,6 +51,7 @@ export async function POST(request: NextRequest) {
   }
 
   const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : '';
+  const entityType = parseCustomFieldEntity(body.entityType);
   const label = typeof body.label === 'string' ? body.label.trim().slice(0, MAX_CUSTOM_LABEL) : '';
   const type = body.type === undefined ? 'text' : body.type;
   const key = typeof body.key === 'string' && body.key.trim() ? body.key.trim() : toFieldKey(label);
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
   if (!workspaceId) return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 });
   if (!label) return NextResponse.json({ error: 'Field name is required' }, { status: 400 });
   if (!isCustomFieldType(type)) return NextResponse.json({ error: 'Unknown field type' }, { status: 400 });
-  if (!isValidFieldKey(key)) {
+  if (!isValidFieldKey(key, entityType)) {
     return NextResponse.json(
       { error: 'Field key must start with a letter, use only letters and numbers, and not be a built-in field' },
       { status: 400 }
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
   if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status });
 
   const existing = await prisma.productCustomField.findMany({
-    where: { workspaceId },
+    where: { workspaceId, entityType },
     select: { key: true, position: true },
   });
   if (existing.length >= MAX_CUSTOM_FIELDS) {
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
     const field = await prisma.productCustomField.create({
       data: {
         workspaceId,
+        entityType,
         key,
         label,
         type,

@@ -15,6 +15,24 @@ export const BUILT_IN_PRODUCT_KEYS = [
   'taxRate', 'stockQuantity', 'isActive', 'createdById', 'createdAt', 'updatedAt', 'customFields',
 ] as const
 
+/** Which table a custom field's values live on. */
+export type CustomFieldEntity = 'product' | 'property'
+export const CUSTOM_FIELD_ENTITIES: CustomFieldEntity[] = ['product', 'property']
+
+export function parseCustomFieldEntity(value: unknown): CustomFieldEntity {
+  return value === 'property' ? 'property' : 'product'
+}
+
+/** Built-in property columns; a property custom field may not reuse one of these keys. */
+export const BUILT_IN_PROPERTY_KEYS = [
+  'id', 'workspaceId', 'reference', 'title', 'description', 'propertyType', 'transactionType', 'status',
+  'pipelineId', 'stage', 'order', 'vendorId', 'price', 'currency', 'soldAt', 'soldPrice', 'addressLine',
+  'isAddressPublic', 'city', 'district', 'postalCode', 'countryCode', 'latitude', 'longitude', 'surfaceArea',
+  'landArea', 'rooms', 'bedrooms', 'bathrooms', 'floor', 'buildYear', 'energyRating', 'hasElevator',
+  'hasParking', 'hasBalcony', 'hasTerrace', 'hasGarden', 'hasPool', 'furnished', 'customFields', 'isPublished',
+  'publishedAt', 'listedAt', 'publicToken', 'ownerId', 'createdById', 'createdAt', 'updatedAt',
+] as const
+
 /** Prefix for custom fields in the import mapping (`custom:unitsPerBox`). */
 export const CUSTOM_MAPPING_PREFIX = 'custom:'
 
@@ -41,8 +59,9 @@ export function toFieldKey(label: string): string {
   return key.replace(/^[0-9]+/, '').slice(0, 40)
 }
 
-export function isValidFieldKey(key: string) {
-  return /^[a-z][A-Za-z0-9]{0,39}$/.test(key) && !(BUILT_IN_PRODUCT_KEYS as readonly string[]).includes(key)
+export function isValidFieldKey(key: string, entity: CustomFieldEntity = 'product') {
+  const builtIn: readonly string[] = entity === 'property' ? BUILT_IN_PROPERTY_KEYS : BUILT_IN_PRODUCT_KEYS
+  return /^[a-z][A-Za-z0-9]{0,39}$/.test(key) && !builtIn.includes(key)
 }
 
 /** Loose normalisation for matching spreadsheet headers to fields. */

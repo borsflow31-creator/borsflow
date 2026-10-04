@@ -7,7 +7,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useI18n } from '@/i18n/I18nProvider'
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider'
+import { SEGMENTABLE_SUBJECT_TYPES, asSubjectType, subjectFields, type SubjectType } from '@/lib/crm/subjects'
 import { X, Target, Plus, Trash2, Filter, GitBranch } from 'lucide-react'
 import PipelineStagePicker, { pipelineCriteria, splitPipelineCriteria, usePipelines } from './PipelineStagePicker'
 
@@ -41,6 +42,7 @@ export default function SegmentModal({
     criteria: [] as Condition[],
     tags: [] as string[]
   })
+  const [subjectType, setSubjectType] = useState<SubjectType>('Lead')
   const [pipelineId, setPipelineId] = useState('')
   const [stages, setStages] = useState<string[]>([])
   const pipelines = usePipelines(workspaceId, isOpen)
@@ -49,24 +51,13 @@ export default function SegmentModal({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  // These must be real Lead column names — criteria are evaluated against the
-  // lead object, so a field that doesn't exist silently matches nothing.
-  const availableFields = [
-    { value: 'firstName', label: t('emailMarketing.segmentModal.fieldFirstName') },
-    { value: 'lastName', label: t('emailMarketing.segmentModal.fieldLastName') },
-    { value: 'email', label: t('emailMarketing.segmentModal.fieldEmail') },
-    { value: 'phone', label: t('emailMarketing.segmentModal.fieldPhone') },
-    { value: 'status', label: t('emailMarketing.segmentModal.fieldStatus') },
-    { value: 'stage', label: t('emailMarketing.segmentModal.fieldStage') },
-    { value: 'pipeline.name', label: t('emailMarketing.segmentModal.fieldPipelineName') },
-    { value: 'value', label: t('emailMarketing.segmentModal.fieldDealValue') },
-    { value: 'company', label: t('emailMarketing.segmentModal.fieldCompany') },
-    { value: 'position', label: t('emailMarketing.segmentModal.fieldPosition') },
-    { value: 'source', label: t('emailMarketing.segmentModal.fieldSource') },
-    { value: 'tags', label: t('emailMarketing.segmentModal.fieldTags') },
-    { value: 'createdAt', label: t('emailMarketing.segmentModal.fieldCreatedDate') },
-    { value: 'updatedAt', label: t('emailMarketing.segmentModal.fieldUpdatedDate') }
-  ]
+  // These must be real fields of the chosen subject's row: criteria are evaluated
+  // against that object, so a field that does not exist silently matches nothing.
+  // The catalog lives next to the loaders that build those rows (SUBJECT_FIELDS).
+  const availableFields = subjectFields(subjectType).map(field => ({
+    value: field.field,
+    label: t(field.labelKey as MessageKey)
+  }))
 
   const operators = [
     { value: 'equals', label: t('emailMarketing.segmentModal.opEquals') },
@@ -88,6 +79,7 @@ export default function SegmentModal({
         ? (typeof segment.criteria === 'string' ? JSON.parse(segment.criteria) : segment.criteria)
         : []
       const split = splitPipelineCriteria(saved)
+      setSubjectType(asSubjectType(segment.subjectType))
       setPipelineId(split.pipelineId)
       setStages(split.stages)
       setFormData({
@@ -100,6 +92,7 @@ export default function SegmentModal({
           : []
       })
     } else {
+      setSubjectType('Lead')
       setPipelineId('')
       setStages([])
       setFormData({ name: '', description: '', logicOperator: 'AND', criteria: [], tags: [] })
@@ -187,6 +180,7 @@ export default function SegmentModal({
       const segmentData = {
         ...formData,
         workspaceId,
+        subjectType,
         criteria: JSON.stringify([...pipelineCriteria(pipelineId, stages), ...formData.criteria]),
         tags: JSON.stringify(formData.tags)
       }
@@ -239,7 +233,7 @@ export default function SegmentModal({
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                  className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.name ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
                   placeholder={t('emailMarketing.segmentModal.segmentNamePlaceholder')}
@@ -258,14 +252,38 @@ export default function SegmentModal({
                   value={formData.description}
                   onChange={handleChange}
                   rows={2}
-                  className="w-full px-4 py-2 border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                   placeholder={t('emailMarketing.segmentModal.descriptionPlaceholder')}
                 />
               </div>
             </div>
           </div>
 
-          {/* CRM pipeline */}
+          {/* What the segment is a list of */}
+          <div>
+            <label className="block text-sm font-medium text-on-surface mb-1">
+              {t('realEstate.pipelines.subject')}
+            </label>
+            <select
+              value={subjectType}
+              onChange={(e) => {
+                // Fields, boards and stages all belong to the subject, so a change
+                // starts the conditions over rather than keeping ones that no longer exist.
+                setSubjectType(e.target.value as SubjectType)
+                setPipelineId('')
+                setStages([])
+                setFormData(prev => ({ ...prev, criteria: [] }))
+              }}
+              className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+            >
+              {SEGMENTABLE_SUBJECT_TYPES.map(type => (
+                <option key={type} value={type}>{t(`realEstate.subjects.${type}` as MessageKey)}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* CRM pipeline: only subjects that sit on a board have one */}
+          {subjectType !== 'Mandate' && (
           <div>
             <h3 className="text-lg font-medium text-on-surface mb-1 flex items-center">
               <GitBranch className="h-5 w-5 mr-2 text-secondary" />
@@ -273,7 +291,7 @@ export default function SegmentModal({
             </h3>
             <p className="mb-4 text-sm text-on-surface-variant">{t('emailMarketing.pipelinePicker.sectionHint')}</p>
             <PipelineStagePicker
-              pipelines={pipelines}
+              pipelines={pipelines.filter(p => p.subjectType === subjectType)}
               pipelineId={pipelineId}
               stages={stages}
               emptyLabel={t('emailMarketing.pipelinePicker.anyPipeline')}
@@ -284,6 +302,7 @@ export default function SegmentModal({
               }}
             />
           </div>
+          )}
 
           {/* Criteria */}
           <div>

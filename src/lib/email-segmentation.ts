@@ -1,21 +1,27 @@
 /**
  * Email Segmentation Service
- * 
- * Manages customer segmentation logic and segment member management
- * for targeted email marketing campaigns.
+ *
+ * Manages subject segmentation logic and segment member management for targeted
+ * email marketing campaigns.
+ *
+ * A segment is derived, not stored: a rule holds criteria, and materializing it
+ * evaluates those criteria against every row of the rule's subject type,
+ * replacing SegmentMember. The evaluator itself lives in src/lib/crm/criteria.ts
+ * and the per-subject row loading in src/lib/crm/subject-registry.ts, so a
+ * segment over interests or mandates needs no code here beyond its loader.
  */
 
 import { prisma } from '@/lib/prisma'
+import { matchesCriteria, parseJson, type Criteria } from '@/lib/crm/criteria'
+import { asSubjectType, contactLeadIdFor, type SubjectType } from '@/lib/crm/subjects'
+import { loaderFor, type SubjectLoader } from '@/lib/crm/subject-registry'
 
+// Re-exported because the automation engine and the segment routes import the
+// criteria shape from here, and it is the same shape the builder produces.
+export type { Criteria }
 
-// Criteria structure
-export interface Criteria {
-  field: string
-  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than' | 'in' | 'not_in' | 'is_null' | 'is_not_null' | 'is_empty' | 'is_not_empty'
-  value: any
-  /** Always AND-ed, regardless of the rule's logicOperator */
-  required?: boolean
-}
+/** How many members to write per insert when materializing a large segment. */
+const MEMBER_INSERT_CHUNK = 1000
 
 // Segment rule structure
 export interface SegmentRule {
@@ -23,6 +29,7 @@ export interface SegmentRule {
   name: string
   description?: string
   workspaceId: string
+  subjectType: SubjectType
   criteria: Criteria[]
   logicOperator: 'AND' | 'OR'
   isActive: boolean
@@ -35,10 +42,12 @@ export interface SegmentRule {
 export interface SegmentMember {
   id: string
   segmentationRuleId: string
-  leadId: string
+  subjectType: SubjectType
+  subjectId: string
+  /** The contact this membership mails; null for subjects with none (Property). */
+  leadId: string | null
   matchedAt: Date
   score?: number
-  metadata?: Record<string, any>
 }
 
 // Segment statistics structure
@@ -46,8 +55,38 @@ export interface SegmentStatistics {
   totalMembers: number
   averageScore: number
   scoreDistribution: Record<string, number>
-  topPerformers: Array<{ leadId: string; score: number }>
-  distributionByField: Record<string, Record<string, number>>
+  topPerformers: Array<{ subjectType: SubjectType; subjectId: string; score: number }>
+}
+
+
+/** Shape a SegmentationRule row the way callers of this service expect. */
+function toSegmentRule(rule: {
+  id: string
+  name: string
+  description: string | null
+  workspaceId: string
+  subjectType: string
+  criteria: string
+  logicOperator: string
+  isActive: boolean
+  estimatedSize: number | null
+  lastCalculated: Date | null
+  tags: string | null
+}): SegmentRule {
+  return {
+    id: rule.id,
+    name: rule.name,
+    description: rule.description || undefined,
+    workspaceId: rule.workspaceId,
+    subjectType: asSubjectType(rule.subjectType),
+    // Malformed criteria used to throw out of whichever route read the rule.
+    criteria: parseJson<Criteria[]>(rule.criteria, []),
+    logicOperator: rule.logicOperator as 'AND' | 'OR',
+    isActive: rule.isActive,
+    estimatedSize: rule.estimatedSize || undefined,
+    lastCalculated: rule.lastCalculated || undefined,
+    tags: parseJson<string[] | undefined>(rule.tags, undefined),
+  }
 }
 
 /**
@@ -65,6 +104,7 @@ export class EmailSegmentationService {
     data: {
       name: string
       description?: string
+      subjectType?: SubjectType
       criteria: Criteria[]
       logicOperator?: 'AND' | 'OR'
       tags?: string[]
@@ -76,6 +116,7 @@ export class EmailSegmentationService {
         name: data.name,
         description: data.description,
         workspaceId,
+        subjectType: asSubjectType(data.subjectType),
         criteria: JSON.stringify(data.criteria),
         logicOperator: data.logicOperator || 'AND',
         isActive: true,
@@ -87,18 +128,7 @@ export class EmailSegmentationService {
     // Calculate initial segment size
     await this.calculateSegmentSize(segmentRule.id)
 
-    return {
-      id: segmentRule.id,
-      name: segmentRule.name,
-      description: segmentRule.description || undefined,
-      workspaceId: segmentRule.workspaceId,
-      criteria: JSON.parse(segmentRule.criteria),
-      logicOperator: segmentRule.logicOperator as 'AND' | 'OR',
-      isActive: segmentRule.isActive,
-      estimatedSize: segmentRule.estimatedSize || undefined,
-      lastCalculated: segmentRule.lastCalculated || undefined,
-      tags: segmentRule.tags ? JSON.parse(segmentRule.tags) : undefined
-    }
+    return toSegmentRule(segmentRule)
   }
 
   /**
@@ -109,6 +139,7 @@ export class EmailSegmentationService {
     data: {
       name?: string
       description?: string
+      subjectType?: SubjectType
       criteria?: Criteria[]
       logicOperator?: 'AND' | 'OR'
       isActive?: boolean
@@ -122,6 +153,7 @@ export class EmailSegmentationService {
 
     if (data.name !== undefined) updateData.name = data.name
     if (data.description !== undefined) updateData.description = data.description
+    if (data.subjectType !== undefined) updateData.subjectType = asSubjectType(data.subjectType)
     if (data.criteria !== undefined) updateData.criteria = JSON.stringify(data.criteria)
     if (data.logicOperator !== undefined) updateData.logicOperator = data.logicOperator
     if (data.isActive !== undefined) updateData.isActive = data.isActive
@@ -132,23 +164,14 @@ export class EmailSegmentationService {
       data: updateData
     })
 
-    // Recalculate segment size if criteria changed
-    if (data.criteria !== undefined || data.logicOperator !== undefined) {
+    // Recalculate when anything that decides membership changed. A subjectType
+    // change matters most: the existing members are rows of the previous type and
+    // must be swept, which materialization does.
+    if (data.criteria !== undefined || data.logicOperator !== undefined || data.subjectType !== undefined) {
       await this.calculateSegmentSize(segmentRuleId)
     }
 
-    return {
-      id: segmentRule.id,
-      name: segmentRule.name,
-      description: segmentRule.description || undefined,
-      workspaceId: segmentRule.workspaceId,
-      criteria: JSON.parse(segmentRule.criteria),
-      logicOperator: segmentRule.logicOperator as 'AND' | 'OR',
-      isActive: segmentRule.isActive,
-      estimatedSize: segmentRule.estimatedSize || undefined,
-      lastCalculated: segmentRule.lastCalculated || undefined,
-      tags: segmentRule.tags ? JSON.parse(segmentRule.tags) : undefined
-    }
+    return toSegmentRule(segmentRule)
   }
 
   /**
@@ -174,18 +197,7 @@ export class EmailSegmentationService {
       return null
     }
 
-    return {
-      id: segmentRule.id,
-      name: segmentRule.name,
-      description: segmentRule.description || undefined,
-      workspaceId: segmentRule.workspaceId,
-      criteria: JSON.parse(segmentRule.criteria),
-      logicOperator: segmentRule.logicOperator as 'AND' | 'OR',
-      isActive: segmentRule.isActive,
-      estimatedSize: segmentRule.estimatedSize || undefined,
-      lastCalculated: segmentRule.lastCalculated || undefined,
-      tags: segmentRule.tags ? JSON.parse(segmentRule.tags) : undefined
-    }
+    return toSegmentRule(segmentRule)
   }
 
   /**
@@ -197,22 +209,16 @@ export class EmailSegmentationService {
       orderBy: { createdAt: 'desc' }
     })
 
-    return segmentRules.map(rule => ({
-      id: rule.id,
-      name: rule.name,
-      description: rule.description || undefined,
-      workspaceId: rule.workspaceId,
-      criteria: JSON.parse(rule.criteria),
-      logicOperator: rule.logicOperator as 'AND' | 'OR',
-      isActive: rule.isActive,
-      estimatedSize: rule.estimatedSize || undefined,
-      lastCalculated: rule.lastCalculated || undefined,
-      tags: rule.tags ? JSON.parse(rule.tags) : undefined
-    }))
+    return segmentRules.map(toSegmentRule)
   }
 
   /**
-   * Calculate segment size and update members
+   * Materialize a segment: evaluate its criteria against every row of its
+   * subject type, replace SegmentMember, and cache the size.
+   *
+   * Evaluation happens in JS rather than as a Prisma `where` because the
+   * operator vocabulary does not translate: case-insensitive `in`, same-day date
+   * equality, and dotted paths that reach through relations and into JSON.
    */
   async calculateSegmentSize(segmentRuleId: string): Promise<number> {
     const segmentRule = await prisma.segmentationRule.findUnique({
@@ -223,220 +229,68 @@ export class EmailSegmentationService {
       throw new Error(`Segment rule not found: ${segmentRuleId}`)
     }
 
-    const criteria = JSON.parse(segmentRule.criteria)
-    const logicOperator = segmentRule.logicOperator
+    const subjectType = asSubjectType(segmentRule.subjectType)
+    const loader = loaderFor(subjectType)
+    const criteria = parseJson<Criteria[]>(segmentRule.criteria, [])
 
-    // Get all leads for the workspace. The pipeline is included so dotted-path
-    // criteria like `pipeline.name` resolve — getFieldValue already walks them.
-    const leads = await prisma.lead.findMany({
-      where: {
-        pipeline: {
-          workspaceId: segmentRule.workspaceId
-        }
-      },
-      include: { pipeline: true }
-    })
-
-    // Filter leads based on criteria
-    const matchedLeads = leads.filter(lead => 
-      this.matchesCriteria(lead, criteria, logicOperator as 'AND' | 'OR')
+    const rows = await loader.loadAll(segmentRule.workspaceId)
+    const matched = rows.filter(row =>
+      matchesCriteria(row, criteria, segmentRule.logicOperator as 'AND' | 'OR')
     )
 
-    // Update segment members
-    await this.updateSegmentMembers(segmentRuleId, matchedLeads)
+    await this.replaceSegmentMembers(segmentRuleId, subjectType, loader, matched)
 
-    // Update segment rule with calculated size
-    const updatedRule = await prisma.segmentationRule.update({
+    await prisma.segmentationRule.update({
       where: { id: segmentRuleId },
       data: {
-        estimatedSize: matchedLeads.length,
+        estimatedSize: matched.length,
         lastCalculated: new Date()
       }
     })
 
-    return matchedLeads.length
+    return matched.length
   }
 
   /**
-   * Update segment members
-   */
-  private async updateSegmentMembers(
-    segmentRuleId: string,
-    matchedLeads: any[]
-  ): Promise<void> {
-    // Get existing members
-    const existingMembers = await prisma.segmentMember.findMany({
-      where: { segmentationRuleId: segmentRuleId }
-    })
-
-    const existingMemberIds = new Set(existingMembers.map(m => m.leadId))
-    const matchedLeadIds = new Set(matchedLeads.map(l => l.id))
-
-    // Remove members that no longer match
-    const membersToRemove = existingMembers.filter(m => !matchedLeadIds.has(m.leadId))
-    for (const member of membersToRemove) {
-      await prisma.segmentMember.delete({
-        where: { id: member.id }
-      })
-    }
-
-    // Add new members
-    for (const lead of matchedLeads) {
-      if (!existingMemberIds.has(lead.id)) {
-        const score = this.calculateLeadScore(lead)
-        await prisma.segmentMember.create({
-          data: {
-            segmentationRuleId: segmentRuleId,
-            leadId: lead.id,
-            matchedAt: new Date(),
-            score,
-            metadata: JSON.stringify({
-              status: lead.status,
-              stage: lead.stage,
-              value: lead.value
-            })
-          }
-        })
-      }
-    }
-  }
-
-  /**
-   * Check if lead matches criteria.
+   * Replace a rule's membership with exactly the rows that matched.
    *
-   * Public because the automation engine evaluates trigger conditions and step
-   * send-conditions with the same criteria shape SegmentModal produces — one
-   * evaluator, not two that can drift apart.
+   * Delete-all-then-insert, in one transaction, rather than diffing: a
+   * continuing member's score can change, and Prisma has no set-based way to
+   * write a per-row score to an existing row. Two statements beat the previous
+   * one-query-per-changed-row, and the transaction means no reader ever sees a
+   * half-built segment. The cost is that matchedAt resets on every refresh,
+   * which nothing surfaces as "in segment since".
+   *
+   * The delete is scoped by rule only, deliberately not by subjectType: when a
+   * rule's subject changes, the previous type's members must be swept too.
    */
-  matchesCriteria(
-    lead: any,
-    criteria: Criteria[],
-    logicOperator: 'AND' | 'OR'
-  ): boolean {
-    if (!Array.isArray(criteria) || criteria.length === 0) return true
-    // Required criteria (the pipeline/stage pick) scope the segment, so they
-    // must match even when the remaining conditions are combined with OR.
-    const required = criteria.filter(c => c.required)
-    if (!required.every(criterion => this.matchesCriterion(lead, criterion))) return false
-    const rest = criteria.filter(c => !c.required)
-    if (rest.length === 0) return true
-    if (logicOperator === 'AND') {
-      return rest.every(criterion => this.matchesCriterion(lead, criterion))
-    } else {
-      return rest.some(criterion => this.matchesCriterion(lead, criterion))
-    }
-  }
+  private async replaceSegmentMembers(
+    segmentationRuleId: string,
+    subjectType: SubjectType,
+    loader: SubjectLoader,
+    matched: any[]
+  ): Promise<void> {
+    const matchedAt = new Date()
+    const rows = matched.map(row => ({
+      segmentationRuleId,
+      subjectType,
+      subjectId: row.id as string,
+      // Derived here and nowhere else: a CHECK constraint ties leadId to
+      // subjectType, and Prisma cannot see it.
+      leadId: contactLeadIdFor(subjectType, row),
+      matchedAt,
+      score: loader.score(row),
+    }))
 
-  /**
-   * Check if lead matches single criterion
-   */
-  matchesCriterion(lead: any, criterion: Criteria): boolean {
-    const fieldValue = this.getFieldValue(lead, criterion.field)
-
-    // The UI sends every value as text; compare numbers and dates by value, not
-    // by strict identity with that text (which never matched).
-    const asComparable = (v: any): number | null => {
-      if (v instanceof Date) return v.getTime()
-      if (typeof v === 'number') return v
-      return null
-    }
-    const fieldNum = asComparable(fieldValue)
-    const inputNum = fieldNum === null ? null
-      : fieldValue instanceof Date ? Date.parse(String(criterion.value))
-      : Number(criterion.value)
-    const typed = fieldNum !== null && inputNum !== null && !Number.isNaN(inputNum)
-    // A date "equals" a day, not an exact millisecond
-    const sameDay = fieldValue instanceof Date && typed
-      ? fieldValue.toISOString().slice(0, 10) === new Date(inputNum!).toISOString().slice(0, 10)
-      : null
-
-    switch (criterion.operator) {
-      case 'equals':
-        return sameDay ?? (typed ? fieldNum === inputNum : fieldValue === criterion.value)
-      case 'not_equals':
-        return sameDay !== null ? !sameDay : typed ? fieldNum !== inputNum : fieldValue !== criterion.value
-      case 'contains':
-        return String(fieldValue).toLowerCase().includes(String(criterion.value).toLowerCase())
-      case 'not_contains':
-        return !String(fieldValue).toLowerCase().includes(String(criterion.value).toLowerCase())
-      case 'starts_with':
-        return String(fieldValue).toLowerCase().startsWith(String(criterion.value).toLowerCase())
-      case 'ends_with':
-        return String(fieldValue).toLowerCase().endsWith(String(criterion.value).toLowerCase())
-      case 'greater_than':
-        return typed ? fieldNum! > inputNum! : Number(fieldValue) > Number(criterion.value)
-      case 'less_than':
-        return typed ? fieldNum! < inputNum! : Number(fieldValue) < Number(criterion.value)
-      // Case-insensitive: new leads default to stage "new" while pipelines name it "New"
-      case 'in':
-        return Array.isArray(criterion.value) && criterion.value.some((v: any) => String(v).toLowerCase() === String(fieldValue ?? '').toLowerCase())
-      case 'not_in':
-        return Array.isArray(criterion.value) && !criterion.value.some((v: any) => String(v).toLowerCase() === String(fieldValue ?? '').toLowerCase())
-      case 'is_null':
-      // SegmentModal labels these "is empty" / "is not empty"; accept both spellings
-      // so criteria saved from the UI actually evaluate.
-      case 'is_empty':
-        return fieldValue === null || fieldValue === undefined || fieldValue === ''
-      case 'is_not_null':
-      case 'is_not_empty':
-        return fieldValue !== null && fieldValue !== undefined && fieldValue !== ''
-      default:
-        return false
-    }
-  }
-
-  /**
-   * Get field value from lead object
-   */
-  private getFieldValue(lead: any, field: string): any {
-    const parts = field.split('.')
-    let value = lead
-
-    for (const part of parts) {
-      if (value === null || value === undefined) {
-        return null
-      }
-      value = value[part]
+    const chunks: (typeof rows)[] = []
+    for (let i = 0; i < rows.length; i += MEMBER_INSERT_CHUNK) {
+      chunks.push(rows.slice(i, i + MEMBER_INSERT_CHUNK))
     }
 
-    return value
-  }
-
-  /**
-   * Calculate lead score
-   */
-  private calculateLeadScore(lead: any): number {
-    let score = 0
-
-    // Status-based scoring
-    const statusScores: Record<string, number> = {
-      'new': 10,
-      'contacted': 20,
-      'qualified': 40,
-      'proposal': 60,
-      'negotiation': 80,
-      'won': 100,
-      'lost': 0
-    }
-
-    score += statusScores[lead.status] || 0
-
-    // Value-based scoring
-    if (lead.value) {
-      score += Math.min(Math.floor(lead.value / 1000), 50)
-    }
-
-    // Stage-based scoring
-    if (lead.stage === 'proposal' || lead.stage === 'negotiation') {
-      score += 20
-    }
-
-    // Contact information completeness
-    if (lead.email) score += 10
-    if (lead.phone) score += 10
-    if (lead.company) score += 10
-
-    return Math.min(score, 100)
+    await prisma.$transaction([
+      prisma.segmentMember.deleteMany({ where: { segmentationRuleId } }),
+      ...chunks.map(data => prisma.segmentMember.createMany({ data })),
+    ])
   }
 
   /**
@@ -466,10 +320,11 @@ export class EmailSegmentationService {
     return members.map(member => ({
       id: member.id,
       segmentationRuleId: member.segmentationRuleId,
+      subjectType: asSubjectType(member.subjectType),
+      subjectId: member.subjectId,
       leadId: member.leadId,
       matchedAt: member.matchedAt,
       score: member.score || undefined,
-      metadata: member.metadata ? JSON.parse(member.metadata) : undefined
     }))
   }
 
@@ -509,82 +364,72 @@ export class EmailSegmentationService {
       .sort((a, b) => (b.score || 0) - (a.score || 0))
       .slice(0, 10)
       .map(m => ({
-        leadId: m.leadId,
+        subjectType: asSubjectType(m.subjectType),
+        subjectId: m.subjectId,
         score: m.score || 0
       }))
 
-    // Distribution by field
-    const distributionByField: Record<string, Record<string, number>> = {}
-    
-    for (const member of members) {
-      if (member.metadata) {
-        const metadata = JSON.parse(member.metadata)
-        
-        for (const [field, value] of Object.entries(metadata)) {
-          if (!distributionByField[field]) {
-            distributionByField[field] = {}
-          }
-          
-          const valueStr = String(value)
-          if (!distributionByField[field][valueStr]) {
-            distributionByField[field][valueStr] = 0
-          }
-          
-          distributionByField[field][valueStr]++
-        }
-      }
-    }
+    // There was a histogram here built from SegmentMember.metadata. That column
+    // snapshotted {status, stage, value} at match time and is no longer written,
+    // because it was stale the moment it was written and duplicated what
+    // subjectId already reaches. A distribution over live fields belongs on the
+    // subject rows, not on the membership join.
 
     return {
       totalMembers,
       averageScore,
       scoreDistribution,
-      topPerformers,
-      distributionByField
+      topPerformers
     }
   }
 
   /**
-   * Get leads matching segment criteria
+   * Refresh the stalest active rules, across all workspaces.
+   *
+   * Replaces refreshWorkspaceSegments, which recalculated every rule in a
+   * workspace and had no callers. Materializing a segment loads every row of its
+   * subject type, so it must never sit on a write path: a lead edit that also
+   * rebuilt twenty segments would make the edit as slow as the largest segment.
+   *
+   * The three paths that may recompute are this cron, the targeted recalculation
+   * immediately before a campaign send, and an explicit user save. New-listing
+   * matching deliberately reads SearchBrief rather than SegmentationRule, so no
+   * per-event path even wants a refresh.
+   *
+   * Each rule is isolated: one rule with unloadable subjects must not starve the
+   * rest of the batch.
    */
-  async getLeadsForSegment(segmentRuleId: string): Promise<any[]> {
-    const segmentRule = await prisma.segmentationRule.findUnique({
-      where: { id: segmentRuleId },
-      include: {
-        members: {
-          include: {
-            lead: true
-          }
-        }
-      }
-    })
+  async refreshStaleSegments(
+    options?: { limit?: number; maxAgeMinutes?: number }
+  ): Promise<{ refreshed: number; failed: number }> {
+    const limit = options?.limit ?? 25
+    const cutoff = new Date(Date.now() - (options?.maxAgeMinutes ?? 60) * 60_000)
 
-    if (!segmentRule) {
-      return []
-    }
-
-    return segmentRule.members.map(member => member.lead)
-  }
-
-  /**
-   * Refresh all active segments for workspace
-   */
-  async refreshWorkspaceSegments(workspaceId: string): Promise<number> {
-    const segmentRules = await prisma.segmentationRule.findMany({
+    const stale = await prisma.segmentationRule.findMany({
       where: {
-        workspaceId,
-        isActive: true
-      }
+        isActive: true,
+        OR: [{ lastCalculated: null }, { lastCalculated: { lt: cutoff } }],
+      },
+      // Nulls first on Postgres ascending, so never-calculated rules go first.
+      orderBy: { lastCalculated: 'asc' },
+      take: limit,
+      select: { id: true },
     })
 
-    let totalProcessed = 0
+    let refreshed = 0
+    let failed = 0
 
-    for (const segmentRule of segmentRules) {
-      const size = await this.calculateSegmentSize(segmentRule.id)
-      totalProcessed += size
+    for (const { id } of stale) {
+      try {
+        await this.calculateSegmentSize(id)
+        refreshed++
+      } catch (error) {
+        failed++
+        console.error(`[email-segmentation] rule ${id} failed to refresh:`, error)
+      }
     }
 
-    return totalProcessed
+    return { refreshed, failed }
   }
 
   /**
@@ -602,18 +447,7 @@ export class EmailSegmentationService {
       return null
     }
 
-    return {
-      id: segmentRule.id,
-      name: segmentRule.name,
-      description: segmentRule.description || undefined,
-      workspaceId: segmentRule.workspaceId,
-      criteria: JSON.parse(segmentRule.criteria),
-      logicOperator: segmentRule.logicOperator as 'AND' | 'OR',
-      isActive: segmentRule.isActive,
-      estimatedSize: segmentRule.estimatedSize || undefined,
-      lastCalculated: segmentRule.lastCalculated || undefined,
-      tags: segmentRule.tags ? JSON.parse(segmentRule.tags) : undefined
-    }
+    return toSegmentRule(segmentRule)
   }
 
   /**
@@ -630,18 +464,7 @@ export class EmailSegmentationService {
         const tags = JSON.parse(rule.tags)
         return tags.includes(tag)
       })
-      .map(rule => ({
-        id: rule.id,
-        name: rule.name,
-        description: rule.description || undefined,
-        workspaceId: rule.workspaceId,
-        criteria: JSON.parse(rule.criteria),
-        logicOperator: rule.logicOperator as 'AND' | 'OR',
-        isActive: rule.isActive,
-        estimatedSize: rule.estimatedSize || undefined,
-        lastCalculated: rule.lastCalculated || undefined,
-        tags: rule.tags ? JSON.parse(rule.tags) : undefined
-      }))
+      .map(toSegmentRule)
   }
 
   /**
@@ -687,6 +510,7 @@ export class EmailSegmentationService {
         name: newName,
         description: originalRule.description,
         workspaceId: originalRule.workspaceId,
+        subjectType: originalRule.subjectType,
         criteria: originalRule.criteria,
         logicOperator: originalRule.logicOperator,
         isActive: false, // Start as inactive
@@ -698,18 +522,7 @@ export class EmailSegmentationService {
     // Calculate segment size for new rule
     await this.calculateSegmentSize(newRule.id)
 
-    return {
-      id: newRule.id,
-      name: newRule.name,
-      description: newRule.description || undefined,
-      workspaceId: newRule.workspaceId,
-      criteria: JSON.parse(newRule.criteria),
-      logicOperator: newRule.logicOperator as 'AND' | 'OR',
-      isActive: newRule.isActive,
-      estimatedSize: newRule.estimatedSize || undefined,
-      lastCalculated: newRule.lastCalculated || undefined,
-      tags: newRule.tags ? JSON.parse(newRule.tags) : undefined
-    }
+    return toSegmentRule(newRule)
   }
 }
 

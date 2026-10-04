@@ -224,6 +224,36 @@
         ],
         "createdAt": "2026-10-03T05:19:41.409Z",
         "reason": "Claude assessment: pull-quote block in a user-authored email template, not app chrome. Preview at L834 mirrors sent HTML at L281, accent color is author-set via picker at L690. Pre-existing."
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "brag-output-youtube-2026-10-03-073202/work/engine.html"
+        ],
+        "createdAt": "2026-10-03T06:15:30.312Z",
+        "reason": "Claude: 1920x1080 video render canvas, sizes scaled for video frames rather than the web type ramp"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "brag-output-youtube-2026-10-03-073202/work/engine.html"
+        ],
+        "createdAt": "2026-10-03T06:15:30.404Z",
+        "reason": "Claude: 1920x1080 video render canvas, sizes scaled for video frames rather than the web type ramp"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "createdAt": "2026-10-04T18:23:47.321Z",
+        "reason": "email HTML: inline literal sizes are required in email clients; same as the existing footer in src/lib/email/render.ts; not app UI"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "6px",
+        "createdAt": "2026-10-04T18:28:35.598Z",
+        "reason": "email HTML button: inline literal radius required in email clients; not app UI"
       }
     ]
   }

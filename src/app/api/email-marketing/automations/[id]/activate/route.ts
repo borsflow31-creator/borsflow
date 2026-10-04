@@ -84,6 +84,18 @@ async function validateForActivation(automation: any): Promise<string | null> {
       return 'A trigger has invalid conditions'
     }
 
+    // Only a stage change names a stage; creation and mandate-expiry triggers do not.
+    if (trigger.type !== 'stage_changed') {
+      if (conditions?.pipelineId) {
+        const board = await prisma.pipeline.findFirst({
+          where: { id: conditions.pipelineId, workspaceId: automation.workspaceId },
+          select: { id: true },
+        })
+        if (!board) return 'A trigger points at a pipeline that no longer exists'
+      }
+      continue
+    }
+
     if (!conditions?.toStage) {
       return 'A trigger is missing the stage to enter'
     }

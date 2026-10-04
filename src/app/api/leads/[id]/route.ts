@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace';
-import { automationEngine } from '@/lib/automation-engine';
 import { CrmLogger } from '@/lib/crm/logger';
+import { reorderInColumn } from '@/lib/crm/reorder';
+import { onSubjectStageChanged } from '@/lib/crm/subject-events';
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin';
 
 export async function GET(
@@ -146,26 +147,12 @@ export async function PUT(
             const targetStage: string = stage ?? lead.stage;
             await prisma.$transaction(async (tx) => {
                 await tx.lead.update({ where: { id: params.id }, data });
-
-                const siblings = await tx.lead.findMany({
-                    where: {
-                        pipelineId: lead.pipelineId,
-                        stage: targetStage,
-                        id: { not: params.id },
-                    },
-                    orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
-                    select: { id: true },
+                await reorderInColumn(tx, 'Lead', {
+                    id: params.id,
+                    pipelineId: lead.pipelineId,
+                    stage: targetStage,
+                    order,
                 });
-
-                const index = Math.max(0, Math.min(Math.floor(order), siblings.length));
-                const ids = siblings.map(l => l.id);
-                ids.splice(index, 0, params.id);
-
-                // Sequential: an interactive transaction runs on one connection and
-                // cannot service concurrent queries.
-                for (const [position, id] of ids.entries()) {
-                    await tx.lead.update({ where: { id }, data: { order: position } });
-                }
             });
         } else {
             await prisma.lead.update({ where: { id: params.id }, data });
@@ -223,19 +210,14 @@ export async function PUT(
                     ...stageChange,
                     leadName: `${lead.firstName} ${lead.lastName}`.trim(),
                 }),
-                // Exit before dispatch, so moving Proposal -> Negotiation ends the
-                // Proposal sequence before the Negotiation one starts.
-                automationEngine
-                    .exitEnrollments(params.id, 'stage_changed')
-                    .then(() =>
-                        automationEngine.dispatchStageChanged({
-                            leadId: params.id,
-                            pipelineId: lead.pipelineId,
-                            workspaceId: lead.pipeline.workspaceId,
-                            fromStage: lead.stage,
-                            toStage: stage as string,
-                        })
-                    ),
+                onSubjectStageChanged({
+                    subjectType: 'Lead',
+                    subjectId: params.id,
+                    pipelineId: lead.pipelineId,
+                    workspaceId: lead.pipeline.workspaceId,
+                    fromStage: lead.stage,
+                    toStage: stage as string,
+                }),
             ]).then(results => {
                 for (const result of results) {
                     if (result.status === 'rejected') {

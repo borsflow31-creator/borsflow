@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { emailSegmentationService } from '@/lib/email-segmentation'
 import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/workspace'
+import { DEFAULT_SUBJECT_TYPE, isSubjectType, type SubjectType } from '@/lib/crm/subjects'
+import { hasLoader } from '@/lib/crm/subject-registry'
+
+// A segment's subject decides which rows its criteria are evaluated against, so
+// it can only be one the server knows how to load. An unknown value would make
+// the segment silently match nothing.
+function parseSubjectType(value: unknown): SubjectType | null {
+  if (value === undefined || value === null || value === '') return DEFAULT_SUBJECT_TYPE
+  if (!isSubjectType(value) || !hasLoader(value)) return null
+  return value
+}
+
 
 /**
  * Criteria arrive either as an array or, from SegmentModal, as a JSON string of
@@ -56,6 +68,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { workspaceId, name, description, criteria, tags } = body
+  const subjectType = parseSubjectType(body.subjectType)
+  if (!subjectType) {
+    return NextResponse.json({ error: 'Unknown segment subject' }, { status: 400 })
+  }
   // SegmentModal lets the user pick OR; this used to be hard-coded to AND, so an
   // "any of these" segment was silently narrowed to "all of these".
   const logicOperator: 'AND' | 'OR' = body.logicOperator === 'OR' ? 'OR' : 'AND'
@@ -83,6 +99,7 @@ export async function POST(request: NextRequest) {
       {
         name,
         description: description || '',
+        subjectType,
         criteria: parsedCriteria,
         logicOperator,
         tags: Array.isArray(tags) ? tags : undefined,

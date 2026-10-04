@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { DEFAULT_PIPELINES } from '../src/lib/crm/lifecycle';
 
 const prisma = new PrismaClient();
 
@@ -342,6 +343,32 @@ async function main() {
   for (const template of templates) {
     await prisma.universalTemplate.create({
       data: template
+    });
+  }
+
+  // Every workspace is a real-estate agency and needs its boards: contacts, the
+  // buyer journey, and owner / mandate acquisition. New workspaces get them from
+  // ensureDefaultPipelines() when they are created; this covers any that predate
+  // it. Idempotent: a subject type that already has a board is left alone.
+  console.log('Ensuring default pipelines...');
+  const workspaces = await prisma.workspace.findMany({ select: { id: true } });
+  for (const { id: workspaceId } of workspaces) {
+    const existing = await prisma.pipeline.findMany({
+      where: { workspaceId },
+      select: { subjectType: true, order: true },
+    });
+    const have = new Set(existing.map((p) => p.subjectType));
+    let order = existing.reduce((max, p) => Math.max(max, p.order), -1) + 1;
+    const missing = DEFAULT_PIPELINES.filter((p) => !have.has(p.subjectType));
+    if (missing.length === 0) continue;
+    await prisma.pipeline.createMany({
+      data: missing.map((p) => ({
+        workspaceId,
+        name: p.name,
+        subjectType: p.subjectType,
+        stages: JSON.stringify(p.stages),
+        order: order++,
+      })),
     });
   }
 

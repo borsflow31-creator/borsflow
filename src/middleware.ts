@@ -12,5 +12,14 @@ export const config = {
         '/email-marketing/:path*',
         '/settings/:path*',
         '/pages/:path*',
+        // Real estate. /products was already in the nav but missing here, so it
+        // relied on API-level auth alone. /listings and /view stay public by design.
+        '/properties/:path*',
+        '/mandates/:path*',
+        '/offers/:path*',
+        '/commissions/:path*',
+        '/portals/:path*',
+        '/viewings/:path*',
+        '/products/:path*',
     ],
 }
