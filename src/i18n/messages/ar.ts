@@ -2878,6 +2878,7 @@ const ar: Messages = {
   realEstate: {
     nav: {
       properties: 'العقارات',
+      programs: 'المشاريع العقارية',
       buyers: 'المشترون',
       viewings: 'المعاينات',
       mandates: 'التفويضات',

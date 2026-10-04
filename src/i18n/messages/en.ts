@@ -2876,6 +2876,7 @@ export interface Messages {
   realEstate: {
     nav: {
       properties: string;
+      programs: string;
       buyers: string;
       viewings: string;
       mandates: string;
@@ -6546,6 +6547,7 @@ const en: Messages = {
   realEstate: {
     nav: {
       properties: 'Properties',
+      programs: 'Programs (Developments)',
       buyers: 'Buyers',
       viewings: 'Viewings',
       mandates: 'Mandates',

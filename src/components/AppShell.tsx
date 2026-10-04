@@ -10,7 +10,7 @@ import {
     FileText as QuoteIcon, DollarSign, Loader2,
     Mail, ChevronRight, PanelLeftClose, PanelLeftOpen,
     UserPlus, CalendarDays, MessageSquare, Moon, Sun, LogOut, Package,
-    Building2, FileSignature, HandCoins, Percent, Eye,
+    Building, Building2, FileSignature, HandCoins, Percent, Eye,
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession, signOut } from 'next-auth/react';
@@ -52,6 +52,7 @@ const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: s
         labelKey: 'nav.groupBusiness',
         items: [
             { labelKey: 'realEstate.nav.properties', href: '__properties__', icon: Building2,     basePath: '/properties' },
+            { labelKey: 'realEstate.nav.programs',   href: '__programs__',   icon: Building,      basePath: '/developer/programs' },
             { labelKey: 'realEstate.nav.buyers',     href: '__crm__',        icon: Users,         basePath: '/crm' },
             { labelKey: 'realEstate.nav.viewings',   href: '__viewings__',   icon: Eye,           basePath: '/viewings' },
             { labelKey: 'realEstate.nav.mandates',   href: '__mandates__',   icon: FileSignature, basePath: '/mandates' },
@@ -91,6 +92,7 @@ function resolveHref(
         if (raw === '__crm__')      return '/crm';
         if (raw === '__meetings__') return '/meetings';
         if (raw === '__properties__') return '/properties';
+        if (raw === '__programs__') return '/developer/programs';
         if (raw === '__viewings__') return '/viewings';
         if (raw === '__mandates__') return '/mandates';
         if (raw === '__offers__')   return '/offers';
@@ -108,6 +110,7 @@ function resolveHref(
     if (raw === '__crm__')       return `/crm?workspace=${workspace.id}`;
     if (raw === '__meetings__')  return `/meetings?workspace=${workspace.id}`;
     if (raw === '__properties__') return `/properties?workspace=${workspace.id}`;
+    if (raw === '__programs__')   return `/developer/programs?workspace=${workspace.id}`;
     if (raw === '__viewings__')  return `/viewings?workspace=${workspace.id}`;
     if (raw === '__mandates__')  return `/mandates?workspace=${workspace.id}`;
     if (raw === '__offers__')    return `/offers?workspace=${workspace.id}`;

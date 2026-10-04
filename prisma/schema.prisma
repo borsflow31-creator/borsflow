@@ -88,6 +88,10 @@ model User {
   decidedOffers                 Offer[]                 @relation("OfferDecider")
   recordedViewingFeedback       ViewingFeedback[]       @relation("ViewingFeedbackRecorder")
   createdUniversalTemplates     UniversalTemplate[]     @relation("UniversalTemplateCreator")
+  // Developer CRM (Promotion Immobilière)
+  createdLandDeals              LandDeal[]              @relation("LandDealCreator")
+  assignedLandDeals             LandDeal[]              @relation("LandDealAssignee")
+  createdPrograms               Program[]               @relation("ProgramCreator")
 }
 
 model Channel {
@@ -173,6 +177,13 @@ model Workspace {
   commissions             Commission[]
   commissionSplits        CommissionSplit[]
   portalFeeds             PortalFeed[]
+  // Developer CRM (Promotion Immobilière)
+  landDeals               LandDeal[]
+  programs                Program[]
+  developmentLots         DevelopmentLot[]
+  callsForFunds           CallForFunds[]
+  tmaRequests             TMARequest[]
+  handoverSnags           HandoverSnag[]
   messages                Message[]
   comments                Comment[]
   invitations             Invitation[]
@@ -408,6 +419,11 @@ model Lead {
   viewingFeedback       ViewingFeedback[]      @relation("ViewingFeedbackBuyer")
   searchBriefs          SearchBrief[]          @relation("SearchBriefLead")
   propertyMatches       PropertyMatch[]        @relation("PropertyMatchLead")
+  // Developer CRM (Promotion Immobilière)
+  vendorLandDeals       LandDeal[]             @relation("LandDealVendor")
+  optionedLots          DevelopmentLot[]       @relation("LotOptionHolder")
+  boughtLots            DevelopmentLot[]       @relation("LotBuyer")
+  tmaRequests           TMARequest[]           @relation("TMABuyer")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 
@@ -700,6 +716,7 @@ model Invoice {
   items                InvoiceItem[]
   invoiceNotes         InvoiceNote[]
   payments             Payment[]
+  callForFunds         CallForFunds?
   workspace            Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy            User?         @relation("InvoiceCreator", fields: [createdById], references: [id])
   createdAt            DateTime      @default(now())
@@ -2312,4 +2329,298 @@ model PortalFeed {
   updatedAt           DateTime  @updatedAt
 
   @@index([workspaceId, isActive])
+}
+
+// ============================================================================
+// DEVELOPER CRM (PROMOTION IMMOBILIÈRE)
+// ============================================================================
+
+/// Upstream land prospecting and feasibility (Prospection Foncière).
+model LandDeal {
+  id               String      @id @default(cuid())
+  workspaceId      String
+  workspace        Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reference        String
+  title            String
+  description      String?
+  address          String?
+  city             String
+  postalCode       String?
+  cadastralRef     String?
+  plotArea         Float?      // m²
+  zoning           String?     // PLU zone e.g. "Zone UB"
+  /// 'prospecting' | 'feasibility' | 'unilateral_agreement' | 'permit_filed' | 'permit_cleared' | 'deed_signed' | 'abandoned'
+  status           String      @default("prospecting")
+  targetUnits      Int?
+  sellableArea     Float?      // m² SDP
+  landPrice        Float?
+  estimatedRevenue Float?
+  estimatedCost    Float?
+  projectedMargin  Float?      // %
+  vendorLeadId     String?
+  vendorLead       Lead?       @relation("LandDealVendor", fields: [vendorLeadId], references: [id], onDelete: SetNull)
+  permitNumber     String?
+  permitFiledAt    DateTime?
+  permitGrantedAt  DateTime?
+  permitClearedAt  DateTime?
+  deedSignedAt     DateTime?
+  program          Program?
+  createdById      String?
+  createdBy        User?       @relation("LandDealCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedToId     String?
+  assignedTo       User?       @relation("LandDealAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  notes            String?
+  customFields     Json        @default("{}")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([workspaceId, reference])
+  @@index([workspaceId, status])
+  @@index([vendorLeadId])
+  @@index([assignedToId])
+}
+
+/// A real estate development program (Programme Immobilier / Off-plan VEFA).
+model Program {
+  id                 String                 @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reference          String
+  name               String
+  commercialName     String?
+  description        String?
+  addressLine        String?
+  city               String
+  postalCode         String?
+  countryCode        String?                @default("FR")
+  latitude           Float?
+  longitude          Float?
+  /// 'study' | 'commercialization' | 'construction' | 'delivery' | 'completed'
+  status             String                 @default("study")
+  permitNumber       String?
+  architectName      String?
+  gfaBank            String?
+  notaryName         String?
+  notaryEmail        String?
+  targetDeliveryDate DateTime?
+  totalUnits         Int                    @default(0)
+  availableUnits     Int                    @default(0)
+  reservedUnits      Int                    @default(0)
+  soldUnits          Int                    @default(0)
+  publicToken        String?                @unique
+  landDealId         String?                @unique
+  landDeal           LandDeal?              @relation(fields: [landDealId], references: [id], onDelete: SetNull)
+  buildings          Building[]
+  lots               DevelopmentLot[]
+  milestones         ConstructionMilestone[]
+  media              ProgramMedia[]
+  createdById        String?
+  createdBy          User?                  @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  @@unique([workspaceId, reference])
+  @@index([workspaceId, status])
+  @@index([createdById])
+}
+
+/// A building or construction phase within a program (Bâtiment / Tranche).
+model Building {
+  id            String                  @id @default(cuid())
+  programId     String
+  program       Program                 @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name          String
+  floorsCount   Int                     @default(1)
+  basementCount Int                     @default(0)
+  lots          DevelopmentLot[]
+  milestones    ConstructionMilestone[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+
+  @@index([programId])
+}
+
+/// An individual unit / lot in a development (Apartment, Parking, Cellar, Commercial).
+model DevelopmentLot {
+  id                    String            @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  programId             String
+  program               Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  buildingId            String?
+  building              Building?         @relation(fields: [buildingId], references: [id], onDelete: SetNull)
+  lotNumber             String
+  /// 'apartment' | 'house' | 'parking' | 'box' | 'cellar' | 'commercial'
+  type                  String            @default("apartment")
+  /// 'T1' | 'T2' | 'T3' | 'T4' | 'T5' | 'studio' | 'duplex' | 'commercial'
+  typology              String?
+  floor                 Int               @default(0)
+  orientation           String?
+  surfaceArea           Float             @default(0)
+  terraceArea           Float?            @default(0)
+  balconyArea           Float?            @default(0)
+  gardenArea            Float?            @default(0)
+  basePrice             Float             @default(0)
+  taxRate               Float             @default(20.0)
+  totalPrice            Float             @default(0)
+  /// 'available' | 'optioned' | 'reserved' | 'contract_signed' | 'deed_signed' | 'delivered'
+  status                String            @default("available")
+  optionExpiresAt       DateTime?
+  optionHolderLeadId    String?
+  optionHolderLead      Lead?             @relation("LotOptionHolder", fields: [optionHolderLeadId], references: [id], onDelete: SetNull)
+  buyerLeadId           String?
+  buyerLead             Lead?             @relation("LotBuyer", fields: [buyerLeadId], references: [id], onDelete: SetNull)
+  notaryDeedScheduledAt DateTime?
+  notaryDeedSignedAt    DateTime?
+  deliveredAt           DateTime?
+  parentLotId           String?
+  parentLot             DevelopmentLot?   @relation("LinkedLots", fields: [parentLotId], references: [id], onDelete: SetNull)
+  childLots             DevelopmentLot[]  @relation("LinkedLots")
+  callsForFunds         CallForFunds[]
+  tmaRequests           TMARequest[]
+  snags                 HandoverSnag[]
+  // Public Buyer Portal (Hybrid Token + OTP)
+  publicToken           String?           @unique
+  publicTokenCreatedAt  DateTime?
+  portalOtpCode         String?
+  portalOtpExpiresAt    DateTime?
+  customFields          Json              @default("{}")
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([programId, lotNumber])
+  @@index([workspaceId, status])
+  @@index([programId, status])
+  @@index([buildingId])
+  @@index([buyerLeadId])
+  @@index([optionHolderLeadId])
+}
+
+/// A statutory construction milestone certified by an architect (Jalon de Chantier).
+model ConstructionMilestone {
+  id                      String          @id @default(cuid())
+  programId               String
+  program                 Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  buildingId              String?
+  building                Building?       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  /// 'FOUNDATIONS' | 'GROUND_FLOOR_SLAB' | 'ROOF_WATERTIGHT' | 'PLASTERING_COMPLETE' | 'COMPLETION' | 'DELIVERY'
+  stageKey                String
+  title                   String
+  targetPercentage        Float           @default(0)
+  order                   Int             @default(0)
+  isCertified             Boolean         @default(false)
+  certifiedAt             DateTime?
+  architectCertificateDoc String?
+  callsForFunds           CallForFunds[]
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  @@index([programId, order])
+  @@index([buildingId])
+}
+
+/// An off-plan call for funds (Appel de Fonds) billed to the buyer.
+model CallForFunds {
+  id                 String                @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId              String
+  lot                DevelopmentLot        @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  milestoneId        String
+  milestone          ConstructionMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  invoiceId          String?               @unique
+  invoice            Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  callNumber         String
+  percentage         Float
+  amount             Float
+  /// 'draft' | 'issued' | 'sent_to_bank' | 'paid' | 'overdue'
+  status             String                @default("draft")
+  issuedAt           DateTime?
+  dueAt              DateTime?
+  paidAt             DateTime?
+  bankName           String?
+  bankLoanReference  String?
+  notes              String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@unique([workspaceId, callNumber])
+  @@index([workspaceId, status])
+  @@index([lotId])
+  @@index([milestoneId])
+}
+
+/// Buyer customization or change order request (Travaux Modificatifs Acquéreurs - TMA).
+model TMARequest {
+  id                String         @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId             String
+  lot               DevelopmentLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  buyerLeadId       String
+  buyerLead         Lead           @relation("TMABuyer", fields: [buyerLeadId], references: [id], onDelete: Cascade)
+  reference         String
+  /// 'electrical' | 'plumbing' | 'partitions' | 'finishes' | 'other'
+  category          String         @default("finishes")
+  title             String
+  description       String
+  /// 'requested' | 'feasibility_approved' | 'quote_sent' | 'accepted' | 'rejected' | 'completed'
+  status            String         @default("requested")
+  costEstimate      Float          @default(0)
+  priceQuote        Float          @default(0)
+  techApprovedAt    DateTime?
+  techApproverNote  String?
+  signedAddendumDoc String?
+  signedAt          DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@unique([workspaceId, reference])
+  @@index([workspaceId, status])
+  @@index([lotId])
+  @@index([buyerLeadId])
+}
+
+/// Delivery inspection defect / snagging ticket (Réserves / Garantie de Parfait Achèvement).
+model HandoverSnag {
+  id                 String         @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId              String
+  lot                DevelopmentLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  room               String
+  trade              String
+  description        String
+  photoUrl           String?
+  /// 'open' | 'contractor_assigned' | 'fixed_pending_validation' | 'resolved'
+  status             String         @default("open")
+  /// 'gpa' | 'biennale' | 'decennale'
+  warrantyType       String         @default("gpa")
+  contractorName     String?
+  contractorEmail    String?
+  dueDate            DateTime?
+  resolvedAt         DateTime?
+  resolvedProofPhoto String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([lotId])
+}
+
+/// Media and construction update gallery for a program.
+model ProgramMedia {
+  id                   String   @id @default(cuid())
+  programId            String
+  program              Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  /// 'photo' | 'drone' | 'plan' | '3d_render' | 'quarterly_report'
+  kind                 String   @default("photo")
+  title                String?
+  filePath             String?
+  externalUrl          String?
+  isConstructionUpdate Boolean  @default(false)
+  updateMonth          String?  // e.g. "2026-10"
+  createdAt            DateTime @default(now())
+
+  @@index([programId])
 }

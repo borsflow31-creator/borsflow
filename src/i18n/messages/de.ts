@@ -2878,6 +2878,7 @@ const de: Messages = {
   realEstate: {
     nav: {
       properties: 'Immobilien',
+      programs: 'Bauträgerprojekte',
       buyers: 'Käufer',
       viewings: 'Besichtigungen',
       mandates: 'Aufträge',
