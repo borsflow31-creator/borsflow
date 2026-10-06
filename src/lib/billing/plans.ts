@@ -29,8 +29,6 @@ export interface PlanLimits {
   properties: number | null
   /** Mandates in force. */
   activeMandates: number | null
-  /** Outbound portal feeds. */
-  portalFeeds: number | null
   invoicesPerMonth: number | null
   emailSendsPerMonth: number | null
   emailAutomations: number | null
@@ -68,7 +66,6 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       pipelines: 1,
       properties: 25,
       activeMandates: 10,
-      portalFeeds: 0,
       invoicesPerMonth: 10,
       emailSendsPerMonth: 500,
       emailAutomations: 0,
@@ -96,7 +93,6 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       pipelines: 5,
       properties: 150,
       activeMandates: 75,
-      portalFeeds: 1,
       invoicesPerMonth: null,
       emailSendsPerMonth: 5_000,
       emailAutomations: 3,
@@ -125,7 +121,6 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       pipelines: null,
       properties: 750,
       activeMandates: 400,
-      portalFeeds: 3,
       invoicesPerMonth: null,
       emailSendsPerMonth: 25_000,
       emailAutomations: null,
@@ -153,7 +148,6 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       pipelines: null,
       properties: 3_000,
       activeMandates: null,
-      portalFeeds: 10,
       invoicesPerMonth: null,
       emailSendsPerMonth: 100_000,
       emailAutomations: null,
@@ -182,7 +176,6 @@ export const PLANS: Record<PlanTier, PlanDefinition> = {
       pipelines: null,
       properties: null,
       activeMandates: null,
-      portalFeeds: null,
       invoicesPerMonth: null,
       emailSendsPerMonth: null,
       emailAutomations: null,
@@ -224,7 +217,7 @@ export function isPlanTier(value: unknown): value is PlanTier {
 }
 
 /** Stock limits: things that exist, counted live, as against the monthly flow in UsageMetric. */
-export type CapacityResource = 'contacts' | 'properties' | 'activeMandates' | 'pipelines' | 'portalFeeds'
+export type CapacityResource = 'contacts' | 'properties' | 'activeMandates' | 'pipelines'
 
 export function capacityLimit(limits: PlanLimits, resource: CapacityResource): number | null {
   return limits[resource]

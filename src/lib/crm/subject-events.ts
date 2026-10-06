@@ -32,7 +32,7 @@ export async function onSubjectStageChanged(event: {
 /**
  * A subject was just created: fire the `lead_created` automations for it.
  *
- * Every creation path calls this -- manual entry, the website form, a portal
+ * Every creation path calls this -- manual entry, the website form
  * webhook, an interest attached from the board -- so "a new enquiry starts a
  * sequence" means the same thing wherever the enquiry came from. Same contract as
  * onSubjectStageChanged: awaited by the caller, never throws.

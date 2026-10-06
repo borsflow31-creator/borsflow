@@ -5,7 +5,7 @@
  * is here: a honeypot, a payload cap, rate limits per address and per workspace
  * (RateLimitEvent), validation, and a response that reveals nothing about what
  * already exists. Creating the lead goes through receiveEnquiry, the same intake
- * the portal webhooks and the agent's own entry use.
+ * the agent's own entry uses.
  *
  * Cross-origin on purpose: the form lives on the agency's own site.
  */

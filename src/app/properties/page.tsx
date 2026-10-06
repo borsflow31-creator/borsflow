@@ -140,7 +140,6 @@ function PropertiesPageInner() {
                                 {t('realEstate.properties.viewBoard')}
                             </Link>
                         )}
-                        <Link href={`/portals?workspace=${workspaceId}`} className={secondaryButton}>{t('realEstate.portalFeeds.title')}</Link>
                         {canWrite && (
                             <button onClick={() => setShowForm(true)} className={primaryButton}>
                                 {t('realEstate.properties.new')}

@@ -14,6 +14,8 @@ export interface Messages {
     edit: string;
     view: string;
     close: string;
+    download: string;
+    dismiss: string;
     back: string;
     next: string;
     loading: string;
@@ -1680,9 +1682,6 @@ export interface Messages {
       limitUnlimitedProperties: string;
       limitActiveMandates: string;
       limitUnlimitedActiveMandates: string;
-      limitPortalFeeds: string;
-      limitUnlimitedPortalFeeds: string;
-      limitNoPortalFeeds: string;
       limitUnlimitedInvoices: string;
       limitInvoicesPerMonth: string;
       limitCustomEmailVolume: string;
@@ -3077,6 +3076,58 @@ export interface Messages {
         notFound: string;
       };
     };
+    projects: {
+      title: string;
+      subtitle: string;
+      stats: {
+        totalUnits: string;
+        available: string;
+        reserved: string;
+        reservedHint: string;
+        sold: string;
+        sellThrough: string;
+        remainingInventory: string;
+        stage: string;
+        stageHint: string;
+      };
+      status: {
+        study: string;
+        commercialization: string;
+        construction: string;
+        delivery: string;
+        completed: string;
+      };
+      type: {
+        residential: string;
+        mixed_use: string;
+        commercial: string;
+        subdivision: string;
+        renovation: string;
+        other: string;
+      };
+      fields: {
+        projectType: string;
+        developerName: string;
+        websiteUrl: string;
+      };
+      tabs: {
+        overview: string;
+        media: string;
+      };
+      media: {
+        empty: string;
+        addVideoLink: string;
+        kind: {
+          photo: string;
+          drone: string;
+          '3d_render': string;
+          plan: string;
+          quarterly_report: string;
+          video: string;
+          document: string;
+        };
+      };
+    };
     media: {
       title: string;
       upload: string;
@@ -3099,6 +3150,25 @@ export interface Messages {
       remove: string;
       removeConfirm: string;
       openLink: string;
+      link: string;
+      sectionEmpty: string;
+      sections: {
+        photos: string;
+        videos: string;
+        floorplans: string;
+        virtualTours: string;
+      };
+      dropzone: {
+        title: string;
+        hint: string;
+      };
+      lightbox: {
+        title: string;
+        open: string;
+        previous: string;
+        next: string;
+        unavailable: string;
+      };
       errors: {
         load: string;
         upload: string;
@@ -3626,47 +3696,6 @@ export interface Messages {
         save: string;
       };
     };
-    portalFeeds: {
-      title: string;
-      subtitle: string;
-      new: string;
-      empty: string;
-      onboardingNote: string;
-      portals: {
-        generic: string;
-        seloger: string;
-        idealista: string;
-        rightmove: string;
-        immoweb: string;
-        zillow: string;
-      };
-      includeUnpublished: string;
-      active: string;
-      paused: string;
-      url: string;
-      lastFetched: string;
-      neverFetched: string;
-      copy: string;
-      copied: string;
-      pause: string;
-      resume: string;
-      rotate: string;
-      rotateConfirm: string;
-      deleteConfirm: string;
-      form: {
-        name: string;
-        namePlaceholder: string;
-        portal: string;
-        format: string;
-        includeUnpublished: string;
-        create: string;
-      };
-      errors: {
-        load: string;
-        name: string;
-        save: string;
-      };
-    };
   };
   // </realEstate:type>
 }
@@ -3684,6 +3713,8 @@ const en: Messages = {
     remove: 'Remove',
     edit: 'Edit',
     view: 'View',
+    download: 'Download',
+    dismiss: 'Dismiss',
     close: 'Close',
     back: 'Back',
     next: 'Next',
@@ -4958,7 +4989,7 @@ const en: Messages = {
     },
     journey: {
       stage1Title: 'Capture the enquiry',
-      stage1Body: 'Enquiries from your website and the portals land as buyers, tied to the property they asked about.',
+      stage1Body: 'Enquiries from your website land as buyers, tied to the property they asked about.',
       stage2Title: 'Match and show',
       stage2Body: 'New listings are matched to buyers’ search briefs, and viewings are booked with structured feedback.',
       stage3Title: 'Take the offer',
@@ -5003,9 +5034,6 @@ const en: Messages = {
       limitUnlimitedProperties: 'Unlimited properties',
       limitActiveMandates: '{count} active mandates',
       limitUnlimitedActiveMandates: 'Unlimited active mandates',
-      limitPortalFeeds: 'Portal feeds: {count}',
-      limitUnlimitedPortalFeeds: 'Unlimited portal feeds',
-      limitNoPortalFeeds: 'Portal feeds not included',
       limitUnlimitedInvoices: 'Unlimited invoices',
       limitInvoicesPerMonth: '{count} invoices / month',
       limitCustomEmailVolume: 'Custom email volume',
@@ -6547,7 +6575,7 @@ const en: Messages = {
   realEstate: {
     nav: {
       properties: 'Properties',
-      programs: 'Programs (Developments)',
+      programs: 'Projects',
       buyers: 'Buyers',
       viewings: 'Viewings',
       mandates: 'Mandates',
@@ -6729,7 +6757,7 @@ const en: Messages = {
           title: 'Public listing',
           published: 'Published',
           draft: 'Not published',
-          hint: 'Publishing turns on the public listing page and includes this property in portal feeds. An unpublished property shows nothing, even to someone with the link.',
+          hint: 'Publishing turns on the public listing page. An unpublished property shows nothing, even to someone with the link.',
           publish: 'Publish and copy link',
           copyLink: 'Copy listing link',
           unpublish: 'Unpublish',
@@ -6746,6 +6774,58 @@ const en: Messages = {
         save: 'Could not save the property',
         delete: 'Could not delete the property',
         notFound: 'Property not found',
+      },
+    },
+    projects: {
+      title: 'Projects',
+      subtitle: 'Developments and the units inside them.',
+      stats: {
+        totalUnits: 'Total units',
+        available: 'Available',
+        reserved: 'Reserved',
+        reservedHint: 'Held or reserved',
+        sold: 'Sold',
+        sellThrough: 'Sell-through',
+        remainingInventory: '{value} still available',
+        stage: 'Stage',
+        stageHint: '{percent}% through the project lifecycle',
+      },
+      status: {
+        study: 'Study',
+        commercialization: 'Commercialization',
+        construction: 'Construction',
+        delivery: 'Delivery',
+        completed: 'Completed',
+      },
+      type: {
+        residential: 'Residential',
+        mixed_use: 'Mixed use',
+        commercial: 'Commercial',
+        subdivision: 'Subdivision',
+        renovation: 'Renovation',
+        other: 'Other',
+      },
+      fields: {
+        projectType: 'Project type',
+        developerName: 'Developer / promoter',
+        websiteUrl: 'Project website',
+      },
+      tabs: {
+        overview: 'Overview',
+        media: 'Media',
+      },
+      media: {
+        empty: 'No media yet. A development sells on its renders.',
+        addVideoLink: 'Add a video link (YouTube or Vimeo)',
+        kind: {
+          photo: 'Photos',
+          drone: 'Drone shots',
+          '3d_render': 'Renders',
+          plan: 'Plans',
+          quarterly_report: 'Quarterly reports',
+          video: 'Videos',
+          document: 'Brochures and documents',
+        },
       },
     },
     media: {
@@ -6770,11 +6850,30 @@ const en: Messages = {
       remove: 'Remove',
       removeConfirm: 'Remove this item?',
       openLink: 'Open link',
+      link: 'Link',
+      sectionEmpty: 'Nothing here yet.',
+      sections: {
+        photos: 'Photos',
+        videos: 'Videos',
+        floorplans: 'Floor plans',
+        virtualTours: 'Virtual tours',
+      },
+      dropzone: {
+        title: 'Drop files here, or click to choose',
+        hint: 'Up to {size} MB per file.',
+      },
+      lightbox: {
+        title: 'Media viewer',
+        open: 'Open preview',
+        previous: 'Previous',
+        next: 'Next',
+        unavailable: 'This item cannot be previewed here.',
+      },
       errors: {
         load: 'Could not load media',
         upload: 'Upload failed',
         badType: 'Only JPEG, PNG and WebP images can be uploaded',
-        tooLarge: 'That file is too large',
+        tooLarge: 'That file is larger than {size} MB',
         remove: 'Could not remove this item',
         link: 'Enter a valid https link',
         storage: 'File uploads are not configured',
@@ -7294,47 +7393,6 @@ const en: Messages = {
       },
       errors: {
         load: 'Could not load commissions.',
-        save: 'Could not save this change.',
-      },
-    },
-    portalFeeds: {
-      title: 'Portal feeds',
-      subtitle: 'Send your published listings to property portals and receive their enquiries.',
-      new: 'New feed',
-      empty: 'No feeds yet. Create one and give its URL to your portal.',
-      onboardingNote: 'A feed is a starting point, not a certified integration: each portal has its own onboarding and may need its own field mapping. Treat the feed URL as a password.',
-      portals: {
-        generic: 'Generic',
-        seloger: 'SeLoger',
-        idealista: 'Idealista',
-        rightmove: 'Rightmove',
-        immoweb: 'Immoweb',
-        zillow: 'Zillow',
-      },
-      includeUnpublished: 'Includes unpublished',
-      active: 'Active',
-      paused: 'Paused',
-      url: 'Feed URL',
-      lastFetched: 'Last fetched {date} · {count} fetches',
-      neverFetched: 'Not fetched yet',
-      copy: 'Copy URL',
-      copied: 'Feed URL copied.',
-      pause: 'Pause',
-      resume: 'Resume',
-      rotate: 'Replace URL',
-      rotateConfirm: 'Replace the feed URL? The portal will lose access until you give it the new one.',
-      deleteConfirm: 'Delete the feed "{name}"?',
-      form: {
-        name: 'Name',
-        namePlaceholder: 'e.g. Idealista',
-        portal: 'Portal',
-        format: 'Format',
-        includeUnpublished: 'Include properties that are not published',
-        create: 'Create feed',
-      },
-      errors: {
-        load: 'Could not load portal feeds.',
-        name: 'Give the feed a name.',
         save: 'Could not save this change.',
       },
     },

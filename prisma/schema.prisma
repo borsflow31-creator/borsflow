@@ -81,7 +81,6 @@ model User {
   ownedSearchBriefs             SearchBrief[]           @relation("SearchBriefOwner")
   commissionSplits              CommissionSplit[]       @relation("CommissionSplitUser")
   createdCommissions            Commission[]            @relation("CommissionCreator")
-  createdPortalFeeds            PortalFeed[]            @relation("PortalFeedCreator")
   createdSearchBriefs           SearchBrief[]           @relation("SearchBriefCreator")
   createdInterests              Interest[]              @relation("InterestCreator")
   createdOffers                 Offer[]                 @relation("OfferCreator")
@@ -91,6 +90,7 @@ model User {
   // Developer CRM (Promotion Immobilière)
   createdLandDeals              LandDeal[]              @relation("LandDealCreator")
   assignedLandDeals             LandDeal[]              @relation("LandDealAssignee")
+  uploadedProgramMedia          ProgramMedia[]          @relation("ProgramMediaUploader")
   createdPrograms               Program[]               @relation("ProgramCreator")
 }
 
@@ -176,10 +176,10 @@ model Workspace {
   propertyMatches         PropertyMatch[]
   commissions             Commission[]
   commissionSplits        CommissionSplit[]
-  portalFeeds             PortalFeed[]
   // Developer CRM (Promotion Immobilière)
   landDeals               LandDeal[]
   programs                Program[]
+  programMedia            ProgramMedia[]
   developmentLots         DevelopmentLot[]
   callsForFunds           CallForFunds[]
   tmaRequests             TMARequest[]
@@ -2303,34 +2303,6 @@ model CommissionSplit {
 /// rotating it revokes the portal's access. Most demand arrives from portals, and
 /// this is how stock gets there; their enquiries come back through the same intake
 /// as every other enquiry.
-model PortalFeed {
-  id                  String    @id @default(cuid())
-  workspaceId         String
-  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  name                String
-  /// 'generic' | 'seloger' | 'idealista' | 'rightmove' | 'immoweb' | 'zillow'
-  portal              String    @default("generic")
-  /// 'xml' | 'json'
-  format              String    @default("xml")
-  isActive            Boolean   @default(true)
-  token               String    @unique
-  tokenCreatedAt      DateTime  @default(now())
-  /// JSON arrays; null = the defaults (live listings only).
-  filterStatuses      String?
-  filterPropertyTypes String?
-  filterCities        String?
-  /// Include properties the agency has not marked as published.
-  includeUnpublished  Boolean   @default(false)
-  lastFetchedAt       DateTime?
-  fetchCount          Int       @default(0)
-  createdById         String?
-  createdBy           User?     @relation("PortalFeedCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  @@index([workspaceId, isActive])
-}
-
 // ============================================================================
 // DEVELOPER CRM (PROMOTION IMMOBILIÈRE)
 // ============================================================================
@@ -2389,6 +2361,11 @@ model Program {
   name               String
   commercialName     String?
   description        String?
+  /// 'residential' | 'mixed_use' | 'commercial' | 'subdivision' | 'renovation' | 'other'
+  projectType        String                 @default("residential")
+  /// The promoter or developer behind the project, when it is not the agency itself.
+  developerName      String?
+  websiteUrl         String?
   addressLine        String?
   city               String
   postalCode         String?
@@ -2610,17 +2587,36 @@ model HandoverSnag {
 
 /// Media and construction update gallery for a program.
 model ProgramMedia {
-  id                   String   @id @default(cuid())
+  id                   String     @id @default(cuid())
   programId            String
-  program              Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
-  /// 'photo' | 'drone' | 'plan' | '3d_render' | 'quarterly_report'
-  kind                 String   @default("photo")
+  program              Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  /// Denormalized from the program so a workspace's objects are one prefix and
+  /// cleanup does not have to join back through Program.
+  workspaceId          String?
+  workspace            Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  /// 'photo' | 'drone' | 'plan' | '3d_render' | 'quarterly_report' | 'video' | 'document'
+  kind                 String     @default("photo")
   title                String?
+  /// crm/<workspaceId>/projects/<programId>/<uuid>.<ext>. Null for a video that
+  /// lives elsewhere, which is then described by externalUrl.
   filePath             String?
   externalUrl          String?
-  isConstructionUpdate Boolean  @default(false)
+  fileName             String?
+  fileType             String?
+  size                 Int?
+  caption              String?
+  /// Display order within the program.
+  position             Int        @default(0)
+  /// At most one per program; enforced in the route because Prisma cannot
+  /// express a partial unique index.
+  isCover              Boolean    @default(false)
+  uploadedById         String?
+  uploadedBy           User?      @relation("ProgramMediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  isConstructionUpdate Boolean    @default(false)
   updateMonth          String?  // e.g. "2026-10"
-  createdAt            DateTime @default(now())
+  createdAt            DateTime   @default(now())
 
-  @@index([programId])
+  @@index([programId, position])
+  @@index([workspaceId])
+  @@index([uploadedById])
 }

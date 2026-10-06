@@ -5,8 +5,8 @@ import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin'
  *
  * The bucket is private. An agent's own screens sign each image for an hour --
  * long enough to work on a listing, short enough that a copied URL soon dies.
- * Public pages and portal feeds never get these: they go through the proxy route
- * that signs per request, so what a portal stores is a stable app URL, not a link
+ * Public pages never get these: they go through the proxy route that signs per
+ * request, so what a visitor's browser caches is a stable app URL, not a link
  * that rots.
  */
 export const MEDIA_URL_TTL_SECONDS = 60 * 60

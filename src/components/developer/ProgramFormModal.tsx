@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
+import SelectRefined from '@/components/ui/SelectRefined';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { PROJECT_TYPES } from '@/lib/crm/projects';
 
 interface ProgramFormModalProps {
   workspaceId: string;
@@ -10,6 +13,7 @@ interface ProgramFormModalProps {
 }
 
 export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: ProgramFormModalProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +27,9 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
   const [permitNumber, setPermitNumber] = useState('');
   const [architectName, setArchitectName] = useState('');
   const [gfaBank, setGfaBank] = useState('');
+  const [projectType, setProjectType] = useState('residential');
+  const [developerName, setDeveloperName] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +56,9 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
           targetDeliveryDate: targetDeliveryDate || undefined,
           permitNumber: permitNumber.trim() || undefined,
           architectName: architectName.trim() || undefined,
+          projectType,
+          developerName: developerName.trim() || undefined,
+          websiteUrl: websiteUrl.trim() || undefined,
           gfaBank: gfaBank.trim() || undefined,
           status: 'study',
         }),
@@ -117,6 +127,40 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
               className={inputClass}
               value={targetDeliveryDate}
               onChange={(e) => setTargetDeliveryDate(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label="Project Type">
+            <SelectRefined
+              value={projectType}
+              options={PROJECT_TYPES.map((v) => ({
+                value: v,
+                label: t(`realEstate.projects.type.${v}` as MessageKey),
+              }))}
+              onChange={setProjectType}
+              variant="outlined"
+            />
+          </Field>
+
+          <Field label="Developer / Promoter">
+            <input
+              type="text"
+              className={inputClass}
+              value={developerName}
+              onChange={(e) => setDeveloperName(e.target.value)}
+              placeholder="e.g. Nexity"
+            />
+          </Field>
+
+          <Field label="Project Website">
+            <input
+              type="url"
+              className={inputClass}
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              placeholder="https://..."
             />
           </Field>
         </div>

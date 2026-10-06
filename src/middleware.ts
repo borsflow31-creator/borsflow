@@ -18,8 +18,8 @@ export const config = {
         '/mandates/:path*',
         '/offers/:path*',
         '/commissions/:path*',
-        '/portals/:path*',
         '/viewings/:path*',
         '/products/:path*',
+        '/developer/:path*',
     ],
 }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { daysOnMarket } from '@/lib/crm/lifecycle'
 
 /**
- * What the public may see of a listing, on the listing page and in portal feeds.
+ * What the public may see of a listing, on the listing page.
  *
  * An explicit allow-list, built field by field: the authenticated property shape
  * carries the vendor, the listing agent, internal custom fields and the exact
@@ -13,7 +13,7 @@ import { daysOnMarket } from '@/lib/crm/lifecycle'
  *
  * Images are never URLs into the storage bucket. Each is a link to our own proxy
  * route, which signs a fresh short-lived URL when it is fetched. The bucket stays
- * private (it also holds vendor paperwork), and a portal that stores the link keeps
+ * private (it also holds vendor paperwork), and a visitor who stores the link keeps
  * a link that works, instead of a signed URL that rots in minutes.
  */
 

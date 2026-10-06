@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The public listing page. No session: this is what a buyer, or a portal's visitor, opens.
+ * The public listing page. No session: this is what a buyer opens.
  * Everything shown comes from the allow-listed listing the server publishes.
  */
 

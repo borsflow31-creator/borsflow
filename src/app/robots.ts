@@ -30,7 +30,6 @@ export default function robots(): MetadataRoute.Robots {
                     '/meetings',
                     '/offers',
                     '/commissions',
-                    '/portals',
                     '/offline',
                     '/pages',
                     '/products',

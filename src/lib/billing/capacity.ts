@@ -23,7 +23,6 @@ const LABELS: Record<CapacityResource, string> = {
   properties: 'properties',
   activeMandates: 'active mandates',
   pipelines: 'boards of this kind',
-  portalFeeds: 'portal feeds',
 }
 
 export async function usedCapacity(
@@ -42,8 +41,6 @@ export async function usedCapacity(
       // Per kind of record, so the boards every workspace is seeded with do not eat
       // into the allowance for the ones it creates itself.
       return prisma.pipeline.count({ where: { workspaceId, subjectType: opts.subjectType ?? 'Lead' } })
-    case 'portalFeeds':
-      return prisma.portalFeed.count({ where: { workspaceId } })
   }
 }
 

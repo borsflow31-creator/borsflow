@@ -156,7 +156,6 @@ function softwareApplication(base: string, locale: Locale): Node {
             'Viewings with structured feedback',
             'Competing offers with atomic acceptance',
             'Commission splits per agent and forecast',
-            'Portal feeds and enquiry intake',
             'Block-based documents and pages',
             'Quotes and invoices with PDF export',
             'Email campaigns, segments and automations',

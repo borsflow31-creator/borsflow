@@ -30,6 +30,21 @@ export const CRM_EXTRA_FILE_TYPES: Record<string, string> = {
 
 export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
 
+/** Listing video formats a browser plays natively, and the extension we store them under. */
+export const VIDEO_FILE_TYPES: Record<string, string> = {
+  'video/mp4': 'mp4',
+  'video/webm': 'webm',
+  'video/quicktime': 'mov',
+}
+
+/**
+ * A property walkthrough is two orders of magnitude bigger than a photo, so it
+ * gets its own ceiling. Videos never go through a route handler -- the browser
+ * uploads them straight to storage with a signed URL -- so this limit is not
+ * bounded by server memory the way MAX_UPLOAD_SIZE is.
+ */
+export const MAX_VIDEO_UPLOAD_SIZE = 200 * 1024 * 1024 // 200 MB
+
 /**
  * The browser-declared MIME type is just a claim; check the first bytes match
  * the stored extension so a renamed executable or HTML page can't ride in as a
@@ -50,6 +65,15 @@ export function contentMatchesType(bytes: Uint8Array, ext: string): boolean {
       return ftyp && ['heic', 'heix', 'mif1', 'msf1', 'hevc', 'heim', 'heis'].includes(brand)
     }
     case 'pdf': return starts(0x25, 0x50, 0x44, 0x46)
+    case 'mp4':
+    case 'mov': {
+      // ISO base media format, same container family as HEIC: "ftyp" at offset 4
+      // then a brand. QuickTime and MP4 differ only by brand, so both land here.
+      const ftyp = bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70
+      const brand = String.fromCharCode(...Array.from(bytes.slice(8, 12)))
+      return ftyp && ['isom', 'iso2', 'iso4', 'iso5', 'iso6', 'mp41', 'mp42', 'avc1', 'M4V ', 'qt  ', 'mmp4'].includes(brand)
+    }
+    case 'webm': return starts(0x1a, 0x45, 0xdf, 0xa3) // EBML, shared with Matroska
     case 'zip':
     case 'docx':
     case 'xlsx':

@@ -7,7 +7,7 @@ import { Field, Modal, errorFrom, inputClass, primaryButton, secondaryButton } f
 
 /**
  * Log an enquiry that came by phone or in person. It posts to the same intake the
- * website form and the portals use, so it is de-duplicated by address, attached to
+ * website form uses, so it is de-duplicated by address, attached to
  * the property named, and starts any new-contact automation.
  */
 export default function EnquiryModal({

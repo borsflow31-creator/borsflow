@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { ServiceError } from '../errors'
 import { readString } from '../parse'
+import { bucketForLotStatus, isProjectType } from '@/lib/crm/projects'
+import { signMediaPaths } from '@/lib/crm/media-urls'
 
 export interface DeveloperContext {
   workspaceId: string
@@ -22,6 +24,9 @@ export interface CreateProgramInput {
   name: string
   commercialName?: string
   description?: string
+  projectType?: string
+  developerName?: string
+  websiteUrl?: string
   addressLine?: string
   city: string
   postalCode?: string
@@ -41,6 +46,9 @@ export interface UpdateProgramInput {
   name?: string
   commercialName?: string
   description?: string
+  projectType?: string
+  developerName?: string
+  websiteUrl?: string
   addressLine?: string
   city?: string
   postalCode?: string
@@ -53,6 +61,22 @@ export interface UpdateProgramInput {
   notaryEmail?: string
   targetDeliveryDate?: string | Date | null
   landDealId?: string | null
+}
+
+/**
+ * A project website is rendered as a link, so only http(s) is accepted -- a
+ * javascript: or data: URL pasted into the field would be script injection.
+ */
+function cleanWebsite(value: string | null | undefined): string | null {
+  const raw = value?.trim()
+  if (!raw) return null
+  try {
+    const url = new URL(raw)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null
+    return url.toString()
+  } catch {
+    return null
+  }
 }
 
 /** Recalculates unit counters on a program from its real lots */
@@ -68,20 +92,16 @@ export async function syncProgramCounters(programId: string): Promise<void> {
   let reservedUnits = 0
   let soldUnits = 0
 
+  // The status-to-bucket mapping lives in lib/crm/projects, shared with the
+  // project dashboard. Spelling it out a second time here is how the counters
+  // and the screen reading them drift apart.
   for (const group of counts) {
     const c = group._count._all
     totalUnits += c
-    if (group.status === 'available') {
-      availableUnits += c
-    } else if (group.status === 'optioned' || group.status === 'reserved') {
-      reservedUnits += c
-    } else if (
-      group.status === 'contract_signed' ||
-      group.status === 'deed_signed' ||
-      group.status === 'delivered'
-    ) {
-      soldUnits += c
-    }
+    const bucket = bucketForLotStatus(group.status)
+    if (bucket === 'available') availableUnits += c
+    else if (bucket === 'reserved') reservedUnits += c
+    else if (bucket === 'sold') soldUnits += c
   }
 
   await prisma.program.update({
@@ -113,7 +133,7 @@ export async function listPrograms(
     ]
   }
 
-  return prisma.program.findMany({
+  const programs = await prisma.program.findMany({
     where,
     include: {
       buildings: {
@@ -123,12 +143,27 @@ export async function listPrograms(
         select: { id: true, stageKey: true, title: true, targetPercentage: true, isCertified: true },
         orderBy: { order: 'asc' },
       },
+      // The cover only, for the card thumbnail. Loading every image to find one
+      // would make the list page grow with the media library behind it.
+      media: {
+        where: { isCover: true },
+        take: 1,
+        select: { filePath: true, externalUrl: true },
+      },
       _count: {
         select: { lots: true, media: true },
       },
     },
     orderBy: { createdAt: 'desc' },
   })
+
+  // One batch of signed URLs for the whole page rather than one call per card.
+  const urls = await signMediaPaths(programs.map((p) => p.media[0]?.filePath ?? null))
+
+  return programs.map(({ media, ...program }) => ({
+    ...program,
+    coverUrl: media[0]?.filePath ? urls.get(media[0].filePath) ?? null : media[0]?.externalUrl ?? null,
+  }))
 }
 
 export async function getProgram(ctx: DeveloperContext, id: string) {
@@ -180,6 +215,9 @@ export async function createProgram(ctx: DeveloperContext, input: CreateProgramI
       name,
       commercialName: input.commercialName?.trim() || null,
       description: input.description?.trim() || null,
+      projectType: isProjectType(input.projectType) ? input.projectType : 'residential',
+      developerName: input.developerName?.trim() || null,
+      websiteUrl: cleanWebsite(input.websiteUrl),
       addressLine: input.addressLine?.trim() || null,
       city,
       postalCode: input.postalCode?.trim() || null,
@@ -242,6 +280,9 @@ export async function updateProgram(ctx: DeveloperContext, id: string, input: Up
   if (input.name !== undefined) data.name = input.name.trim()
   if (input.commercialName !== undefined) data.commercialName = input.commercialName?.trim() || null
   if (input.description !== undefined) data.description = input.description?.trim() || null
+  if (input.projectType !== undefined && isProjectType(input.projectType)) data.projectType = input.projectType
+  if (input.developerName !== undefined) data.developerName = input.developerName?.trim() || null
+  if (input.websiteUrl !== undefined) data.websiteUrl = cleanWebsite(input.websiteUrl)
   if (input.addressLine !== undefined) data.addressLine = input.addressLine?.trim() || null
   if (input.city !== undefined) data.city = input.city.trim()
   if (input.postalCode !== undefined) data.postalCode = input.postalCode?.trim() || null

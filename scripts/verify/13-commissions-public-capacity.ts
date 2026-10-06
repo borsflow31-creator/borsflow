@@ -5,9 +5,9 @@
  *  b. The shares can be re-cut, but not past 100% and not by a non-admin.
  *  c. The forecast reads the live pipeline; a sale at a different price re-shares the
  *     realized commission at the price it closed at; a paid commission is frozen.
- *  d. A public listing and a portal feed carry only the allow-listed fields: the
- *     street of a private address, the vendor and the listing agent never appear, and a
- *     rotated token kills the old link.
+ *  d. A public listing carries only the allow-listed fields: the street of a private
+ *     address, the vendor and the listing agent never appear, and a rotated token
+ *     kills the old link.
  *  e. Stock limits count what exists, so closing a listing frees its place.
  */
 
@@ -24,7 +24,6 @@ export default function scenario() {
     const { updateProperty } = await import('../../src/lib/services/properties')
     const commissions = await import('../../src/lib/services/commissions')
     const { loadPublicListing } = await import('../../src/lib/crm/public-listing')
-    const { renderPortalFeed } = await import('../../src/lib/crm/portal-feed')
     const { mintToken } = await import('../../src/lib/crm/public-links')
     const { capacityError } = await import('../../src/lib/billing/capacity')
     const prisma = verifyClient()
@@ -136,19 +135,11 @@ export default function scenario() {
       assert(listing!.media[0].url.includes(`/api/public/properties/${token}/media/${media.id}`), 'images go through the proxy, not the bucket')
       assert(!listing!.media[0].url.includes('crm/'), 'the storage path is not exposed')
 
-      section('a portal feed carries the same, and only published live stock')
-      const feed = await prisma.portalFeed.create({
-        data: { workspaceId: fixture.workspaceId, name: 'Test', portal: 'idealista', format: 'xml', token: `t-${uid()}` },
-      })
-      const rendered = await renderPortalFeed(feed)
-      assertEq(rendered.count, 1, 'only the published, live property (the sold one is out)')
-      assert(!rendered.body.includes(SECRET_STREET) && !rendered.body.includes(vendorEmail), 'the feed withholds the same fields')
-      const json = await renderPortalFeed({ ...feed, format: 'json' })
-      assert(!json.body.includes(SECRET_STREET), 'and so does the JSON form')
+      section('unpublishing takes the listing off its public page')
       await prisma.property.update({ where: { id: b.id }, data: { isPublished: false } })
-      assertEq((await renderPortalFeed(feed)).count, 0, 'unpublishing removes it from the feed')
-      assertEq(await loadPublicListing(token), null, 'and from its public page')
+      assertEq(await loadPublicListing(token), null, 'an unpublished listing no longer resolves')
       await prisma.property.update({ where: { id: b.id }, data: { isPublished: true } })
+      assert(await loadPublicListing(token), 'republishing brings it back')
 
       section('each token resolves to its own listing, and an unknown token to nothing')
       const other = await makeListing('Another flat', 300_000)
@@ -168,7 +159,6 @@ export default function scenario() {
       section('stock limits count what exists (Free plan)')
       const status = async (resource: Parameters<typeof capacityError>[1], opts: Parameters<typeof capacityError>[2] = {}) =>
         (await capacityError(fixture.workspaceId, resource, opts))?.status ?? null
-      assertEq(await status('portalFeeds'), 402, 'Free includes no portal feeds')
       assertEq(await status('pipelines', { subjectType: 'Lead' }), 402, 'one board per kind on Free, and the seeded one is it')
       assertEq(await status('properties'), null, 'two properties in play, plenty of room')
 
@@ -187,12 +177,9 @@ export default function scenario() {
       assertEq(await status('properties'), null, 'a sold listing frees its place straight away')
 
       section('a higher plan lifts the limit')
-      await prisma.workspace.update({ where: { id: fixture.workspaceId }, data: { plan: 'STARTER' } })
-      assertEq(await status('portalFeeds'), 402, 'Starter allows one feed and one exists')
-      await prisma.portalFeed.delete({ where: { id: feed.id } })
-      assertEq(await status('portalFeeds'), null, 'so a deleted feed makes room')
       await prisma.workspace.update({ where: { id: fixture.workspaceId }, data: { plan: 'PRO' } })
       assertEq(await status('pipelines', { subjectType: 'Lead' }), null, 'Pro has unlimited boards')
+      assertEq(await status('properties'), null, 'and its stock limit is far above 25')
     } catch (error) {
       throw error
     } finally {

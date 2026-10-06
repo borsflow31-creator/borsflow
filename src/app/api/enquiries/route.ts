@@ -6,7 +6,7 @@ import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 // POST /api/enquiries  { workspaceId, firstName, lastName, email?, phone?, message?, propertyId? }
 //
 // An agent logging an enquiry that came by phone or in person. It lands through the
-// same intake as the website form and the portal webhooks -- de-duplicated by
+// same intake as the website form -- de-duplicated by
 // address, attached to the property named, logged, and starting any lead_created
 // automation -- so a manual enquiry is not a second-class path.
 export async function POST(request: NextRequest) {

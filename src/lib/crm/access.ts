@@ -126,6 +126,20 @@ export async function getOfferAccess(id: string, opts: { write?: boolean } = {})
   )
 }
 
+export async function getProgramAccess(id: string, opts: { write?: boolean } = {}) {
+  return viaRecord(
+    await prisma.program.findUnique({
+      where: { id },
+      select: {
+        id: true, workspaceId: true, reference: true, name: true, status: true,
+        city: true, publicToken: true, createdById: true,
+      },
+    }),
+    'Project not found',
+    opts
+  )
+}
+
 /**
  * The people a record can be assigned to: owner and members of the workspace.
  * Assigning an agent from another workspace would hand them a record they could

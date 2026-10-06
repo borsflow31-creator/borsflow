@@ -1,0 +1,31 @@
+-- Remove portal feeds.
+--
+-- Portal syndication is withdrawn from the product. The feature was three
+-- surfaces on one table: a management screen, an outbound XML/JSON feed that
+-- portals polled, and an inbound endpoint where those portals POSTed enquiries.
+-- All three are gone, so the table that held their shared credential goes too.
+--
+-- "PortalFeed"."token" was the only thing authenticating those public endpoints.
+-- Dropping the table is what actually revokes every feed URL an agency ever
+-- handed to SeLoger, Idealista, Rightmove, Immoweb or Zillow; leaving the rows
+-- behind would leave live credentials in the database for a feature that no
+-- longer answers.
+--
+-- Nothing references this table: the foreign keys point outward, to "Workspace"
+-- and "User", so no other row loses a parent. Leads and interests that came in
+-- from a portal are untouched -- they only ever stored the portal's name as a
+-- string in "Lead"."source" and "Interest"."source", never a row id, so history
+-- stays readable after the feed it arrived through is gone.
+--
+-- Public listing pages (/listings/[token]) and the image proxy are a separate
+-- mechanism on "Property"."publicToken" and keep working.
+--
+-- Safe on a live database: dropping a table nothing depends on. It does cancel
+-- any in-flight portal fetch, which is the intent.
+--
+-- Rollback: this is destructive and the tokens are not recoverable. Recreate the
+-- table from the 20261007050000_commissions_and_portal_feeds migration, then have
+-- each agency re-create its feeds and re-register the new URLs with each portal.
+
+-- DropTable
+DROP TABLE IF EXISTS "public"."PortalFeed";

@@ -40,7 +40,7 @@ function ProgramsPageInner() {
       })
       .catch((err) => {
         console.error('Error fetching programs:', err);
-        setToast({ message: 'Failed to load developer programs', type: 'error' });
+        setToast({ message: 'Failed to load projects', type: 'error' });
       })
       .finally(() => setLoading(false));
   }, [workspaceId, search, statusFilter]);
@@ -89,7 +89,7 @@ function ProgramsPageInner() {
               <span className="p-2 bg-primary/10 text-primary rounded-lg">
                 <Building className="w-6 h-6" />
               </span>
-              <h1 className="text-2xl font-bold text-on-surface">Development Programs</h1>
+              <h1 className="text-2xl font-bold text-on-surface">Projects</h1>
             </div>
             <p className="text-sm text-on-surface-variant mt-1">
               Residential developments, interactive lot inventory, and construction milestone tracking.
@@ -102,7 +102,7 @@ function ProgramsPageInner() {
               className={`${primaryButton} flex items-center gap-2`}
             >
               <Plus className="w-4 h-4" />
-              <span>New Program</span>
+              <span>New Project</span>
             </button>
           </div>
         </div>
@@ -110,7 +110,7 @@ function ProgramsPageInner() {
         {/* Global Developer Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-on-surface-variant">Programs</span>
+            <span className="text-xs font-medium text-on-surface-variant">Projects</span>
             <p className="text-2xl font-bold text-on-surface mt-1">{stats.totalPrograms}</p>
           </div>
           <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
@@ -138,7 +138,7 @@ function ProgramsPageInner() {
             <input
               type="text"
               className={`${inputClass} pl-9`}
-              placeholder="Search programs by name, reference, or city..."
+              placeholder="Search projects by name, reference, or city..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchPrograms()}
@@ -167,7 +167,7 @@ function ProgramsPageInner() {
         ) : programs.length === 0 ? (
           <div className="p-12 text-center bg-surface rounded-xl border border-dashed border-surface-container-high">
             <Building className="w-12 h-12 text-on-surface-variant mx-auto mb-3 opacity-40" />
-            <h3 className="text-lg font-semibold text-on-surface">No development programs yet</h3>
+            <h3 className="text-lg font-semibold text-on-surface">No projects yet</h3>
             <p className="text-sm text-on-surface-variant mt-1 max-w-sm mx-auto">
               Start by creating your first residential or commercial development project.
             </p>
@@ -188,6 +188,21 @@ function ProgramsPageInner() {
                   key={program.id}
                   className="bg-surface rounded-xl border border-surface-container-high shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between overflow-hidden"
                 >
+                  {/* Cover. A development is bought on how it looks, so the card
+                      leads with the image when there is one and stays compact
+                      when there is not. */}
+                  {program.coverUrl && (
+                    <div className="aspect-[16/9] bg-surface-container-high overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={program.coverUrl}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
                   <div className="p-5 space-y-4">
                     {/* Header: Reference + Status badge */}
                     <div className="flex items-center justify-between gap-2">
@@ -288,7 +303,7 @@ function ProgramsPageInner() {
           onClose={() => setShowModal(false)}
           onSuccess={(newProgram) => {
             setShowModal(false);
-            setToast({ message: 'Program created successfully!', type: 'success' });
+            setToast({ message: 'Project created successfully!', type: 'success' });
             fetchPrograms();
           }}
         />

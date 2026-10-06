@@ -26,6 +26,8 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Image as ImageIcon,
+  LayoutDashboard,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import PageSkeleton from '@/components/PageSkeleton';
@@ -38,6 +40,9 @@ import ReserveModal from '@/components/developer/ReserveModal';
 import CertifyMilestoneModal from '@/components/developer/CertifyMilestoneModal';
 import TMAModal from '@/components/developer/TMAModal';
 import TMAReviewModal from '@/components/developer/TMAReviewModal';
+import ProjectDashboard from '@/components/developer/ProjectDashboard';
+import ProjectMedia from '@/components/developer/ProjectMedia';
+import { summarizeUnits } from '@/lib/crm/projects';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; label: string }> = {
   available: {
@@ -97,7 +102,9 @@ function ProgramDetailPageInner() {
   const [callsForFunds, setCallsForFunds] = useState<any[]>([]);
   const [tmaRequests, setTmaRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'stacking' | 'milestones' | 'tma' | 'table'>('stacking');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'media' | 'stacking' | 'milestones' | 'tma' | 'table'
+  >('overview');
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('all');
   const [selectedLot, setSelectedLot] = useState<any>(null);
 
@@ -111,6 +118,17 @@ function ProgramDetailPageInner() {
   const [reviewTma, setReviewTma] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [copiedPortalToken, setCopiedPortalToken] = useState(false);
+
+  // Six unit statuses collapse into three buckets in exactly one place.
+  const summarizeStats = useMemo(() => {
+    const totals = summarizeUnits(lots);
+    return [
+      { label: 'Total', value: totals.total, box: 'bg-surface-container-high/60', text: 'text-on-surface-variant', num: 'text-on-surface' },
+      { label: 'Available', value: totals.available, box: 'bg-emerald-50 border border-emerald-100', text: 'text-emerald-700', num: 'text-emerald-800' },
+      { label: 'Reserved', value: totals.reserved, box: 'bg-amber-50 border border-amber-100', text: 'text-amber-700', num: 'text-amber-800' },
+      { label: 'Sold', value: totals.sold, box: 'bg-blue-50 border border-blue-100', text: 'text-blue-700', num: 'text-blue-800' },
+    ];
+  }, [lots]);
 
   const handleCopyBuyerPortal = (token: string) => {
     const fullUrl = `${window.location.origin}/view/buyer/${token}`;
@@ -302,40 +320,45 @@ function ProgramDetailPageInner() {
               </div>
             </div>
 
-            {/* Quick Stats Distribution */}
+            {/* Quick stats. summarizeUnits is the one place the six unit
+                statuses collapse into three buckets, so these can never
+                disagree with the Overview tab or the units table. */}
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-surface-container-high/60 rounded-xl text-center min-w-[70px]">
-                <span className="block text-xs text-on-surface-variant">Total</span>
-                <span className="text-xl font-bold text-on-surface">{lots.length}</span>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl text-center min-w-[70px] border border-emerald-100">
-                <span className="block text-xs text-emerald-700">Available</span>
-                <span className="text-xl font-bold text-emerald-800">
-                  {lots.filter((l) => l.status === 'available').length}
-                </span>
-              </div>
-              <div className="p-3 bg-amber-50 rounded-xl text-center min-w-[70px] border border-amber-100">
-                <span className="block text-xs text-amber-700">Optioned</span>
-                <span className="text-xl font-bold text-amber-800">
-                  {lots.filter((l) => l.status === 'optioned').length}
-                </span>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-xl text-center min-w-[70px] border border-blue-100">
-                <span className="block text-xs text-blue-700">Reserved</span>
-                <span className="text-xl font-bold text-blue-800">
-                  {lots.filter(
-                    (l) =>
-                      l.status === 'reserved' ||
-                      l.status === 'contract_signed' ||
-                      l.status === 'deed_signed'
-                  ).length}
-                </span>
-              </div>
+              {summarizeStats.map((tile) => (
+                <div key={tile.label} className={`p-3 rounded-xl text-center min-w-[70px] ${tile.box}`}>
+                  <span className={`block text-xs ${tile.text}`}>{tile.label}</span>
+                  <span className={`text-xl font-bold ${tile.num}`}>{tile.value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Navigation Tabs */}
           <div className="flex border-b border-surface-container-high pt-2 gap-6 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'overview'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span>Overview</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('media')}
+              className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'media'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Media</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('stacking')}
               className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 whitespace-nowrap ${
@@ -387,6 +410,98 @@ function ProgramDetailPageInner() {
             </button>
           </div>
         </div>
+
+        {/* TAB: OVERVIEW -- the project dashboard and its basic information */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6">
+            <ProjectDashboard lots={lots} status={program.status} currency="EUR" />
+
+            <div className="p-6 bg-surface rounded-2xl border border-surface-container-high shadow-sm">
+              <h2 className="title-sm text-on-surface mb-4">Project information</h2>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                {[
+                  { label: 'Reference', value: program.reference },
+                  { label: 'Name', value: program.name },
+                  { label: 'Commercial name', value: program.commercialName },
+                  { label: 'Project type', value: program.projectType },
+                  { label: 'Status', value: program.status },
+                  { label: 'Developer / promoter', value: program.developerName },
+                  { label: 'Architect', value: program.architectName },
+                  { label: 'Permit number', value: program.permitNumber },
+                  { label: 'GFA guarantee', value: program.gfaBank },
+                  { label: 'Notary', value: program.notaryName },
+                  {
+                    label: 'Address',
+                    value: [program.addressLine, program.postalCode, program.city]
+                      .filter(Boolean)
+                      .join(', '),
+                  },
+                  {
+                    label: 'Completion date',
+                    value: program.targetDeliveryDate
+                      ? new Date(program.targetDeliveryDate).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })
+                      : null,
+                  },
+                ].map((row) => (
+                  <div key={row.label}>
+                    <dt className="body-xs text-on-surface-variant">{row.label}</dt>
+                    <dd className="body-sm text-on-surface capitalize">{row.value || '—'}</dd>
+                  </div>
+                ))}
+
+                <div>
+                  <dt className="body-xs text-on-surface-variant">Project website</dt>
+                  <dd className="body-sm">
+                    {program.websiteUrl ? (
+                      <a
+                        href={program.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        {program.websiteUrl}
+                      </a>
+                    ) : (
+                      <span className="text-on-surface">—</span>
+                    )}
+                  </dd>
+                </div>
+
+                {(program.latitude || program.longitude) && (
+                  <div>
+                    <dt className="body-xs text-on-surface-variant">Map location</dt>
+                    <dd className="body-sm">
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${program.latitude}&mlon=${program.longitude}#map=17/${program.latitude}/${program.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        {program.latitude}, {program.longitude}
+                      </a>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+
+              {program.description && (
+                <div className="mt-6 pt-4 border-t border-surface-container-high">
+                  <dt className="body-xs text-on-surface-variant mb-1">Description</dt>
+                  <dd className="body-sm text-on-surface whitespace-pre-line">{program.description}</dd>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MEDIA -- photos, renders, drone shots, videos, plans, brochures */}
+        {activeTab === 'media' && <ProjectMedia programId={programId} />}
 
         {/* TAB 1: INTERACTIVE STACKING PLAN */}
         {activeTab === 'stacking' && (

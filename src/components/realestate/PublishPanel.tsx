@@ -7,7 +7,7 @@ import { Badge, SectionTitle, errorFrom, primaryButton, secondaryButton } from '
 /**
  * Publishing a listing: the public page, and the link to it.
  *
- * Publishing is what makes the link work and what puts the property in portal feeds;
+ * Publishing is what makes the link work;
  * an unpublished property's link resolves to nothing. Rotating the link is how an
  * agent retires one that has been shared too widely.
  */

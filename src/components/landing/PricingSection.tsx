@@ -39,11 +39,6 @@ function planLines(plan: PlanDefinition, t: ReturnType<typeof useI18n>['t']): st
         l.activeMandates === null
             ? t('landing.pricing.limitUnlimitedActiveMandates')
             : t('landing.pricing.limitActiveMandates', { count: fmt(l.activeMandates) }),
-        l.portalFeeds === null
-            ? t('landing.pricing.limitUnlimitedPortalFeeds')
-            : l.portalFeeds === 0
-                ? t('landing.pricing.limitNoPortalFeeds')
-                : t('landing.pricing.limitPortalFeeds', { count: l.portalFeeds }),
         l.invoicesPerMonth === null
             ? t('landing.pricing.limitUnlimitedInvoices')
             : t('landing.pricing.limitInvoicesPerMonth', { count: l.invoicesPerMonth }),

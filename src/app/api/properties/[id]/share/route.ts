@@ -6,7 +6,7 @@ import { failure } from '@/lib/api/respond'
 
 // POST /api/properties/[id]/share  { rotate?, publish? }
 // Mint (or rotate) the public listing link. `publish: true` also marks the listing
-// published, which is what makes the link work and puts it in portal feeds; the
+// published, which is what makes the link work; the
 // listing page returns nothing for an unpublished property however good the link.
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {

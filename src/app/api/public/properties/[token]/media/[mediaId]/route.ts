@@ -1,9 +1,9 @@
 /**
- * Image proxy for public listings and portal feeds.
+ * Image proxy for public listings.
  *
  * The storage bucket is private, so a listing image cannot be a plain bucket URL. This
- * route is the stable address that goes into a page or a portal feed: when fetched, it
- * signs a fresh, short-lived URL and redirects to it. A portal that stores this URL
+ * route is the stable address that goes into a page: when fetched, it signs a fresh,
+ * short-lived URL and redirects to it. A visitor whose browser caches this URL
  * keeps a working link for as long as the listing is public, instead of a signed URL
  * that expires in minutes -- and the bucket never has to be made public, which would
  * expose the vendor paperwork that shares it.

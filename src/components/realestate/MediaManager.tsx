@@ -1,87 +1,109 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
-import { ExternalLink, ImageIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ImageIcon } from 'lucide-react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import SelectRefined from '@/components/ui/SelectRefined';
-import { Badge, errorFrom, inputClass, primaryButton, secondaryButton } from './ui';
-
-interface MediaItem {
-    id: string;
-    kind: string;
-    url: string | null;
-    externalUrl: string | null;
-    fileName: string | null;
-    fileType: string | null;
-    caption: string | null;
-    isCover: boolean;
-    position: number;
-}
-
-const FILE_KINDS = ['photo', 'floorplan'] as const;
-const LINK_KINDS = ['video', 'virtual_tour'] as const;
+import { errorFrom, inputClass, secondaryButton } from './ui';
+import MediaGallery from './MediaGallery';
+import MediaUploader from './MediaUploader';
+import { type MediaItem } from './media';
 
 /**
- * Ordered, typed media for one listing: photos and floor plans uploaded to the
- * private bucket, videos and virtual tours added as links. Drag to reorder; the
- * first photo is the cover until another is chosen.
+ * The Media section of a listing: one gallery per kind, each with its own drop
+ * target, so an agent uploading twelve photos and one walkthrough never has to
+ * tell the form which is which.
+ *
+ * Photos and floor plans post their bytes to the media route. Video goes direct
+ * to storage with a signed URL (see MediaUploader), which is why its ceiling is
+ * 200 MB and theirs is 10.
+ *
+ * Reordering is per gallery but positions are global, so the PATCH sends the
+ * whole list in its new order -- the route keeps ids it was not told about after
+ * the ones it was, so a stale client cannot drop an item it never saw.
  */
-export default function MediaManager({ propertyId, canWrite, onChanged }: { propertyId: string; canWrite: boolean; onChanged?: () => void }) {
+
+const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp';
+const FLOORPLAN_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf';
+const VIDEO_ACCEPT = 'video/mp4,video/webm,video/quicktime';
+
+const MB = 1024 * 1024;
+const LINK_KINDS = ['video', 'virtual_tour'] as const;
+
+interface Section {
+    kind: string;
+    titleKey: MessageKey;
+    accept?: string;
+    maxBytes?: number;
+    direct?: boolean;
+}
+
+const SECTIONS: Section[] = [
+    { kind: 'photo', titleKey: 'realEstate.media.sections.photos', accept: PHOTO_ACCEPT, maxBytes: 10 * MB },
+    { kind: 'video', titleKey: 'realEstate.media.sections.videos', accept: VIDEO_ACCEPT, maxBytes: 200 * MB, direct: true },
+    { kind: 'floorplan', titleKey: 'realEstate.media.sections.floorplans', accept: FLOORPLAN_ACCEPT, maxBytes: 10 * MB },
+    { kind: 'virtual_tour', titleKey: 'realEstate.media.sections.virtualTours' },
+];
+
+export default function MediaManager({
+    propertyId,
+    canWrite,
+    onChanged,
+}: {
+    propertyId: string;
+    canWrite: boolean;
+    onChanged?: () => void;
+}) {
     const { t } = useI18n();
+    const base = `/api/properties/${propertyId}/media`;
+
     const [items, setItems] = useState<MediaItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
-    const [uploadKind, setUploadKind] = useState<(typeof FILE_KINDS)[number]>('photo');
     const [linkKind, setLinkKind] = useState<(typeof LINK_KINDS)[number]>('video');
     const [linkUrl, setLinkUrl] = useState('');
-    const input = useRef<HTMLInputElement>(null);
+    const [addingLink, setAddingLink] = useState(false);
+    const changedRef = useRef(onChanged);
+    changedRef.current = onChanged;
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch(`/api/properties/${propertyId}/media`);
+            const res = await fetch(base);
             if (!res.ok) return setError(await errorFrom(res, t('realEstate.media.errors.load')));
             setItems((await res.json()).media);
+            setError('');
         } catch {
             setError(t('realEstate.media.errors.load'));
         } finally {
             setLoading(false);
         }
-    }, [propertyId, t]);
+    }, [base, t]);
 
-    useEffect(() => { load(); }, [load]);
+    useEffect(() => {
+        void load();
+    }, [load]);
 
-    const done = () => { load(); onChanged?.(); };
+    const done = useCallback(() => {
+        void load();
+        changedRef.current?.();
+    }, [load]);
 
-    const upload = async (files: FileList | null) => {
-        if (!files || files.length === 0) return;
-        setBusy(true);
-        setError('');
-        // Sequential: each upload picks the next position, and one failure should
-        // say which file it was rather than abort the rest silently.
-        for (const file of Array.from(files)) {
-            const form = new FormData();
-            form.append('file', file);
-            form.append('kind', uploadKind);
-            try {
-                const res = await fetch(`/api/properties/${propertyId}/media`, { method: 'POST', body: form });
-                if (!res.ok) setError(`${file.name}: ${await errorFrom(res, t('realEstate.media.errors.upload'))}`);
-            } catch {
-                setError(`${file.name}: ${t('realEstate.media.errors.upload')}`);
-            }
+    const byKind = useMemo(() => {
+        const map = new Map<string, MediaItem[]>();
+        for (const item of items) {
+            const list = map.get(item.kind) ?? [];
+            list.push(item);
+            map.set(item.kind, list);
         }
-        if (input.current) input.current.value = '';
-        setBusy(false);
-        done();
-    };
+        return map;
+    }, [items]);
 
     const addLink = async (e: React.FormEvent) => {
         e.preventDefault();
-        setBusy(true);
+        setAddingLink(true);
         setError('');
         try {
-            const res = await fetch(`/api/properties/${propertyId}/media`, {
+            const res = await fetch(base, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ kind: linkKind, externalUrl: linkUrl }),
@@ -92,153 +114,149 @@ export default function MediaManager({ propertyId, canWrite, onChanged }: { prop
         } catch {
             setError(t('realEstate.media.errors.link'));
         } finally {
-            setBusy(false);
+            setAddingLink(false);
         }
     };
 
-    const reorder = async (result: DropResult) => {
-        if (!result.destination || result.destination.index === result.source.index) return;
-        const next = [...items];
-        const [moved] = next.splice(result.source.index, 1);
-        next.splice(result.destination.index, 0, moved);
-        const previous = items;
-        setItems(next);
-        const res = await fetch(`/api/properties/${propertyId}/media`, {
+    /**
+     * Reorder within one gallery, expressed as a global order: the moved
+     * gallery's new sequence followed by everything else in the order it already
+     * had. Sending only the one gallery would let the route interleave it with
+     * the others however their old positions happened to fall.
+     */
+    const reorder = async (kind: string, orderedIds: string[]) => {
+        const rest = items.filter((i) => i.kind !== kind).map((i) => i.id);
+        const res = await fetch(base, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order: next.map(i => i.id) }),
+            body: JSON.stringify({ order: [...orderedIds, ...rest] }),
         }).catch(() => null);
-        if (!res?.ok) { setItems(previous); setError(t('realEstate.media.errors.upload')); }
+        if (!res?.ok) {
+            setError(t('realEstate.media.errors.upload'));
+            throw new Error('reorder failed');
+        }
+        void load();
     };
 
-    const makeCover = async (id: string) => {
-        const res = await fetch(`/api/properties/${propertyId}/media/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isCover: true }) });
+    const setCover = async (id: string) => {
+        const res = await fetch(`${base}/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isCover: true }),
+        });
         if (!res.ok) return setError(await errorFrom(res, t('realEstate.media.errors.upload')));
         done();
     };
 
     const saveCaption = async (id: string, caption: string) => {
-        await fetch(`/api/properties/${propertyId}/media/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caption }) });
+        await fetch(`${base}/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ caption }),
+        });
     };
 
     const remove = async (id: string) => {
         if (!confirm(t('realEstate.media.removeConfirm'))) return;
-        const res = await fetch(`/api/properties/${propertyId}/media/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${base}/${id}`, { method: 'DELETE' });
         if (!res.ok) return setError(await errorFrom(res, t('realEstate.media.errors.remove')));
         done();
     };
 
-    const fileKindOptions = FILE_KINDS.map(v => ({ value: v, label: t(`realEstate.media.kind.${v}` as MessageKey) }));
-    const linkKindOptions = LINK_KINDS.map(v => ({ value: v, label: t(`realEstate.media.kind.${v}` as MessageKey) }));
+    const linkKindOptions = LINK_KINDS.map((v) => ({ value: v, label: t(`realEstate.media.kind.${v}` as MessageKey) }));
 
     if (loading) return <div className="skeleton h-40 rounded-lg" />;
 
     return (
-        <div className="space-y-6">
-            {error && <p className="body-sm text-error bg-error-container rounded px-3 py-2" role="alert">{error}</p>}
-
-            {canWrite && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="bg-surface-container rounded-lg p-4 space-y-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-40">
-                                <SelectRefined value={uploadKind} options={fileKindOptions} onChange={v => setUploadKind(v as (typeof FILE_KINDS)[number])} variant="filled" size="sm" />
-                            </div>
-                            <button type="button" disabled={busy} onClick={() => input.current?.click()} className={primaryButton}>
-                                {busy ? t('common.loading') : t('realEstate.media.upload')}
-                            </button>
-                        </div>
-                        <input
-                            ref={input}
-                            type="file"
-                            multiple
-                            accept={uploadKind === 'floorplan' ? 'image/jpeg,image/png,image/webp,application/pdf' : 'image/jpeg,image/png,image/webp'}
-                            className="hidden"
-                            onChange={e => upload(e.target.files)}
-                        />
-                        <p className="body-xs text-on-surface-variant">{t('realEstate.media.dropHint')}</p>
-                    </div>
-
-                    <form onSubmit={addLink} className="bg-surface-container rounded-lg p-4 space-y-3">
-                        <p className="body-sm text-on-surface">{t('realEstate.media.addLink')}</p>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <div className="sm:w-44">
-                                <SelectRefined value={linkKind} options={linkKindOptions} onChange={v => setLinkKind(v as (typeof LINK_KINDS)[number])} variant="filled" size="sm" />
-                            </div>
-                            <input type="url" required value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder={t('realEstate.media.linkUrl')} className={inputClass} />
-                            <button type="submit" disabled={busy} className={secondaryButton}>{t('realEstate.media.addLinkSubmit')}</button>
-                        </div>
-                    </form>
-                </div>
+        <div className="space-y-8">
+            {error && (
+                <p className="body-sm text-error bg-error-container rounded px-3 py-2" role="alert">
+                    {error}
+                </p>
             )}
 
-            {items.length === 0 ? (
+            {items.length === 0 && !canWrite && (
                 <div className="flex flex-col items-center text-center py-12 gap-2 text-on-surface-variant">
                     <ImageIcon className="w-8 h-8" />
                     <p className="body-md">{t('realEstate.media.empty')}</p>
                 </div>
-            ) : (
-                <>
-                    {canWrite && <p className="body-xs text-on-surface-variant">{t('realEstate.media.reorderHint')}</p>}
-                    <DragDropContext onDragEnd={reorder}>
-                        <Droppable droppableId="media" direction="horizontal">
-                            {provided => (
-                                <div ref={provided.innerRef} {...provided.droppableProps} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {items.map((item, index) => (
-                                        <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={!canWrite}>
-                                            {(drag, snapshot) => (
-                                                <div
-                                                    ref={drag.innerRef}
-                                                    {...drag.draggableProps}
-                                                    {...drag.dragHandleProps}
-                                                    className={`bg-surface-container rounded-lg overflow-hidden ${snapshot.isDragging ? 'shadow-2xl' : ''}`}
-                                                >
-                                                    <div className="relative aspect-[4/3] bg-surface-container-high flex items-center justify-center">
-                                                        {item.kind === 'photo' && item.url ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
-                                                            <img src={item.url} alt={item.caption ?? item.fileName ?? ''} className="w-full h-full object-cover" />
-                                                        ) : item.externalUrl ? (
-                                                            <a href={item.externalUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-primary body-sm p-3 text-center">
-                                                                <ExternalLink className="w-6 h-6" />
-                                                                {t('realEstate.media.openLink')}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="body-sm text-on-surface-variant p-3 text-center break-all">{item.fileName}</span>
-                                                        )}
-                                                        <div className="absolute top-2 left-2 flex gap-1">
-                                                            <Badge>{t(`realEstate.media.kind.${item.kind}` as MessageKey)}</Badge>
-                                                            {item.isCover && <Badge tone="good">{t('realEstate.media.cover')}</Badge>}
-                                                        </div>
-                                                    </div>
-                                                    <div className="p-2 space-y-2">
-                                                        {canWrite ? (
-                                                            <input
-                                                                defaultValue={item.caption ?? ''}
-                                                                onBlur={e => e.target.value !== (item.caption ?? '') && saveCaption(item.id, e.target.value)}
-                                                                placeholder={t('realEstate.media.caption')}
-                                                                className="premium-input w-full px-2 py-1 text-xs"
-                                                                aria-label={t('realEstate.media.caption')}
-                                                            />
-                                                        ) : item.caption ? <p className="body-xs text-on-surface-variant">{item.caption}</p> : null}
-                                                        {canWrite && (
-                                                            <div className="flex items-center justify-between body-xs">
-                                                                {item.kind === 'photo' && !item.isCover ? (
-                                                                    <button type="button" onClick={() => makeCover(item.id)} className="text-primary hover:underline">{t('realEstate.media.setCover')}</button>
-                                                                ) : <span />}
-                                                                <button type="button" onClick={() => remove(item.id)} className="text-error hover:underline">{t('realEstate.media.remove')}</button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </Draggable>
-                                    ))}
-                                    {provided.placeholder}
-                                </div>
+            )}
+
+            {SECTIONS.map((section) => {
+                const sectionItems = byKind.get(section.kind) ?? [];
+                // A read-only viewer has no reason to see an empty section header.
+                if (sectionItems.length === 0 && !canWrite) return null;
+
+                return (
+                    <section key={section.kind} className="space-y-3">
+                        <div className="flex items-baseline justify-between gap-3">
+                            <h3 className="title-sm text-on-surface">
+                                {t(section.titleKey)}
+                                {sectionItems.length > 0 && (
+                                    <span className="body-sm text-on-surface-variant ml-2">{sectionItems.length}</span>
+                                )}
+                            </h3>
+                            {section.kind === 'photo' && sectionItems.length > 1 && canWrite && (
+                                <p className="body-xs text-on-surface-variant">{t('realEstate.media.reorderHint')}</p>
                             )}
-                        </Droppable>
-                    </DragDropContext>
-                </>
+                        </div>
+
+                        {canWrite && section.accept && section.maxBytes && (
+                            <MediaUploader
+                                baseUrl={base}
+                                kind={section.kind}
+                                accept={section.accept}
+                                maxBytes={section.maxBytes}
+                                direct={section.direct}
+                                onUploaded={done}
+                            />
+                        )}
+
+                        {sectionItems.length > 0 ? (
+                            <MediaGallery
+                                items={sectionItems}
+                                canWrite={canWrite}
+                                showCover={section.kind === 'photo'}
+                                onReorder={(ids) => reorder(section.kind, ids)}
+                                onSetCover={section.kind === 'photo' ? setCover : undefined}
+                                onSaveCaption={saveCaption}
+                                onRemove={remove}
+                            />
+                        ) : (
+                            !section.accept && canWrite && (
+                                <p className="body-sm text-on-surface-variant">{t('realEstate.media.sectionEmpty')}</p>
+                            )
+                        )}
+                    </section>
+                );
+            })}
+
+            {canWrite && (
+                <form onSubmit={addLink} className="bg-surface-container rounded-lg p-4 space-y-3">
+                    <p className="body-sm text-on-surface">{t('realEstate.media.addLink')}</p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="sm:w-44">
+                            <SelectRefined
+                                value={linkKind}
+                                options={linkKindOptions}
+                                onChange={(v) => setLinkKind(v as (typeof LINK_KINDS)[number])}
+                                variant="filled"
+                                size="sm"
+                            />
+                        </div>
+                        <input
+                            type="url"
+                            required
+                            value={linkUrl}
+                            onChange={(e) => setLinkUrl(e.target.value)}
+                            placeholder={t('realEstate.media.linkUrl')}
+                            className={inputClass}
+                        />
+                        <button type="submit" disabled={addingLink} className={secondaryButton}>
+                            {addingLink ? t('common.loading') : t('realEstate.media.addLinkSubmit')}
+                        </button>
+                    </div>
+                </form>
             )}
         </div>
     );

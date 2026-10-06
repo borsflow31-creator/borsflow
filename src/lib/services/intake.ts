@@ -10,8 +10,8 @@ import { ServiceError } from './errors'
 /**
  * Enquiry intake: the one door.
  *
- * A website form, a portal webhook and an agent typing in a phone call all land
- * here, so an enquiry means the same thing wherever it came from. It reuses
+ * A website form and an agent typing in a phone call both land here, so an
+ * enquiry means the same thing wherever it came from. It reuses
  * createLead (stage defaulting, list validation, value parsing, ordering) rather
  * than writing a lead by hand, then does what createLead does not: attaches the
  * buyer to the property they named, logs the activity, and fires the
@@ -28,13 +28,11 @@ import { ServiceError } from './errors'
  *    address that has unsubscribed or bounced; the send path re-checks anyway.
  */
 
-export type EnquiryChannel = 'website' | 'portal' | 'manual'
+export type EnquiryChannel = 'website' | 'manual'
 
 export interface EnquiryInput {
   workspaceId: string
   channel: EnquiryChannel
-  /** The portal's name, when channel is 'portal'. Becomes the lead's source. */
-  portal?: string | null
   firstName?: string | null
   lastName?: string | null
   email?: string | null
@@ -103,7 +101,7 @@ export async function receiveEnquiry(input: EnquiryInput): Promise<EnquiryResult
       })
     : null
 
-  const source = input.channel === 'portal' ? clip(input.portal, 60) ?? 'portal' : input.channel === 'website' ? 'website' : 'manual'
+  const source = input.channel === 'website' ? 'website' : 'manual'
 
   let leadId: string
   let created = false
@@ -145,7 +143,7 @@ export async function receiveEnquiry(input: EnquiryInput): Promise<EnquiryResult
     try {
       const interest = await createInterest(
         { workspaceId: workspace.id, userId: actorId },
-        { leadId, propertyId: property.id, source: input.channel === 'portal' ? 'portal' : 'enquiry' }
+        { leadId, propertyId: property.id, source: 'enquiry' }
       )
       interestId = interest.id
     } catch (error) {

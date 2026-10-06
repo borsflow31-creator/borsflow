@@ -40,8 +40,16 @@ export function isPropertyType(v: unknown): v is PropertyType {
 
 export const MEDIA_KINDS = ['photo', 'floorplan', 'video', 'virtual_tour'] as const
 export type MediaKind = (typeof MEDIA_KINDS)[number]
-/** Kinds stored as a file; the rest are a link to somewhere else. */
-export const FILE_MEDIA_KINDS: readonly MediaKind[] = ['photo', 'floorplan']
+
+/**
+ * How a kind may be stored. These two lists overlap: a video can be a file the
+ * agency uploaded or a YouTube/Vimeo link, because a walkthrough shot on a phone
+ * and a professionally hosted tour are the same thing to a buyer. So this is not
+ * a partition -- check the list for the branch you are in, never the complement
+ * of the other one.
+ */
+export const FILE_MEDIA_KINDS: readonly MediaKind[] = ['photo', 'floorplan', 'video']
+export const LINK_MEDIA_KINDS: readonly MediaKind[] = ['video', 'virtual_tour']
 export function isMediaKind(v: unknown): v is MediaKind {
   return typeof v === 'string' && (MEDIA_KINDS as readonly string[]).includes(v)
 }

@@ -91,10 +91,8 @@ export const MANDATE_VIEW_RATE_LIMIT = {
 
 /**
  * Public listing traffic is per link, and generous: a listing page loads many images,
- * and crawlers and portals fetch them. The limit exists so a leaked or abused link
- * cannot be a free way to hammer storage, not to meter ordinary visitors.
+ * and crawlers fetch them. The limit exists so a leaked or abused link cannot be a
+ * free way to hammer storage, not to meter ordinary visitors.
  */
 export const LISTING_VIEW_RATE_LIMIT = { bucket: 'listing:view', limit: 1200, windowMs: 60 * 60 * 1000, windowLabel: 'hour' } as const
 export const LISTING_MEDIA_RATE_LIMIT = { bucket: 'listing:media', limit: 6000, windowMs: 60 * 60 * 1000, windowLabel: 'hour' } as const
-export const PORTAL_FEED_RATE_LIMIT = { bucket: 'portal:feed', limit: 60, windowMs: 60 * 60 * 1000, windowLabel: 'hour' } as const
-export const PORTAL_ENQUIRY_RATE_LIMIT = { bucket: 'portal:enquiry', limit: 600, windowMs: 60 * 60 * 1000, windowLabel: 'hour' } as const
