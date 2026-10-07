@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit, Trash2, Paperclip } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
+import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
+import { matchesOwnerFilter, type OwnerFilterValue } from '@/components/developer/OwnerFilter';
 
 interface Lead {
     id: string;
@@ -27,6 +31,10 @@ interface Lead {
     fileCount?: number;
     /** Most recent history entry */
     lastActivityAt?: string;
+    // Developer CRM
+    ownerId?: string | null;
+    score?: number;
+    nextFollowUpAt?: string | null;
 }
 
 interface Pipeline {
@@ -57,6 +65,8 @@ interface LeadListViewProps {
     onLeadUpdate: (leadId: string, updates: Partial<Lead>) => Promise<boolean>;
     onLeadDelete: (leadId: string) => Promise<boolean>;
     onOpenLeadModal: (lead?: Lead) => void;
+    /** A developer's "my leads" / owner filter. */
+    ownerFilter?: OwnerFilterValue;
 }
 
 type SortField = 'name' | 'company' | 'email' | 'status' | 'stage' | 'value' | 'source' | 'createdAt';
@@ -68,8 +78,12 @@ export default function LeadListView({
     onLeadUpdate,
     onLeadDelete,
     onOpenLeadModal,
+    ownerFilter = '',
 }: LeadListViewProps) {
     const { t, formatCurrency, formatDate: formatDateI18n } = useI18n();
+    const { data: session } = useSession();
+    const isDeveloper = session?.user?.businessType === 'DEVELOPER';
+    const agents = useWorkspaceAgents(pipeline.workspaceId);
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [sortConfig, setSortConfig] = useState<{ field: SortField; direction: SortDirection } | null>(null);
@@ -123,6 +137,8 @@ export default function LeadListView({
     // Filter leads
     const filteredLeads = useMemo(() => {
         return leads.filter(lead => {
+            if (!matchesOwnerFilter(lead, ownerFilter, session?.user?.id)) return false;
+
             // Status filter
             if (filters.status.length > 0 && !filters.status.includes(lead.status)) {
                 return false;
@@ -166,7 +182,7 @@ export default function LeadListView({
 
             return true;
         });
-    }, [leads, filters]);
+    }, [leads, filters, ownerFilter, session?.user?.id]);
 
     // Sort leads
     const sortedLeads = useMemo(() => {
@@ -511,13 +527,20 @@ export default function LeadListView({
                                     {getSortIcon('createdAt')}
                                 </button>
                             </th>
+                            {isDeveloper && (
+                                <>
+                                    <th className="hidden md:table-cell px-4 py-3 text-left text-sm font-medium text-on-surface">{t('developerCrm.lead.owner')}</th>
+                                    <th className="hidden md:table-cell px-4 py-3 text-left text-sm font-medium text-on-surface">{t('developerCrm.lead.score')}</th>
+                                    <th className="hidden lg:table-cell px-4 py-3 text-left text-sm font-medium text-on-surface">{t('developerCrm.lead.nextFollowUp')}</th>
+                                </>
+                            )}
                             <th className="px-3 sm:px-4 py-3 text-right">{t('crm.leadListView.fieldActions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {sortedLeads.length === 0 ? (
                             <tr>
-                                <td colSpan={10} className="px-4 py-8 text-center text-on-surface-variant">
+                                <td colSpan={isDeveloper ? 13 : 10} className="px-4 py-8 text-center text-on-surface-variant">
                                     {activeFiltersCount > 0
                                         ? t('crm.leadListView.emptyFiltered')
                                         : t('crm.leadListView.emptyState')
@@ -593,6 +616,13 @@ export default function LeadListView({
                                     <td className="hidden lg:table-cell px-4 py-3 text-sm text-on-surface-variant">
                                         {formatDate(lead.createdAt)}
                                     </td>
+                                    {isDeveloper && (
+                                        <>
+                                            <td className="hidden md:table-cell px-4 py-3"><OwnerAvatar ownerId={lead.ownerId} agents={agents} /></td>
+                                            <td className="hidden md:table-cell px-4 py-3">{typeof lead.score === 'number' ? <ScoreBadge score={lead.score} /> : null}</td>
+                                            <td className="hidden lg:table-cell px-4 py-3"><FollowUpChip nextFollowUpAt={lead.nextFollowUpAt} /></td>
+                                        </>
+                                    )}
                                     <td className="px-3 sm:px-4 py-3 text-right">
                                         <div className="relative inline-block">
                                             <button

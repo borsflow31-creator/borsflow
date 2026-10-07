@@ -30,6 +30,10 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
   const [projectType, setProjectType] = useState('residential');
   const [developerName, setDeveloperName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [launchDate, setLaunchDate] = useState('');
+  const [salesTargetUnits, setSalesTargetUnits] = useState('');
+  const [revenueTarget, setRevenueTarget] = useState('');
+  const [commissionPercent, setCommissionPercent] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +58,10 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
           postalCode: postalCode.trim() || undefined,
           addressLine: addressLine.trim() || undefined,
           targetDeliveryDate: targetDeliveryDate || undefined,
+          launchDate: launchDate || undefined,
+          salesTargetUnits: salesTargetUnits.trim() ? Number(salesTargetUnits) : undefined,
+          revenueTarget: revenueTarget.trim() ? Number(revenueTarget) : undefined,
+          commissionPercent: commissionPercent.trim() ? Number(commissionPercent) : undefined,
           permitNumber: permitNumber.trim() || undefined,
           architectName: architectName.trim() || undefined,
           projectType,
@@ -127,6 +135,56 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
               className={inputClass}
               value={targetDeliveryDate}
               onChange={(e) => setTargetDeliveryDate(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label={t('developer.launchDate')}>
+            <input
+              type="date"
+              className={inputClass}
+              value={launchDate}
+              onChange={(e) => setLaunchDate(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t('developer.salesTargetUnits')}>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              className={inputClass}
+              value={salesTargetUnits}
+              onChange={(e) => setSalesTargetUnits(e.target.value)}
+              placeholder="120"
+            />
+          </Field>
+
+          <Field label={t('developer.revenueTarget')}>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              className={inputClass}
+              value={revenueTarget}
+              onChange={(e) => setRevenueTarget(e.target.value)}
+              placeholder="25000000"
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label={t('developerSales.project.commission')} hint={t('developerSales.project.commissionHint')}>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              className={inputClass}
+              value={commissionPercent}
+              onChange={(e) => setCommissionPercent(e.target.value)}
+              placeholder="3"
             />
           </Field>
         </div>

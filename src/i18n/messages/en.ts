@@ -2871,6 +2871,594 @@ export interface Messages {
       createNew: string;
     };
   };
+  onboarding: {
+    businessTypeTitle: string;
+    businessTypeSubtitle: string;
+    agencyTitle: string;
+    agencyTagline: string;
+    agencyPoint1: string;
+    agencyPoint2: string;
+    agencyPoint3: string;
+    developerTitle: string;
+    developerTagline: string;
+    developerPoint1: string;
+    developerPoint2: string;
+    developerPoint3: string;
+    permanentNote: string;
+    continueCta: string;
+    saving: string;
+    error: string;
+  };
+  developerDashboard: {
+    title: string;
+    periodMonth: string;
+    periodQuarter: string;
+    periodYear: string;
+    periodNounMonth: string;
+    periodNounQuarter: string;
+    periodNounYear: string;
+    newProject: string;
+    emptyTitle: string;
+    emptyBody: string;
+    vsPrevious: string;
+    kpiTotalSalesValue: string;
+    kpiUnits: string;
+    kpiSalesInPeriod: string;
+    kpiCollected: string;
+    kpiCollectedOf: string;
+    kpiNewLeads: string;
+    kpiQualifiedLeads: string;
+    kpiConversionRate: string;
+    kpiAverageDealValue: string;
+    kpiPipelineValue: string;
+    kpiOutstanding: string;
+    kpiCancellationRate: string;
+    kpiTargetAchievement: string;
+    chartSalesTrend: string;
+    chartRevenueVsTarget: string;
+    chartSalesByProject: string;
+    chartSalesByAgent: string;
+    chartLeadFunnel: string;
+    chartInventoryStatus: string;
+    chartCollectionsForecast: string;
+    noAgentData: string;
+    noLeadData: string;
+    unassigned: string;
+    uncalledBalance: string;
+    needsAttention: string;
+    expiringOptions: string;
+    noExpiringOptions: string;
+    overdueCalls: string;
+    noOverdueCalls: string;
+    pendingModifications: string;
+    noPendingModifications: string;
+    expiresIn: string;
+    expired: string;
+    daysOverdue: string;
+    target: string;
+    achieved: string;
+    loadFailed: string;
+    retry: string;
+  };
+  developer: {
+    navProjects: string;
+    navInventory: string;
+    navBuyers: string;
+    navCollections: string;
+    navModifications: string;
+    statusAvailable: string;
+    statusOptioned: string;
+    statusReserved: string;
+    statusContractSigned: string;
+    statusDeedSigned: string;
+    statusDelivered: string;
+    inventoryTitle: string;
+    inventorySubtitle: string;
+    inventoryEmpty: string;
+    inventoryTableView: string;
+    inventoryBuildingView: string;
+    filterAllProjects: string;
+    filterAllBuildings: string;
+    filterAllStatuses: string;
+    filterAllTypes: string;
+    filterAllAgents: string;
+    filterMinPrice: string;
+    filterMaxPrice: string;
+    clearFilters: string;
+    colUnit: string;
+    colBuilding: string;
+    colFloor: string;
+    colType: string;
+    colBedrooms: string;
+    colArea: string;
+    colOrientation: string;
+    colListPrice: string;
+    colDiscount: string;
+    colFinalPrice: string;
+    colOwner: string;
+    colAgent: string;
+    colReservedAt: string;
+    colContractAt: string;
+    colPaymentStatus: string;
+    unitsCount: string;
+    paymentsNone: string;
+    paymentsPaid: string;
+    paymentsPartial: string;
+    paymentsOverdue: string;
+    cancelSale: string;
+    cancelSaleTitle: string;
+    cancelSaleBody: string;
+    cancelSaleReason: string;
+    cancelSaleReasonPlaceholder: string;
+    cancelSaleConfirm: string;
+    cancelSaleFailed: string;
+    collectionsTitle: string;
+    collectionsSubtitle: string;
+    collectionsEmpty: string;
+    dueThisMonth: string;
+    collected: string;
+    outstanding: string;
+    overdue: string;
+    agingTitle: string;
+    aging030: string;
+    aging3160: string;
+    aging60: string;
+    colCallNumber: string;
+    colProjectUnit: string;
+    colBuyer: string;
+    colMilestone: string;
+    colAmount: string;
+    colDueDate: string;
+    colStatus: string;
+    markPaid: string;
+    markPaidFailed: string;
+    callStatusDraft: string;
+    callStatusIssued: string;
+    callStatusSentToBank: string;
+    callStatusPaid: string;
+    callStatusOverdue: string;
+    modificationsTitle: string;
+    modificationsSubtitle: string;
+    modificationsEmpty: string;
+    colReference: string;
+    colRequest: string;
+    colCategory: string;
+    colQuote: string;
+    colRequested: string;
+    tmaStatusRequested: string;
+    tmaStatusFeasibilityApproved: string;
+    tmaStatusQuoteSent: string;
+    tmaStatusAccepted: string;
+    tmaStatusRejected: string;
+    tmaStatusCompleted: string;
+    launchDate: string;
+    salesTargetUnits: string;
+    revenueTarget: string;
+    salesCompletion: string;
+    soldOfTarget: string;
+    bedrooms: string;
+    discount: string;
+    salesAgent: string;
+    noAgent: string;
+    reservedOn: string;
+    contractSignedOn: string;
+    loadFailed: string;
+  };
+  developerCrm: {
+    nav: {
+      followUps: string;
+      siteVisits: string;
+      teamActivity: string;
+      groupSales: string;
+      groupDevelopment: string;
+      groupWorkspace: string;
+    };
+    lead: {
+      brief: string;
+      owner: string;
+      unassigned: string;
+      source: string;
+      campaign: string;
+      project: string;
+      noProject: string;
+      typology: string;
+      typologyPlaceholder: string;
+      budgetMin: string;
+      budgetMax: string;
+      location: string;
+      score: string;
+      scoreHint: string;
+      lastContact: string;
+      never: string;
+      nextFollowUp: string;
+      none: string;
+      myLeads: string;
+      allOwners: string;
+      overdue: string;
+      scoreFactor_contactable: string;
+      scoreFactor_budget: string;
+      scoreFactor_project: string;
+      scoreFactor_source: string;
+      scoreFactor_stage: string;
+      scoreFactor_recency: string;
+    };
+    sources: {
+      facebook: string;
+      instagram: string;
+      google_ads: string;
+      website: string;
+      portal: string;
+      broker: string;
+      walk_in: string;
+      referral: string;
+      event: string;
+      phone: string;
+      whatsapp: string;
+      other: string;
+    };
+    taskTypes: {
+      call: string;
+      follow_up: string;
+      send_price_list: string;
+      send_floor_plan: string;
+      reservation: string;
+      payment_reminder: string;
+      contract: string;
+      other: string;
+    };
+    tasks: {
+      title: string;
+      subtitle: string;
+      groupOverdue: string;
+      groupToday: string;
+      groupUpcoming: string;
+      groupDone: string;
+      empty: string;
+      add: string;
+      titleField: string;
+      titlePlaceholder: string;
+      type: string;
+      due: string;
+      assignee: string;
+      buyer: string;
+      pickBuyer: string;
+      save: string;
+      complete: string;
+      reopen: string;
+      remove: string;
+      scopeMine: string;
+      scopeAll: string;
+      showDone: string;
+      daysLate: string;
+      loadFailed: string;
+      saveFailed: string;
+      widgetTitle: string;
+      widgetAllClear: string;
+      openAll: string;
+      newAddedFor: string;
+    };
+    visits: {
+      title: string;
+      subtitle: string;
+      tabUpcoming: string;
+      tabNeedsOutcome: string;
+      tabPast: string;
+      empty: string;
+      schedule: string;
+      project: string;
+      unit: string;
+      anyUnit: string;
+      when: string;
+      duration: string;
+      host: string;
+      notes: string;
+      book: string;
+      bookFailed: string;
+      recordOutcome: string;
+      attended: string;
+      noShow: string;
+      outcome: string;
+      outcome_interested: string;
+      outcome_needs_follow_up: string;
+      outcome_reserved: string;
+      outcome_not_interested: string;
+      comments: string;
+      save: string;
+      saveFailed: string;
+      statusScheduled: string;
+      statusCompleted: string;
+      statusNoShow: string;
+      statusCancelled: string;
+      followUpNote: string;
+      loadFailed: string;
+    };
+    customer: {
+      tab: string;
+      logCall: string;
+      addTask: string;
+      scheduleVisit: string;
+      contractValue: string;
+      paid: string;
+      due: string;
+      overdue: string;
+      units: string;
+      noUnits: string;
+      relationBuyer: string;
+      relationOption: string;
+      visits: string;
+      noVisits: string;
+      tasks: string;
+      noTasks: string;
+      modifications: string;
+      afterSales: string;
+      cancellations: string;
+      activity: string;
+      files: string;
+      callsLogged: string;
+      loadFailed: string;
+      unitOverdueNote: string;
+    };
+    call: {
+      title: string;
+      direction: string;
+      outbound: string;
+      inbound: string;
+      answered: string;
+      noAnswer: string;
+      duration: string;
+      note: string;
+      followUp: string;
+      save: string;
+      failed: string;
+    };
+    team: {
+      title: string;
+      subtitle: string;
+      colAgent: string;
+      callsMade: string;
+      callsAnswered: string;
+      visitsScheduled: string;
+      visitsAttended: string;
+      followUpsDone: string;
+      followUpsOverdue: string;
+      leadsAssigned: string;
+      dealsCreated: string;
+      dealsClosed: string;
+      funnelTitle: string;
+      funnelLeads: string;
+      funnelVisits: string;
+      funnelReservations: string;
+      funnelContracts: string;
+      funnelPaid: string;
+      stepConversion: string;
+      note: string;
+      empty: string;
+      loadFailed: string;
+    };
+  };
+  developerSales: {
+    nav: {
+      reports: string;
+      templates: string;
+    };
+    reserve: {
+      searchBuyer: string;
+      fee: string;
+      agent: string;
+      agentMe: string;
+      feeReceived: string;
+      feeReceivedOn: string;
+    };
+    stage: {
+      title: string;
+      reserved: string;
+      contract_pending: string;
+      contract_signed: string;
+      plan_active: string;
+      completed: string;
+    };
+    docs: {
+      failed: string;
+      deposit: string;
+      depositReceived: string;
+      depositPending: string;
+      editDeposit: string;
+      generateReservation: string;
+      generateContract: string;
+      none: string;
+      send: string;
+      resend: string;
+      void: string;
+      sentOk: string;
+      acceptedBy: string;
+      missingFields: string;
+      defaultTemplate: string;
+      status_draft: string;
+      status_sent: string;
+      status_accepted: string;
+      status_void: string;
+    };
+    cancel: {
+      refund: string;
+      refundHint: string;
+      callsRemain: string;
+      commissionWithdrawn: string;
+      commissionSettled: string;
+    };
+    collections: {
+      reminders: string;
+      step_before7: string;
+      step_due: string;
+      step_late3: string;
+      step_late7: string;
+      step_late14: string;
+      paymentTitle: string;
+      paymentDate: string;
+      paymentMethod: string;
+      paymentReference: string;
+      recordPayment: string;
+      method_bank_transfer: string;
+      method_check: string;
+      method_cash: string;
+      method_credit_card: string;
+      method_other: string;
+    };
+    project: {
+      commission: string;
+      commissionHint: string;
+    };
+    templates: {
+      title: string;
+      subtitle: string;
+      kind_reservation: string;
+      kind_contract: string;
+      kind_payment_reminder: string;
+      scope: string;
+      scopeWorkspace: string;
+      source_own: string;
+      source_workspace: string;
+      source_builtin: string;
+      name: string;
+      subject: string;
+      wording: string;
+      placeholders: string;
+      unknown: string;
+      save: string;
+      saved: string;
+      saveFailed: string;
+      restore: string;
+      restored: string;
+      preview: string;
+      previewNote: string;
+      loadFailed: string;
+    };
+    reports: {
+      title: string;
+      subtitle: string;
+      exportCsv: string;
+      from: string;
+      to: string;
+      loadFailed: string;
+      empty: string;
+      unknownSource: string;
+      marketingNote: string;
+      spendTitle: string;
+      spendHint: string;
+      spendMonth: string;
+      spendAmount: string;
+      spendFailed: string;
+      tab_sales: string;
+      tab_marketing: string;
+      tab_inventory: string;
+      tab_financial: string;
+      groupBy_source: string;
+      groupBy_campaign: string;
+      commissionStatus_accrued: string;
+      commissionStatus_realized: string;
+      commissionStatus_paid: string;
+      col_name: string;
+      col_units: string;
+      col_value: string;
+      col_averagePrice: string;
+      col_share: string;
+      col_month: string;
+      col_source: string;
+      col_campaign: string;
+      col_leads: string;
+      col_qualified: string;
+      col_visits: string;
+      col_reservations: string;
+      col_sales: string;
+      col_revenue: string;
+      col_spend: string;
+      col_costPerLead: string;
+      col_costPerSale: string;
+      col_revenuePerSpend: string;
+      col_status: string;
+      col_unit: string;
+      col_project: string;
+      col_type: string;
+      col_price: string;
+      col_daysOnMarket: string;
+      col_called: string;
+      col_collected: string;
+      col_amount: string;
+      sum_unitsSold: string;
+      sum_salesValue: string;
+      sum_averagePrice: string;
+      sum_discountsGiven: string;
+      sum_newLeads: string;
+      sum_salesFromLeads: string;
+      sum_revenue: string;
+      sum_spend: string;
+      sum_costPerLead: string;
+      sum_costPerSale: string;
+      sum_medianResponseHours: string;
+      sum_respondedWithin24h: string;
+      sum_totalUnits: string;
+      sum_availableUnits: string;
+      sum_soldUnits: string;
+      sum_averageSellingPrice: string;
+      sum_pricePerSquareMetre: string;
+      sum_salesVelocity: string;
+      sum_called: string;
+      sum_collected: string;
+      sum_outstanding: string;
+      sum_overdue: string;
+      table_byProject: string;
+      table_byMonth: string;
+      table_byType: string;
+      table_byAgent: string;
+      table_byCity: string;
+      table_bySource: string;
+      table_bySourceCampaign: string;
+      table_byStatus: string;
+      table_bestSellingTypes: string;
+      table_slowMoving: string;
+      table_collectionsByMonth: string;
+      table_commissions: string;
+    };
+  };
+  developerAlerts: {
+    nav: string;
+    title: string;
+    subtitle: string;
+    readOnly: string;
+    enabled: string;
+    save: string;
+    saved: string;
+    saveFailed: string;
+    loadFailed: string;
+    lastFired: string;
+    neverFired: string;
+    param_minutes: string;
+    param_days: string;
+    param_tolerancePercent: string;
+    param_minAvailablePercent: string;
+    param_ratePercent: string;
+    param_minDeals: string;
+    rule_lead_no_response_title: string;
+    rule_lead_no_response_desc: string;
+    rule_lead_no_followup_title: string;
+    rule_lead_no_followup_desc: string;
+    rule_reservation_created_title: string;
+    rule_reservation_created_desc: string;
+    rule_contract_signed_title: string;
+    rule_contract_signed_desc: string;
+    rule_project_behind_target_title: string;
+    rule_project_behind_target_desc: string;
+    rule_low_inventory_title: string;
+    rule_low_inventory_desc: string;
+    rule_high_cancellations_title: string;
+    rule_high_cancellations_desc: string;
+    access: {
+      who: string;
+      team: string;
+      managers: string;
+      uploadAs: string;
+      failed: string;
+    };
+  };
   // <realEstate:type>
   realEstate: {
     nav: {
@@ -6570,6 +7158,594 @@ const en: Messages = {
     schedulingSetupComplete: 'Your scheduling is fully set up.',
     templatePreview: 'Template preview',
     amount: 'Amount',
+  },
+  onboarding: {
+    businessTypeTitle: 'What kind of business are you running?',
+    businessTypeSubtitle: 'We will set up your workspace around how you actually sell.',
+    agencyTitle: 'Real Estate Agency',
+    agencyTagline: 'You list and sell existing properties.',
+    agencyPoint1: 'Listings, mandates and viewings',
+    agencyPoint2: 'Buyer offers and negotiation',
+    agencyPoint3: 'Commission tracking and splits',
+    developerTitle: 'Real Estate Developer',
+    developerTagline: 'You build and sell new developments.',
+    developerPoint1: 'Projects, buildings and unit inventory',
+    developerPoint2: 'Reservations, contracts and calls for funds',
+    developerPoint3: 'Buyer modifications and construction progress',
+    permanentNote: 'This choice sets up your dashboard and cannot be changed later.',
+    continueCta: 'Continue',
+    saving: 'Setting up your workspace…',
+    error: 'We could not save your choice. Please try again.',
+  },
+  developerDashboard: {
+    title: 'Business overview',
+    periodMonth: 'This month',
+    periodQuarter: 'This quarter',
+    periodYear: 'This year',
+    periodNounMonth: 'month',
+    periodNounQuarter: 'quarter',
+    periodNounYear: 'year',
+    newProject: 'New project',
+    emptyTitle: 'No projects yet',
+    emptyBody: 'Create your first development to start tracking sales, inventory and collections.',
+    vsPrevious: 'vs previous {period}',
+    kpiTotalSalesValue: 'Total sales value',
+    kpiUnits: 'Units sold / reserved / available',
+    kpiSalesInPeriod: 'Sales this {period}',
+    kpiCollected: 'Revenue collected',
+    kpiCollectedOf: 'of {called} called',
+    kpiNewLeads: 'New leads',
+    kpiQualifiedLeads: 'Qualified leads',
+    kpiConversionRate: 'Conversion rate',
+    kpiAverageDealValue: 'Average deal value',
+    kpiPipelineValue: 'Pipeline value',
+    kpiOutstanding: 'Outstanding payments',
+    kpiCancellationRate: 'Cancellation rate',
+    kpiTargetAchievement: 'Target achievement',
+    chartSalesTrend: 'Sales trend',
+    chartRevenueVsTarget: 'Revenue vs target',
+    chartSalesByProject: 'Sales by project',
+    chartSalesByAgent: 'Sales by agent',
+    chartLeadFunnel: 'Lead funnel',
+    chartInventoryStatus: 'Inventory status',
+    chartCollectionsForecast: 'Collections forecast',
+    noAgentData: 'No sales are attributed to an agent yet.',
+    noLeadData: 'No leads on the buyer sales board yet.',
+    unassigned: 'Unassigned',
+    uncalledBalance: 'Not yet called',
+    needsAttention: 'Needs attention',
+    expiringOptions: 'Options expiring soon',
+    noExpiringOptions: 'No options expiring in the next 72 hours.',
+    overdueCalls: 'Overdue calls for funds',
+    noOverdueCalls: 'No overdue payments.',
+    pendingModifications: 'Modifications awaiting you',
+    noPendingModifications: 'No modification requests waiting.',
+    expiresIn: 'Expires in {time}',
+    expired: 'Expired',
+    daysOverdue: '{days} days overdue',
+    target: 'Target',
+    achieved: 'Achieved',
+    loadFailed: 'We could not load your dashboard.',
+    retry: 'Try again',
+  },
+  developer: {
+    navProjects: 'Projects',
+    navInventory: 'Inventory',
+    navBuyers: 'Buyers',
+    navCollections: 'Collections',
+    navModifications: 'Modifications',
+    statusAvailable: 'Available',
+    statusOptioned: 'On hold',
+    statusReserved: 'Reserved',
+    statusContractSigned: 'Contracted',
+    statusDeedSigned: 'Sold',
+    statusDelivered: 'Delivered',
+    inventoryTitle: 'Unit inventory',
+    inventorySubtitle: 'Every unit across your developments.',
+    inventoryEmpty: 'No units match these filters.',
+    inventoryTableView: 'Table',
+    inventoryBuildingView: 'Building',
+    filterAllProjects: 'All projects',
+    filterAllBuildings: 'All buildings',
+    filterAllStatuses: 'All statuses',
+    filterAllTypes: 'All types',
+    filterAllAgents: 'All agents',
+    filterMinPrice: 'Min price',
+    filterMaxPrice: 'Max price',
+    clearFilters: 'Clear filters',
+    colUnit: 'Unit',
+    colBuilding: 'Building',
+    colFloor: 'Floor',
+    colType: 'Type',
+    colBedrooms: 'Beds',
+    colArea: 'Area',
+    colOrientation: 'Orientation',
+    colListPrice: 'List price',
+    colDiscount: 'Discount',
+    colFinalPrice: 'Final price',
+    colOwner: 'Owner',
+    colAgent: 'Agent',
+    colReservedAt: 'Reserved',
+    colContractAt: 'Contract',
+    colPaymentStatus: 'Payments',
+    unitsCount: '{count} units',
+    paymentsNone: 'No calls yet',
+    paymentsPaid: 'Fully paid',
+    paymentsPartial: '{paid} of {total}',
+    paymentsOverdue: 'Overdue',
+    cancelSale: 'Cancel sale',
+    cancelSaleTitle: 'Cancel this sale',
+    cancelSaleBody: 'Unit {unit} goes back on sale. The cancellation is kept on record.',
+    cancelSaleReason: 'Reason',
+    cancelSaleReasonPlaceholder: 'Financing refused, buyer withdrew…',
+    cancelSaleConfirm: 'Cancel the sale',
+    cancelSaleFailed: 'We could not cancel this sale.',
+    collectionsTitle: 'Collections',
+    collectionsSubtitle: 'Calls for funds across your developments.',
+    collectionsEmpty: 'No calls for funds yet. They are created when you certify a construction milestone.',
+    dueThisMonth: 'Due this month',
+    collected: 'Collected',
+    outstanding: 'Outstanding',
+    overdue: 'Overdue',
+    agingTitle: 'Overdue by age',
+    aging030: '0-30 days',
+    aging3160: '31-60 days',
+    aging60: '60+ days',
+    colCallNumber: 'Call',
+    colProjectUnit: 'Project / unit',
+    colBuyer: 'Buyer',
+    colMilestone: 'Milestone',
+    colAmount: 'Amount',
+    colDueDate: 'Due',
+    colStatus: 'Status',
+    markPaid: 'Mark paid',
+    markPaidFailed: 'We could not mark this call as paid.',
+    callStatusDraft: 'Draft',
+    callStatusIssued: 'Issued',
+    callStatusSentToBank: 'Sent to bank',
+    callStatusPaid: 'Paid',
+    callStatusOverdue: 'Overdue',
+    modificationsTitle: 'Buyer modifications',
+    modificationsSubtitle: 'Change requests from your buyers.',
+    modificationsEmpty: 'No modification requests yet.',
+    colReference: 'Reference',
+    colRequest: 'Request',
+    colCategory: 'Category',
+    colQuote: 'Quote',
+    colRequested: 'Requested',
+    tmaStatusRequested: 'Requested',
+    tmaStatusFeasibilityApproved: 'Feasibility approved',
+    tmaStatusQuoteSent: 'Quote sent',
+    tmaStatusAccepted: 'Accepted',
+    tmaStatusRejected: 'Rejected',
+    tmaStatusCompleted: 'Completed',
+    launchDate: 'Launch date',
+    salesTargetUnits: 'Unit sales target',
+    revenueTarget: 'Revenue target',
+    salesCompletion: '{percent}% sold',
+    soldOfTarget: '{sold} of {target}',
+    bedrooms: 'Bedrooms',
+    discount: 'Discount',
+    salesAgent: 'Sales agent',
+    noAgent: 'No agent',
+    reservedOn: 'Reserved on',
+    contractSignedOn: 'Contract signed on',
+    loadFailed: 'We could not load this data.',
+  },
+  developerCrm: {
+    nav: {
+      followUps: 'Follow-ups',
+      siteVisits: 'Site visits',
+      teamActivity: 'Team activity',
+      groupSales: 'Sales',
+      groupDevelopment: 'Development',
+      groupWorkspace: 'Workspace',
+    },
+    lead: {
+      brief: 'Buyer brief',
+      owner: 'Owner',
+      unassigned: 'Unassigned',
+      source: 'Source',
+      campaign: 'Campaign',
+      project: 'Interested project',
+      noProject: 'No project',
+      typology: 'Unit type',
+      typologyPlaceholder: 'e.g. T3',
+      budgetMin: 'Budget from',
+      budgetMax: 'Budget up to',
+      location: 'Preferred location',
+      score: 'Score',
+      scoreHint: 'Calculated from contact details, budget, project, source, stage and recent contact.',
+      lastContact: 'Last contact',
+      never: 'Never',
+      nextFollowUp: 'Next follow-up',
+      none: 'None',
+      myLeads: 'My leads',
+      allOwners: 'All owners',
+      overdue: 'Overdue',
+      scoreFactor_contactable: 'Contact details',
+      scoreFactor_budget: 'Budget',
+      scoreFactor_project: 'Project and unit type',
+      scoreFactor_source: 'Source',
+      scoreFactor_stage: 'Stage',
+      scoreFactor_recency: 'Recent contact',
+    },
+    sources: {
+      facebook: 'Facebook',
+      instagram: 'Instagram',
+      google_ads: 'Google Ads',
+      website: 'Website',
+      portal: 'Property portal',
+      broker: 'Broker',
+      walk_in: 'Walk-in',
+      referral: 'Referral',
+      event: 'Event',
+      phone: 'Phone',
+      whatsapp: 'WhatsApp',
+      other: 'Other',
+    },
+    taskTypes: {
+      call: 'Call',
+      follow_up: 'Follow up',
+      send_price_list: 'Send price list',
+      send_floor_plan: 'Send floor plan',
+      reservation: 'Reservation',
+      payment_reminder: 'Payment reminder',
+      contract: 'Contract',
+      other: 'Other',
+    },
+    tasks: {
+      title: 'My follow-ups',
+      subtitle: 'Never let a buyer go quiet.',
+      groupOverdue: 'Overdue',
+      groupToday: 'Due today',
+      groupUpcoming: 'Upcoming',
+      groupDone: 'Done',
+      empty: 'Nothing to follow up. Add a follow-up from a buyer, or here.',
+      add: 'Add follow-up',
+      titleField: 'What needs doing',
+      titlePlaceholder: 'Call about the T3 on level 2…',
+      type: 'Type',
+      due: 'Due',
+      assignee: 'Assigned to',
+      buyer: 'Buyer',
+      pickBuyer: 'Choose a buyer',
+      save: 'Save',
+      complete: 'Mark done',
+      reopen: 'Reopen',
+      remove: 'Delete',
+      scopeMine: 'Mine',
+      scopeAll: 'Everyone',
+      showDone: 'Show done',
+      daysLate: '{days} days late',
+      loadFailed: 'We could not load your follow-ups.',
+      saveFailed: 'We could not save that follow-up.',
+      widgetTitle: 'Follow-ups',
+      widgetAllClear: 'You are all caught up.',
+      openAll: 'Open all',
+      newAddedFor: 'Follow-up added',
+    },
+    visits: {
+      title: 'Site visits',
+      subtitle: 'Show buyers the project, then record how it went.',
+      tabUpcoming: 'Upcoming',
+      tabNeedsOutcome: 'Needs outcome',
+      tabPast: 'Past',
+      empty: 'No site visits here.',
+      schedule: 'Schedule a visit',
+      project: 'Project',
+      unit: 'Unit (optional)',
+      anyUnit: 'Whole project',
+      when: 'Date and time',
+      duration: 'Minutes',
+      host: 'Host',
+      notes: 'Notes',
+      book: 'Book visit',
+      bookFailed: 'We could not book that visit.',
+      recordOutcome: 'Record outcome',
+      attended: 'They came',
+      noShow: 'No-show',
+      outcome: 'How did it go?',
+      outcome_interested: 'Interested',
+      outcome_needs_follow_up: 'Needs follow-up',
+      outcome_reserved: 'Reserved a unit',
+      outcome_not_interested: 'Not interested',
+      comments: 'Comments',
+      save: 'Save outcome',
+      saveFailed: 'We could not save the outcome.',
+      statusScheduled: 'Scheduled',
+      statusCompleted: 'Done',
+      statusNoShow: 'No-show',
+      statusCancelled: 'Cancelled',
+      followUpNote: 'A follow-up is created for tomorrow.',
+      loadFailed: 'We could not load the visits.',
+    },
+    customer: {
+      tab: 'Customer',
+      logCall: 'Log call',
+      addTask: 'Add follow-up',
+      scheduleVisit: 'Schedule visit',
+      contractValue: 'Contract value',
+      paid: 'Paid',
+      due: 'Still due',
+      overdue: 'Overdue',
+      units: 'Units',
+      noUnits: 'No unit held or bought yet.',
+      relationBuyer: 'Buyer',
+      relationOption: 'On hold',
+      visits: 'Site visits',
+      noVisits: 'No site visits yet.',
+      tasks: 'Follow-ups',
+      noTasks: 'No follow-ups.',
+      modifications: 'Modification requests',
+      afterSales: 'After-sales issues',
+      cancellations: 'Cancelled deals',
+      activity: 'Contact history',
+      files: 'Documents',
+      callsLogged: '{count} calls logged',
+      loadFailed: 'We could not load this customer.',
+      unitOverdueNote: '{amount} overdue',
+    },
+    call: {
+      title: 'Log a call',
+      direction: 'Direction',
+      outbound: 'I called them',
+      inbound: 'They called me',
+      answered: 'Answered',
+      noAnswer: 'No answer',
+      duration: 'Minutes (optional)',
+      note: 'What was said',
+      followUp: 'Call back on',
+      save: 'Log call',
+      failed: 'We could not log that call.',
+    },
+    team: {
+      title: 'Team activity',
+      subtitle: 'What each salesperson did, so you can tell too few leads from too little follow-up.',
+      colAgent: 'Salesperson',
+      callsMade: 'Calls',
+      callsAnswered: 'Answered',
+      visitsScheduled: 'Visits booked',
+      visitsAttended: 'Visits done',
+      followUpsDone: 'Follow-ups done',
+      followUpsOverdue: 'Overdue now',
+      leadsAssigned: 'New leads',
+      dealsCreated: 'Reservations',
+      dealsClosed: 'Contracts',
+      funnelTitle: 'From lead to payment',
+      funnelLeads: 'New leads',
+      funnelVisits: 'Visits done',
+      funnelReservations: 'Reservations',
+      funnelContracts: 'Contracts signed',
+      funnelPaid: 'Payments received',
+      stepConversion: '{percent}% of previous step',
+      note: 'Calls are the ones people logged. Emails and WhatsApp are not counted yet.',
+      empty: 'No team members to show.',
+      loadFailed: 'We could not load team activity.',
+    },
+  },
+  developerSales: {
+    nav: {
+      reports: 'Reports',
+      templates: 'Templates',
+    },
+    reserve: {
+      searchBuyer: 'Search buyers by name or email',
+      fee: 'Reservation deposit',
+      agent: 'Sales agent',
+      agentMe: 'Me',
+      feeReceived: 'Deposit already received',
+      feeReceivedOn: 'Received on',
+    },
+    stage: {
+      title: 'Sale progress',
+      reserved: 'Reserved',
+      contract_pending: 'Contract pending',
+      contract_signed: 'Contract signed',
+      plan_active: 'Payment plan active',
+      completed: 'Completed',
+    },
+    docs: {
+      failed: 'That did not work. Please try again.',
+      deposit: 'Reservation deposit',
+      depositReceived: 'Received {date}',
+      depositPending: 'Not received yet',
+      editDeposit: 'Edit deposit',
+      generateReservation: 'Generate reservation form',
+      generateContract: 'Generate contract',
+      none: 'No documents yet.',
+      send: 'Send to buyer',
+      resend: 'Send again',
+      void: 'Void',
+      sentOk: 'Sent to the buyer.',
+      acceptedBy: 'Accepted by {name} on {date}',
+      missingFields: 'Some details are missing and show as blank lines: {fields}',
+      defaultTemplate: 'Using the built-in draft wording. Replace it in Templates before sending.',
+      status_draft: 'Draft',
+      status_sent: 'Sent',
+      status_accepted: 'Accepted',
+      status_void: 'Void',
+    },
+    cancel: {
+      refund: 'Deposit refunded',
+      refundHint: 'Recorded for your files. No money is moved by this.',
+      callsRemain: '{count} calls for funds remain and were not changed. Review them in Collections.',
+      commissionWithdrawn: 'The unit’s commission was withdrawn.',
+      commissionSettled: 'A commission on this unit is already earned or paid and was left as it is.',
+    },
+    collections: {
+      reminders: 'Reminders',
+      step_before7: '7 days before',
+      step_due: 'Due day',
+      step_late3: '3 days late',
+      step_late7: '7 days late',
+      step_late14: '14 days late',
+      paymentTitle: 'Record payment',
+      paymentDate: 'Date received',
+      paymentMethod: 'Method',
+      paymentReference: 'Reference',
+      recordPayment: 'Record payment',
+      method_bank_transfer: 'Bank transfer',
+      method_check: 'Cheque',
+      method_cash: 'Cash',
+      method_credit_card: 'Card',
+      method_other: 'Other',
+    },
+    project: {
+      commission: 'Sales commission (%)',
+      commissionHint: 'Taken on the price excluding VAT when a contract is signed.',
+    },
+    templates: {
+      title: 'Document templates',
+      subtitle: 'The wording of your reservation forms, contracts and payment reminders. Details in double braces are filled in for each sale.',
+      kind_reservation: 'Reservation form',
+      kind_contract: 'Sales contract',
+      kind_payment_reminder: 'Payment reminder',
+      scope: 'Applies to',
+      scopeWorkspace: 'All projects',
+      source_own: 'Saved for this selection',
+      source_workspace: 'Using the all-projects wording',
+      source_builtin: 'Using the built-in draft. Save your own to replace it.',
+      name: 'Name',
+      subject: 'Email subject',
+      wording: 'Wording',
+      placeholders: 'Insert a detail',
+      unknown: 'These placeholders do not exist: {fields}',
+      save: 'Save template',
+      saved: 'Template saved',
+      saveFailed: 'We could not save the template.',
+      restore: 'Remove and use the default',
+      restored: 'Template removed',
+      preview: 'Preview with sample details',
+      previewNote: 'Sample details only. Real documents use the sale’s own figures.',
+      loadFailed: 'We could not load the templates.',
+    },
+    reports: {
+      title: 'Reports',
+      subtitle: 'Sales, marketing, stock and money, for any period.',
+      exportCsv: 'Export CSV',
+      from: 'From',
+      to: 'To',
+      loadFailed: 'We could not build this report.',
+      empty: 'Nothing in this period.',
+      unknownSource: 'Unknown',
+      marketingNote: 'Follows the leads created in the period to wherever they have got to. Spend is entered by hand below.',
+      spendTitle: 'Marketing spend',
+      spendHint: 'Enter what you spent on a channel each month to see cost per lead and return.',
+      spendMonth: 'Month',
+      spendAmount: 'Amount spent',
+      spendFailed: 'We could not save that.',
+      tab_sales: 'Sales',
+      tab_marketing: 'Marketing',
+      tab_inventory: 'Inventory',
+      tab_financial: 'Financial',
+      groupBy_source: 'By source',
+      groupBy_campaign: 'By campaign',
+      commissionStatus_accrued: 'Accrued',
+      commissionStatus_realized: 'Earned',
+      commissionStatus_paid: 'Paid',
+      col_name: 'Name',
+      col_units: 'Units',
+      col_value: 'Value',
+      col_averagePrice: 'Average price',
+      col_share: 'Share',
+      col_month: 'Month',
+      col_source: 'Source',
+      col_campaign: 'Campaign',
+      col_leads: 'Leads',
+      col_qualified: 'Qualified',
+      col_visits: 'Visits',
+      col_reservations: 'Reservations',
+      col_sales: 'Sales',
+      col_revenue: 'Revenue',
+      col_spend: 'Spend',
+      col_costPerLead: 'Cost per lead',
+      col_costPerSale: 'Cost per sale',
+      col_revenuePerSpend: 'Revenue per 1 spent',
+      col_status: 'Status',
+      col_unit: 'Unit',
+      col_project: 'Project',
+      col_type: 'Type',
+      col_price: 'Price',
+      col_daysOnMarket: 'Days on market',
+      col_called: 'Called',
+      col_collected: 'Collected',
+      col_amount: 'Amount',
+      sum_unitsSold: 'Units sold',
+      sum_salesValue: 'Sales value',
+      sum_averagePrice: 'Average price',
+      sum_discountsGiven: 'Discounts given',
+      sum_newLeads: 'New leads',
+      sum_salesFromLeads: 'Sales from these leads',
+      sum_revenue: 'Revenue',
+      sum_spend: 'Marketing spend',
+      sum_costPerLead: 'Cost per lead',
+      sum_costPerSale: 'Cost per sale',
+      sum_medianResponseHours: 'Median response (hours)',
+      sum_respondedWithin24h: 'Answered within 24h',
+      sum_totalUnits: 'Total units',
+      sum_availableUnits: 'Available units',
+      sum_soldUnits: 'Sold units',
+      sum_averageSellingPrice: 'Average selling price',
+      sum_pricePerSquareMetre: 'Price per m²',
+      sum_salesVelocity: 'Units sold per month (last 3 months)',
+      sum_called: 'Called for funds',
+      sum_collected: 'Collected',
+      sum_outstanding: 'Outstanding now',
+      sum_overdue: 'Overdue now',
+      table_byProject: 'By project',
+      table_byMonth: 'By month',
+      table_byType: 'By unit type',
+      table_byAgent: 'By salesperson',
+      table_byCity: 'By city',
+      table_bySource: 'By source',
+      table_bySourceCampaign: 'By source and campaign',
+      table_byStatus: 'Units by status',
+      table_bestSellingTypes: 'Best-selling unit types',
+      table_slowMoving: 'Slow-moving units (90+ days)',
+      table_collectionsByMonth: 'Collections by month',
+      table_commissions: 'Commissions on unit sales',
+    },
+  },
+  developerAlerts: {
+    nav: 'Alerts',
+    title: 'Alerts',
+    subtitle: 'Automatic alerts that tell the right people when a buyer is waiting, a sale needs attention, or a project is off track.',
+    readOnly: 'Only owners and admins can change alerts.',
+    enabled: 'On',
+    save: 'Save',
+    saved: 'Alert saved',
+    saveFailed: 'We could not save that alert.',
+    loadFailed: 'We could not load the alerts.',
+    lastFired: 'Last raised {date}',
+    neverFired: 'Never raised yet',
+    param_minutes: 'Minutes without contact',
+    param_days: 'Days without contact',
+    param_tolerancePercent: 'Tolerance (% behind plan)',
+    param_minAvailablePercent: 'Alert at or below (% of units available)',
+    param_ratePercent: 'Cancellation rate (%)',
+    param_minDeals: 'Minimum deals (last 90 days)',
+    rule_lead_no_response_title: 'New buyer not contacted',
+    rule_lead_no_response_desc: 'Tells the owner and the admins when a new buyer has had no call, visit or follow-up logged within the time below.',
+    rule_lead_no_followup_title: 'No follow-up planned',
+    rule_lead_no_followup_desc: 'When an open buyer has nothing booked and no contact for this long, a follow-up is created for their owner.',
+    rule_reservation_created_title: 'Unit reserved',
+    rule_reservation_created_desc: 'Tells the admins whenever a unit is reserved.',
+    rule_contract_signed_title: 'Contract signed',
+    rule_contract_signed_desc: 'Tells the admins whenever a unit goes under contract.',
+    rule_project_behind_target_title: 'Project behind its sales target',
+    rule_project_behind_target_desc: 'Compares units sold with a straight line from launch to delivery, once a quarter of that time has passed. Needs a launch date, a delivery date and a unit target. Raised at most once a week.',
+    rule_low_inventory_title: 'Stock running low',
+    rule_low_inventory_desc: 'Tells the admins when a project in sales has this share of its units or less still available. Raised at most once a month.',
+    rule_high_cancellations_title: 'High cancellation rate',
+    rule_high_cancellations_desc: 'Tells the admins when cancellations are at least this share of the deals in the last 90 days, once there are enough deals to mean something. Raised at most once a month.',
+    access: {
+      who: 'Who can see this',
+      team: 'Whole team',
+      managers: 'Managers only',
+      uploadAs: 'New files visible to',
+      failed: 'We could not change who can see that.',
+    },
   },
   // <realEstate:value>
   realEstate: {

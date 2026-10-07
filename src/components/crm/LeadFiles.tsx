@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, Eye, FileText, FileSpreadsheet, FileArchive, Image as ImageIcon, Loader2, Paperclip, Trash2, Upload, X } from 'lucide-react';
+import { Download, Eye, FileText, FileSpreadsheet, FileArchive, Image as ImageIcon, Loader2, Lock, Paperclip, Trash2, Upload, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
 
@@ -12,6 +12,8 @@ interface LeadFileRow {
   size: number;
   createdAt: string;
   uploadedById: string | null;
+  /** 'team' or 'managers'. Missing on a response from before visibility existed. */
+  visibility?: 'team' | 'managers';
   uploadedBy: { id: string; name: string | null; email: string } | null;
 }
 
@@ -41,7 +43,7 @@ function FileIcon({ type }: { type: string }) {
 }
 
 /** Upload with progress (fetch has no upload progress, XHR does). */
-function uploadWithProgress(url: string, file: File, onProgress: (pct: number) => void): Promise<void> {
+function uploadWithProgress(url: string, file: File, visibility: string, onProgress: (pct: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url);
@@ -55,6 +57,8 @@ function uploadWithProgress(url: string, file: File, onProgress: (pct: number) =
     xhr.onerror = () => reject(new Error('Network error'));
     const fd = new FormData();
     fd.append('file', file);
+    // Ignored by the server unless the uploader is an owner or admin.
+    fd.append('visibility', visibility);
     xhr.send(fd);
   });
 }
@@ -72,6 +76,7 @@ export default function LeadFiles({
   const [error, setError] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(false);
   const [canModerate, setCanModerate] = useState(false);
+  const [uploadVisibility, setUploadVisibility] = useState<'team' | 'managers'>('team');
   const myId = useSession().data?.user?.id ?? null;
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -115,7 +120,7 @@ export default function LeadFiles({
       const fail = (message: string) => setUploads((current) => current.map((u) => (u.key === key ? { ...u, error: message } : u)));
       if (file.size > MAX_BYTES) { fail(t('crm.files.tooLarge')); continue; }
       try {
-        await uploadWithProgress(base, file, (progress) =>
+        await uploadWithProgress(base, file, uploadVisibility, (progress) =>
           setUploads((current) => current.map((u) => (u.key === key ? { ...u, progress } : u)))
         );
         setUploads((current) => current.filter((u) => u.key !== key));
@@ -123,6 +128,21 @@ export default function LeadFiles({
       } catch (err) {
         fail(err instanceof Error ? err.message : t('crm.files.uploadFailed'));
       }
+    }
+  };
+
+  const setVisibility = async (file: LeadFileRow, visibility: 'team' | 'managers') => {
+    try {
+      const res = await fetch(`${base}/${file.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visibility }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || t('developerAlerts.access.failed'));
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('developerAlerts.access.failed'));
     }
   };
 
@@ -145,6 +165,19 @@ export default function LeadFiles({
 
   return (
     <div className="space-y-4">
+      {canWrite && canModerate ? (
+        <label className="flex items-center gap-2 text-xs text-on-surface-variant">
+          {t('developerAlerts.access.uploadAs')}
+          <select
+            value={uploadVisibility}
+            onChange={(e) => setUploadVisibility(e.target.value as 'team' | 'managers')}
+            className="rounded-lg bg-surface-container-high px-2 py-1 text-xs text-on-surface focus:outline-none"
+          >
+            <option value="team">{t('developerAlerts.access.team')}</option>
+            <option value="managers">{t('developerAlerts.access.managers')}</option>
+          </select>
+        </label>
+      ) : null}
       {canWrite ? (
         <button
           type="button"
@@ -221,11 +254,27 @@ export default function LeadFiles({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-on-surface" title={file.fileName}>{file.fileName}</p>
+                  <p className="flex items-center gap-1.5 truncate text-sm font-medium text-on-surface" title={file.fileName}>
+                    {file.visibility === 'managers' ? (
+                      <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label={t('developerAlerts.access.managers')} />
+                    ) : null}
+                    <span className="truncate">{file.fileName}</span>
+                  </p>
                   <p className="truncate text-xs text-on-surface-variant">
                     {formatSize(file.size)} · {file.uploadedBy?.name || file.uploadedBy?.email || t('crm.files.unknownUser')} · {formatDateTime(file.createdAt)}
                   </p>
                 </div>
+                {canModerate ? (
+                  <select
+                    value={file.visibility ?? 'team'}
+                    onChange={(e) => void setVisibility(file, e.target.value as 'team' | 'managers')}
+                    aria-label={t('developerAlerts.access.who')}
+                    className="rounded-lg bg-surface-container-high px-2 py-1 text-xs text-on-surface focus:outline-none"
+                  >
+                    <option value="team">{t('developerAlerts.access.team')}</option>
+                    <option value="managers">{t('developerAlerts.access.managers')}</option>
+                  </select>
+                ) : null}
                 {previewable ? (
                   <button type="button" onClick={() => setPreview(file)} aria-label={t('crm.files.preview')} title={t('crm.files.preview')} className="rounded-lg p-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface">
                     <Eye className="h-4 w-4" />

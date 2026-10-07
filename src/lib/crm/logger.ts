@@ -34,7 +34,15 @@ export type CrmActivityType =
   | 'offer_rejected'
   | 'offer_withdrawn'
   | 'viewing_booked'
-  | 'viewing_feedback';
+  | 'viewing_feedback'
+  // Developer CRM
+  | 'call_logged'
+  | 'task_created'
+  | 'task_completed'
+  | 'site_visit_booked'
+  | 'site_visit_completed'
+  | 'sales_document_sent'
+  | 'sales_document_accepted';
 
 /** What an Activity row is about. The default, for the original lead events, is 'lead'. */
 export type CrmEntityType = 'lead' | 'property' | 'interest' | 'mandate' | 'offer' | 'viewing';
@@ -43,6 +51,8 @@ export type CrmEntityType = 'lead' | 'property' | 'interest' | 'mandate' | 'offe
 export const TRACKED_LEAD_FIELDS = [
   'firstName', 'lastName', 'email', 'phone', 'company', 'position',
   'status', 'value', 'source', 'notes', 'tags',
+  'ownerId', 'campaign', 'interestedProgramId', 'interestedTypology',
+  'budgetMin', 'budgetMax', 'preferredLocation',
 ] as const;
 
 /** One activity row. Every id is optional so an event can appear on each timeline it belongs to. */
@@ -181,15 +191,17 @@ export class CrmLogger {
     fileType: string;
     size: number;
     action: 'added' | 'deleted';
+    /** A managers-only file's history is managers-only too. Omitted means the team. */
+    visibility?: string;
   }) {
-    const { workspaceId, userId, leadId, fileId, fileName, fileType, size, action } = params;
+    const { workspaceId, userId, leadId, fileId, fileName, fileType, size, action, visibility } = params;
     return CrmLogger.logActivity(
       workspaceId,
       userId,
       action === 'added' ? 'file_added' : 'file_deleted',
       fileId,
       `${action === 'added' ? 'Added' : 'Deleted'} file ${fileName}`,
-      { fileId, fileName, fileType, size },
+      { fileId, fileName, fileType, size, ...(visibility && visibility !== 'team' ? { visibility } : {}) },
       leadId
     );
   }

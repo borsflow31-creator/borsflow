@@ -37,6 +37,7 @@ import { primaryButton, secondaryButton, dangerButton } from '@/components/reale
 import LotModal from '@/components/developer/LotModal';
 import OptionModal from '@/components/developer/OptionModal';
 import ReserveModal from '@/components/developer/ReserveModal';
+import UnitDocuments from '@/components/developer/UnitDocuments';
 import CertifyMilestoneModal from '@/components/developer/CertifyMilestoneModal';
 import TMAModal from '@/components/developer/TMAModal';
 import TMAReviewModal from '@/components/developer/TMAReviewModal';
@@ -1103,6 +1104,23 @@ function ProgramDetailPageInner() {
                         <span>Open Portal</span>
                       </a>
                     </div>
+                  </div>
+                )}
+
+                {/* The sale: where it stands, the deposit, and its reservation form and contract */}
+                {['reserved', 'contract_signed', 'deed_signed', 'delivered'].includes(selectedLot.status) && (
+                  <div className="space-y-3 pt-2 border-t border-surface-container-high">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                      Sale &amp; documents
+                    </h4>
+                    <UnitDocuments
+                      workspaceId={workspaceId}
+                      lot={{
+                        ...selectedLot,
+                        callsForFunds: callsForFunds.filter((c: any) => c.lotId === selectedLot.id),
+                      }}
+                      onChanged={fetchProgramData}
+                    />
                   </div>
                 )}
 

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AppShell from '@/components/AppShell'
+import DeveloperDashboard from '@/components/developer/DeveloperDashboard'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n/I18nProvider'
 import { TrendingUp, Clock, AlertCircle, FileText as FileTextIcon } from 'lucide-react'
@@ -46,7 +47,7 @@ interface BillingAnalytics {
 export default function DashboardPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
-    const { setWorkspace } = useAppStore()
+    const { setWorkspace, currentWorkspaceId } = useAppStore()
     const { t, locale, formatNumber } = useI18n()
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -211,6 +212,19 @@ export default function DashboardPage() {
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-on-surface-variant"></div>
             </div>
+        )
+    }
+
+    // Developers get their own home screen; the agency dashboard below is untouched.
+    // Every hook above runs for both, so switching is a plain early return.
+    if (session?.user?.businessType === 'DEVELOPER') {
+        const developerWorkspaceId = workspaces.some((w) => w.id === currentWorkspaceId)
+            ? currentWorkspaceId!
+            : workspaces[0]?.id ?? ''
+        return (
+            <AppShell>
+                <DeveloperDashboard workspaceId={developerWorkspaceId} />
+            </AppShell>
         )
     }
 

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
+import { useI18n } from '@/i18n/I18nProvider';
+import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 
 interface LotModalProps {
   workspaceId: string;
@@ -20,8 +22,10 @@ export default function LotModal({
   onClose,
   onSuccess,
 }: LotModalProps) {
+  const { t, formatDate } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const agents = useWorkspaceAgents(workspaceId);
 
   const [lotNumber, setLotNumber] = useState(initialLot?.lotNumber || '');
   const [buildingId, setBuildingId] = useState(initialLot?.buildingId || (buildings[0]?.id || ''));
@@ -36,12 +40,23 @@ export default function LotModal({
   const [basePrice, setBasePrice] = useState<number>(initialLot?.basePrice || 220000);
   const [taxRate, setTaxRate] = useState<number>(initialLot?.taxRate !== undefined ? initialLot.taxRate : 20.0);
 
-  const computedTotal = Number((basePrice * (1 + taxRate / 100)).toFixed(2));
+  const [bedrooms, setBedrooms] = useState<string>(
+    initialLot?.bedrooms !== undefined && initialLot?.bedrooms !== null ? String(initialLot.bedrooms) : ''
+  );
+  const [discount, setDiscount] = useState<number>(initialLot?.discount || 0);
+  const [salesAgentId, setSalesAgentId] = useState<string>(initialLot?.salesAgentId || '');
+
+  // Mirrors the server: the discount comes off before tax.
+  const computedTotal = Number((Math.max(0, basePrice - discount) * (1 + taxRate / 100)).toFixed(2));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lotNumber.trim() || basePrice <= 0) {
       setError('Lot number and base price are required.');
+      return;
+    }
+    if (discount < 0 || discount > basePrice) {
+      setError('The discount must be between zero and the list price.');
       return;
     }
 
@@ -62,7 +77,11 @@ export default function LotModal({
       balconyArea: Number(balconyArea),
       gardenArea: Number(gardenArea),
       basePrice: Number(basePrice),
+      discount: Number(discount),
       taxRate: Number(taxRate),
+      bedrooms: bedrooms.trim() === '' ? (initialLot ? null : undefined) : Number(bedrooms),
+      // An empty choice clears the agent on edit, and is left unset on create.
+      salesAgentId: salesAgentId || (initialLot ? null : undefined),
     };
 
     try {
@@ -228,6 +247,56 @@ export default function LotModal({
             />
           </Field>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field label={t('developer.bedrooms')}>
+            <input
+              type="number"
+              min={0}
+              max={50}
+              step={1}
+              className={inputClass}
+              value={bedrooms}
+              onChange={(e) => setBedrooms(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t('developer.discount')}>
+            <input
+              type="number"
+              min={0}
+              step={100}
+              className={inputClass}
+              value={discount}
+              onChange={(e) => setDiscount(Number(e.target.value))}
+            />
+          </Field>
+
+          <Field label={t('developer.salesAgent')}>
+            <select
+              className={inputClass}
+              value={salesAgentId}
+              onChange={(e) => setSalesAgentId(e.target.value)}
+            >
+              <option value="">{t('developer.noAgent')}</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+
+        {initialLot && (initialLot.reservedAt || initialLot.contractSignedAt) && (
+          <p className="text-xs text-on-surface-variant">
+            {initialLot.reservedAt && (
+              <span>{t('developer.reservedOn')} {formatDate(initialLot.reservedAt)}</span>
+            )}
+            {initialLot.reservedAt && initialLot.contractSignedAt && ' · '}
+            {initialLot.contractSignedAt && (
+              <span>{t('developer.contractSignedOn')} {formatDate(initialLot.contractSignedAt)}</span>
+            )}
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-surface-container-high">
           <Field label="Base Price (€ HT / Pre-Tax) *">

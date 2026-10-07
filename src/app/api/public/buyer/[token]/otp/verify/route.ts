@@ -15,7 +15,8 @@ export async function POST(
       return NextResponse.json({ error: 'Verification code is required' }, { status: 400 })
     }
 
-    const result = await verifyPortalOTP(token, body.code)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const result = await verifyPortalOTP(token, body.code, ip)
     return NextResponse.json(result)
   } catch (error) {
     return failure(error, 'Failed to verify code', 'Error verifying OTP')

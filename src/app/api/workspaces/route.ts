@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { ensureDefaultPipelines } from '@/lib/services/pipelines'
+import { ensureDefaultPipelines, ensureDeveloperPipeline } from '@/lib/services/pipelines'
 
 export async function GET(request: Request) {
     try {
@@ -104,6 +104,13 @@ export async function POST(request: Request) {
         // Every workspace is a real-estate agency: it starts with the contacts,
         // buyer and owner boards rather than an empty CRM.
         await ensureDefaultPipelines(workspace.id)
+
+        // A developer sells units off a different funnel, so their workspaces also
+        // get the buyer-sales board. Read from the session, which the business-type
+        // choice refreshes, so it applies from the first workspace made after it.
+        if (session.user.businessType === 'DEVELOPER') {
+            await ensureDeveloperPipeline(workspace.id)
+        }
 
         return NextResponse.json({ workspace }, { status: 201 })
     } catch (error) {

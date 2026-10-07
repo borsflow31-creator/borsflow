@@ -142,6 +142,133 @@ export async function accrueCommission(
   return commission
 }
 
+/**
+ * What a commission is earned on for a unit: the price without VAT. VAT is the
+ * state's money collected on the developer's behalf, never part of the sale a
+ * salesperson is paid on, so basing the fee on the VAT-inclusive price would
+ * overpay every sale by the VAT rate.
+ */
+export function lotNetPrice(totalPrice: number, taxRate: number): number {
+  return cents(totalPrice / (1 + taxRate / 100))
+}
+
+/**
+ * Accrue the commission on a unit that has gone under contract, from the project's
+ * commission rate. Idempotent: a unit with a live commission (accrued, realized or
+ * paid) keeps it, so signing a contract twice -- or the portal and a manual edit both
+ * firing -- cannot pay a sale twice. A re-sale after a cancellation starts a new one,
+ * because cancelling marks the old one cancelled.
+ *
+ * Returns null when the project has no rate set: no rate means no commission is
+ * promised, which is different from a commission of zero.
+ */
+export async function accrueLotCommission(lotId: string, userId: string | null) {
+  const lot = await prisma.developmentLot.findUnique({
+    where: { id: lotId },
+    select: {
+      id: true,
+      workspaceId: true,
+      programId: true,
+      buyerLeadId: true,
+      salesAgentId: true,
+      totalPrice: true,
+      taxRate: true,
+      program: { select: { commissionPercent: true } },
+      workspace: { select: { currency: true } },
+    },
+  })
+  if (!lot) return null
+  const percent = lot.program.commissionPercent
+  if (!percent || percent <= 0) return null
+
+  const existing = await prisma.commission.findFirst({
+    where: { lotId, status: { in: ['accrued', 'realized', 'paid'] } },
+    select: { id: true },
+  })
+  if (existing) return null
+
+  const basis = lotNetPrice(lot.totalPrice, lot.taxRate)
+  const gross = computeFee({ feeType: 'percent', commissionPercent: percent }, basis)
+  const splits = resolveAmounts(gross, defaultSplits(null, lot.salesAgentId))
+
+  return prisma.$transaction(async (tx) => {
+    const commission = await tx.commission.create({
+      data: {
+        workspaceId: lot.workspaceId,
+        lotId: lot.id,
+        programId: lot.programId,
+        leadId: lot.buyerLeadId,
+        status: 'accrued',
+        basis,
+        // A snapshot of the rate, so changing the project's rate later does not
+        // rewrite a sale already under contract.
+        feeType: 'percent',
+        feePercent: percent,
+        grossAmount: gross,
+        currency: lot.workspace.currency,
+        createdById: userId,
+      },
+    })
+    await tx.commissionSplit.createMany({
+      data: splits.map(s => ({
+        commissionId: commission.id,
+        workspaceId: lot.workspaceId,
+        userId: s.userId,
+        role: s.role,
+        sharePercent: s.sharePercent,
+        amount: s.amount,
+        note: s.note ?? null,
+      })),
+    })
+    return commission
+  })
+}
+
+/**
+ * The deed is signed: the sale is closed, so the accrued commission becomes
+ * realized at the unit's price as it now stands (a buyer modification can have moved
+ * it since the contract). Unpaid shares are re-cut by the same percentages.
+ */
+export async function realizeLotCommission(lotId: string, closedAt = new Date()) {
+  const accrued = await prisma.commission.findFirst({
+    where: { lotId, status: 'accrued' },
+    orderBy: { createdAt: 'desc' },
+    include: { lot: { select: { totalPrice: true, taxRate: true } } },
+  })
+  if (!accrued || !accrued.lot) return null
+
+  const basis = lotNetPrice(accrued.lot.totalPrice, accrued.lot.taxRate)
+  const gross = computeFee({ feeType: accrued.feeType, commissionPercent: accrued.feePercent, feeFixed: accrued.feeFixed }, basis)
+
+  return prisma.$transaction(async (tx) => {
+    if (gross !== accrued.grossAmount) {
+      const splits = await tx.commissionSplit.findMany({ where: { commissionId: accrued.id, status: { not: 'paid' } }, orderBy: { createdAt: 'asc' } })
+      const resolved = resolveAmounts(gross, splits.map(s => ({ userId: s.userId, role: s.role as SplitRole, sharePercent: s.sharePercent })))
+      for (const [i, s] of splits.entries()) {
+        await tx.commissionSplit.update({ where: { id: s.id }, data: { amount: resolved[i].amount } })
+      }
+    }
+    return tx.commission.update({
+      where: { id: accrued.id },
+      data: { status: 'realized', basis, grossAmount: gross, realizedAt: closedAt },
+    })
+  })
+}
+
+/**
+ * A unit's sale was cancelled. An accrued commission is withdrawn. A realized or
+ * paid one is left alone: that money has been earned or has already moved, and
+ * unwinding it is a decision for whoever runs payroll, so it is reported back
+ * rather than silently rewritten.
+ */
+export async function cancelLotCommission(lotId: string): Promise<{ cancelled: number; settled: number }> {
+  const [cancelled, settled] = await Promise.all([
+    prisma.commission.updateMany({ where: { lotId, status: 'accrued' }, data: { status: 'cancelled' } }),
+    prisma.commission.count({ where: { lotId, status: { in: ['realized', 'paid'] } } }),
+  ])
+  return { cancelled: cancelled.count, settled }
+}
+
 /** A sale fell through: an accrual that was never realized is cancelled. Realized or paid ones are history. */
 export async function cancelAccrual(tx: Prisma.TransactionClient, offerId: string) {
   await tx.commission.updateMany({ where: { offerId, status: 'accrued' }, data: { status: 'cancelled' } })
@@ -156,6 +283,9 @@ export interface CommissionContext {
 
 export const commissionInclude = {
   property: { select: { id: true, title: true, reference: true, city: true } },
+  // A developer's commission is on a unit, not a listing.
+  lot: { select: { id: true, lotNumber: true } },
+  program: { select: { id: true, name: true } },
   splits: { orderBy: { createdAt: 'asc' as const }, include: { user: { select: { id: true, name: true, email: true } } } },
 } as const
 
@@ -223,7 +353,7 @@ export async function realizeCommissionForProperty(propertyId: string, closedAt 
   })
   if (!accrued) return null
 
-  const basis = accrued.property.soldPrice ?? accrued.basis
+  const basis = accrued.property?.soldPrice ?? accrued.basis
   const gross = computeFee(
     { feeType: accrued.feeType, commissionPercent: accrued.feePercent, feeFixed: accrued.feeFixed },
     basis

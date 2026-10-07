@@ -6,6 +6,7 @@ import { consumeRateLimits, rateLimitedResponse } from '@/lib/api/rate-limit';
 import { CRM_EXTRA_FILE_TYPES, MAX_UPLOAD_SIZE, UPLOAD_FILE_TYPES, contentMatchesType } from '@/lib/uploads';
 import { getLeadAccess } from '@/lib/crm/lead-access';
 import { CrmLogger } from '@/lib/crm/logger';
+import { visibilityForUpload, visibleDocumentsWhere } from '@/lib/crm/document-access';
 
 const ALLOWED_TYPES = { ...UPLOAD_FILE_TYPES, ...CRM_EXTRA_FILE_TYPES };
 const MAX_FILES_PER_LEAD = 200;
@@ -18,6 +19,7 @@ const fileSelect = {
   size: true,
   createdAt: true,
   uploadedById: true,
+  visibility: true,
   uploadedBy: { select: { id: true, name: true, email: true } },
 } as const;
 
@@ -27,8 +29,10 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   if ('error' in result) return result.error;
   const { access } = result;
 
+  // Managers-only files are left out for everyone else, not greyed out: a list that
+  // names a file you cannot open tells you it exists.
   const files = await prisma.leadFile.findMany({
-    where: { leadId: params.id },
+    where: { leadId: params.id, ...visibleDocumentsWhere(access.canModerate) },
     orderBy: { createdAt: 'desc' },
     select: fileSelect,
   });
@@ -47,9 +51,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const { access } = result;
 
   let file: File | null = null;
+  let requestedVisibility: unknown;
   try {
-    const entry = (await request.formData()).get('file');
+    const form = await request.formData();
+    const entry = form.get('file');
     file = entry && typeof entry !== 'string' ? entry : null;
+    requestedVisibility = form.get('visibility');
   } catch {
     return NextResponse.json({ error: 'Invalid upload' }, { status: 400 });
   }
@@ -96,6 +103,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       fileType: file.type,
       size: file.size,
       uploadedById: access.userId,
+      // Only owners and admins can restrict a file; anyone else's request is ignored.
+      visibility: visibilityForUpload(access.canModerate, requestedVisibility),
     },
     select: fileSelect,
   });
@@ -109,6 +118,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     fileType: saved.fileType,
     size: saved.size,
     action: 'added',
+    visibility: saved.visibility,
   });
 
   return NextResponse.json({ file: saved }, { status: 201 });

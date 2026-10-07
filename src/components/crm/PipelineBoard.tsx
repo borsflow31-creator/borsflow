@@ -3,7 +3,11 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Paperclip } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
+import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
+import { matchesOwnerFilter, type OwnerFilterValue } from '@/components/developer/OwnerFilter';
 import { relativeTime } from '@/lib/relative-time';
 import type { MessageKey } from '@/i18n/I18nProvider';
 import { SUBJECT_ENDPOINTS } from '@/lib/crm/subjects';
@@ -33,6 +37,10 @@ interface Lead {
     fileCount?: number;
     /** Most recent history entry */
     lastActivityAt?: string;
+    // Developer CRM
+    ownerId?: string | null;
+    score?: number;
+    nextFollowUpAt?: string | null;
 }
 
 /**
@@ -96,6 +104,8 @@ interface PipelineBoardProps {
     onPipelineDelete: (pipelineId: string) => void;
     onOpenLeadModal: (lead?: Lead) => void;
     onOpenPipelineModal: (pipeline?: Pipeline) => void;
+    /** A developer's "my leads" / owner filter; leaves other boards alone. */
+    ownerFilter?: OwnerFilterValue;
 }
 
 export default function PipelineBoard({
@@ -113,8 +123,12 @@ export default function PipelineBoard({
     onPipelineDelete,
     onOpenLeadModal,
     onOpenPipelineModal,
+    ownerFilter = '',
 }: PipelineBoardProps) {
     const { t, formatCurrency, locale } = useI18n();
+    const { data: session } = useSession();
+    const isDeveloper = session?.user?.businessType === 'DEVELOPER';
+    const agents = useWorkspaceAgents(workspaceId ?? pipeline.workspaceId);
     const [leads, setLeads] = useState<BoardCard[]>([]);
     const [loading, setLoading] = useState(true);
     const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
@@ -236,6 +250,7 @@ export default function PipelineBoard({
     const getLeadsByStage = (stage: string) => {
         return leads
             .filter(lead => lead.stage === stage)
+            .filter(lead => subjectType !== 'Lead' || matchesOwnerFilter(lead, ownerFilter, session?.user?.id))
             .sort((a, b) => a.order - b.order);
     };
 
@@ -415,6 +430,15 @@ export default function PipelineBoard({
                                                                         </span>
                                                                     )}
                                                                 </div>
+                                                                {isDeveloper && (
+                                                                    <div className="mt-2 flex items-center justify-between gap-2">
+                                                                        <span className="flex items-center gap-2">
+                                                                            {typeof lead.score === 'number' && <ScoreBadge score={lead.score} />}
+                                                                            <FollowUpChip nextFollowUpAt={lead.nextFollowUpAt} />
+                                                                        </span>
+                                                                        <OwnerAvatar ownerId={lead.ownerId} agents={agents} />
+                                                                    </div>
+                                                                )}
                                                                 {(lead.fileCount || lead.lastActivityAt) ? (
                                                                     <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-on-surface-variant">
                                                                         {lead.fileCount ? (

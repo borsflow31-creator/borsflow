@@ -1,28 +1,80 @@
-import { createHmac } from 'crypto'
+import { createHmac, randomInt, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/prisma'
+import { consumeRateLimits, type RateLimitRule } from '@/lib/api/rate-limit'
+import { emailParagraph, renderEmail, sendTransactionalEmail } from '@/lib/email'
+import { escapeHtml } from '@/lib/html'
 import { ServiceError } from '../errors'
 
-const PORTAL_SECRET = process.env.NEXTAUTH_SECRET || 'borsflow-developer-portal-secret-key-2026'
+/**
+ * The key that signs portal sessions and one-time codes.
+ *
+ * There is deliberately no fallback. A hard-coded default would be the same key on
+ * every deployment that forgot to set one, and anyone who had read this file could
+ * mint a session for any unit. A missing secret is a misconfigured server, and the
+ * portal says so instead of quietly running unprotected.
+ */
+function portalSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) throw new ServiceError('The buyer portal is not configured', 503)
+  return secret
+}
+
+/** Wrong guesses allowed against one code before it is burned. */
+export const OTP_MAX_ATTEMPTS = 5
+
+const OTP_SEND_PER_LOT: RateLimitRule = { bucket: 'portal:otp-send', limit: 5, windowMs: 60 * 60 * 1000, windowLabel: 'hour' }
+const OTP_SEND_PER_IP: RateLimitRule = { bucket: 'portal:otp-send', limit: 20, windowMs: 60 * 60 * 1000, windowLabel: 'hour' }
+const OTP_VERIFY_PER_LOT: RateLimitRule = { bucket: 'portal:otp-verify', limit: 15, windowMs: 15 * 60 * 1000, windowLabel: '15 minutes' }
+const OTP_VERIFY_PER_IP: RateLimitRule = { bucket: 'portal:otp-verify', limit: 30, windowMs: 15 * 60 * 1000, windowLabel: '15 minutes' }
+
+/**
+ * A one-time code is stored as a keyed hash, never as the digits. The database then
+ * holds nothing that logs in anyone, and the key is the server's, so a leaked row
+ * cannot be brute-forced offline without it. Bound to the unit so a hash from one
+ * unit means nothing on another.
+ */
+export function hashOtp(lotId: string, code: string): string {
+  return createHmac('sha256', portalSecret()).update(`otp:${lotId}:${code}`).digest('hex')
+}
+
+/** Constant-time comparison of two hex digests of equal length. */
+export function otpMatches(expectedHash: string, lotId: string, input: string): boolean {
+  const actual = Buffer.from(hashOtp(lotId, input.trim()), 'hex')
+  const expected = Buffer.from(expectedHash, 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
 
 /** Generates a cryptographic verification token for the OTP-authenticated session */
 export function createVerificationSessionToken(lotId: string, leadId: string): string {
   const payload = `${lotId}:${leadId}:${Math.floor(Date.now() / (24 * 3600 * 1000))}` // 24-hour validity bucket
-  const hmac = createHmac('sha256', PORTAL_SECRET).update(payload).digest('hex')
+  const hmac = createHmac('sha256', portalSecret()).update(payload).digest('hex')
   return `${Buffer.from(payload).toString('base64')}.${hmac}`
 }
 
-/** Validates whether the buyer's session token is valid */
+/**
+ * Validates whether the buyer's session token is valid.
+ *
+ * The token's third field is the day it was minted, and it is signed along with
+ * the rest, but it used to be ignored on the way back in, so a session never
+ * expired. It is now required to be today's or yesterday's, which bounds a session
+ * to between 24 and 48 hours depending on when in the day it was issued.
+ */
 export function verifySessionToken(tokenString: string, lotId: string, leadId: string): boolean {
   try {
     const [payloadB64, signature] = tokenString.split('.')
     if (!payloadB64 || !signature) return false
 
     const payload = Buffer.from(payloadB64, 'base64').toString('utf-8')
-    const [tLotId, tLeadId] = payload.split(':')
+    const [tLotId, tLeadId, tDay] = payload.split(':')
     if (tLotId !== lotId || tLeadId !== leadId) return false
 
-    const expectedSig = createHmac('sha256', PORTAL_SECRET).update(payload).digest('hex')
-    return expectedSig === signature
+    const today = Math.floor(Date.now() / (24 * 3600 * 1000))
+    const minted = Number(tDay)
+    if (!Number.isInteger(minted) || today - minted < 0 || today - minted > 1) return false
+
+    const expected = Buffer.from(createHmac('sha256', portalSecret()).update(payload).digest('hex'))
+    const actual = Buffer.from(signature)
+    return expected.length === actual.length && timingSafeEqual(expected, actual)
   } catch {
     return false
   }
@@ -194,46 +246,91 @@ function programName(prog: any): string {
   return prog.commercialName || prog.name
 }
 
-/** Sends a 6-digit OTP code to the purchaser's registered contact info */
-export async function sendPortalOTP(publicToken: string) {
+/** Sends a 6-digit one-time code to the purchaser's registered email. */
+export async function sendPortalOTP(publicToken: string, ip = 'unknown') {
   const lot = await prisma.developmentLot.findUnique({
     where: { publicToken },
     include: {
       buyerLead: true,
       optionHolderLead: true,
+      workspace: { select: { name: true } },
+      program: { select: { name: true } },
     },
   })
 
   if (!lot) throw new ServiceError('Invalid portal token', 404)
+
+  // Before anything is sent: every code is an email to a third party, so an
+  // unthrottled endpoint is a way to flood a buyer's inbox with the developer's name on it.
+  const limit = await consumeRateLimits(
+    [
+      { subject: `lot:${lot.id}`, rule: OTP_SEND_PER_LOT },
+      { subject: `ip:${ip}`, rule: OTP_SEND_PER_IP },
+    ],
+    1
+  )
+  if (!limit.allowed) {
+    throw new ServiceError('Too many verification codes requested. Please try again later.', 429)
+  }
+
   const buyer = lot.buyerLead || lot.optionHolderLead
   if (!buyer || !buyer.email) {
     throw new ServiceError('No registered email found for this unit. Please contact your developer representative.', 400)
   }
 
-  // Generate 6-digit OTP code
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+  // randomInt draws from the OS CSPRNG; Math.random is predictable from its own output.
+  const otpCode = String(randomInt(100000, 1000000))
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
   await prisma.developmentLot.update({
     where: { id: lot.id },
     data: {
-      portalOtpCode: otpCode,
+      portalOtpCode: hashOtp(lot.id, otpCode),
       portalOtpExpiresAt: expiresAt,
+      portalOtpAttempts: 0,
     },
   })
 
-  // In production: send via emailProvider.
-  // We return masked email, and in development return code for immediate testability.
+  const developer = escapeHtml(lot.workspace.name)
+  try {
+    await sendTransactionalEmail({
+      to: buyer.email,
+      subject: `Your verification code: ${otpCode}`,
+      senderName: lot.workspace.name,
+      html: renderEmail({
+        title: 'Your verification code',
+        preheader: `Your code is ${otpCode}. It expires in 10 minutes.`,
+        heading: 'Your verification code',
+        body:
+          emailParagraph(`Use this code to open your purchase space for <strong>${escapeHtml(lot.program.name)}</strong>, unit <strong>${escapeHtml(lot.lotNumber)}</strong>:`) +
+          `<p style="margin:0 0 12px;font-size:28px;letter-spacing:8px;font-weight:700;">${otpCode}</p>` +
+          emailParagraph('It expires in 10 minutes and works once.'),
+        note: 'If you did not ask for this code, you can ignore this email. Nobody can sign in without it.',
+        footer: `Sent on behalf of ${developer} because a code was requested for your purchase.`,
+      }),
+      text: `Your verification code is ${otpCode}. It expires in 10 minutes.`,
+    })
+  } catch (error) {
+    console.error('Failed to send portal verification code:', error)
+    // The code is useless if it never arrived: do not leave a live one behind.
+    await prisma.developmentLot.update({
+      where: { id: lot.id },
+      data: { portalOtpCode: null, portalOtpExpiresAt: null },
+    })
+    throw new ServiceError('We could not send your verification code. Please try again shortly.', 503)
+  }
+
   return {
     success: true,
     maskedEmail: maskEmail(buyer.email),
     expiresInSeconds: 600,
+    // Only ever outside production, so local development works without a mail server.
     devCode: process.env.NODE_ENV !== 'production' ? otpCode : undefined,
   }
 }
 
-/** Validates the 6-digit OTP code and mints an authenticated session token */
-export async function verifyPortalOTP(publicToken: string, inputCode: string) {
+/** Validates the one-time code and mints an authenticated session token. */
+export async function verifyPortalOTP(publicToken: string, inputCode: string, ip = 'unknown') {
   const lot = await prisma.developmentLot.findUnique({
     where: { publicToken },
     include: {
@@ -243,6 +340,18 @@ export async function verifyPortalOTP(publicToken: string, inputCode: string) {
   })
 
   if (!lot) throw new ServiceError('Invalid portal token', 404)
+
+  const limit = await consumeRateLimits(
+    [
+      { subject: `lot:${lot.id}`, rule: OTP_VERIFY_PER_LOT },
+      { subject: `ip:${ip}`, rule: OTP_VERIFY_PER_IP },
+    ],
+    1
+  )
+  if (!limit.allowed) {
+    throw new ServiceError('Too many attempts. Please wait a few minutes and try again.', 429)
+  }
+
   const buyer = lot.buyerLead || lot.optionHolderLead
   if (!buyer) throw new ServiceError('No buyer associated with this unit', 400)
 
@@ -254,17 +363,32 @@ export async function verifyPortalOTP(publicToken: string, inputCode: string) {
     throw new ServiceError('This verification code has expired. Please request a new code.', 400)
   }
 
-  if (lot.portalOtpCode.trim() !== inputCode.trim()) {
+  if (lot.portalOtpAttempts >= OTP_MAX_ATTEMPTS) {
+    throw new ServiceError('Too many wrong codes. Please request a new verification code.', 400)
+  }
+
+  if (!otpMatches(lot.portalOtpCode, lot.id, inputCode)) {
+    // Counted atomically, so concurrent guesses cannot each read the same count
+    // and all slip under the limit. At the limit the code is burned.
+    const updated = await prisma.developmentLot.update({
+      where: { id: lot.id },
+      data: { portalOtpAttempts: { increment: 1 } },
+      select: { portalOtpAttempts: true },
+    })
+    if (updated.portalOtpAttempts >= OTP_MAX_ATTEMPTS) {
+      await prisma.developmentLot.update({
+        where: { id: lot.id },
+        data: { portalOtpCode: null, portalOtpExpiresAt: null },
+      })
+      throw new ServiceError('Too many wrong codes. Please request a new verification code.', 400)
+    }
     throw new ServiceError('Invalid verification code. Please check and try again.', 400)
   }
 
   // Clear code after successful verification
   await prisma.developmentLot.update({
     where: { id: lot.id },
-    data: {
-      portalOtpCode: null,
-      portalOtpExpiresAt: null,
-    },
+    data: { portalOtpCode: null, portalOtpExpiresAt: null, portalOtpAttempts: 0 },
   })
 
   const sessionToken = createVerificationSessionToken(lot.id, buyer.id)

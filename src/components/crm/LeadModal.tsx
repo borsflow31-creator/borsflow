@@ -1,5 +1,6 @@
 import { aiComplete, aiErrorMessage } from '@/lib/ai/client';
 import { useState, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
 import MeetingList from '@/components/scheduling/MeetingList';
 import LeadFiles from '@/components/crm/LeadFiles';
@@ -7,6 +8,8 @@ import LeadTimeline from '@/components/crm/LeadTimeline';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n } from '@/i18n/I18nProvider';
 import LeadInterests from '@/components/realestate/LeadInterests';
+import LeadBriefFields, { type LeadBriefValues } from '@/components/developer/LeadBriefFields';
+import CustomerTab from '@/components/developer/CustomerTab';
 
 interface Lead {
     id: string;
@@ -25,6 +28,18 @@ interface Lead {
     pipelineId: string;
     order: number;
     leadLists?: any[];
+    // Developer CRM. Present on every lead the API returns; only read when the
+    // account is a developer's.
+    ownerId?: string | null;
+    campaign?: string | null;
+    interestedProgramId?: string | null;
+    interestedTypology?: string | null;
+    budgetMin?: number | null;
+    budgetMax?: number | null;
+    preferredLocation?: string | null;
+    score?: number;
+    lastContactedAt?: string | null;
+    nextFollowUpAt?: string | null;
 }
 
 interface LeadList {
@@ -65,7 +80,7 @@ interface LeadModalProps {
     initialTab?: LeadModalTab;
 }
 
-export type LeadModalTab = 'details' | 'interests' | 'meetings' | 'files' | 'history';
+export type LeadModalTab = 'details' | 'customer' | 'interests' | 'meetings' | 'files' | 'history';
 
 interface ValidationErrors {
     firstName?: string;
@@ -83,6 +98,10 @@ interface ValidationErrors {
 
 export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose, initialTab = 'details' }: LeadModalProps) {
     const { t } = useI18n();
+    const { data: session } = useSession();
+    // A developer's lead carries a buyer brief and a Customer tab; an agency's
+    // form and payload are exactly what they were.
+    const isDeveloper = session?.user?.businessType === 'DEVELOPER';
     const [activeTab, setActiveTab] = useState<LeadModalTab>(lead ? initialTab : 'details');
     // Shown on the Files tab label; starts from the list's count, updated by the tab
     const [fileCount, setFileCount] = useState<number>((lead as (Lead & { fileCount?: number }) | null | undefined)?.fileCount ?? 0);
@@ -100,6 +119,16 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         notes: lead?.notes || '',
         tags: lead?.tags || [],
         leadListIds: lead?.leadLists?.map((l: any) => l.id) || [],
+    });
+
+    const [brief, setBrief] = useState<Omit<LeadBriefValues, 'source'>>({
+        ownerId: lead?.ownerId || '',
+        campaign: lead?.campaign || '',
+        interestedProgramId: lead?.interestedProgramId || '',
+        interestedTypology: lead?.interestedTypology || '',
+        budgetMin: lead?.budgetMin ? String(lead.budgetMin) : '',
+        budgetMax: lead?.budgetMax ? String(lead.budgetMax) : '',
+        preferredLocation: lead?.preferredLocation || '',
     });
 
     const [newTag, setNewTag] = useState('');
@@ -301,12 +330,28 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         setIsSubmitting(true);
         try {
             // null (not undefined) so the API clears these rather than skipping them
+            // The brief is sent only by a developer's form. null (not undefined)
+            // so clearing a field clears it; a new lead with no owner chosen
+            // sends none, which lets the server assign one.
+            const developerFields = isDeveloper && workspaceId
+                ? {
+                    ownerId: brief.ownerId || (lead ? null : undefined),
+                    campaign: brief.campaign.trim() || null,
+                    interestedProgramId: brief.interestedProgramId || null,
+                    interestedTypology: brief.interestedTypology.trim() || null,
+                    budgetMin: brief.budgetMin === '' ? null : Number(brief.budgetMin),
+                    budgetMax: brief.budgetMax === '' ? null : Number(brief.budgetMax),
+                    preferredLocation: brief.preferredLocation.trim() || null,
+                }
+                : {};
+
             await onSave({
                 ...formData,
                 value: formData.value === '' || formData.value === null
                     ? null
                     : parseFloat(String(formData.value)),
                 tags: formData.tags,
+                ...developerFields,
             } as Partial<Lead>);
         } catch (error) {
             console.error('Error saving lead:', error);
@@ -380,7 +425,8 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         <div className="flex gap-1 overflow-x-auto border-b border-surface-container-high -mx-6 px-6" role="tablist">
                             {([
                                 ['details', t('crm.leadModal.tabDetails')],
-                                ['interests', t('realEstate.nav.properties')],
+                                ...(isDeveloper ? [['customer', t('developerCrm.customer.tab')] as [LeadModalTab, string]] : []),
+                                ...(isDeveloper ? [] : [['interests', t('realEstate.nav.properties')] as [LeadModalTab, string]]),
                                 ['meetings', t('crm.leadModal.tabMeetings')],
                                 ['files', fileCount > 0 ? `${t('crm.files.tab')} (${fileCount})` : t('crm.files.tab')],
                                 ['history', t('crm.leadModal.tabHistory')],
@@ -415,6 +461,15 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 compact
                             />
                         </div>
+                    )}
+
+                    {lead && workspaceId && isDeveloper && activeTab === 'customer' && (
+                        <CustomerTab
+                            workspaceId={workspaceId}
+                            leadId={lead.id}
+                            leadName={`${lead.firstName} ${lead.lastName}`.trim()}
+                            onOpenFiles={() => setActiveTab('files')}
+                        />
                     )}
 
                     {lead && workspaceId && activeTab === 'interests' && (
@@ -617,7 +672,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         </p>
                                     )}
                                 </div>
-                                <div>
+                                <div className={isDeveloper && workspaceId ? 'hidden' : undefined}>
                                     <label className="block body-sm text-on-surface-variant mb-2">
                                         {t('crm.leadModal.sourceLabel')}
                                     </label>
@@ -640,6 +695,22 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                             </div>
                         </div>
+
+                        {/* Developer buyer brief: owner, source, project and budget */}
+                        {isDeveloper && workspaceId && (
+                            <LeadBriefFields
+                                workspaceId={workspaceId}
+                                values={{ ...brief, source: formData.source }}
+                                onChange={(name, value) =>
+                                    name === 'source'
+                                        ? handleFieldChange('source', value)
+                                        : setBrief((prev) => ({ ...prev, [name]: value }))
+                                }
+                                score={lead?.score}
+                                lastContactedAt={lead?.lastContactedAt}
+                                nextFollowUpAt={lead?.nextFollowUpAt}
+                            />
+                        )}
 
                         {/* Tags */}
                         <div>

@@ -10,7 +10,8 @@ export async function POST(
 ) {
   try {
     const { token } = await params
-    const result = await sendPortalOTP(token)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const result = await sendPortalOTP(token, ip)
     return NextResponse.json(result)
   } catch (error) {
     return failure(error, 'Failed to send verification code', 'Error sending OTP')

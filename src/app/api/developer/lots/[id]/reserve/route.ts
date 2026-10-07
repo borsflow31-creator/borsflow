@@ -28,7 +28,12 @@ export async function POST(
     const lot = await reserveLot(
       { workspaceId, userId: access.userId },
       lotId,
-      { buyerLeadId }
+      {
+        buyerLeadId,
+        reservationFee: body.reservationFee as number | string | null | undefined,
+        reservationFeePaidAt: body.reservationFeePaidAt as string | null | undefined,
+        salesAgentId: typeof body.salesAgentId === 'string' && body.salesAgentId ? body.salesAgentId : undefined,
+      }
     )
     return NextResponse.json({ lot })
   } catch (error) {

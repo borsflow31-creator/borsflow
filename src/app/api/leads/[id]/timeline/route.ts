@@ -62,6 +62,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         : filter === 'activity' ? { type: { notIn: NOTE_FILE_TYPES } }
           : {};
 
+  // History about a managers-only document is managers-only too. Those rows carry
+  // the document's visibility in their metadata (it must travel with the row,
+  // because a deleted file no longer has a record to look it up on). The explicit
+  // null branch matters: in SQL, NOT (NULL contains x) is NULL, which would drop
+  // every row with no metadata at all.
+  const hideRestricted = access.canModerate
+    ? {}
+    : { OR: [{ metadata: null }, { NOT: { metadata: { contains: '"visibility":"managers"' } } }] };
+
   const [activities, quotes, invoices, meetings, emails] = await Promise.all([
     wantActivity
       ? prisma.activity.findMany({
@@ -70,6 +79,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             workspaceId: access.workspaceId,
             createdAt: createdBefore,
             ...activityTypeFilter,
+            ...hideRestricted,
           },
           orderBy: { createdAt: 'desc' },
           take,

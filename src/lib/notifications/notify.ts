@@ -87,8 +87,28 @@ export async function notify(input: NotifyInput): Promise<void> {
       if (willEmail) emailTargets.push({ id: user.id, email: user.email, name: user.name });
     }
 
-    if (rows.length > 0) {
-      await prisma.notification.createMany({ data: rows, skipDuplicates: true });
+    // An event with a dedupeKey may be raised again by a cron re-run or a webhook
+    // replay. The in-app row used to be skipped as a duplicate but the email was
+    // still sent to everyone, so an hourly job with a daily key emailed the same
+    // reminder up to 24 times a day. A recipient is emailed only if their row was
+    // actually created -- one insert each, so the unique index is the arbiter even
+    // when two runs overlap, which a "check, then insert" would not be.
+    const unkeyed = rows.filter((row) => row.dedupeKey === null);
+    if (unkeyed.length > 0) {
+      await prisma.notification.createMany({ data: unkeyed });
+    }
+    const alreadyNotified = new Set<string>();
+    for (const row of rows) {
+      if (row.dedupeKey === null) continue;
+      try {
+        await prisma.notification.create({ data: row });
+      } catch (error: any) {
+        if (error?.code !== 'P2002') throw error;
+        alreadyNotified.add(row.userId);
+      }
+    }
+    for (let i = emailTargets.length - 1; i >= 0; i--) {
+      if (alreadyNotified.has(emailTargets[i].id)) emailTargets.splice(i, 1);
     }
 
     if (emailTargets.length > 0) {

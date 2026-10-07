@@ -142,6 +142,67 @@ export const DEFAULT_PIPELINES: readonly DefaultPipeline[] = [
   },
 ]
 
+/**
+ * The buyer board a developer sells off-plan on, seeded when an account picks the
+ * developer business type.
+ *
+ * Separate from 'Contacts' because the funnel is different: a developer's buyer
+ * moves towards one unit in one project, so reservation and the signed contract
+ * are stages of the same board rather than a separate Interest pipeline. Reserved
+ * and Won are stamped by the lot state machine (see services/developer/lots.ts),
+ * which is why their names matter here.
+ */
+export const DEVELOPER_SALES_PIPELINE: DefaultPipeline = {
+  name: 'Buyer sales',
+  subjectType: 'Lead',
+  stages: ['New', 'Contacted', 'Qualified', 'Site visit', 'Negotiation', 'Reserved', 'Won', 'Lost'],
+}
+
+/** The stage a reserved or sold unit moves its buyer to. */
+export const DEVELOPER_STAGE_RESERVED = 'Reserved'
+export const DEVELOPER_STAGE_WON = 'Won'
+export const DEVELOPER_STAGE_LOST = 'Lost'
+/** Where a buyer moves when a site visit is booked for them. */
+export const DEVELOPER_STAGE_SITE_VISIT = 'Site visit'
+
+/**
+ * Where a buyer came from. Lead.source stays free text (older leads, imports and
+ * the website form already wrote their own values), so this is the vocabulary the
+ * form offers rather than a constraint; values outside it are still shown.
+ */
+export const LEAD_SOURCES = [
+  'facebook', 'instagram', 'google_ads', 'website', 'portal', 'broker',
+  'walk_in', 'referral', 'event', 'phone', 'whatsapp', 'other',
+] as const
+export type LeadSource = (typeof LEAD_SOURCES)[number]
+
+/** What a follow-up is for. */
+export const LEAD_TASK_TYPES = [
+  'call', 'follow_up', 'send_price_list', 'send_floor_plan',
+  'reservation', 'payment_reminder', 'contract', 'other',
+] as const
+export type LeadTaskType = (typeof LEAD_TASK_TYPES)[number]
+
+export function isLeadTaskType(v: unknown): v is LeadTaskType {
+  return typeof v === 'string' && (LEAD_TASK_TYPES as readonly string[]).includes(v)
+}
+
+/** How a site visit went. Attendance itself is Meeting.status (completed / no_show). */
+export const SITE_VISIT_OUTCOMES = ['interested', 'needs_follow_up', 'reserved', 'not_interested'] as const
+export type SiteVisitOutcome = (typeof SITE_VISIT_OUTCOMES)[number]
+
+export function isSiteVisitOutcome(v: unknown): v is SiteVisitOutcome {
+  return typeof v === 'string' && (SITE_VISIT_OUTCOMES as readonly string[]).includes(v)
+}
+
+/** Stages that are neither won nor lost: what "open pipeline value" sums over. */
+export const DEVELOPER_OPEN_STAGES: readonly string[] = [
+  'New', 'Contacted', 'Qualified', 'Site visit', 'Negotiation', 'Reserved',
+]
+
+/** From here on a lead counts as qualified in the dashboard's KPIs. */
+export const DEVELOPER_QUALIFIED_FROM_INDEX = 2
+
 // ─── Stages ──────────────────────────────────────────────────────────────────
 
 /** Parse Pipeline.stages, which is stored as a JSON string. Never throws. */

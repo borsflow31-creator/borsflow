@@ -38,6 +38,10 @@ export interface CreateProgramInput {
   notaryName?: string
   notaryEmail?: string
   targetDeliveryDate?: string | Date
+  launchDate?: string | Date
+  salesTargetUnits?: number
+  revenueTarget?: number
+  commissionPercent?: number
   landDealId?: string
 }
 
@@ -60,6 +64,10 @@ export interface UpdateProgramInput {
   notaryName?: string
   notaryEmail?: string
   targetDeliveryDate?: string | Date | null
+  launchDate?: string | Date | null
+  salesTargetUnits?: number | null
+  revenueTarget?: number | null
+  commissionPercent?: number | null
   landDealId?: string | null
 }
 
@@ -77,6 +85,34 @@ function cleanWebsite(value: string | null | undefined): string | null {
   } catch {
     return null
   }
+}
+
+/** An empty or missing date is "not set"; an unparseable one is the caller's mistake. */
+function readOptionalDate(value: string | Date | null | undefined, label: string): Date | null {
+  if (value === undefined || value === null || value === '') return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) throw new ServiceError(`${label} is not a valid date`, 400)
+  return date
+}
+
+/** A target is a non-negative number, or null when cleared. */
+function readTarget(value: unknown, label: string, integer: boolean): number | null {
+  if (value === undefined || value === null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0 || (integer && !Number.isInteger(n))) {
+    throw new ServiceError(`${label} must be a ${integer ? 'whole ' : ''}number of zero or more`, 400)
+  }
+  return n
+}
+
+/** A commission rate: a percentage from 0 to 100, or null when cleared. */
+function readPercent(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0 || n > 100) {
+    throw new ServiceError('The commission rate must be between 0 and 100', 400)
+  }
+  return n
 }
 
 /** Recalculates unit counters on a program from its real lots */
@@ -113,6 +149,67 @@ export async function syncProgramCounters(programId: string): Promise<void> {
       soldUnits,
     },
   })
+}
+
+export interface ProgramSales {
+  /** Sum of final prices of units under contract or beyond. */
+  soldValue: number
+  /** Sum of final prices of every unit: what the project is worth built out. */
+  totalValue: number
+  /** Called for funds and not yet paid. */
+  outstanding: number
+  /** Called for funds and already paid. */
+  collected: number
+}
+
+const EMPTY_SALES: ProgramSales = { soldValue: 0, totalValue: 0, outstanding: 0, collected: 0 }
+
+/**
+ * Money figures for a set of programs, in two queries (one grouped) rather than loading
+ * every lot. The status buckets come from lib/crm/projects so "sold"
+ * means the same thing here as on the dashboard and the counters.
+ */
+export async function programSalesFigures(
+  workspaceId: string,
+  programIds: string[]
+): Promise<Map<string, ProgramSales>> {
+  const result = new Map<string, ProgramSales>()
+  if (programIds.length === 0) return result
+  const entry = (id: string) => {
+    let s = result.get(id)
+    if (!s) {
+      s = { ...EMPTY_SALES }
+      result.set(id, s)
+    }
+    return s
+  }
+
+  const [byStatus, calls] = await Promise.all([
+    prisma.developmentLot.groupBy({
+      by: ['programId', 'status'],
+      where: { workspaceId, programId: { in: programIds } },
+      _sum: { totalPrice: true },
+    }),
+    prisma.callForFunds.findMany({
+      where: { workspaceId, lot: { programId: { in: programIds } }, status: { not: 'draft' } },
+      select: { amount: true, status: true, lot: { select: { programId: true } } },
+    }),
+  ])
+
+  for (const row of byStatus) {
+    const s = entry(row.programId)
+    const value = row._sum.totalPrice ?? 0
+    s.totalValue += value
+    if (bucketForLotStatus(row.status) === 'sold') s.soldValue += value
+  }
+
+  for (const call of calls) {
+    const s = entry(call.lot.programId)
+    if (call.status === 'paid') s.collected += call.amount
+    else s.outstanding += call.amount
+  }
+
+  return result
 }
 
 export async function listPrograms(
@@ -160,9 +257,15 @@ export async function listPrograms(
   // One batch of signed URLs for the whole page rather than one call per card.
   const urls = await signMediaPaths(programs.map((p) => p.media[0]?.filePath ?? null))
 
+  const sales = await programSalesFigures(
+    ctx.workspaceId,
+    programs.map((p) => p.id)
+  )
+
   return programs.map(({ media, ...program }) => ({
     ...program,
     coverUrl: media[0]?.filePath ? urls.get(media[0].filePath) ?? null : media[0]?.externalUrl ?? null,
+    sales: sales.get(program.id) ?? EMPTY_SALES,
   }))
 }
 
@@ -229,6 +332,10 @@ export async function createProgram(ctx: DeveloperContext, input: CreateProgramI
       notaryName: input.notaryName?.trim() || null,
       notaryEmail: input.notaryEmail?.trim() || null,
       targetDeliveryDate: input.targetDeliveryDate ? new Date(input.targetDeliveryDate) : null,
+      launchDate: readOptionalDate(input.launchDate, 'Launch date'),
+      salesTargetUnits: readTarget(input.salesTargetUnits, 'Unit sales target', true),
+      revenueTarget: readTarget(input.revenueTarget, 'Revenue target', false),
+      commissionPercent: readPercent(input.commissionPercent),
       landDealId: input.landDealId || null,
       createdById: ctx.userId,
     },
@@ -296,6 +403,12 @@ export async function updateProgram(ctx: DeveloperContext, id: string, input: Up
   if (input.targetDeliveryDate !== undefined) {
     data.targetDeliveryDate = input.targetDeliveryDate ? new Date(input.targetDeliveryDate) : null
   }
+  if (input.launchDate !== undefined) data.launchDate = readOptionalDate(input.launchDate, 'Launch date')
+  if (input.salesTargetUnits !== undefined) {
+    data.salesTargetUnits = readTarget(input.salesTargetUnits, 'Unit sales target', true)
+  }
+  if (input.revenueTarget !== undefined) data.revenueTarget = readTarget(input.revenueTarget, 'Revenue target', false)
+  if (input.commissionPercent !== undefined) data.commissionPercent = readPercent(input.commissionPercent)
   if (input.landDealId !== undefined) data.landDealId = input.landDealId
 
   await prisma.program.update({

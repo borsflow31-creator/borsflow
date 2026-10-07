@@ -68,6 +68,7 @@ export const authOptions: NextAuthOptions = {
                     name: user.name,
                     notificationsEmail: user.notificationsEmail,
                     notificationsPush: user.notificationsPush,
+                    businessType: user.businessType,
                 }
             },
         }),
@@ -118,15 +119,17 @@ export const authOptions: NextAuthOptions = {
                 token.id = user.id
                 token.notificationsEmail = user.notificationsEmail
                 token.notificationsPush = user.notificationsPush
+                token.businessType = user.businessType ?? null
             }
             if (account?.provider === 'google' && token.email) {
                 const dbUser = await findUserByEmail(token.email, {
-                    select: { id: true, notificationsEmail: true, notificationsPush: true },
+                    select: { id: true, notificationsEmail: true, notificationsPush: true, businessType: true },
                 });
                 if (dbUser) {
                     token.id = dbUser.id;
                     token.notificationsEmail = dbUser.notificationsEmail;
                     token.notificationsPush = dbUser.notificationsPush;
+                    token.businessType = dbUser.businessType;
                 }
             }
             // Re-validate that the stored id still exists in the DB (guards against DB
@@ -139,20 +142,24 @@ export const authOptions: NextAuthOptions = {
                 token.checkedAt = Date.now()
                 const exists = await prisma.user.findUnique({
                     where: { id: token.id as string },
-                    select: { id: true, notificationsEmail: true, notificationsPush: true },
+                    select: { id: true, notificationsEmail: true, notificationsPush: true, businessType: true },
                 });
                 if (!exists) {
                     const dbUser = await findUserByEmail(token.email as string, {
-                        select: { id: true, notificationsEmail: true, notificationsPush: true },
+                        select: { id: true, notificationsEmail: true, notificationsPush: true, businessType: true },
                     });
                     if (dbUser) {
                         token.id = dbUser.id;
                         token.notificationsEmail = dbUser.notificationsEmail;
                         token.notificationsPush = dbUser.notificationsPush;
+                        token.businessType = dbUser.businessType;
                     }
                 } else {
                     token.notificationsEmail = exists.notificationsEmail;
                     token.notificationsPush = exists.notificationsPush;
+                    // Re-read every time this check is due, so the choice made in the
+                    // popup reaches the session on the update() that follows it.
+                    token.businessType = exists.businessType;
                 }
             }
             return token
@@ -165,6 +172,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.id = token.id as string
                 session.user.notificationsEmail = token.notificationsEmail ?? true
                 session.user.notificationsPush = token.notificationsPush ?? true
+                session.user.businessType = token.businessType ?? null
             }
             return session
         },

@@ -11,6 +11,7 @@ import {
     Mail, ChevronRight, PanelLeftClose, PanelLeftOpen,
     UserPlus, CalendarDays, MessageSquare, Moon, Sun, LogOut, Package,
     Building, Building2, FileSignature, HandCoins, Percent, Eye,
+    LayoutGrid, Wallet, ClipboardList, ListChecks, CalendarCheck, Activity, BarChart3, BellRing,
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession, signOut } from 'next-auth/react';
@@ -32,27 +33,75 @@ const CreateWorkspaceModal    = dynamic(() => import('@/components/workspace/Cre
 const InviteUsersModal        = dynamic(() => import('@/components/workspace/InviteUsersModal'), { ssr: false });
 const PendingInvitationsModal = dynamic(() => import('@/components/workspace/PendingInvitationsModal'), { ssr: false });
 const AIChatPanel             = dynamic(() => import('@/components/AIChatPanel'), { ssr: false });
+// Shown once per account, so it is not part of every page's initial bundle.
+const BusinessTypeModal       = dynamic(() => import('@/components/onboarding/BusinessTypeModal'), { ssr: false });
 
 const WORKSPACES_URL   = '/api/workspaces';
 const INVITATIONS_URL  = '/api/invitations/pending';
 const workspaceUrl = (id: string) => `/api/workspaces/${id}`;
 
 /* ─── Nav config ─────────────────────────────────────────── */
-const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: string; icon: typeof Home; basePath: string }[] }[] = [
+type NavGroup = { labelKey: MessageKey; items: { labelKey: MessageKey; href: string; icon: typeof Home; basePath: string }[] };
+
+const GENERAL_GROUP: NavGroup = {
+    labelKey: 'nav.groupGeneral',
+    items: [
+        { labelKey: 'nav.home',   href: '/dashboard',         icon: Home,      basePath: '/dashboard' },
+        { labelKey: 'nav.pages',  href: '__workspace__',       icon: FileText,  basePath: '/workspaces' },
+        { labelKey: 'nav.kanban',    href: '__kanban__',    icon: Columns,         basePath: '/kanban-board-view' },
+        { labelKey: 'nav.chat',      href: '__chat__',      icon: MessageSquare,   basePath: '__chat__' },
+    ],
+};
+
+/**
+ * What a developer works in, in three groups so the list stays short: the selling
+ * (buyers, follow-ups, visits, how the team is doing), the building (projects,
+ * stock, money coming in, buyer change requests) and the general tools. The
+ * agency's listing-side modules (properties, viewings, mandates, offers,
+ * commissions) do not apply to selling off-plan, so they are left out rather than
+ * greyed.
+ */
+const DEVELOPER_GROUPS: NavGroup[] = [
+    GENERAL_GROUP,
     {
-        labelKey: 'nav.groupGeneral',
+        labelKey: 'developerCrm.nav.groupSales',
         items: [
-            { labelKey: 'nav.home',   href: '/dashboard',         icon: Home,      basePath: '/dashboard' },
-            { labelKey: 'nav.pages',  href: '__workspace__',       icon: FileText,  basePath: '/workspaces' },
-            { labelKey: 'nav.kanban',    href: '__kanban__',    icon: Columns,         basePath: '/kanban-board-view' },
-            { labelKey: 'nav.chat',      href: '__chat__',      icon: MessageSquare,   basePath: '__chat__' },
+            { labelKey: 'developer.navBuyers',            href: '__crm__',        icon: Users,         basePath: '/crm' },
+            { labelKey: 'developerCrm.nav.followUps',     href: '__followups__',  icon: ListChecks,    basePath: '/developer/tasks' },
+            { labelKey: 'developerCrm.nav.siteVisits',    href: '__sitevisits__', icon: CalendarCheck, basePath: '/developer/site-visits' },
+            { labelKey: 'developerCrm.nav.teamActivity',  href: '__team__',       icon: Activity,      basePath: '/developer/team' },
+            { labelKey: 'realEstate.nav.commissions',     href: '__commissions__', icon: Percent,      basePath: '/commissions' },
+            { labelKey: 'developerSales.nav.reports',     href: '__reports__',    icon: BarChart3,     basePath: '/developer/reports' },
         ],
     },
+    {
+        labelKey: 'developerCrm.nav.groupDevelopment',
+        items: [
+            { labelKey: 'developer.navProjects',      href: '__programs__',      icon: Building,      basePath: '/developer/programs' },
+            { labelKey: 'developer.navInventory',     href: '__inventory__',     icon: LayoutGrid,    basePath: '/developer/inventory' },
+            { labelKey: 'developer.navCollections',   href: '__collections__',   icon: Wallet,        basePath: '/developer/collections' },
+            { labelKey: 'developer.navModifications', href: '__modifications__', icon: ClipboardList, basePath: '/developer/modifications' },
+            { labelKey: 'developerSales.nav.templates', href: '__templates__',   icon: FileSignature, basePath: '/developer/templates' },
+        ],
+    },
+    {
+        labelKey: 'developerCrm.nav.groupWorkspace',
+        items: [
+            { labelKey: 'nav.meetings',       href: '__meetings__',     icon: CalendarDays, basePath: '/meetings' },
+            { labelKey: 'nav.emailMarketing', href: '/email-marketing', icon: Mail,         basePath: '/email-marketing' },
+            { labelKey: 'nav.quotes',         href: '__quotes__',       icon: QuoteIcon,    basePath: '/quotes' },
+            { labelKey: 'nav.invoices',       href: '__invoices__',     icon: DollarSign,   basePath: '/invoices' },
+            { labelKey: 'developerAlerts.nav', href: '__alerts__',      icon: BellRing,     basePath: '/developer/alerts' },
+        ],
+    },
+];
+
+const AGENCY_GROUPS: NavGroup[] = [
+    GENERAL_GROUP,
     {
         labelKey: 'nav.groupBusiness',
         items: [
             { labelKey: 'realEstate.nav.properties', href: '__properties__', icon: Building2,     basePath: '/properties' },
-            { labelKey: 'realEstate.nav.programs',   href: '__programs__',   icon: Building,      basePath: '/developer/programs' },
             { labelKey: 'realEstate.nav.buyers',     href: '__crm__',        icon: Users,         basePath: '/crm' },
             { labelKey: 'realEstate.nav.viewings',   href: '__viewings__',   icon: Eye,           basePath: '/viewings' },
             { labelKey: 'realEstate.nav.mandates',   href: '__mandates__',   icon: FileSignature, basePath: '/mandates' },
@@ -66,6 +115,11 @@ const NAV_GROUPS: { labelKey: MessageKey; items: { labelKey: MessageKey; href: s
         ],
     },
 ];
+
+/** Accounts that have not answered the sign-up question yet get the agency list behind the popup. */
+function navGroupsFor(businessType: string | null | undefined): NavGroup[] {
+    return businessType === 'DEVELOPER' ? DEVELOPER_GROUPS : AGENCY_GROUPS;
+}
 
 /* ─── Types ───────────────────────────────────────────────── */
 interface AppShellProps {
@@ -93,6 +147,15 @@ function resolveHref(
         if (raw === '__meetings__') return '/meetings';
         if (raw === '__properties__') return '/properties';
         if (raw === '__programs__') return '/developer/programs';
+        if (raw === '__inventory__') return '/developer/inventory';
+        if (raw === '__collections__') return '/developer/collections';
+        if (raw === '__modifications__') return '/developer/modifications';
+        if (raw === '__followups__') return '/developer/tasks';
+        if (raw === '__sitevisits__') return '/developer/site-visits';
+        if (raw === '__team__') return '/developer/team';
+        if (raw === '__reports__') return '/developer/reports';
+        if (raw === '__templates__') return '/developer/templates';
+        if (raw === '__alerts__') return '/developer/alerts';
         if (raw === '__viewings__') return '/viewings';
         if (raw === '__mandates__') return '/mandates';
         if (raw === '__offers__')   return '/offers';
@@ -111,6 +174,15 @@ function resolveHref(
     if (raw === '__meetings__')  return `/meetings?workspace=${workspace.id}`;
     if (raw === '__properties__') return `/properties?workspace=${workspace.id}`;
     if (raw === '__programs__')   return `/developer/programs?workspace=${workspace.id}`;
+    if (raw === '__inventory__')  return `/developer/inventory?workspace=${workspace.id}`;
+    if (raw === '__collections__') return `/developer/collections?workspace=${workspace.id}`;
+    if (raw === '__modifications__') return `/developer/modifications?workspace=${workspace.id}`;
+    if (raw === '__followups__') return `/developer/tasks?workspace=${workspace.id}`;
+    if (raw === '__sitevisits__') return `/developer/site-visits?workspace=${workspace.id}`;
+    if (raw === '__team__') return `/developer/team?workspace=${workspace.id}`;
+    if (raw === '__reports__') return `/developer/reports?workspace=${workspace.id}`;
+    if (raw === '__templates__') return `/developer/templates?workspace=${workspace.id}`;
+    if (raw === '__alerts__') return `/developer/alerts?workspace=${workspace.id}`;
     if (raw === '__viewings__')  return `/viewings?workspace=${workspace.id}`;
     if (raw === '__mandates__')  return `/mandates?workspace=${workspace.id}`;
     if (raw === '__offers__')    return `/offers?workspace=${workspace.id}`;
@@ -131,8 +203,13 @@ export default function AppShell({
 }: AppShellProps) {
     const pathname = usePathname();
     const router   = useRouter();
-    const { data: session } = useSession();
+    const { data: session, status: sessionStatus } = useSession();
     const { t } = useI18n();
+    const businessType = session?.user?.businessType ?? null;
+    const navGroups = useMemo(() => navGroupsFor(businessType), [businessType]);
+    // Asked once, right after sign-up. Waits for an authenticated session so it
+    // never flashes while the session is still loading.
+    const needsBusinessType = sessionStatus === 'authenticated' && businessType === null;
     const {
         sidebarOpen, toggleSidebar,
         sidebarCollapsed, toggleSidebarCollapsed,
@@ -536,7 +613,7 @@ export default function AppShell({
 
                 {/* ── Navigation ── */}
                 <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-1" role="navigation">
-                    {NAV_GROUPS.map((group) => (
+                    {navGroups.map((group) => (
                         <div key={group.labelKey} className="mb-3">
                             {/* Group label — hidden when collapsed */}
                             {isEffectivelyExpanded && (
@@ -850,6 +927,9 @@ export default function AppShell({
                 respondingId={respondingInvitationId}
                 respondingChoice={respondingChoice}
             />}
+
+            {/* ── First-run business type question ── */}
+            {needsBusinessType && <BusinessTypeModal />}
 
             {/* ── AI Chat Panel ── */}
             {aiPanelLoaded && <AIChatPanel isOpen={aiPanelOpen} onClose={() => setAiPanelOpen(false)} workspaceId={currentWorkspaceId} />}

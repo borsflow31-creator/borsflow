@@ -156,7 +156,14 @@ export async function POST(request: NextRequest) {
             notes,
             tags,
             pipelineId,
-            leadListIds
+            leadListIds,
+            ownerId,
+            campaign,
+            interestedProgramId,
+            interestedTypology,
+            budgetMin,
+            budgetMax,
+            preferredLocation,
         } = body;
 
         if (!firstName || !lastName || !pipelineId) {
@@ -212,6 +219,13 @@ export async function POST(request: NextRequest) {
             notes,
             tags,
             leadListIds,
+            ownerId,
+            campaign,
+            interestedProgramId,
+            interestedTypology,
+            budgetMin,
+            budgetMax,
+            preferredLocation,
         });
 
         await CrmLogger.logCreated({

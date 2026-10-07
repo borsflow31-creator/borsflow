@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { DEFAULT_PIPELINES, parseStages } from '@/lib/crm/lifecycle'
+import { DEFAULT_PIPELINES, DEVELOPER_SALES_PIPELINE, parseStages } from '@/lib/crm/lifecycle'
 import type { SubjectType } from '@/lib/crm/subjects'
 import { ServiceError } from './errors'
 
@@ -33,6 +33,39 @@ export async function ensureDefaultPipelines(workspaceId: string): Promise<void>
       stages: JSON.stringify(p.stages),
       order: order++,
     })),
+  })
+}
+
+/**
+ * The board a developer sells units on, created when an account picks the
+ * developer business type (and for each workspace it owns).
+ *
+ * Matched by name rather than by subject type: 'Contacts' is also a Lead board,
+ * so ensureDefaultPipelines already satisfies that type and would never create
+ * this one. Idempotent and additive, like ensureDefaultPipelines.
+ */
+export async function ensureDeveloperPipeline(workspaceId: string): Promise<void> {
+  const existing = await prisma.pipeline.findFirst({
+    where: { workspaceId, name: DEVELOPER_SALES_PIPELINE.name },
+    select: { id: true },
+  })
+  if (existing) return
+
+  // First in the sidebar: for a developer this is the board they work all day,
+  // not one of the agency defaults seeded beside it.
+  const lowest = await prisma.pipeline.aggregate({
+    where: { workspaceId },
+    _min: { order: true },
+  })
+
+  await prisma.pipeline.create({
+    data: {
+      workspaceId,
+      name: DEVELOPER_SALES_PIPELINE.name,
+      subjectType: DEVELOPER_SALES_PIPELINE.subjectType,
+      stages: JSON.stringify(DEVELOPER_SALES_PIPELINE.stages),
+      order: (lowest._min.order ?? 0) - 1,
+    },
   })
 }
 

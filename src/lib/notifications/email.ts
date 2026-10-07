@@ -56,6 +56,15 @@ const NOTIFICATION_EMAIL: Record<NotificationType, { action: string | null; note
   'crm.mandate_expiring': { action: 'Open mandate', note: 'Call the vendor to renew, or let it lapse and the listing comes off the market.' },
   'crm.viewing_feedback': { action: 'Open property' },
   'crm.property_matched': { action: 'Open matches', note: 'Buyers with a matching search brief are waiting to hear about it.' },
+  'crm.document_accepted': { action: 'Open buyer', note: 'The accepted copy, with the acceptance record, is on the buyer\'s file.' },
+  'crm.call_overdue': { action: 'Open collections', note: 'The buyer has been sent an automatic reminder.' },
+  'alerts.lead_no_response': { action: 'Open buyer', note: 'New buyers are most likely to be won by whoever answers first.' },
+  'alerts.lead_no_followup': { action: 'Open follow-ups', note: 'A follow-up has been added for you so this buyer does not go quiet.' },
+  'alerts.reservation_created': { action: 'Open inventory' },
+  'alerts.contract_signed': { action: 'Open inventory' },
+  'alerts.project_behind_target': { action: 'Open projects', note: 'Sales are behind a straight line from launch to delivery. You can change this alert under Alerts.' },
+  'alerts.low_inventory': { action: 'Open inventory', note: 'You can change this alert under Alerts.' },
+  'alerts.high_cancellations': { action: 'Open reports', note: 'You can change this alert under Alerts.' },
 
   'meetings.booked': { action: 'Open meetings', note: 'It is on your BorsFlow calendar.' },
   'meetings.rescheduled': { action: 'Open meetings', note: 'Your BorsFlow calendar already shows the new time.' },
@@ -64,6 +73,7 @@ const NOTIFICATION_EMAIL: Record<NotificationType, { action: string | null; note
 
   'tasks.card_assigned': { action: 'Open board' },
   'tasks.card_due_soon': { action: 'Open board' },
+  'tasks.followup_due': { action: 'Open follow-ups' },
 };
 
 /**

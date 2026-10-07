@@ -23,6 +23,7 @@ const JOBS = [
   '/api/cron/process-automations',
   '/api/cron/process-scheduled-campaigns',
   '/api/cron/process-email-queue',
+  '/api/cron/lead-alerts',
 ] as const
 
 /**
@@ -43,6 +44,8 @@ const HOURLY_JOBS = [
   '/api/cron/mark-overdue',
   '/api/cron/sync-calendars',
   '/api/cron/notification-reminders',
+  '/api/cron/call-reminders',
+  '/api/cron/project-alerts',
 ] as const
 
 interface JobResult {

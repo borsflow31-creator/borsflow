@@ -6,6 +6,10 @@ import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/wo
 import { CrmLogger } from '@/lib/crm/logger';
 import { reorderInColumn } from '@/lib/crm/reorder';
 import { onSubjectStageChanged } from '@/lib/crm/subject-events';
+import { parseStages } from '@/lib/crm/lifecycle';
+import { scoreLead } from '@/lib/crm/lead-score';
+import { readDeveloperLeadFields } from '@/lib/services/leads';
+import { ServiceError } from '@/lib/services/errors';
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin';
 
 export async function GET(
@@ -113,6 +117,26 @@ export async function PUT(
             }
         }
 
+        // Developer-only fields: owner, brief, project of interest. Absent leaves
+        // them alone, so the agency form (which never sends them) is unaffected.
+        const developer = await readDeveloperLeadFields(lead.pipeline.workspaceId, body, lead);
+
+        // The score follows whatever the lead will look like after this save.
+        const { score } = scoreLead({
+            email: email !== undefined ? email : lead.email,
+            phone: phone !== undefined ? phone : lead.phone,
+            budgetMin: developer.budgetMin !== undefined ? developer.budgetMin : lead.budgetMin,
+            budgetMax: developer.budgetMax !== undefined ? developer.budgetMax : lead.budgetMax,
+            interestedProgramId:
+                developer.interestedProgramId !== undefined ? developer.interestedProgramId : lead.interestedProgramId,
+            interestedTypology:
+                developer.interestedTypology !== undefined ? developer.interestedTypology : lead.interestedTypology,
+            source: source !== undefined ? source : lead.source,
+            stage: stage !== undefined ? stage : lead.stage,
+            stages: parseStages(lead.pipeline.stages),
+            lastContactedAt: lead.lastContactedAt,
+        });
+
         // undefined = leave unchanged, null/empty = clear
         const parsedValue = value === undefined
             ? undefined
@@ -136,6 +160,8 @@ export async function PUT(
             ...(parsedValue !== undefined && { value: parsedValue }),
             ...(source !== undefined && { source }),
             ...(notes !== undefined && { notes }),
+            ...developer,
+            score,
             ...(tags !== undefined && {
                 tags: Array.isArray(tags) && tags.length > 0 ? JSON.stringify(tags) : null,
             }),
@@ -249,6 +275,10 @@ export async function PUT(
 
         return NextResponse.json(leadWithParsedData);
     } catch (error) {
+        // A bad owner, project or budget is the caller's mistake, not a crash.
+        if (error instanceof ServiceError) {
+            return NextResponse.json({ error: error.message }, { status: error.status });
+        }
         console.error('Error updating lead:', error);
         return NextResponse.json(
             { error: 'Failed to update lead' },

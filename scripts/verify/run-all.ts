@@ -23,8 +23,11 @@ import enquiryIntake from './11-enquiry-intake'
 import mandateExpiry from './12-mandate-expiry'
 import commissionsPublicCapacity from './13-commissions-public-capacity'
 import projectsAndMedia from './14-projects-and-media'
+import developerLeads from './15-developer-leads'
+import developerSales from './16-developer-sales'
+import developerAlerts from './17-developer-alerts'
 
-const NO_DATABASE_NEEDED = new Set(['01', '14'])
+const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17'])
 
 async function main() {
   const scenarios: { id: string; run: () => Promise<ScenarioResult> }[] = [
@@ -42,6 +45,9 @@ async function main() {
     { id: '12', run: mandateExpiry },
     { id: '13', run: commissionsPublicCapacity },
     { id: '14', run: projectsAndMedia },
+    { id: '15', run: developerLeads },
+    { id: '16', run: developerSales },
+    { id: '17', run: developerAlerts },
   ]
 
   const hasDatabase = Boolean(process.env.VERIFY_DATABASE_URL)

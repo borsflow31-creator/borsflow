@@ -254,6 +254,18 @@
         "value": "6px",
         "createdAt": "2026-10-04T18:28:35.598Z",
         "reason": "email HTML button: inline literal radius required in email clients; not app UI"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "helvetica",
+        "createdAt": "2026-10-07T20:01:44.255Z",
+        "reason": "agent decision, not user-confirmed: React-PDF output uses the built-in PDF font set, as src/lib/documents/pdf.tsx already does; DESIGN.md typography governs the web UI, not generated PDFs"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "helvetica-bold",
+        "createdAt": "2026-10-07T20:01:44.355Z",
+        "reason": "agent decision, not user-confirmed: React-PDF output uses the built-in PDF font set, as src/lib/documents/pdf.tsx already does; DESIGN.md typography governs the web UI, not generated PDFs"
       }
     ]
   }

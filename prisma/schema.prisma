@@ -18,6 +18,9 @@ model User {
   password                      String?
   emailVerified                 DateTime?
   theme                         String                  @default("system") // 'light', 'dark', 'system'
+  // Chosen once, on first sign-in, and fixed after. Null means not chosen yet,
+  // which is what shows the business-type popup. Decides the dashboard and nav.
+  businessType                  BusinessType?
   notificationsEmail            Boolean                 @default(true)
   notificationsPush             Boolean                 @default(true)
   // Per-category overrides: { [category]: { inApp: boolean, email: boolean } }.
@@ -92,6 +95,16 @@ model User {
   assignedLandDeals             LandDeal[]              @relation("LandDealAssignee")
   uploadedProgramMedia          ProgramMedia[]          @relation("ProgramMediaUploader")
   createdPrograms               Program[]               @relation("ProgramCreator")
+  soldLots                      DevelopmentLot[]        @relation("LotSalesAgent")
+  ownedLeads                    Lead[]                  @relation("LeadOwner")
+  assignedLeadTasks             LeadTask[]              @relation("LeadTaskAssignee")
+  createdLeadTasks              LeadTask[]              @relation("LeadTaskCreator")
+  lotCancellations              LotCancellation[]       @relation("LotCancellationAgent")
+}
+
+enum BusinessType {
+  AGENCY
+  DEVELOPER
 }
 
 model Channel {
@@ -184,6 +197,13 @@ model Workspace {
   callsForFunds           CallForFunds[]
   tmaRequests             TMARequest[]
   handoverSnags           HandoverSnag[]
+  lotCancellations        LotCancellation[]
+  leadTasks               LeadTask[]
+  salesTemplates          SalesTemplate[]
+  salesDocuments          SalesDocument[]
+  marketingSpends         MarketingSpend[]
+  alertRules              AlertRule[]
+  alertFirings            AlertFiring[]
   messages                Message[]
   comments                Comment[]
   invitations             Invitation[]
@@ -393,6 +413,24 @@ model Lead {
   stage                 String                 @default("new") // Current stage in pipeline
   value                 Float? // Estimated deal value
   source                String? // How they found you
+  // Developer CRM: who owns the lead, what they want, how warm they are, and
+  // when they are next due a touch. nextFollowUpAt mirrors the earliest open
+  // LeadTask, and score is recomputed on write (lib/crm/lead-score.ts).
+  ownerId               String?
+  owner                 User?                  @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  campaign              String?
+  interestedProgramId   String?
+  interestedProgram     Program?               @relation("LeadInterestedProgram", fields: [interestedProgramId], references: [id], onDelete: SetNull)
+  interestedTypology    String? // e.g. 'T3'
+  budgetMin             Float?
+  budgetMax             Float?
+  preferredLocation     String?
+  score                 Int                    @default(0)
+  lastContactedAt       DateTime?
+  nextFollowUpAt        DateTime?
+  tasks                 LeadTask[]
+  salesDocuments        SalesDocument[]
+  commissions           Commission[]           @relation("LeadCommissions")
   notes                 String? // Additional notes
   tags                  String? // JSON array of tags
   pipelineId            String
@@ -423,6 +461,7 @@ model Lead {
   vendorLandDeals       LandDeal[]             @relation("LandDealVendor")
   optionedLots          DevelopmentLot[]       @relation("LotOptionHolder")
   boughtLots            DevelopmentLot[]       @relation("LotBuyer")
+  lotCancellations      LotCancellation[]      @relation("LotCancellationBuyer")
   tmaRequests           TMARequest[]           @relation("TMABuyer")
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
@@ -432,6 +471,160 @@ model Lead {
   @@index([status])
   @@index([stage])
   @@index([createdById])
+  @@index([ownerId])
+  @@index([nextFollowUpAt])
+  @@index([interestedProgramId])
+  @@index([createdAt])
+  @@index([lastContactedAt])
+}
+
+/// The wording of a reservation form, a contract, or a payment reminder, with
+/// {{placeholders}} filled in per sale. One per workspace and kind, optionally
+/// overridden for a single project (programId set).
+model SalesTemplate {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  programId   String?
+  program     Program?  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  /// 'reservation' | 'contract' | 'payment_reminder'
+  kind        String
+  name        String
+  subject     String?
+  body        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, programId, kind])
+  @@index([workspaceId, kind])
+}
+
+/// A reservation form or contract issued for one sale. The text and values are
+/// frozen when it is issued and the PDF when it is sent, so what the buyer accepts
+/// is exactly what is on record. A change voids it and issues a new one.
+model SalesDocument {
+  id                String         @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId             String
+  lot               DevelopmentLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  leadId            String?
+  lead              Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  /// 'reservation' | 'contract'
+  kind              String
+  /// RES-2026-0001 / CON-2026-0001, unique per workspace.
+  number            String
+  /// 'draft' | 'sent' | 'accepted' | 'void'
+  status            String         @default("draft")
+  /// 'team' | 'managers'. Contracts are issued managers-only.
+  visibility        String         @default("team")
+  title             String
+  bodyText          String
+  data              Json           @default("{}")
+  pdfPath           String?
+  contentHash       String?
+  sentAt            DateTime?
+  // The acceptance record: who, when, from where, and which file.
+  acceptedAt        DateTime?
+  acceptedName      String?
+  acceptedIp        String?
+  acceptedUserAgent String?
+  acceptedHash      String?
+  createdById       String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@unique([workspaceId, number])
+  @@index([lotId, kind, status])
+  @@index([leadId])
+}
+
+/// One reminder email sent for one call for funds at one step. The unique pair is
+/// what lets the hourly job run twice without writing to a buyer twice.
+model CallReminder {
+  id     String       @id @default(cuid())
+  callId String
+  call   CallForFunds @relation(fields: [callId], references: [id], onDelete: Cascade)
+  /// 'before7' | 'due' | 'late3' | 'late7' | 'late14'
+  step   String
+  sentAt DateTime     @default(now())
+
+  @@unique([callId, step])
+}
+
+/// What was spent on a marketing channel in a month, entered by hand, so a source
+/// can be reported as cost per lead and return rather than only as a count.
+model MarketingSpend {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source      String
+  /// Empty string rather than null, so the unique key below can hold.
+  campaign    String    @default("")
+  /// First day of the month, UTC.
+  month       DateTime
+  amount      Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, source, campaign, month])
+  @@index([workspaceId, month])
+}
+
+/// A workspace's setting for one kind of automatic alert. A row exists only once
+/// someone has saved it; until then the defaults in lib/crm/alert-rules apply, so
+/// no workspace needs seeding.
+model AlertRule {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String
+  enabled     Boolean   @default(true)
+  params      Json      @default("{}")
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, type])
+}
+
+/// Proof that an alert has been raised for a subject. Inserted before anyone is
+/// notified, so two overlapping runs of the job cannot both alert. subjectKey
+/// carries the subject and, for alerts that may recur, the period (a project and a
+/// week): the same week is one alert, the next week another.
+model AlertFiring {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ruleType    String
+  subjectKey  String
+  firedAt     DateTime  @default(now())
+
+  @@unique([workspaceId, ruleType, subjectKey])
+  @@index([workspaceId, ruleType, firedAt])
+}
+
+/// A follow-up on a lead: call them, send the price list, chase a signature.
+/// Its own table rather than a KanbanCard so "my follow-ups" is an indexed query.
+model LeadTask {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leadId      String
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?     @relation("LeadTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?     @relation("LeadTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  /// 'call' | 'follow_up' | 'send_price_list' | 'send_floor_plan' | 'reservation' | 'payment_reminder' | 'contract' | 'other'
+  type        String    @default("follow_up")
+  title       String
+  notes       String?
+  dueAt       DateTime
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([workspaceId, assigneeId, completedAt, dueAt])
+  @@index([leadId])
 }
 
 // A file attached to a prospect. Stored in the private storage bucket under
@@ -446,6 +639,8 @@ model LeadFile {
   fileName     String
   fileType     String
   size         Int
+  /// 'team' (every member) | 'managers' (owner and admins only)
+  visibility   String    @default("team")
   uploadedById String?
   uploadedBy   User?     @relation("LeadFileUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   createdAt    DateTime  @default(now())
@@ -1377,6 +1572,15 @@ model Meeting {
   interest        Interest?        @relation("InterestMeetings", fields: [interestId], references: [id], onDelete: SetNull)
   viewingFeedback ViewingFeedback?
 
+  // Developer site visits: the project (and optionally the unit) being shown,
+  // and how the visit went. Attendance is the existing status (completed / no_show).
+  programId String?
+  program   Program?        @relation("ProgramMeetings", fields: [programId], references: [id], onDelete: SetNull)
+  lotId     String?
+  lot       DevelopmentLot? @relation("LotMeetings", fields: [lotId], references: [id], onDelete: SetNull)
+  /// 'interested' | 'needs_follow_up' | 'reserved' | 'not_interested'
+  outcome   String?
+
   // Relations
   notes      MeetingNote[]
   activities Activity[]
@@ -1393,6 +1597,8 @@ model Meeting {
   @@index([createdById])
   @@index([propertyId, startTime])
   @@index([interestId])
+  @@index([programId, startTime])
+  @@index([lotId])
 }
 
 model MeetingAttendee {
@@ -1573,6 +1779,8 @@ model Activity {
   @@index([createdAt])
   @@index([propertyId, createdAt])
   @@index([interestId, createdAt])
+  @@index([leadId, createdAt])
+  @@index([workspaceId, userId, createdAt])
 }
 
 // One row per delivered notification. `dedupeKey` is unique per recipient so a
@@ -2236,8 +2444,16 @@ model Commission {
   id          String            @id @default(cuid())
   workspaceId String
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  propertyId  String
-  property    Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// Set for an agency sale of a listing; null for a developer's sale of a unit.
+  propertyId  String?
+  property    Property?         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// Set for a developer's sale of a unit.
+  lotId       String?
+  lot         DevelopmentLot?   @relation("LotCommissions", fields: [lotId], references: [id], onDelete: Cascade)
+  programId   String?
+  program     Program?          @relation("ProgramCommissions", fields: [programId], references: [id], onDelete: SetNull)
+  leadId      String?
+  lead        Lead?             @relation("LeadCommissions", fields: [leadId], references: [id], onDelete: SetNull)
   mandateId   String?
   mandate     Mandate?          @relation(fields: [mandateId], references: [id], onDelete: SetNull)
   interestId  String?
@@ -2267,6 +2483,7 @@ model Commission {
   @@index([workspaceId, status])
   @@index([propertyId])
   @@index([offerId])
+  @@index([lotId])
 }
 
 /// One person's (or the agency's) share of a commission.
@@ -2309,9 +2526,9 @@ model CommissionSplit {
 
 /// Upstream land prospecting and feasibility (Prospection Foncière).
 model LandDeal {
-  id               String      @id @default(cuid())
+  id               String    @id @default(cuid())
   workspaceId      String
-  workspace        Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   reference        String
   title            String
   description      String?
@@ -2319,18 +2536,18 @@ model LandDeal {
   city             String
   postalCode       String?
   cadastralRef     String?
-  plotArea         Float?      // m²
-  zoning           String?     // PLU zone e.g. "Zone UB"
+  plotArea         Float? // m²
+  zoning           String? // PLU zone e.g. "Zone UB"
   /// 'prospecting' | 'feasibility' | 'unilateral_agreement' | 'permit_filed' | 'permit_cleared' | 'deed_signed' | 'abandoned'
-  status           String      @default("prospecting")
+  status           String    @default("prospecting")
   targetUnits      Int?
-  sellableArea     Float?      // m² SDP
+  sellableArea     Float? // m² SDP
   landPrice        Float?
   estimatedRevenue Float?
   estimatedCost    Float?
-  projectedMargin  Float?      // %
+  projectedMargin  Float? // %
   vendorLeadId     String?
-  vendorLead       Lead?       @relation("LandDealVendor", fields: [vendorLeadId], references: [id], onDelete: SetNull)
+  vendorLead       Lead?     @relation("LandDealVendor", fields: [vendorLeadId], references: [id], onDelete: SetNull)
   permitNumber     String?
   permitFiledAt    DateTime?
   permitGrantedAt  DateTime?
@@ -2338,13 +2555,13 @@ model LandDeal {
   deedSignedAt     DateTime?
   program          Program?
   createdById      String?
-  createdBy        User?       @relation("LandDealCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy        User?     @relation("LandDealCreator", fields: [createdById], references: [id], onDelete: SetNull)
   assignedToId     String?
-  assignedTo       User?       @relation("LandDealAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo       User?     @relation("LandDealAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   notes            String?
-  customFields     Json        @default("{}")
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  customFields     Json      @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@unique([workspaceId, reference])
   @@index([workspaceId, status])
@@ -2354,47 +2571,58 @@ model LandDeal {
 
 /// A real estate development program (Programme Immobilier / Off-plan VEFA).
 model Program {
-  id                 String                 @id @default(cuid())
+  id                 String                  @id @default(cuid())
   workspaceId        String
-  workspace          Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace          Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   reference          String
   name               String
   commercialName     String?
   description        String?
   /// 'residential' | 'mixed_use' | 'commercial' | 'subdivision' | 'renovation' | 'other'
-  projectType        String                 @default("residential")
+  projectType        String                  @default("residential")
   /// The promoter or developer behind the project, when it is not the agency itself.
   developerName      String?
   websiteUrl         String?
   addressLine        String?
   city               String
   postalCode         String?
-  countryCode        String?                @default("FR")
+  countryCode        String?                 @default("FR")
   latitude           Float?
   longitude          Float?
   /// 'study' | 'commercialization' | 'construction' | 'delivery' | 'completed'
-  status             String                 @default("study")
+  status             String                  @default("study")
   permitNumber       String?
   architectName      String?
   gfaBank            String?
   notaryName         String?
   notaryEmail        String?
   targetDeliveryDate DateTime?
-  totalUnits         Int                    @default(0)
-  availableUnits     Int                    @default(0)
-  reservedUnits      Int                    @default(0)
-  soldUnits          Int                    @default(0)
-  publicToken        String?                @unique
-  landDealId         String?                @unique
-  landDeal           LandDeal?              @relation(fields: [landDealId], references: [id], onDelete: SetNull)
+  launchDate         DateTime?
+  /// Units the project is expected to sell, and the revenue that should bring in.
+  salesTargetUnits   Int?
+  revenueTarget      Float?
+  /// Default sales commission on the net price, shared out per sale.
+  commissionPercent  Float?
+  totalUnits         Int                     @default(0)
+  availableUnits     Int                     @default(0)
+  reservedUnits      Int                     @default(0)
+  soldUnits          Int                     @default(0)
+  publicToken        String?                 @unique
+  landDealId         String?                 @unique
+  landDeal           LandDeal?               @relation(fields: [landDealId], references: [id], onDelete: SetNull)
   buildings          Building[]
   lots               DevelopmentLot[]
   milestones         ConstructionMilestone[]
   media              ProgramMedia[]
+  cancellations      LotCancellation[]
+  interestedLeads    Lead[]                  @relation("LeadInterestedProgram")
+  salesTemplates     SalesTemplate[]
+  commissions        Commission[]            @relation("ProgramCommissions")
+  meetings           Meeting[]               @relation("ProgramMeetings")
   createdById        String?
-  createdBy          User?                  @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  createdBy          User?                   @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
 
   @@unique([workspaceId, reference])
   @@index([workspaceId, status])
@@ -2433,12 +2661,17 @@ model DevelopmentLot {
   typology              String?
   floor                 Int               @default(0)
   orientation           String?
+  bedrooms              Int?
   surfaceArea           Float             @default(0)
   terraceArea           Float?            @default(0)
   balconyArea           Float?            @default(0)
   gardenArea            Float?            @default(0)
+  /// List price, before tax and discount.
   basePrice             Float             @default(0)
+  /// Negotiated reduction off the list price, before tax.
+  discount              Float             @default(0)
   taxRate               Float             @default(20.0)
+  /// Final price the buyer pays: (basePrice - discount) plus tax.
   totalPrice            Float             @default(0)
   /// 'available' | 'optioned' | 'reserved' | 'contract_signed' | 'deed_signed' | 'delivered'
   status                String            @default("available")
@@ -2447,6 +2680,16 @@ model DevelopmentLot {
   optionHolderLead      Lead?             @relation("LotOptionHolder", fields: [optionHolderLeadId], references: [id], onDelete: SetNull)
   buyerLeadId           String?
   buyerLead             Lead?             @relation("LotBuyer", fields: [buyerLeadId], references: [id], onDelete: SetNull)
+  /// The agent credited with the sale. Set null when they leave, so the sale survives.
+  salesAgentId          String?
+  salesAgent            User?             @relation("LotSalesAgent", fields: [salesAgentId], references: [id], onDelete: SetNull)
+  reservedAt            DateTime?
+  contractSignedAt      DateTime?
+  /// Deposit taken when the unit was reserved, and when it arrived.
+  reservationFee        Float?
+  reservationFeePaidAt  DateTime?
+  salesDocuments        SalesDocument[]
+  commissions           Commission[]      @relation("LotCommissions")
   notaryDeedScheduledAt DateTime?
   notaryDeedSignedAt    DateTime?
   deliveredAt           DateTime?
@@ -2456,11 +2699,15 @@ model DevelopmentLot {
   callsForFunds         CallForFunds[]
   tmaRequests           TMARequest[]
   snags                 HandoverSnag[]
+  cancellations         LotCancellation[]
+  meetings              Meeting[]         @relation("LotMeetings")
   // Public Buyer Portal (Hybrid Token + OTP)
   publicToken           String?           @unique
   publicTokenCreatedAt  DateTime?
   portalOtpCode         String?
   portalOtpExpiresAt    DateTime?
+  /// Wrong guesses since the code was issued; the code is burned after five.
+  portalOtpAttempts     Int               @default(0)
   customFields          Json              @default("{}")
   createdAt             DateTime          @default(now())
   updatedAt             DateTime          @updatedAt
@@ -2471,26 +2718,55 @@ model DevelopmentLot {
   @@index([buildingId])
   @@index([buyerLeadId])
   @@index([optionHolderLeadId])
+  @@index([salesAgentId])
+}
+
+/// A reservation or sale that fell through. The unit goes back on sale and this
+/// row is what is left of the deal, which is what the cancellation rate counts.
+model LotCancellation {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId          String
+  lot            DevelopmentLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  programId      String
+  program        Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  leadId         String?
+  lead           Lead?          @relation("LotCancellationBuyer", fields: [leadId], references: [id], onDelete: SetNull)
+  /// The status the unit was in when the deal was cancelled.
+  previousStatus String
+  reason         String?
+  /// The unit's final price at the time, so lost value can be reported.
+  amount         Float          @default(0)
+  /// How much of the deposit and payments was given back. A record, not a transfer.
+  refundAmount   Float          @default(0)
+  salesAgentId   String?
+  salesAgent     User?          @relation("LotCancellationAgent", fields: [salesAgentId], references: [id], onDelete: SetNull)
+  cancelledAt    DateTime       @default(now())
+
+  @@index([workspaceId, cancelledAt])
+  @@index([lotId])
+  @@index([programId])
 }
 
 /// A statutory construction milestone certified by an architect (Jalon de Chantier).
 model ConstructionMilestone {
-  id                      String          @id @default(cuid())
+  id                      String         @id @default(cuid())
   programId               String
-  program                 Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  program                 Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
   buildingId              String?
-  building                Building?       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  building                Building?      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
   /// 'FOUNDATIONS' | 'GROUND_FLOOR_SLAB' | 'ROOF_WATERTIGHT' | 'PLASTERING_COMPLETE' | 'COMPLETION' | 'DELIVERY'
   stageKey                String
   title                   String
-  targetPercentage        Float           @default(0)
-  order                   Int             @default(0)
-  isCertified             Boolean         @default(false)
+  targetPercentage        Float          @default(0)
+  order                   Int            @default(0)
+  isCertified             Boolean        @default(false)
   certifiedAt             DateTime?
   architectCertificateDoc String?
   callsForFunds           CallForFunds[]
-  createdAt               DateTime        @default(now())
-  updatedAt               DateTime        @updatedAt
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
 
   @@index([programId, order])
   @@index([buildingId])
@@ -2498,28 +2774,29 @@ model ConstructionMilestone {
 
 /// An off-plan call for funds (Appel de Fonds) billed to the buyer.
 model CallForFunds {
-  id                 String                @id @default(cuid())
-  workspaceId        String
-  workspace          Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  lotId              String
-  lot                DevelopmentLot        @relation(fields: [lotId], references: [id], onDelete: Cascade)
-  milestoneId        String
-  milestone          ConstructionMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
-  invoiceId          String?               @unique
-  invoice            Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  callNumber         String
-  percentage         Float
-  amount             Float
+  id                String                @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lotId             String
+  lot               DevelopmentLot        @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  milestoneId       String
+  milestone         ConstructionMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  invoiceId         String?               @unique
+  invoice           Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  callNumber        String
+  percentage        Float
+  amount            Float
   /// 'draft' | 'issued' | 'sent_to_bank' | 'paid' | 'overdue'
-  status             String                @default("draft")
-  issuedAt           DateTime?
-  dueAt              DateTime?
-  paidAt             DateTime?
-  bankName           String?
-  bankLoanReference  String?
-  notes              String?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  status            String                @default("draft")
+  issuedAt          DateTime?
+  dueAt             DateTime?
+  paidAt            DateTime?
+  bankName          String?
+  bankLoanReference String?
+  reminders         CallReminder[]
+  notes             String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
   @@unique([workspaceId, callNumber])
   @@index([workspaceId, status])
@@ -2613,7 +2890,7 @@ model ProgramMedia {
   uploadedById         String?
   uploadedBy           User?      @relation("ProgramMediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   isConstructionUpdate Boolean    @default(false)
-  updateMonth          String?  // e.g. "2026-10"
+  updateMonth          String? // e.g. "2026-10"
   createdAt            DateTime   @default(now())
 
   @@index([programId, position])

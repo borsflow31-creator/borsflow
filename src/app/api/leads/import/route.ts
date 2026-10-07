@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
+import { scoreLead } from '@/lib/crm/lead-score';
+import { loadAssignmentCandidates, pickLeastLoaded } from '@/lib/services/developer/lead-assignment';
 
 interface LeadRow {
     firstName: string;
@@ -88,6 +90,11 @@ export async function POST(request: NextRequest) {
         }
         const defaultStage = pipelineStages[0] ?? 'new';
 
+        // A developer's imported leads are shared out like any other new lead. The
+        // loads are read once and kept up to date in memory, so a thousand-row file
+        // is balanced across the team without a count per row.
+        const candidates = await loadAssignmentCandidates(workspace.id);
+
         const results = { created: 0, skipped: 0, stageCoerced: 0, errors: [] as string[] };
         const createdIds: string[] = [];
 
@@ -116,6 +123,21 @@ export async function POST(request: NextRequest) {
                     ? row.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
                     : [];
 
+                const ownerId = candidates ? pickLeastLoaded(candidates) : null;
+                if (ownerId) {
+                    const taker = candidates!.find((c) => c.userId === ownerId)!;
+                    taker.openLeads += 1;
+                    taker.lastAssignedAt = new Date();
+                }
+                const source = row.source?.trim().slice(0, 100) || null;
+                const { score } = scoreLead({
+                    email: row.email,
+                    phone: row.phone,
+                    source,
+                    stage,
+                    stages: pipelineStages,
+                });
+
                 const created = await prisma.lead.create({
                     data: {
                         firstName: row.firstName.trim().slice(0, 50),
@@ -127,7 +149,9 @@ export async function POST(request: NextRequest) {
                         status,
                         stage,
                         value: parsedValue && !isNaN(parsedValue) ? parsedValue : null,
-                        source: row.source?.trim().slice(0, 100) || null,
+                        source,
+                        ownerId,
+                        score,
                         notes: row.notes?.trim().slice(0, 2000) || null,
                         tags: tags.length > 0 ? JSON.stringify(tags) : null,
                         pipelineId,

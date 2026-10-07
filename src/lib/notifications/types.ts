@@ -30,6 +30,17 @@ export const NOTIFICATION_TYPES = [
   'crm.mandate_expiring',
   'crm.viewing_feedback',
   'crm.property_matched',
+  // developer sales
+  'crm.document_accepted',
+  'crm.call_overdue',
+  // automatic alerts (see lib/crm/alert-rules)
+  'alerts.lead_no_response',
+  'alerts.lead_no_followup',
+  'alerts.reservation_created',
+  'alerts.contract_signed',
+  'alerts.project_behind_target',
+  'alerts.low_inventory',
+  'alerts.high_cancellations',
   // meetings
   'meetings.booked',
   'meetings.rescheduled',
@@ -38,6 +49,7 @@ export const NOTIFICATION_TYPES = [
   // tasks
   'tasks.card_assigned',
   'tasks.card_due_soon',
+  'tasks.followup_due',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -59,12 +71,22 @@ export const TYPE_CATEGORY: Record<NotificationType, NotificationCategory> = {
   'crm.mandate_expiring': 'sales',
   'crm.viewing_feedback': 'sales',
   'crm.property_matched': 'sales',
+  'crm.document_accepted': 'sales',
+  'crm.call_overdue': 'sales',
+  'alerts.lead_no_response': 'sales',
+  'alerts.lead_no_followup': 'sales',
+  'alerts.reservation_created': 'sales',
+  'alerts.contract_signed': 'sales',
+  'alerts.project_behind_target': 'sales',
+  'alerts.low_inventory': 'sales',
+  'alerts.high_cancellations': 'sales',
   'meetings.booked': 'meetings',
   'meetings.rescheduled': 'meetings',
   'meetings.cancelled': 'meetings',
   'meetings.reminder': 'meetings',
   'tasks.card_assigned': 'tasks',
   'tasks.card_due_soon': 'tasks',
+  'tasks.followup_due': 'tasks',
 };
 
 /** Types that are purely informational and not worth an email even when the category allows one. */

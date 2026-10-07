@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin';
 import { getLeadAccess } from '@/lib/crm/lead-access';
 import { CrmLogger } from '@/lib/crm/logger';
+import { canViewDocument, isDocumentVisibility } from '@/lib/crm/document-access';
 
 type Params = { params: { id: string; fileId: string } };
 
@@ -19,9 +20,12 @@ export async function GET(request: NextRequest, { params }: Params) {
 
   const file = await prisma.leadFile.findFirst({
     where: { id: params.fileId, leadId: params.id },
-    select: { filePath: true, fileName: true, fileType: true },
+    select: { filePath: true, fileName: true, fileType: true, visibility: true },
   });
-  if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  // 404, not 403: a file you may not see should look the same as one that is not there.
+  if (!file || !canViewDocument(result.access.canModerate, file.visibility)) {
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  }
 
   const supabase = getSupabaseAdmin();
   if (!supabase) return NextResponse.json({ error: 'File storage is not configured' }, { status: 500 });
@@ -46,7 +50,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const { access } = result;
 
   const file = await prisma.leadFile.findFirst({ where: { id: params.fileId, leadId: params.id } });
-  if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  // Checked before the uploader rule: someone who uploaded a file and has since lost
+  // their admin role does not keep the right to delete what is now managers-only.
+  if (!file || !canViewDocument(access.canModerate, file.visibility)) {
+    return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  }
   if (file.uploadedById !== access.userId && !access.canModerate) {
     return NextResponse.json({ error: 'Only the person who uploaded this file or an admin can delete it' }, { status: 403 });
   }
@@ -64,7 +72,35 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     fileType: file.fileType,
     size: file.size,
     action: 'deleted',
+    visibility: file.visibility,
   });
 
   return NextResponse.json({ success: true });
+}
+
+// PATCH /api/leads/[id]/files/[fileId]  { visibility: 'team' | 'managers' }
+// Owners and admins decide who can see a file.
+export async function PATCH(request: NextRequest, { params }: Params) {
+  const result = await getLeadAccess(params.id, { write: true });
+  if ('error' in result) return result.error;
+  if (!result.access.canModerate) {
+    return NextResponse.json({ error: 'Only an owner or admin can change who can see a file' }, { status: 403 });
+  }
+
+  let body: { visibility?: unknown } = {};
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+  if (!isDocumentVisibility(body.visibility)) {
+    return NextResponse.json({ error: 'Visibility must be team or managers' }, { status: 400 });
+  }
+
+  const updated = await prisma.leadFile.updateMany({
+    where: { id: params.fileId, leadId: params.id },
+    data: { visibility: body.visibility },
+  });
+  if (updated.count === 0) return NextResponse.json({ error: 'File not found' }, { status: 404 });
+  return NextResponse.json({ success: true, visibility: body.visibility });
 }

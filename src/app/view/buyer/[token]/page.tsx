@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import PortalDocuments from '@/components/developer/PortalDocuments';
 import {
   Building2,
   Calendar,
@@ -34,7 +35,7 @@ export default function BuyerPortalPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'journal' | 'unit' | 'financial' | 'tma'>('journal');
+  const [activeTab, setActiveTab] = useState<'journal' | 'unit' | 'financial' | 'tma' | 'documents'>('journal');
 
   // OTP Unlock State
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -452,6 +453,19 @@ export default function BuyerPortalPage() {
           >
             <Wrench className="w-4 h-4" />
             <span>Change Orders (TMA)</span>
+            {!isVerified && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`flex-1 min-w-[150px] py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'documents'
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Documents</span>
             {!isVerified && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
           </button>
         </div>
@@ -942,6 +956,36 @@ export default function BuyerPortalPage() {
                   <p className="text-xs text-slate-500 italic py-4">No change orders submitted for this unit.</p>
                 )}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 5: DOCUMENTS */}
+        {activeTab === 'documents' && (
+          <div className="space-y-6">
+            {!isVerified || !sessionToken ? (
+              <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm text-center max-w-lg mx-auto space-y-4">
+                <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Your documents</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    Verify your identity with an email code to read and accept the documents your developer has sent you.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setOtpStep('request');
+                    setShowOtpModal(true);
+                  }}
+                  className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+                >
+                  Unlock with Email Code
+                </button>
+              </div>
+            ) : (
+              <PortalDocuments token={token} sessionToken={sessionToken} onSessionExpired={handleLockSession} />
             )}
           </div>
         )}

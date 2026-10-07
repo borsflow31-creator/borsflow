@@ -16,6 +16,9 @@ import { isAuthorizedCron } from '@/lib/api/cron'
 import { notify } from '@/lib/notifications/notify'
 import { formatNotificationTime } from '@/lib/notifications/email'
 
+/** A follow-up stops nagging this long after its due date; beyond that it is a task for the manager, not the inbox. */
+const FOLLOWUP_NAG_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
 /** Read notifications older than this are cleared out; unread ones are kept regardless of age. */
 const READ_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
 
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
     const in1h = new Date(now.getTime() + 60 * 60 * 1000)
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
-    const [upcomingMeetings, dueCards] = await Promise.all([
+    const [upcomingMeetings, dueCards, dueFollowUps] = await Promise.all([
       prisma.meeting.findMany({
         where: { status: 'scheduled', startTime: { gte: now, lte: in1h } },
         select: { id: true, workspaceId: true, userId: true, title: true, startTime: true, timezone: true },
@@ -47,6 +50,22 @@ export async function POST(request: NextRequest) {
       prisma.kanbanCard.findMany({
         where: { status: { not: 'done' }, dueDate: { gte: now, lte: in24h } },
         select: { id: true, workspaceId: true, title: true, dueDate: true, assignees: true, createdById: true },
+      }),
+      // Lead follow-ups due in the next day, or late by up to a week.
+      prisma.leadTask.findMany({
+        where: {
+          completedAt: null,
+          assigneeId: { not: null },
+          dueAt: { gte: new Date(now.getTime() - FOLLOWUP_NAG_WINDOW_MS), lte: in24h },
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          assigneeId: true,
+          title: true,
+          dueAt: true,
+          lead: { select: { firstName: true, lastName: true } },
+        },
       }),
     ])
 
@@ -86,6 +105,26 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // One reminder per task per day: the day is in the dedupeKey, so an overdue
+    // follow-up reminds again tomorrow but the hourly ticks within a day do not
+    // repeat it.
+    let followUpReminders = 0
+    const day = now.toISOString().slice(0, 10)
+    for (const task of dueFollowUps) {
+      followUpReminders++
+      const overdue = task.dueAt < now
+      void notify({
+        recipients: [task.assigneeId!],
+        type: 'tasks.followup_due',
+        workspaceId: task.workspaceId,
+        title: `${overdue ? 'Overdue' : 'Due soon'}: ${task.title}`,
+        body: `${`${task.lead.firstName} ${task.lead.lastName}`.trim()} · ${formatNotificationTime({ at: task.dueAt })}`,
+        when: { at: task.dueAt },
+        href: `/developer/tasks?workspace=${task.workspaceId}`,
+        dedupeKey: `followup.due:${task.id}:${day}`,
+      })
+    }
+
     const { count: cleaned } = await prisma.notification.deleteMany({
       where: { readAt: { lt: new Date(now.getTime() - READ_RETENTION_MS) } },
     })
@@ -94,6 +133,7 @@ export async function POST(request: NextRequest) {
       message: 'Reminder sweep completed',
       meetingReminders,
       taskReminders,
+      followUpReminders,
       cleaned,
       timestamp: now.toISOString(),
     })

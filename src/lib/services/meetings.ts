@@ -22,10 +22,13 @@ export async function createMeeting(params: {
   /** Set for a viewing: the property shown and the buyer's interest in it. */
   propertyId?: string | null
   interestId?: string | null
+  /** Set for a developer site visit: the project, and optionally the unit, shown. */
+  programId?: string | null
+  lotId?: string | null
   location?: string | null
   description?: string | null
 }) {
-  const { workspaceId, userId, title, startTime, platform, leadId, propertyId, interestId, location, description } = params
+  const { workspaceId, userId, title, startTime, platform, leadId, propertyId, interestId, programId, lotId, location, description } = params
   const duration = Number(params.duration)
 
   const start = new Date(startTime)
@@ -79,6 +82,8 @@ export async function createMeeting(params: {
       leadId,
       propertyId: propertyId || null,
       interestId: interestId || null,
+      programId: programId || null,
+      lotId: lotId || null,
       location: location || null,
       description: description || null,
       userId,

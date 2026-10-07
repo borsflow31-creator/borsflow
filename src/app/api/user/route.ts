@@ -66,6 +66,7 @@ export async function GET(request: NextRequest) {
                 theme: true,
                 notificationsEmail: true,
                 notificationsPush: true,
+                businessType: true,
                 createdAt: true,
             },
         });

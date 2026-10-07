@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import AppShell from '@/components/AppShell';
 import NoWorkspace from '@/components/NoWorkspace';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -22,6 +23,7 @@ import PropertyFormModal from '@/components/realestate/PropertyFormModal';
 import { useWorkspaceInfo } from '@/components/realestate/ui';
 import { SUBJECT_ENDPOINTS, type SubjectType } from '@/lib/crm/subjects';
 import EnquiryModal from '@/components/realestate/EnquiryModal';
+import OwnerFilter, { type OwnerFilterValue } from '@/components/developer/OwnerFilter';
 
 interface Pipeline {
     id: string;
@@ -84,6 +86,10 @@ function CRMPageInner() {
     const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
     const [loading, setLoading] = useState(true);
     const [boardRefreshKey, setBoardRefreshKey] = useState(0);
+    const { data: session } = useSession();
+    const isDeveloper = session?.user?.businessType === 'DEVELOPER';
+    // A developer's "my leads" / owner filter. Shared by the board and the list.
+    const [ownerFilter, setOwnerFilter] = useState<OwnerFilterValue>('');
     const [showLeadModal, setShowLeadModal] = useState(false);
     const [showPipelineModal, setShowPipelineModal] = useState(false);
     const [showLeadListModal, setShowLeadListModal] = useState(false);
@@ -557,6 +563,11 @@ function CRMPageInner() {
                                 onViewModeChange={handleViewModeChange}
                             />
                         )}
+
+                        {/* A developer's own pile, or someone else's */}
+                        {selectedPipeline && boardSubject === 'Lead' && isDeveloper && effectiveWorkspaceId && (
+                            <OwnerFilter workspaceId={effectiveWorkspaceId} value={ownerFilter} onChange={setOwnerFilter} />
+                        )}
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -641,6 +652,7 @@ function CRMPageInner() {
                                 pipeline={selectedPipeline}
                                 leadLists={leadLists}
                                 refreshKey={boardRefreshKey}
+                                ownerFilter={ownerFilter}
                                 onLeadUpdate={handleLeadUpdate}
                                 onLeadDelete={handleLeadDelete}
                                 onPipelineUpdate={handlePipelineUpdate}
@@ -652,6 +664,7 @@ function CRMPageInner() {
                             <LeadListView
                                 pipeline={selectedPipeline}
                                 refreshKey={boardRefreshKey}
+                                ownerFilter={ownerFilter}
                                 onLeadUpdate={handleLeadUpdate}
                                 onLeadDelete={handleLeadDelete}
                                 onOpenLeadModal={handleOpenLeadModal}

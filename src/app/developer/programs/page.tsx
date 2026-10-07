@@ -11,10 +11,16 @@ import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { primaryButton, secondaryButton, inputClass } from '@/components/realestate/ui';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
+import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useI18n } from '@/i18n/I18nProvider';
 
 function ProgramsPageInner() {
   const router = useRouter();
   const { workspaceId, ready } = useWorkspaceParam();
+  const { t, formatNumber, locale } = useI18n();
+  const currency = useWorkspaceCurrency(workspaceId);
+  const money = (n: number) =>
+    formatNumber(n, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 });
 
   const [programs, setPrograms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,6 +247,37 @@ function ProgramsPageInner() {
                       </div>
                     </div>
 
+                    {/* Sales against plan, and what is still owed. Targets are optional,
+                        so each figure shows only what the project actually has. */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="block text-on-surface-variant">{t('developer.statusDeedSigned')}</span>
+                        <strong className="text-on-surface text-sm tabular-nums">
+                          {money(program.sales?.soldValue ?? 0)}
+                        </strong>
+                        {program.revenueTarget > 0 && (
+                          <span className="text-on-surface-variant tabular-nums">
+                            {' '}/ {money(program.revenueTarget)}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <span className="block text-on-surface-variant">{t('developer.outstanding')}</span>
+                        <strong className="text-on-surface text-sm tabular-nums">
+                          {money(program.sales?.outstanding ?? 0)}
+                        </strong>
+                      </div>
+                    </div>
+                    {program.salesTargetUnits > 0 && (
+                      <p className="text-xs text-on-surface-variant tabular-nums">
+                        {t('developer.soldOfTarget', { sold: program.soldUnits, target: program.salesTargetUnits })}
+                        {' · '}
+                        {t('developer.salesCompletion', {
+                          percent: Math.round((program.soldUnits / program.salesTargetUnits) * 100),
+                        })}
+                      </p>
+                    )}
+
                     {/* Unit distribution pills */}
                     <div className="grid grid-cols-3 gap-2 text-center text-xs">
                       <div className="p-2 bg-surface-container-high/60 rounded">
@@ -258,6 +295,13 @@ function ProgramsPageInner() {
                         </strong>
                       </div>
                     </div>
+
+                    {program.launchDate && (
+                      <p className="text-xs text-on-surface-variant">
+                        {t('developer.launchDate')}:{' '}
+                        {new Date(program.launchDate).toLocaleDateString(locale, { month: 'short', year: 'numeric' })}
+                      </p>
+                    )}
 
                     {/* Metadata Footer */}
                     <div className="flex items-center justify-between text-xs text-on-surface-variant pt-2 border-t border-surface-container-high">

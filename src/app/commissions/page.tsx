@@ -30,8 +30,17 @@ interface CommissionRow {
     feeType: string;
     feePercent?: number | null;
     currency?: string | null;
-    property: { id: string; title: string; reference: string; city: string };
+    // An agency commission is on a listing; a developer's is on a unit of a project.
+    property: { id: string; title: string; reference: string; city: string } | null;
+    lot?: { id: string; lotNumber: string } | null;
+    program?: { id: string; name: string } | null;
     splits: Split[];
+}
+
+/** What the commission is for, whichever kind of sale it came from. */
+function commissionTitle(c: Pick<CommissionRow, 'property' | 'lot' | 'program'>): string {
+    if (c.property) return c.property.title;
+    return [c.program?.name, c.lot?.lotNumber].filter(Boolean).join(' · ');
 }
 
 interface Earning { userId: string | null; name: string; accrued: number; realized: number; paid: number }
@@ -90,7 +99,7 @@ function SplitEditor({
         <Modal title={t('realEstate.commissions.shares.title')} onClose={onClose} wide>
             <div className="space-y-4">
                 {error && <p className="body-sm text-error bg-error-container rounded px-3 py-2" role="alert">{error}</p>}
-                <p className="body-md text-on-surface-variant">{commission.property.title} · {formatCurrency(commission.grossAmount, currency)}</p>
+                <p className="body-md text-on-surface-variant">{commissionTitle(commission)} · {formatCurrency(commission.grossAmount, currency)}</p>
                 <ul className="space-y-3">
                     {rows.map((r, i) => (
                         <li key={i} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
@@ -257,7 +266,14 @@ function CommissionsPageInner() {
                             <li key={c.id} className="bg-surface-container rounded-lg p-5 space-y-3">
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                     <div>
-                                        <Link href={`/properties/${c.property.id}?workspace=${workspaceId}`} className="title-md text-primary hover:underline">{c.property.title}</Link>
+                                        <Link
+                                            href={c.property
+                                                ? `/properties/${c.property.id}?workspace=${workspaceId}`
+                                                : `/developer/programs/${c.program?.id ?? ''}?workspace=${workspaceId}`}
+                                            className="title-md text-primary hover:underline"
+                                        >
+                                            {commissionTitle(c)}
+                                        </Link>
                                         <p className="body-sm text-on-surface-variant">
                                             {t('realEstate.commissions.basis')} {formatCurrency(c.basis, c.currency || currency)}
                                             {c.feeType === 'percent' && c.feePercent != null ? ` · ${c.feePercent}%` : ''}
