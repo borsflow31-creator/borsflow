@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -67,13 +68,12 @@ function ModificationsInner() {
     return (
         <AppShell>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <span className="p-2 bg-primary/10 text-primary rounded-lg"><ClipboardList className="w-6 h-6" /></span>
-                        <h1 className="text-2xl font-bold text-on-surface">{t('developer.modificationsTitle')}</h1>
-                    </div>
-                    <p className="text-sm text-on-surface-variant mt-1">{t('developer.modificationsSubtitle')}</p>
-                </div>
+                <PageHeader
+                    icon={ClipboardList}
+                    title={t('developer.modificationsTitle')}
+                    subtitle={t('developer.modificationsSubtitle')}
+                    guide="modifications"
+                />
 
                 <div role="tablist" className="flex flex-wrap gap-1.5">
                     {FILTERS.map((f) => (

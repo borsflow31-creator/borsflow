@@ -4286,6 +4286,457 @@ export interface Messages {
     };
   };
   // </realEstate:type>
+  // <developerGuide:type>
+  developerGuide: {
+    howItWorks: string;
+    showGuide: string;
+    hideGuide: string;
+    nav: {
+      groupOverview: string;
+      groupSetup: string;
+      groupSell: string;
+      groupAfterSale: string;
+      groupPerformance: string;
+      groupTools: string;
+      toggleGroup: string;
+    };
+    desc: {
+      home: string;
+      alerts: string;
+      projects: string;
+      inventory: string;
+      templates: string;
+      buyers: string;
+      siteVisits: string;
+      followUps: string;
+      collections: string;
+      modifications: string;
+      commissions: string;
+      team: string;
+      reports: string;
+      pages: string;
+      kanban: string;
+      chat: string;
+      meetings: string;
+      emailMarketing: string;
+      quotes: string;
+      invoices: string;
+      properties: string;
+      viewings: string;
+      mandates: string;
+      offers: string;
+      services: string;
+    };
+    pages: {
+      dashboard: {
+        subtitle: string;
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      buyers: {
+        subtitle: string;
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      projects: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      project: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      inventory: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      templates: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      siteVisits: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      followUps: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      collections: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      modifications: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      commissions: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      team: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      reports: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      alerts: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+    };
+    start: {
+      title: string;
+      body: string;
+      step1: string;
+      step1Body: string;
+      step2: string;
+      step2Body: string;
+      step3: string;
+      step3Body: string;
+      step4: string;
+      step4Body: string;
+    };
+  };
+  // </developerGuide:type>
+  developerProjectList: {
+    searchPlaceholder: string;
+    allStatuses: string;
+    emptyTitle: string;
+    emptyBody: string;
+    createFirst: string;
+    soldReserved: string;
+    tbd: string;
+    buildings: string;
+    open: string;
+    created: string;
+  };
+  developerProjectDialogs: {
+    saving: string;
+    close: string;
+    optTitle: string;
+    unitLine: string;
+    optHolder: string;
+    loadingBuyers: string;
+    optDuration: string;
+    h24: string;
+    h48: string;
+    h72: string;
+    d7: string;
+    optNote: string;
+    optSubmit: string;
+    optPickBuyer: string;
+    optFailed: string;
+    resTitle: string;
+    resBuyer: string;
+    resWhatTitle: string;
+    resWhat1: string;
+    resWhat2: string;
+    resWhat3: string;
+    resSubmit: string;
+    resSaving: string;
+    resPickBuyer: string;
+    resFailed: string;
+    certTitle: string;
+    certTarget: string;
+    certDoc: string;
+    certDocHint: string;
+    certDocPlaceholder: string;
+    certAutoTitle: string;
+    certAutoBody: string;
+    certSubmit: string;
+    certSaving: string;
+    certFailed: string;
+    tmaNewTitle: string;
+    tmaBuyer: string;
+    tmaHold: string;
+    tmaNoBuyer: string;
+    tmaCategory: string;
+    catElectrical: string;
+    catPlumbing: string;
+    catPartitions: string;
+    catFinishes: string;
+    catOther: string;
+    tmaSummary: string;
+    tmaSummaryHint: string;
+    tmaSummaryPlaceholder: string;
+    tmaDescription: string;
+    tmaDescriptionPlaceholder: string;
+    tmaCost: string;
+    tmaCostHint: string;
+    tmaQuote: string;
+    tmaQuoteHint: string;
+    tmaSubmit: string;
+    tmaFailed: string;
+    tmaRequired: string;
+    revTitle: string;
+    revNote: string;
+    revNotePlaceholder: string;
+    revCost: string;
+    revQuote: string;
+    revSigned: string;
+    revSignedPlaceholder: string;
+    revApprove: string;
+    revAccept: string;
+    revAcceptConfirm: string;
+    revFailed: string;
+    lotEditTitle: string;
+    lotNewTitle: string;
+    lotNumber: string;
+    lotNumberHint: string;
+    building: string;
+    noBuilding: string;
+    type: string;
+    typeApartment: string;
+    typeHouse: string;
+    typeParking: string;
+    typeBox: string;
+    typeCellar: string;
+    typeCommercial: string;
+    typology: string;
+    typStudio: string;
+    typT1: string;
+    typT2: string;
+    typT3: string;
+    typT4: string;
+    typT5: string;
+    typDuplex: string;
+    floorLevel: string;
+    floorPlaceholder: string;
+    orientation: string;
+    oriS: string;
+    oriSW: string;
+    oriSE: string;
+    oriW: string;
+    oriE: string;
+    oriN: string;
+    oriNW: string;
+    oriNE: string;
+    surface: string;
+    terrace: string;
+    balcony: string;
+    garden: string;
+    basePrice: string;
+    vatRate: string;
+    total: string;
+    lotRequired: string;
+    lotDiscountRange: string;
+    lotSubmitNew: string;
+    lotSubmitEdit: string;
+    lotFailed: string;
+  };
+  developerProjectPage: {
+    notFound: string;
+    loadFailed: string;
+    back: string;
+    addUnit: string;
+    deliveryTarget: string;
+    guarantee: string;
+    statTotal: string;
+    statAvailable: string;
+    statReserved: string;
+    statSold: string;
+    tabOverview: string;
+    tabMedia: string;
+    tabStacking: string;
+    tabMilestones: string;
+    tabTma: string;
+    tabTable: string;
+    infoTitle: string;
+    fieldReference: string;
+    fieldName: string;
+    fieldCommercialName: string;
+    fieldType: string;
+    fieldStatus: string;
+    fieldDeveloper: string;
+    fieldArchitect: string;
+    fieldPermit: string;
+    fieldGuarantee: string;
+    fieldNotary: string;
+    fieldAddress: string;
+    fieldCompletion: string;
+    fieldWebsite: string;
+    fieldMap: string;
+    fieldDescription: string;
+    filterBuilding: string;
+    allBuildings: string;
+    legendHasTma: string;
+    noUnitsTitle: string;
+    noUnitsBody: string;
+    unitsCount: string;
+    activeTma: string;
+    floorGround: string;
+    floorBasement: string;
+    floorN: string;
+    milestonesTitle: string;
+    milestonesBody: string;
+    stage: string;
+    certified: string;
+    certify: string;
+    callsTitle: string;
+    callsBody: string;
+    callsCount: string;
+    callsEmpty: string;
+    colCall: string;
+    colUnit: string;
+    colBuyer: string;
+    colMilestone: string;
+    colTranche: string;
+    colAmount: string;
+    colStatus: string;
+    colInvoice: string;
+    unassigned: string;
+    viewInvoice: string;
+    tmaTotal: string;
+    tmaPending: string;
+    tmaRevenue: string;
+    tmaTitle: string;
+    tmaBody: string;
+    tmaEmpty: string;
+    tmaEmptyBody: string;
+    colReference: string;
+    colCategory: string;
+    colTitle: string;
+    colCost: string;
+    colQuote: string;
+    colActions: string;
+    review: string;
+    tableTitle: string;
+    tableCount: string;
+    colBuilding: string;
+    colType: string;
+    colFloor: string;
+    colSurface: string;
+    colPriceHt: string;
+    colPriceTtc: string;
+    colBuyerHolder: string;
+    mainBuilding: string;
+    floorShortGround: string;
+    holdFor: string;
+    edit: string;
+    unitCard: string;
+    unitTitle: string;
+    close: string;
+    currentStatus: string;
+    putOnHold: string;
+    reserve: string;
+    releaseHold: string;
+    confirmReserve: string;
+    reservedNote: string;
+    portalTitle: string;
+    portalBadge: string;
+    portalBody: string;
+    registeredBuyer: string;
+    optionHolder: string;
+    noPurchaser: string;
+    linkCopied: string;
+    copyLink: string;
+    openPortal: string;
+    saleDocs: string;
+    specs: string;
+    typology: string;
+    surface: string;
+    floor: string;
+    orientation: string;
+    floorValue: string;
+    pricing: string;
+    priceHt: string;
+    vat: string;
+    priceTtc: string;
+    customizations: string;
+    requestTma: string;
+    noTmaOnLot: string;
+    editUnit: string;
+    releaseConfirm: string;
+    releaseFailed: string;
+    released: string;
+    portalCopied: string;
+    toastSaved: string;
+    toastOnHold: string;
+    toastReserved: string;
+    toastCertified: string;
+    toastTmaCreated: string;
+    toastTmaUpdated: string;
+    unitStatus: {
+      available: string;
+      optioned: string;
+      reserved: string;
+      contract_signed: string;
+      deed_signed: string;
+      delivered: string;
+    };
+    tmaStatus: {
+      requested: string;
+      feasibility_approved: string;
+      quote_sent: string;
+      accepted: string;
+      rejected: string;
+      completed: string;
+    };
+    callStatus: {
+      draft: string;
+      issued: string;
+      sent_to_bank: string;
+      paid: string;
+      overdue: string;
+    };
+    tmaCategory: {
+      electrical: string;
+      plumbing: string;
+      partitions: string;
+      finishes: string;
+      other: string;
+    };
+    programStatus: {
+      study: string;
+      commercialization: string;
+      construction: string;
+      delivery: string;
+      completed: string;
+    };
+    projectType: {
+      residential: string;
+      mixed_use: string;
+      commercial: string;
+      subdivision: string;
+      renovation: string;
+      other: string;
+    };
+  };
+  developerAutoTasks: {
+    reservationFollowUp: string;
+    countersignedCopy: string;
+    followUpWith: string;
+    callBack: string;
+    visitFollowUp: string;
+    visitRebook: string;
+  };
+  crmList: {
+    buyer: string;
+    property: string;
+    vendor: string;
+    stage: string;
+    status: string;
+    price: string;
+    updated: string;
+    empty: string;
+  };
 }
 const en: Messages = {
   app: {
@@ -4599,9 +5050,9 @@ const en: Messages = {
   },
   noWorkspace: {
     invitedTitle: "You've been invited",
-    invitedSubtitle: 'Accept an invitation below to join a workspace, or create your own.',
+    invitedSubtitle: "Accept an invitation below to join a workspace, or go back to your dashboard.",
     emptyTitle: 'No workspace yet',
-    emptySubtitle: 'Create a workspace to start organizing your documents, CRM, and billing in one place.',
+    emptySubtitle: "Your workspace is being set up. Go to your dashboard, or reload the page in a moment.",
   },
   notifications: {
     bell: {
@@ -8574,6 +9025,457 @@ const en: Messages = {
     },
   },
   // </realEstate:value>
+  // <developerGuide:value>
+  developerGuide: {
+    howItWorks: 'How this page works',
+    showGuide: 'Show how this page works',
+    hideGuide: 'Hide',
+    nav: {
+      groupOverview: 'Overview',
+      groupSetup: '1 · Set up projects',
+      groupSell: '2 · Sell',
+      groupAfterSale: '3 · After the sale',
+      groupPerformance: '4 · Performance',
+      groupTools: 'Tools',
+      toggleGroup: 'Show or hide this section',
+    },
+    desc: {
+      home: 'Your summary: sales, money in and what needs attention today.',
+      alerts: 'Automatic warnings when a buyer is waiting or a project is off track.',
+      projects: 'Your developments: create a project, set targets, add photos and plans.',
+      inventory: 'Every unit across your projects, with status and price.',
+      templates: 'The wording of reservation forms, contracts and payment reminders.',
+      buyers: 'Your buyer pipeline, from first enquiry to signed contract.',
+      siteVisits: 'Book visits to a project and record how they went.',
+      followUps: 'Your to-do list of calls and messages, by due date.',
+      collections: 'Calls for funds sent to buyers, and what is still unpaid.',
+      modifications: 'Changes buyers ask for on their unit: review and approve them.',
+      commissions: 'What each salesperson earns on the sales they closed.',
+      team: 'What each salesperson did over the period.',
+      reports: 'Sales, marketing, stock and money figures, exportable to CSV.',
+      pages: 'Notes and documents for your team.',
+      kanban: 'A simple task board for internal work.',
+      chat: 'Message your team.',
+      meetings: 'Schedule meetings and keep their notes.',
+      emailMarketing: 'Send newsletters and launch announcements to buyers.',
+      quotes: 'Prepare quotes for services you sell.',
+      invoices: 'Create and track invoices.',
+      properties: 'Your listings and the owners you are courting.',
+      viewings: 'Visits to your listings, and what buyers made of them.',
+      mandates: 'Your authority to sell each property, and when it runs out.',
+      offers: 'Offers from buyers, and how they compare.',
+      services: 'The services and fees you sell.',
+    },
+    pages: {
+      dashboard: {
+        subtitle: 'How your sales and projects are doing, at a glance.',
+        step1: 'Choose the period at the top: month, quarter or year.',
+        step2: 'Check the figures: units sold, revenue and money collected against your targets.',
+        step3: 'Open a project from Projects to see its own figures in detail.',
+      },
+      buyers: {
+        subtitle: 'Everyone interested in buying, and where each one is in the sale.',
+        step1: 'Add a buyer with "Add lead", or import a list. New enquiries from your website arrive here too.',
+        step2: 'Open a buyer to record their budget, the project they want and every call or email.',
+        step3: 'Update their stage as they progress, from first contact to reservation and contract. Switch between List and Kanban at the top.',
+      },
+      projects: {
+        step1: 'Create a project with "New project": its name, address and delivery date.',
+        step2: 'Open it to add units, photos, plans and construction milestones.',
+        step3: 'Set sales targets so the dashboard can tell you if you are on track.',
+      },
+      project: {
+        step1: 'Add the units for sale, or edit their price and status.',
+        step2: 'Reserve a unit for a buyer, then generate the reservation and contract from your templates.',
+        step3: 'Certify each construction milestone to send the matching call for funds to buyers.',
+      },
+      inventory: {
+        step1: 'See every unit in one place, across all your projects.',
+        step2: 'Filter by project, status or type to find what is still available.',
+        step3: 'Switch to the building view to see units floor by floor, and click one to edit it.',
+      },
+      templates: {
+        step1: 'Pick a document: reservation form, sale contract or payment reminder.',
+        step2: 'Edit its wording. Details in double braces, such as the buyer\'s name or the unit price, are filled in for each sale.',
+        step3: 'Save. Every new document generated from a project uses the latest version.',
+      },
+      siteVisits: {
+        step1: 'Book a visit for a buyer on a project, with a date and a salesperson.',
+        step2: 'After the visit, record the outcome: interested, needs follow-up, reserved a unit, or not interested.',
+        step3: 'Interested buyers automatically get a follow-up task for the next day, so nobody is forgotten.',
+      },
+      followUps: {
+        step1: 'Your calls, emails and reminders, grouped by due date: overdue, today and later.',
+        step2: 'Add a task from here or from a buyer\'s page.',
+        step3: 'Tick a task when it is done. Overdue tasks also show on the dashboard.',
+      },
+      collections: {
+        step1: 'Calls for funds are created when you certify a construction milestone on a project.',
+        step2: 'Track each call: sent, due, overdue or paid. The ageing chart shows how late payments are.',
+        step3: 'Mark a call as paid when the money arrives.',
+      },
+      modifications: {
+        step1: 'Buyers ask for changes to their unit (layout, finishes) from their buyer portal or through you.',
+        step2: 'Open a request to review it and give it a price.',
+        step3: 'Once the buyer signs it, mark it as accepted: the price is added to the unit\'s total.',
+      },
+      commissions: {
+        step1: 'A commission is created for each unit sold.',
+        step2: "Follow each commission through the tabs: accrued when the contract is signed, earned at the notarial deed, then paid.",
+        step3: 'Open a commission to see how it is shared between salespeople.',
+      },
+      team: {
+        step1: 'Choose a period and compare your salespeople.',
+        step2: 'See leads received, calls, visits and sales for each person.',
+        step3: 'Use the funnel to tell too few leads apart from too little follow-up.',
+      },
+      reports: {
+        step1: 'Choose a period and a project, or all projects.',
+        step2: 'Read the tables: sales, marketing spend per lead, stock and money collected.',
+        step3: 'Export any table to CSV to share it or open it in a spreadsheet.',
+      },
+      alerts: {
+        step1: 'Each card is one rule, such as "a new lead has had no answer for 30 minutes".',
+        step2: 'Switch a rule on or off, and adjust its delay or threshold.',
+        step3: "Alerts go to the buyer's salesperson and to the admins. Only owners and admins can change the rules.",
+      },
+    },
+    start: {
+      title: 'Get started in four steps',
+      body: 'Follow the sidebar from top to bottom: set up a project, then sell it.',
+      step1: 'Create your first project',
+      step1Body: 'Name, address and delivery date.',
+      step2: 'Add its units',
+      step2Body: 'Type, floor, surface and price for each unit.',
+      step3: 'Check your document templates',
+      step3Body: 'Reservation and contract wording.',
+      step4: 'Add your buyers',
+      step4Body: 'Enter them by hand or import a list.',
+    },
+  },
+  // </developerGuide:value>
+  developerProjectList: {
+    searchPlaceholder: "Search by name, reference or city…",
+    allStatuses: "All statuses",
+    emptyTitle: "No projects yet",
+    emptyBody: "Create your first development to add its units and start selling.",
+    createFirst: "Create a project",
+    soldReserved: "{percent}% sold or reserved",
+    tbd: "To be set",
+    buildings: "{count} building(s)",
+    open: "Open project",
+    created: "Project created.",
+  },
+  developerProjectDialogs: {
+    saving: "Saving…",
+    close: "Close",
+    optTitle: "Put unit {unit} on hold",
+    unitLine: "Unit {unit}",
+    optHolder: "On hold for *",
+    loadingBuyers: "Loading buyers…",
+    optDuration: "Hold duration",
+    h24: "24 hours",
+    h48: "48 hours (usual)",
+    h72: "72 hours (over a weekend)",
+    d7: "7 days",
+    optNote: "While the hold lasts, nobody else can reserve or sell this unit.",
+    optSubmit: "Put on hold",
+    optPickBuyer: "Choose who the unit is held for.",
+    optFailed: "Could not put the unit on hold.",
+    resTitle: "Reserve unit {unit}",
+    resBuyer: "Buyer *",
+    resWhatTitle: "What reserving does:",
+    resWhat1: "The unit becomes Reserved.",
+    resWhat2: "The deposit and the cooling-off period start.",
+    resWhat3: "The unit is included in the next calls for funds.",
+    resSubmit: "Confirm reservation",
+    resSaving: "Reserving…",
+    resPickBuyer: "Choose a buyer.",
+    resFailed: "Could not reserve the unit.",
+    certTitle: "Certify milestone: {title}",
+    certTarget: "Cumulative target: {percent}%",
+    certDoc: "Architect's certificate (reference or link)",
+    certDocHint: "e.g. Attestation_Architecte_Fondations.pdf",
+    certDocPlaceholder: "https://… or certificate number",
+    certAutoTitle: "Send the calls for funds now",
+    certAutoBody: "Creates the stage invoice for every buyer of this project and updates what each one still owes.",
+    certSubmit: "Certify and send",
+    certSaving: "Certifying…",
+    certFailed: "Could not certify the milestone.",
+    tmaNewTitle: "New modification request – unit {unit}",
+    tmaBuyer: "Buyer: {name}",
+    tmaHold: "On hold for: {name}",
+    tmaNoBuyer: "No buyer yet",
+    tmaCategory: "Type of work *",
+    catElectrical: "Electrical (extra sockets, switches, EV charger)",
+    catPlumbing: "Plumbing (extra water point, shower, sink)",
+    catPartitions: "Partitions (moving a wall, sliding doors)",
+    catFinishes: "Finishes (flooring, premium tiles)",
+    catOther: "Other work",
+    tmaSummary: "Request title *",
+    tmaSummaryHint: "e.g. Add 2 sockets in the living room",
+    tmaSummaryPlaceholder: "e.g. Move the kitchen water point",
+    tmaDescription: "Details *",
+    tmaDescriptionPlaceholder: "Measurements, position on the plan, materials…",
+    tmaCost: "Estimated internal cost",
+    tmaCostHint: "Subcontractor cost, before tax",
+    tmaQuote: "Price for the buyer",
+    tmaQuoteHint: "Billed to the buyer, incl. tax",
+    tmaSubmit: "Create request",
+    tmaFailed: "Could not create the request.",
+    tmaRequired: "Enter a title and the details.",
+    revTitle: "Review modification {ref}",
+    revNote: "Technical review (site manager)",
+    revNotePlaceholder: "Is it still possible at this stage? Structural impact, pipe routes…",
+    revCost: "Contractor cost (before tax)",
+    revQuote: "Price for the buyer (incl. tax)",
+    revSigned: "Signed addendum (reference)",
+    revSignedPlaceholder: "e.g. Avenant_TMA_Lot_A302.pdf",
+    revApprove: "Approve and send quote",
+    revAccept: "Mark addendum signed",
+    revAcceptConfirm: "Mark this addendum as signed? Its price is added to the unit's total.",
+    revFailed: "Could not update the request.",
+    lotEditTitle: "Edit unit {unit}",
+    lotNewTitle: "Add a unit",
+    lotNumber: "Unit number *",
+    lotNumberHint: "e.g. A201, P-12",
+    building: "Building",
+    noBuilding: "None",
+    type: "Type",
+    typeApartment: "Apartment",
+    typeHouse: "House / villa",
+    typeParking: "Parking space",
+    typeBox: "Garage / box",
+    typeCellar: "Cellar",
+    typeCommercial: "Commercial space",
+    typology: "Typology",
+    typStudio: "Studio",
+    typT1: "T1 / F1 (1 room)",
+    typT2: "T2 / F2 (1 bedroom)",
+    typT3: "T3 / F3 (2 bedrooms)",
+    typT4: "T4 / F4 (3 bedrooms)",
+    typT5: "T5 / F5 (4+ bedrooms)",
+    typDuplex: "Duplex",
+    floorLevel: "Floor",
+    floorPlaceholder: "0 = ground floor",
+    orientation: "Orientation",
+    oriS: "South",
+    oriSW: "South-west",
+    oriSE: "South-east",
+    oriW: "West",
+    oriE: "East",
+    oriN: "North",
+    oriNW: "North-west",
+    oriNE: "North-east",
+    surface: "Living area (m²)",
+    terrace: "Terrace (m²)",
+    balcony: "Balcony (m²)",
+    garden: "Garden (m²)",
+    basePrice: "Price before tax *",
+    vatRate: "VAT rate (%)",
+    total: "Total incl. VAT",
+    lotRequired: "Enter a unit number and a price.",
+    lotDiscountRange: "The discount must be between zero and the price.",
+    lotSubmitNew: "Create unit",
+    lotSubmitEdit: "Save unit",
+    lotFailed: "Could not save the unit.",
+  },
+  developerProjectPage: {
+    notFound: "Project not found.",
+    loadFailed: "Could not load the project.",
+    back: "Back to projects",
+    addUnit: "Add unit",
+    deliveryTarget: "Delivery: {date}",
+    guarantee: "Completion guarantee: {bank}",
+    statTotal: "Total",
+    statAvailable: "Available",
+    statReserved: "Reserved",
+    statSold: "Sold",
+    tabOverview: "Overview",
+    tabMedia: "Media",
+    tabStacking: "Stacking plan",
+    tabMilestones: "Milestones & calls for funds",
+    tabTma: "Buyer modifications ({count})",
+    tabTable: "All units",
+    infoTitle: "Project information",
+    fieldReference: "Reference",
+    fieldName: "Name",
+    fieldCommercialName: "Commercial name",
+    fieldType: "Project type",
+    fieldStatus: "Status",
+    fieldDeveloper: "Developer",
+    fieldArchitect: "Architect",
+    fieldPermit: "Building permit",
+    fieldGuarantee: "Completion guarantee",
+    fieldNotary: "Notary",
+    fieldAddress: "Address",
+    fieldCompletion: "Completion date",
+    fieldWebsite: "Project website",
+    fieldMap: "Map location",
+    fieldDescription: "Description",
+    filterBuilding: "Building",
+    allBuildings: "All buildings ({count} units)",
+    legendHasTma: "Has a modification",
+    noUnitsTitle: "No units here yet",
+    noUnitsBody: "Use “Add unit” to add the units of this project.",
+    unitsCount: "{count} unit(s)",
+    activeTma: "Has an open modification request",
+    floorGround: "Ground floor",
+    floorBasement: "Basement {n}",
+    floorN: "Floor {n}",
+    milestonesTitle: "Construction milestones",
+    milestonesBody: "Stages certified by the supervising architect. Certifying one sends the matching call for funds to every buyer.",
+    stage: "Stage {n}",
+    certified: "Certified {date}",
+    certify: "Certify stage",
+    callsTitle: "Calls for funds",
+    callsBody: "Payment requests sent to buyers as construction progresses.",
+    callsCount: "{count} calls",
+    callsEmpty: "No calls for funds yet. Certify a construction milestone to send the first ones.",
+    colCall: "Call",
+    colUnit: "Unit",
+    colBuyer: "Buyer",
+    colMilestone: "Milestone",
+    colTranche: "Share",
+    colAmount: "Amount",
+    colStatus: "Status",
+    colInvoice: "Invoice",
+    unassigned: "No buyer",
+    viewInvoice: "View invoice",
+    tmaTotal: "Modification requests",
+    tmaPending: "Awaiting review or quote",
+    tmaRevenue: "Signed modifications",
+    tmaTitle: "Buyer modifications",
+    tmaBody: "Layout and finish changes buyers ask for during construction. A signed addendum adds its price to the unit.",
+    tmaEmpty: "No modification requests yet",
+    tmaEmptyBody: "Open a sold unit in the stacking plan and choose “Request modification”.",
+    colReference: "Reference",
+    colCategory: "Category",
+    colTitle: "Title",
+    colCost: "Internal cost",
+    colQuote: "Price quote",
+    colActions: "Actions",
+    review: "Review",
+    tableTitle: "All units",
+    tableCount: "{count} units",
+    colBuilding: "Building",
+    colType: "Type",
+    colFloor: "Floor",
+    colSurface: "Area",
+    colPriceHt: "Price before tax",
+    colPriceTtc: "Price incl. VAT",
+    colBuyerHolder: "Buyer / on hold for",
+    mainBuilding: "Main",
+    floorShortGround: "GF",
+    holdFor: "On hold: {name}",
+    edit: "Edit",
+    unitCard: "Unit",
+    unitTitle: "Unit {number}",
+    close: "Close",
+    currentStatus: "Status",
+    putOnHold: "Put on hold (48h)",
+    reserve: "Reserve",
+    releaseHold: "Release hold",
+    confirmReserve: "Confirm reservation",
+    reservedNote: "This unit is reserved. Future calls for funds apply to it.",
+    portalTitle: "Buyer portal",
+    portalBadge: "Code-protected",
+    portalBody: "Buyers follow construction progress and photos here. Invoices, calls for funds and modification signatures are protected by a 6-digit code sent to the buyer.",
+    registeredBuyer: "Buyer",
+    optionHolder: "On hold for",
+    noPurchaser: "No buyer yet. You can preview the link or send it to a prospect.",
+    linkCopied: "Copied",
+    copyLink: "Copy link",
+    openPortal: "Open portal",
+    saleDocs: "Sale & documents",
+    specs: "Specifications",
+    typology: "Typology",
+    surface: "Living area",
+    floor: "Floor",
+    orientation: "Orientation",
+    floorValue: "Floor {n}",
+    pricing: "Price",
+    priceHt: "Price before tax",
+    vat: "VAT ({rate}%)",
+    priceTtc: "Total incl. VAT",
+    customizations: "Modifications",
+    requestTma: "Request modification",
+    noTmaOnLot: "No modification requests on this unit.",
+    editUnit: "Edit unit",
+    releaseConfirm: "Release this hold and make the unit available again?",
+    releaseFailed: "Could not release the hold.",
+    released: "Hold released. The unit is available again.",
+    portalCopied: "Buyer portal link copied.",
+    toastSaved: "Unit saved.",
+    toastOnHold: "Unit put on hold.",
+    toastReserved: "Unit reserved.",
+    toastCertified: "Milestone certified. {count} call(s) for funds sent.",
+    toastTmaCreated: "Modification request {ref} created.",
+    toastTmaUpdated: "Modification request {ref} updated.",
+    unitStatus: {
+      available: "Available",
+      optioned: "On hold",
+      reserved: "Reserved",
+      contract_signed: "Contract signed",
+      deed_signed: "Deed signed",
+      delivered: "Delivered",
+    },
+    tmaStatus: {
+      requested: "Requested",
+      feasibility_approved: "Feasible, awaiting quote",
+      quote_sent: "Quote sent",
+      accepted: "Addendum signed",
+      rejected: "Rejected",
+      completed: "Done on site",
+    },
+    callStatus: {
+      draft: "Draft",
+      issued: "Issued",
+      sent_to_bank: "Sent to bank",
+      paid: "Paid",
+      overdue: "Overdue",
+    },
+    tmaCategory: {
+      electrical: "Electrical",
+      plumbing: "Plumbing",
+      partitions: "Partitions",
+      finishes: "Finishes",
+      other: "Other",
+    },
+    programStatus: {
+      study: "Study",
+      commercialization: "On sale",
+      construction: "Under construction",
+      delivery: "Delivery",
+      completed: "Completed",
+    },
+    projectType: {
+      residential: "Residential",
+      mixed_use: "Mixed use",
+      commercial: "Commercial",
+      subdivision: "Subdivision",
+      renovation: "Renovation",
+      other: "Other",
+    },
+  },
+  developerAutoTasks: {
+    reservationFollowUp: "Follow up on the reservation of {unit}",
+    countersignedCopy: "Send the countersigned copy of {number}",
+    followUpWith: "Follow up with {name}",
+    callBack: "Call {name} back",
+    visitFollowUp: "Follow up after the site visit ({name})",
+    visitRebook: "Rebook the missed site visit ({name})",
+  },
+  crmList: {
+    buyer: "Buyer",
+    property: "Property",
+    vendor: "Owner",
+    stage: "Stage",
+    status: "Status",
+    price: "Price",
+    updated: "Last activity",
+    empty: "Nothing in this pipeline yet.",
+  },
 };
 
 export default en;

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
+import { useWorkspaceCurrency } from './useWorkspaceCurrency';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface OptionModalProps {
   workspaceId: string;
@@ -11,6 +13,11 @@ interface OptionModalProps {
 }
 
 export default function OptionModal({ workspaceId, lot, onClose, onSuccess }: OptionModalProps) {
+  const { t } = useI18n();
+  /** This dialog's messages. */
+  const td = (key: string, values?: Record<string, string | number>) =>
+    t(`developerProjectDialogs.${key}` as MessageKey, values);
+  const currency = useWorkspaceCurrency(workspaceId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +43,7 @@ export default function OptionModal({ workspaceId, lot, onClose, onSuccess }: Op
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLeadId) {
-      setError('Please select a lead/contact.');
+      setError(td('optPickBuyer'));
       return;
     }
 
@@ -56,19 +63,19 @@ export default function OptionModal({ workspaceId, lot, onClose, onSuccess }: Op
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to place option');
+        throw new Error(data.error || td('optFailed'));
       }
 
       onSuccess(data.lot);
     } catch (err: any) {
-      setError(err.message || 'Error placing option');
+      setError(err.message || td('optFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={`Put Lot ${lot.lotNumber} on Option (Hold)`} onClose={onClose}>
+    <Modal title={td('optTitle', { unit: lot.lotNumber })} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -77,14 +84,14 @@ export default function OptionModal({ workspaceId, lot, onClose, onSuccess }: Op
         )}
 
         <div className="p-3 bg-surface-container-high rounded text-sm mb-4">
-          <p className="font-semibold text-on-surface">Unit: Lot {lot.lotNumber}</p>
+          <p className="font-semibold text-on-surface">{td('unitLine', { unit: lot.lotNumber })}</p>
           <p className="text-on-surface-variant">
             {lot.typology} · {lot.surfaceArea} m² ·{' '}
-            {lot.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            {lot.totalPrice.toLocaleString(undefined, { style: 'currency', currency })}
           </p>
         </div>
 
-        <Field label="Option Holder (Lead / Prospect) *">
+        <Field label={td('optHolder')}>
           {leads.length > 0 ? (
             <select
               className={inputClass}
@@ -99,33 +106,33 @@ export default function OptionModal({ workspaceId, lot, onClose, onSuccess }: Op
               ))}
             </select>
           ) : (
-            <p className="text-sm text-on-surface-variant italic">Loading leads...</p>
+            <p className="text-sm text-on-surface-variant italic">{td('loadingBuyers')}</p>
           )}
         </Field>
 
-        <Field label="Option Duration (Hold TTL)">
+        <Field label={td('optDuration')}>
           <select
             className={inputClass}
             value={durationHours}
             onChange={(e) => setDurationHours(Number(e.target.value))}
           >
-            <option value={24}>24 Hours</option>
-            <option value={48}>48 Hours (Standard)</option>
-            <option value={72}>72 Hours (Weekend hold)</option>
-            <option value={168}>7 Days (Extended)</option>
+            <option value={24}>{td('h24')}</option>
+            <option value={48}>{td('h48')}</option>
+            <option value={72}>{td('h72')}</option>
+            <option value={168}>{td('d7')}</option>
           </select>
         </Field>
 
         <p className="text-xs text-on-surface-variant">
-          Holding this lot prevents other agents from reserving or selling it until the countdown expires.
+          {td('optNote')}
         </p>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className={primaryButton} disabled={loading || !selectedLeadId}>
-            {loading ? 'Locking...' : 'Lock Temporary Option'}
+            {loading ? td('saving') : td('optSubmit')}
           </button>
         </div>
       </form>

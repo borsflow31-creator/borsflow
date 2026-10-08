@@ -78,6 +78,14 @@ export async function generateCallsForFundsForMilestone(
   // called on the same day, and the invoice and the call must agree on it.
   const dueAt = new Date(Date.now() + PAYMENT_WINDOW_MS)
 
+  // Calls are billed in the developer's own currency (DZD, MAD, EUR...), the same
+  // one every other money figure on the workspace uses.
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: ctx.workspaceId },
+    select: { currency: true },
+  })
+  const currency = workspace?.currency || 'EUR'
+
   for (const lot of eligibleLots) {
     // Idempotency: skip if already generated for this lot and milestone
     if (lot.callsForFunds.length > 0) {
@@ -104,7 +112,7 @@ export async function generateCallsForFundsForMilestone(
         // Without a due date the invoice can never become overdue, so neither the
         // overdue sweep nor any total built on it would ever see a late payment.
         dueDate: dueAt,
-        currency: 'EUR',
+        currency,
         subtotal: callAmount,
         total: callAmount,
         amountDue: callAmount,

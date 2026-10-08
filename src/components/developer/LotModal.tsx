@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
+import { useWorkspaceCurrency } from './useWorkspaceCurrency';
 
 interface LotModalProps {
   workspaceId: string;
@@ -14,6 +15,8 @@ interface LotModalProps {
   onSuccess: (lot: any) => void;
 }
 
+const ORIENTATIONS = ['S', 'SW', 'SE', 'W', 'E', 'N', 'NW', 'NE'];
+
 export default function LotModal({
   workspaceId,
   programId,
@@ -23,9 +26,13 @@ export default function LotModal({
   onSuccess,
 }: LotModalProps) {
   const { t, formatDate } = useI18n();
+  /** This dialog's messages. */
+  const td = (key: string, values?: Record<string, string | number>) =>
+    t(`developerProjectDialogs.${key}` as MessageKey, values);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const agents = useWorkspaceAgents(workspaceId);
+  const currency = useWorkspaceCurrency(workspaceId);
 
   const [lotNumber, setLotNumber] = useState(initialLot?.lotNumber || '');
   const [buildingId, setBuildingId] = useState(initialLot?.buildingId || (buildings[0]?.id || ''));
@@ -52,11 +59,11 @@ export default function LotModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lotNumber.trim() || basePrice <= 0) {
-      setError('Lot number and base price are required.');
+      setError(td('lotRequired'));
       return;
     }
     if (discount < 0 || discount > basePrice) {
-      setError('The discount must be between zero and the list price.');
+      setError(td('lotDiscountRange'));
       return;
     }
 
@@ -98,19 +105,19 @@ export default function LotModal({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to save lot');
+        throw new Error(data.error || td('lotFailed'));
       }
 
       onSuccess(data.lot);
     } catch (err: any) {
-      setError(err.message || 'Error saving lot');
+      setError(err.message || td('lotFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={initialLot ? `Edit Lot ${initialLot.lotNumber}` : 'Add New Lot / Unit'} onClose={onClose} wide>
+    <Modal title={initialLot ? td('lotEditTitle', { unit: initialLot.lotNumber }) : td('lotNewTitle')} onClose={onClose} wide>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -119,7 +126,7 @@ export default function LotModal({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Lot Number *" hint="e.g. A201, PK-12">
+          <Field label={td('lotNumber')} hint={td('lotNumberHint')}>
             <input
               type="text"
               className={inputClass}
@@ -131,13 +138,13 @@ export default function LotModal({
           </Field>
 
           {buildings.length > 0 && (
-            <Field label="Building / Phase">
+            <Field label={td('building')}>
               <select
                 className={inputClass}
                 value={buildingId}
                 onChange={(e) => setBuildingId(e.target.value)}
               >
-                <option value="">Unassigned</option>
+                <option value="">{td('noBuilding')}</option>
                 {buildings.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -147,67 +154,65 @@ export default function LotModal({
             </Field>
           )}
 
-          <Field label="Type">
+          <Field label={td('type')}>
             <select className={inputClass} value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="apartment">Apartment</option>
-              <option value="house">House / Villa</option>
-              <option value="parking">Parking Bay</option>
-              <option value="box">Garage / Box</option>
-              <option value="cellar">Cellar (Cave)</option>
-              <option value="commercial">Commercial Space</option>
+              <option value="apartment">{td('typeApartment')}</option>
+              <option value="house">{td('typeHouse')}</option>
+              <option value="parking">{td('typeParking')}</option>
+              <option value="box">{td('typeBox')}</option>
+              <option value="cellar">{td('typeCellar')}</option>
+              <option value="commercial">{td('typeCommercial')}</option>
             </select>
           </Field>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(type === 'apartment' || type === 'house') && (
-            <Field label="Typology">
+            <Field label={td('typology')}>
               <select
                 className={inputClass}
                 value={typology}
                 onChange={(e) => setTypology(e.target.value)}
               >
-                <option value="studio">Studio</option>
-                <option value="T1">T1 (1-room)</option>
-                <option value="T2">T2 (1-bed)</option>
-                <option value="T3">T3 (2-bed)</option>
-                <option value="T4">T4 (3-bed)</option>
-                <option value="T5">T5 (4-bed+)</option>
-                <option value="duplex">Duplex</option>
+                <option value="studio">{td('typStudio')}</option>
+                <option value="T1">{td('typT1')}</option>
+                <option value="T2">{td('typT2')}</option>
+                <option value="T3">{td('typT3')}</option>
+                <option value="T4">{td('typT4')}</option>
+                <option value="T5">{td('typT5')}</option>
+                <option value="duplex">{td('typDuplex')}</option>
               </select>
             </Field>
           )}
 
-          <Field label="Floor Level">
+          <Field label={td('floorLevel')}>
             <input
               type="number"
               className={inputClass}
               value={floor}
               onChange={(e) => setFloor(Number(e.target.value))}
-              placeholder="0 (Ground Floor)"
+              placeholder={td('floorPlaceholder')}
             />
           </Field>
 
-          <Field label="Orientation">
+          <Field label={td('orientation')}>
             <select
               className={inputClass}
               value={orientation}
               onChange={(e) => setOrientation(e.target.value)}
             >
-              <option value="S">South</option>
-              <option value="SW">South-West</option>
-              <option value="SE">South-East</option>
-              <option value="W">West</option>
-              <option value="E">East</option>
-              <option value="N">North</option>
-              <option value="NW">North-West</option>
-              <option value="NE">North-East</option>
+              {/* A value typed elsewhere (an import, "Nord") stays as it is rather than
+                  silently showing, then saving, the first option. */}
+              {orientation && !ORIENTATIONS.includes(orientation) && <option value={orientation}>{orientation}</option>}
+              {ORIENTATIONS.map((code) => (
+                <option key={code} value={code}>{td(`ori${code}`)}</option>
+              ))}
             </select>
           </Field>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2 border-t border-surface-container-high">
-          <Field label="Habitable Surface (m²)">
+          <Field label={td('surface')}>
             <input
               type="number"
               step="0.1"
@@ -217,7 +222,7 @@ export default function LotModal({
             />
           </Field>
 
-          <Field label="Terrace (m²)">
+          <Field label={td('terrace')}>
             <input
               type="number"
               step="0.1"
@@ -227,7 +232,7 @@ export default function LotModal({
             />
           </Field>
 
-          <Field label="Balcony (m²)">
+          <Field label={td('balcony')}>
             <input
               type="number"
               step="0.1"
@@ -237,7 +242,7 @@ export default function LotModal({
             />
           </Field>
 
-          <Field label="Private Garden (m²)">
+          <Field label={td('garden')}>
             <input
               type="number"
               step="0.1"
@@ -299,7 +304,7 @@ export default function LotModal({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-surface-container-high">
-          <Field label="Base Price (€ HT / Pre-Tax) *">
+          <Field label={td('basePrice')}>
             <input
               type="number"
               className={inputClass}
@@ -309,33 +314,34 @@ export default function LotModal({
             />
           </Field>
 
-          <Field label="VAT Rate (%)">
-            <select
+          {/* Any rate: 19 % or 9 % in Algeria, 20 %, 10 % or 5.5 % in France... */}
+          <Field label={td('vatRate')}>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
               className={inputClass}
               value={taxRate}
               onChange={(e) => setTaxRate(Number(e.target.value))}
-            >
-              <option value={20.0}>Standard (20.0%)</option>
-              <option value={5.5}>Reduced ANRU (5.5%)</option>
-              <option value={10.0}>Intermediate (10.0%)</option>
-              <option value={0.0}>Zero Tax (0.0%)</option>
-            </select>
+              required
+            />
           </Field>
 
           <div className="bg-surface-container-high p-3 rounded flex flex-col justify-center">
-            <span className="text-xs text-on-surface-variant font-medium">Total Incl. VAT</span>
+            <span className="text-xs text-on-surface-variant font-medium">{td('total')}</span>
             <span className="text-lg font-bold text-primary">
-              {computedTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+              {computedTotal.toLocaleString(undefined, { style: 'currency', currency })}
             </span>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className={primaryButton} disabled={loading}>
-            {loading ? 'Saving...' : initialLot ? 'Update Lot' : 'Create Lot'}
+            {loading ? td('saving') : initialLot ? td('lotSubmitEdit') : td('lotSubmitNew')}
           </button>
         </div>
       </form>

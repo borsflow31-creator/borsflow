@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Wallet } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -146,13 +147,12 @@ function CollectionsInner() {
     return (
         <AppShell>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <span className="p-2 bg-primary/10 text-primary rounded-lg"><Wallet className="w-6 h-6" /></span>
-                        <h1 className="text-2xl font-bold text-on-surface">{t('developer.collectionsTitle')}</h1>
-                    </div>
-                    <p className="text-sm text-on-surface-variant mt-1">{t('developer.collectionsSubtitle')}</p>
-                </div>
+                <PageHeader
+                    icon={Wallet}
+                    title={t('developer.collectionsTitle')}
+                    subtitle={t('developer.collectionsSubtitle')}
+                    guide="collections"
+                />
 
                 {/* Summary */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-outline-variant/20 border border-outline-variant/20 rounded-xl overflow-hidden">

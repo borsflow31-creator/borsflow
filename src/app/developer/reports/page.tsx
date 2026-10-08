@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { BarChart3, Download, Loader2, Trash2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -163,23 +164,24 @@ function ReportsInner() {
     return (
         <AppShell>
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 bg-primary/10 text-primary rounded-lg"><BarChart3 className="w-6 h-6" /></span>
-                            <h1 className="text-2xl font-bold text-on-surface">{t('developerSales.reports.title')}</h1>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mt-1">{t('developerSales.reports.subtitle')}</p>
-                    </div>
-                    <button
-                        onClick={exportCsv}
-                        disabled={!report || loading}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-outline-variant/30 text-sm font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-40 transition-colors"
-                    >
-                        <Download className="h-4 w-4" />
-                        {t('developerSales.reports.exportCsv')}
-                    </button>
-                </div>
+                <PageHeader
+                    icon={BarChart3}
+                    title={t('developerSales.reports.title')}
+                    subtitle={t('developerSales.reports.subtitle')}
+                    guide="reports"
+                    actions={
+                        <>
+                            <button
+                                onClick={exportCsv}
+                                disabled={!report || loading}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-outline-variant/30 text-sm font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+                            >
+                                <Download className="h-4 w-4" />
+                                {t('developerSales.reports.exportCsv')}
+                            </button>
+                        </>
+                    }
+                />
 
                 <div className="flex flex-wrap items-center gap-3">
                     <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">

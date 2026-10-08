@@ -11,6 +11,7 @@ import {
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { LEAD_SOURCES } from '@/lib/crm/lifecycle';
 import type { ScoreBreakdown } from '@/lib/crm/lead-score';
+import { localizeTaskTitle } from '@/lib/crm/task-titles';
 
 interface Overview {
     lead: any;
@@ -212,7 +213,7 @@ export default function CustomerTab({
                                     >
                                         {task.completedAt ? <CheckCircle2 className="h-5 w-5 text-secondary" /> : <Circle className="h-5 w-5" />}
                                     </button>
-                                    <span className={`flex-1 min-w-0 text-sm truncate ${task.completedAt ? 'line-through text-on-surface-variant/60' : 'text-on-surface'}`}>{task.title}</span>
+                                    <span className={`flex-1 min-w-0 text-sm truncate ${task.completedAt ? 'line-through text-on-surface-variant/60' : 'text-on-surface'}`}>{localizeTaskTitle(task.title, t)}</span>
                                     <span className={`text-xs tabular-nums flex-shrink-0 ${late ? 'text-error font-medium' : 'text-on-surface-variant'}`}>
                                         {late && `${t('developerCrm.lead.overdue')} · `}{formatDateTime(task.dueAt)}
                                     </span>

@@ -30,6 +30,8 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
@@ -44,59 +46,67 @@ import TMAReviewModal from '@/components/developer/TMAReviewModal';
 import ProjectDashboard from '@/components/developer/ProjectDashboard';
 import ProjectMedia from '@/components/developer/ProjectMedia';
 import { summarizeUnits } from '@/lib/crm/projects';
+import { Kpi, KpiGrid } from '@/components/developer/kpi';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; label: string }> = {
+/** Colours per unit status; the names come from developerProjectPage.unitStatus. */
+const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   available: {
     bg: 'bg-emerald-50 hover:bg-emerald-100',
     text: 'text-emerald-800',
     border: 'border-emerald-300',
-    label: 'Available',
   },
   optioned: {
     bg: 'bg-amber-50 hover:bg-amber-100',
     text: 'text-amber-800',
     border: 'border-amber-300',
-    label: 'On Hold (Option)',
   },
   reserved: {
     bg: 'bg-blue-50 hover:bg-blue-100',
     text: 'text-blue-800',
     border: 'border-blue-300',
-    label: 'Reserved',
   },
   contract_signed: {
     bg: 'bg-indigo-50 hover:bg-indigo-100',
     text: 'text-indigo-800',
     border: 'border-indigo-300',
-    label: 'Contract Signed',
   },
   deed_signed: {
     bg: 'bg-purple-50 hover:bg-purple-100',
     text: 'text-purple-800',
     border: 'border-purple-300',
-    label: 'Deed Signed',
   },
   delivered: {
     bg: 'bg-gray-100 hover:bg-gray-200',
     text: 'text-gray-800',
     border: 'border-gray-300',
-    label: 'Delivered',
   },
 };
 
-const TMA_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
-  requested: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Requested' },
-  feasibility_approved: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Feasible (Pending Quote)' },
-  quote_sent: { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Quote Sent' },
-  accepted: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Signed Addendum' },
-  rejected: { bg: 'bg-red-100', text: 'text-red-800', label: 'Rejected' },
-  completed: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Completed on Site' },
+/** Colours per modification status; the names come from developerProjectPage.tmaStatus. */
+const TMA_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  requested: { bg: 'bg-amber-100', text: 'text-amber-800' },
+  feasibility_approved: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  quote_sent: { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  accepted: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
+  rejected: { bg: 'bg-red-100', text: 'text-red-800' },
+  completed: { bg: 'bg-gray-100', text: 'text-gray-800' },
 };
 
 function ProgramDetailPageInner() {
   const params = useParams();
   const programId = params.id as string;
   const { workspaceId, ready } = useWorkspaceParam();
+  // Every amount on the page is in the developer's own currency (DZD, MAD, EUR...).
+  const currency = useWorkspaceCurrency(workspaceId);
+  const { t } = useI18n();
+  /** This page's own messages, plus the status and category names it shows. */
+  const tp = useCallback(
+    (key: string, values?: Record<string, string | number>) => t(`developerProjectPage.${key}` as MessageKey, values),
+    [t]
+  );
+  const named = (group: string, value: string | null | undefined) =>
+    value ? tp(`${group}.${value}`) : '—';
 
   const [program, setProgram] = useState<any>(null);
   const [lots, setLots] = useState<any[]>([]);
@@ -124,18 +134,18 @@ function ProgramDetailPageInner() {
   const summarizeStats = useMemo(() => {
     const totals = summarizeUnits(lots);
     return [
-      { label: 'Total', value: totals.total, box: 'bg-surface-container-high/60', text: 'text-on-surface-variant', num: 'text-on-surface' },
-      { label: 'Available', value: totals.available, box: 'bg-emerald-50 border border-emerald-100', text: 'text-emerald-700', num: 'text-emerald-800' },
-      { label: 'Reserved', value: totals.reserved, box: 'bg-amber-50 border border-amber-100', text: 'text-amber-700', num: 'text-amber-800' },
-      { label: 'Sold', value: totals.sold, box: 'bg-blue-50 border border-blue-100', text: 'text-blue-700', num: 'text-blue-800' },
+      { label: tp('statTotal'), value: totals.total, tone: undefined },
+      { label: tp('statAvailable'), value: totals.available, tone: 'text-emerald-700 dark:text-emerald-400' },
+      { label: tp('statReserved'), value: totals.reserved, tone: 'text-amber-700 dark:text-amber-400' },
+      { label: tp('statSold'), value: totals.sold, tone: 'text-secondary' },
     ];
-  }, [lots]);
+  }, [lots, tp]);
 
   const handleCopyBuyerPortal = (token: string) => {
     const fullUrl = `${window.location.origin}/view/buyer/${token}`;
     navigator.clipboard.writeText(fullUrl);
     setCopiedPortalToken(true);
-    setToast({ message: 'Buyer Portal link copied to clipboard!', type: 'success' });
+    setToast({ message: tp('portalCopied'), type: 'success' });
     setTimeout(() => setCopiedPortalToken(false), 2500);
   };
 
@@ -164,10 +174,10 @@ function ProgramDetailPageInner() {
       })
       .catch((err) => {
         console.error('Error loading program data:', err);
-        setToast({ message: 'Error loading program details', type: 'error' });
+        setToast({ message: tp('loadFailed'), type: 'error' });
       })
       .finally(() => setLoading(false));
-  }, [workspaceId, programId]);
+  }, [workspaceId, programId, tp]);
 
   useEffect(() => {
     if (ready && workspaceId && programId) {
@@ -219,35 +229,35 @@ function ProgramDetailPageInner() {
       floorNumber: floorNum,
       label:
         floorNum === 0
-          ? 'Ground Floor (RDC)'
+          ? tp('floorGround')
           : floorNum < 0
-          ? `Basement (S${Math.abs(floorNum)})`
-          : `Floor ${floorNum} (R+${floorNum})`,
+          ? tp('floorBasement', { n: Math.abs(floorNum) })
+          : tp('floorN', { n: floorNum }),
       lots: floorsMap.get(floorNum)!.sort((a, b) => a.lotNumber.localeCompare(b.lotNumber)),
     }));
-  }, [lots, selectedBuildingId]);
+  }, [lots, selectedBuildingId, tp]);
 
   const handleReleaseOption = async (lotId: string) => {
-    if (!confirm('Release this temporary hold and return unit to Available?')) return;
+    if (!confirm(tp('releaseConfirm'))) return;
     try {
       const res = await fetch(`/api/developer/lots/${lotId}/option?workspaceId=${workspaceId}`, {
         method: 'DELETE',
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to release option');
-      setToast({ message: 'Option released. Lot is now Available.', type: 'success' });
+      if (!res.ok) throw new Error(data.error || tp('releaseFailed'));
+      setToast({ message: tp('released'), type: 'success' });
       setSelectedLot(null);
       fetchProgramData();
     } catch (err: any) {
-      setToast({ message: err.message || 'Error releasing option', type: 'error' });
+      setToast({ message: err.message || tp('releaseFailed'), type: 'error' });
     }
   };
 
-  if (!ready || loading) return <PageSkeleton />;
+  if (!ready || (loading && !program)) return <PageSkeleton />;
   if (!program) {
     return (
       <AppShell>
-        <div className="p-8 text-center text-on-surface">Program not found.</div>
+        <div className="p-8 text-center text-on-surface">{tp('notFound')}</div>
       </AppShell>
     );
   }
@@ -267,7 +277,7 @@ function ProgramDetailPageInner() {
             className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Programs</span>
+            <span>{tp('back')}</span>
           </Link>
 
           <button
@@ -278,9 +288,11 @@ function ProgramDetailPageInner() {
             className={`${primaryButton} flex items-center gap-1.5 text-xs py-1.5 px-3`}
           >
             <Plus className="w-4 h-4" />
-            <span>Add Unit / Lot</span>
+            <span>{tp('addUnit')}</span>
           </button>
         </div>
+
+        <StandaloneGuide id="project" />
 
         {/* Program Header Profile */}
         <div className="p-6 bg-surface rounded-2xl border border-surface-container-high shadow-sm space-y-4">
@@ -290,8 +302,8 @@ function ProgramDetailPageInner() {
                 <span className="text-xs font-mono px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-bold">
                   {program.reference}
                 </span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium capitalize bg-primary/10 text-primary">
-                  {program.status}
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+                  {named('programStatus', program.status)}
                 </span>
               </div>
               <h1 className="text-2xl font-bold text-on-surface mt-1">
@@ -305,17 +317,15 @@ function ProgramDetailPageInner() {
                 {program.targetDeliveryDate && (
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5" />
-                    Delivery Target:{' '}
-                    {new Date(program.targetDeliveryDate).toLocaleDateString('fr-FR', {
-                      month: 'long',
-                      year: 'numeric',
+                    {tp('deliveryTarget', {
+                      date: new Date(program.targetDeliveryDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
                     })}
                   </span>
                 )}
                 {program.gfaBank && (
                   <span className="flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                    GFA Guarantee: {program.gfaBank}
+                    {tp('guarantee', { bank: program.gfaBank })}
                   </span>
                 )}
               </div>
@@ -324,14 +334,11 @@ function ProgramDetailPageInner() {
             {/* Quick stats. summarizeUnits is the one place the six unit
                 statuses collapse into three buckets, so these can never
                 disagree with the Overview tab or the units table. */}
-            <div className="flex items-center gap-3">
+            <KpiGrid className="w-full md:w-auto md:min-w-[440px]">
               {summarizeStats.map((tile) => (
-                <div key={tile.label} className={`p-3 rounded-xl text-center min-w-[70px] ${tile.box}`}>
-                  <span className={`block text-xs ${tile.text}`}>{tile.label}</span>
-                  <span className={`text-xl font-bold ${tile.num}`}>{tile.value}</span>
-                </div>
+                <Kpi key={tile.label} label={tile.label} value={tile.value} tone={tile.tone} />
               ))}
-            </div>
+            </KpiGrid>
           </div>
 
           {/* Navigation Tabs */}
@@ -345,7 +352,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <LayoutDashboard className="w-4 h-4" />
-              <span>Overview</span>
+              <span>{tp('tabOverview')}</span>
             </button>
 
             <button
@@ -357,7 +364,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <ImageIcon className="w-4 h-4" />
-              <span>Media</span>
+              <span>{tp('tabMedia')}</span>
             </button>
 
             <button
@@ -369,7 +376,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span>Interactive Stacking Plan</span>
+              <span>{tp('tabStacking')}</span>
             </button>
 
             <button
@@ -381,7 +388,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Milestones & Calls for Funds</span>
+              <span>{tp('tabMilestones')}</span>
             </button>
 
             <button
@@ -393,9 +400,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <Wrench className="w-4 h-4" />
-              <span>
-                Change Orders (TMA) ({tmaRequests.length})
-              </span>
+              <span>{tp('tabTma', { count: tmaRequests.length })}</span>
             </button>
 
             <button
@@ -407,7 +412,7 @@ function ProgramDetailPageInner() {
               }`}
             >
               <FileText className="w-4 h-4" />
-              <span>All Units Table</span>
+              <span>{tp('tabTable')}</span>
             </button>
           </div>
         </div>
@@ -415,32 +420,32 @@ function ProgramDetailPageInner() {
         {/* TAB: OVERVIEW -- the project dashboard and its basic information */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <ProjectDashboard lots={lots} status={program.status} currency="EUR" />
+            <ProjectDashboard lots={lots} status={program.status} currency={currency} />
 
             <div className="p-6 bg-surface rounded-2xl border border-surface-container-high shadow-sm">
-              <h2 className="title-sm text-on-surface mb-4">Project information</h2>
+              <h2 className="title-sm text-on-surface mb-4">{tp('infoTitle')}</h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
                 {[
-                  { label: 'Reference', value: program.reference },
-                  { label: 'Name', value: program.name },
-                  { label: 'Commercial name', value: program.commercialName },
-                  { label: 'Project type', value: program.projectType },
-                  { label: 'Status', value: program.status },
-                  { label: 'Developer / promoter', value: program.developerName },
-                  { label: 'Architect', value: program.architectName },
-                  { label: 'Permit number', value: program.permitNumber },
-                  { label: 'GFA guarantee', value: program.gfaBank },
-                  { label: 'Notary', value: program.notaryName },
+                  { label: tp('fieldReference'), value: program.reference },
+                  { label: tp('fieldName'), value: program.name },
+                  { label: tp('fieldCommercialName'), value: program.commercialName },
+                  { label: tp('fieldType'), value: named('projectType', program.projectType) },
+                  { label: tp('fieldStatus'), value: named('programStatus', program.status) },
+                  { label: tp('fieldDeveloper'), value: program.developerName },
+                  { label: tp('fieldArchitect'), value: program.architectName },
+                  { label: tp('fieldPermit'), value: program.permitNumber },
+                  { label: tp('fieldGuarantee'), value: program.gfaBank },
+                  { label: tp('fieldNotary'), value: program.notaryName },
                   {
-                    label: 'Address',
+                    label: tp('fieldAddress'),
                     value: [program.addressLine, program.postalCode, program.city]
                       .filter(Boolean)
                       .join(', '),
                   },
                   {
-                    label: 'Completion date',
+                    label: tp('fieldCompletion'),
                     value: program.targetDeliveryDate
-                      ? new Date(program.targetDeliveryDate).toLocaleDateString('fr-FR', {
+                      ? new Date(program.targetDeliveryDate).toLocaleDateString(undefined, {
                           day: 'numeric',
                           month: 'long',
                           year: 'numeric',
@@ -450,12 +455,12 @@ function ProgramDetailPageInner() {
                 ].map((row) => (
                   <div key={row.label}>
                     <dt className="body-xs text-on-surface-variant">{row.label}</dt>
-                    <dd className="body-sm text-on-surface capitalize">{row.value || '—'}</dd>
+                    <dd className="body-sm text-on-surface">{row.value || '—'}</dd>
                   </div>
                 ))}
 
                 <div>
-                  <dt className="body-xs text-on-surface-variant">Project website</dt>
+                  <dt className="body-xs text-on-surface-variant">{tp('fieldWebsite')}</dt>
                   <dd className="body-sm">
                     {program.websiteUrl ? (
                       <a
@@ -475,7 +480,7 @@ function ProgramDetailPageInner() {
 
                 {(program.latitude || program.longitude) && (
                   <div>
-                    <dt className="body-xs text-on-surface-variant">Map location</dt>
+                    <dt className="body-xs text-on-surface-variant">{tp('fieldMap')}</dt>
                     <dd className="body-sm">
                       <a
                         href={`https://www.openstreetmap.org/?mlat=${program.latitude}&mlon=${program.longitude}#map=17/${program.latitude}/${program.longitude}`}
@@ -493,7 +498,7 @@ function ProgramDetailPageInner() {
 
               {program.description && (
                 <div className="mt-6 pt-4 border-t border-surface-container-high">
-                  <dt className="body-xs text-on-surface-variant mb-1">Description</dt>
+                  <dt className="body-xs text-on-surface-variant mb-1">{tp('fieldDescription')}</dt>
                   <dd className="body-sm text-on-surface whitespace-pre-line">{program.description}</dd>
                 </div>
               )}
@@ -510,13 +515,13 @@ function ProgramDetailPageInner() {
             {/* Stacking Controls & Color Legend */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-on-surface-variant">Filter Building:</span>
+                <span className="text-xs font-semibold text-on-surface-variant">{tp('filterBuilding')}</span>
                 <select
                   className="text-xs py-1.5 px-3 rounded-lg border border-surface-container-high bg-surface text-on-surface"
                   value={selectedBuildingId}
                   onChange={(e) => setSelectedBuildingId(e.target.value)}
                 >
-                  <option value="all">All Buildings ({lots.length} lots)</option>
+                  <option value="all">{tp('allBuildings', { count: lots.length })}</option>
                   {program.buildings?.map((b: any) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
@@ -529,23 +534,23 @@ function ProgramDetailPageInner() {
               <div className="flex flex-wrap items-center gap-3 text-xs">
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-emerald-500" />
-                  Available
+                  {named('unitStatus', 'available')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-amber-500" />
-                  Option (Hold)
+                  {named('unitStatus', 'optioned')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-blue-500" />
-                  Reserved
+                  {named('unitStatus', 'reserved')}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full bg-purple-500" />
-                  Deed Signed
+                  {named('unitStatus', 'deed_signed')}
                 </span>
                 <span className="flex items-center gap-1.5 text-primary font-medium">
                   <Wrench className="w-3 h-3 text-primary" />
-                  Has TMA
+                  {tp('legendHasTma')}
                 </span>
               </div>
             </div>
@@ -554,9 +559,9 @@ function ProgramDetailPageInner() {
             {stackingFloors.length === 0 ? (
               <div className="p-12 text-center bg-surface rounded-xl border border-dashed border-surface-container-high">
                 <Building className="w-12 h-12 text-on-surface-variant mx-auto mb-3 opacity-40" />
-                <h3 className="text-lg font-semibold text-on-surface">No units on this elevation</h3>
+                <h3 className="text-lg font-semibold text-on-surface">{tp('noUnitsTitle')}</h3>
                 <p className="text-sm text-on-surface-variant mt-1">
-                  Click &quot;Add Unit / Lot&quot; to populate your development program.
+                  {tp('noUnitsBody')}
                 </p>
               </div>
             ) : (
@@ -571,7 +576,7 @@ function ProgramDetailPageInner() {
                         <Layers className="w-3.5 h-3.5 text-primary" />
                         {floor.label}
                       </span>
-                      <span>{floor.lots.length} Unit(s)</span>
+                      <span>{tp('unitsCount', { count: floor.lots.length })}</span>
                     </div>
 
                     {/* Floor Units Tiles */}
@@ -584,8 +589,18 @@ function ProgramDetailPageInner() {
                         return (
                           <div
                             key={lot.id}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={isSelected}
+                            aria-label={`${lot.lotNumber} · ${named('unitStatus', lot.status)}`}
                             onClick={() => setSelectedLot(lot)}
-                            className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setSelectedLot(lot);
+                              }
+                            }}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                               style.bg
                             } ${style.border} ${
                               isSelected ? 'ring-2 ring-primary shadow-md scale-[1.02]' : 'hover:shadow'
@@ -595,7 +610,7 @@ function ProgramDetailPageInner() {
                               <span className="font-bold text-sm text-on-surface">{lot.lotNumber}</span>
                               <div className="flex items-center gap-1">
                                 {hasTma && (
-                                  <span title="Active Change Order (TMA)">
+                                  <span title={tp('activeTma')}>
                                     <Wrench className="w-3 h-3 text-primary" />
                                   </span>
                                 )}
@@ -610,16 +625,16 @@ function ProgramDetailPageInner() {
                                 {lot.surfaceArea} m² {lot.orientation ? `· ${lot.orientation}` : ''}
                               </div>
                               <div className="font-bold text-on-surface">
-                                {lot.totalPrice.toLocaleString('fr-FR', {
+                                {lot.totalPrice.toLocaleString(undefined, {
                                   style: 'currency',
-                                  currency: 'EUR',
+                                  currency,
                                   maximumFractionDigits: 0,
                                 })}
                               </div>
                             </div>
 
                             <div className="mt-2 pt-1 border-t border-black/5 flex items-center justify-between text-[11px]">
-                              <span className={`font-semibold ${style.text}`}>{style.label}</span>
+                              <span className={`font-semibold ${style.text}`}>{named('unitStatus', lot.status)}</span>
                               {lot.status === 'optioned' && <Clock className="w-3 h-3 text-amber-700" />}
                               {lot.status === 'reserved' && <UserCheck className="w-3 h-3 text-blue-700" />}
                             </div>
@@ -639,9 +654,9 @@ function ProgramDetailPageInner() {
           <div className="space-y-6">
             <div className="p-6 bg-surface rounded-xl border border-surface-container-high shadow-sm space-y-6">
               <div>
-                <h3 className="text-lg font-bold text-on-surface">Construction Milestones (*VEFA*)</h3>
+                <h3 className="text-lg font-bold text-on-surface">{tp('milestonesTitle')}</h3>
                 <p className="text-xs text-on-surface-variant mt-0.5">
-                  Statutory stages certified by the supervising architect. Certifying a milestone automatically issues calls for funds to all active buyers.
+                  {tp('milestonesBody')}
                 </p>
               </div>
 
@@ -659,7 +674,7 @@ function ProgramDetailPageInner() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
-                          Stage {m.order}
+                          {tp('stage', { n: m.order })}
                         </span>
                         <span className="text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
                           {m.targetPercentage}%
@@ -673,10 +688,7 @@ function ProgramDetailPageInner() {
                         <div className="flex items-center gap-1.5 text-xs text-emerald-800 font-semibold">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                           <span>
-                            Certified{' '}
-                            {m.certifiedAt
-                              ? new Date(m.certifiedAt).toLocaleDateString('fr-FR')
-                              : ''}
+                            {tp('certified', { date: m.certifiedAt ? new Date(m.certifiedAt).toLocaleDateString(undefined) : '' })}
                           </span>
                         </div>
                       ) : (
@@ -685,7 +697,7 @@ function ProgramDetailPageInner() {
                           className={`${primaryButton} text-xs py-1 px-2.5 flex items-center gap-1`}
                         >
                           <ShieldCheck className="w-3.5 h-3.5" />
-                          <span>Certify Stage</span>
+                          <span>{tp('certify')}</span>
                         </button>
                       )}
                     </div>
@@ -698,33 +710,33 @@ function ProgramDetailPageInner() {
             <div className="p-6 bg-surface rounded-xl border border-surface-container-high shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-on-surface">Calls for Funds (*Appels de Fonds*)</h3>
+                  <h3 className="text-lg font-bold text-on-surface">{tp('callsTitle')}</h3>
                   <p className="text-xs text-on-surface-variant mt-0.5">
-                    Stage invoices generated for purchasers across construction progress.
+                    {tp('callsBody')}
                   </p>
                 </div>
                 <span className="text-xs font-semibold text-on-surface-variant">
-                  {callsForFunds.length} invoice notices
+                  {tp('callsCount', { count: callsForFunds.length })}
                 </span>
               </div>
 
               {callsForFunds.length === 0 ? (
                 <div className="p-8 text-center text-sm text-on-surface-variant">
-                  No calls for funds issued yet. Certify a construction milestone to generate stage billings.
+                  {tp('callsEmpty')}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-start text-xs">
                     <thead>
                       <tr className="border-b border-surface-container-high text-on-surface-variant">
-                        <th className="py-2.5 px-3">Call #</th>
-                        <th className="py-2.5 px-3">Unit</th>
-                        <th className="py-2.5 px-3">Buyer</th>
-                        <th className="py-2.5 px-3">Milestone</th>
-                        <th className="py-2.5 px-3">Tranche</th>
-                        <th className="py-2.5 px-3">Amount</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3 text-right">Invoice</th>
+                        <th className="py-2.5 px-3">{tp('colCall')}</th>
+                        <th className="py-2.5 px-3">{tp('colUnit')}</th>
+                        <th className="py-2.5 px-3">{tp('colBuyer')}</th>
+                        <th className="py-2.5 px-3">{tp('colMilestone')}</th>
+                        <th className="py-2.5 px-3">{tp('colTranche')}</th>
+                        <th className="py-2.5 px-3">{tp('colAmount')}</th>
+                        <th className="py-2.5 px-3">{tp('colStatus')}</th>
+                        <th className="py-2.5 px-3 text-end">{tp('colInvoice')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-container-high">
@@ -735,22 +747,22 @@ function ProgramDetailPageInner() {
                           <td className="py-2.5 px-3">
                             {call.lot?.buyerLead
                               ? `${call.lot.buyerLead.firstName || ''} ${call.lot.buyerLead.lastName || ''}`
-                              : 'Unassigned'}
+                              : tp('unassigned')}
                           </td>
                           <td className="py-2.5 px-3">{call.milestone?.title}</td>
                           <td className="py-2.5 px-3 font-semibold">{call.percentage}%</td>
                           <td className="py-2.5 px-3 font-bold">
-                            {call.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                            {call.amount.toLocaleString(undefined, { style: 'currency', currency })}
                           </td>
                           <td className="py-2.5 px-3">
                             <span
-                              className={`px-2 py-0.5 rounded text-[11px] font-semibold capitalize ${
+                              className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                                 call.status === 'paid'
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-amber-100 text-amber-800'
                               }`}
                             >
-                              {call.status}
+                              {named('callStatus', call.status)}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-right">
@@ -759,7 +771,7 @@ function ProgramDetailPageInner() {
                                 href={`/invoices?workspace=${workspaceId}&id=${call.invoiceId}`}
                                 className="text-primary hover:underline font-medium"
                               >
-                                View Invoice
+                                {tp('viewInvoice')}
                               </Link>
                             )}
                           </td>
@@ -779,17 +791,17 @@ function ProgramDetailPageInner() {
             {/* TMA Stats Header */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-                <span className="text-xs text-on-surface-variant font-medium">Total Change Orders</span>
+                <span className="text-xs text-on-surface-variant font-medium">{tp('tmaTotal')}</span>
                 <p className="text-2xl font-bold text-on-surface mt-1">{tmaRequests.length}</p>
               </div>
               <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-                <span className="text-xs text-amber-600 font-medium">Pending Review / Quotes</span>
+                <span className="text-xs text-amber-600 font-medium">{tp('tmaPending')}</span>
                 <p className="text-2xl font-bold text-amber-600 mt-1">{tmaStats.pendingCount}</p>
               </div>
               <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-                <span className="text-xs text-emerald-600 font-medium">Signed Addenda Revenue</span>
+                <span className="text-xs text-emerald-600 font-medium">{tp('tmaRevenue')}</span>
                 <p className="text-2xl font-bold text-emerald-600 mt-1">
-                  {tmaStats.acceptedTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  {tmaStats.acceptedTotal.toLocaleString(undefined, { style: 'currency', currency })}
                 </p>
               </div>
             </div>
@@ -798,9 +810,9 @@ function ProgramDetailPageInner() {
             <div className="p-6 bg-surface rounded-xl border border-surface-container-high shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-on-surface">Buyer Modifications (*TMA*)</h3>
+                  <h3 className="text-lg font-bold text-on-surface">{tp('tmaTitle')}</h3>
                   <p className="text-xs text-on-surface-variant mt-0.5">
-                    Structural and interior changes requested by buyers during construction. Accepted addenda update unit balances.
+                    {tp('tmaBody')}
                   </p>
                 </div>
               </div>
@@ -808,25 +820,25 @@ function ProgramDetailPageInner() {
               {tmaRequests.length === 0 ? (
                 <div className="p-12 text-center text-sm text-on-surface-variant border border-dashed border-surface-container-high rounded-xl">
                   <Wrench className="w-10 h-10 mx-auto mb-2 opacity-40 text-on-surface-variant" />
-                  <p className="font-semibold text-on-surface">No change order requests yet</p>
+                  <p className="font-semibold text-on-surface">{tp('tmaEmpty')}</p>
                   <p className="text-xs text-on-surface-variant mt-1">
-                    Select a reserved unit in the Stacking Plan and click &quot;Request Customization (TMA)&quot; to begin.
+                    {tp('tmaEmptyBody')}
                   </p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-start text-xs">
                     <thead>
                       <tr className="border-b border-surface-container-high text-on-surface-variant font-semibold">
-                        <th className="py-2.5 px-3">Reference</th>
-                        <th className="py-2.5 px-3">Unit</th>
-                        <th className="py-2.5 px-3">Buyer</th>
-                        <th className="py-2.5 px-3">Category</th>
-                        <th className="py-2.5 px-3">Title</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3">Internal Cost</th>
-                        <th className="py-2.5 px-3">Price Quote</th>
-                        <th className="py-2.5 px-3 text-right">Actions</th>
+                        <th className="py-2.5 px-3">{tp('colReference')}</th>
+                        <th className="py-2.5 px-3">{tp('colUnit')}</th>
+                        <th className="py-2.5 px-3">{tp('colBuyer')}</th>
+                        <th className="py-2.5 px-3">{tp('colCategory')}</th>
+                        <th className="py-2.5 px-3">{tp('colTitle')}</th>
+                        <th className="py-2.5 px-3">{tp('colStatus')}</th>
+                        <th className="py-2.5 px-3">{tp('colCost')}</th>
+                        <th className="py-2.5 px-3">{tp('colQuote')}</th>
+                        <th className="py-2.5 px-3 text-end">{tp('colActions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-surface-container-high">
@@ -841,23 +853,23 @@ function ProgramDetailPageInner() {
                                 ? `${req.buyerLead.firstName || ''} ${req.buyerLead.lastName || ''}`
                                 : '—'}
                             </td>
-                            <td className="py-2.5 px-3 font-medium uppercase">{req.category}</td>
+                            <td className="py-2.5 px-3 font-medium">{named('tmaCategory', req.category)}</td>
                             <td className="py-2.5 px-3 max-w-xs truncate" title={req.title}>
                               {req.title}
                             </td>
                             <td className="py-2.5 px-3">
                               <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${style.text} ${style.bg}`}>
-                                {style.label}
+                                {named('tmaStatus', req.status)}
                               </span>
                             </td>
                             <td className="py-2.5 px-3 font-mono text-on-surface-variant">
                               {req.costEstimate > 0
-                                ? req.costEstimate.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+                                ? req.costEstimate.toLocaleString(undefined, { style: 'currency', currency })
                                 : '—'}
                             </td>
                             <td className="py-2.5 px-3 font-mono font-bold text-primary">
                               {req.priceQuote > 0
-                                ? req.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+                                ? req.priceQuote.toLocaleString(undefined, { style: 'currency', currency })
                                 : '—'}
                             </td>
                             <td className="py-2.5 px-3 text-right">
@@ -865,7 +877,7 @@ function ProgramDetailPageInner() {
                                 onClick={() => setReviewTma(req)}
                                 className={`${secondaryButton} text-xs py-1 px-2.5`}
                               >
-                                Review / Quote
+                                {tp('review')}
                               </button>
                             </td>
                           </tr>
@@ -883,24 +895,24 @@ function ProgramDetailPageInner() {
         {activeTab === 'table' && (
           <div className="p-6 bg-surface rounded-xl border border-surface-container-high shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-on-surface">All Units Inventory</h3>
-              <span className="text-xs text-on-surface-variant">{lots.length} total units</span>
+              <h3 className="text-lg font-bold text-on-surface">{tp('tableTitle')}</h3>
+              <span className="text-xs text-on-surface-variant">{tp('tableCount', { count: lots.length })}</span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-start text-xs">
                 <thead>
                   <tr className="border-b border-surface-container-high text-on-surface-variant font-semibold">
-                    <th className="py-3 px-3">Lot #</th>
-                    <th className="py-3 px-3">Building</th>
-                    <th className="py-3 px-3">Type</th>
-                    <th className="py-3 px-3">Floor</th>
-                    <th className="py-3 px-3">Surface</th>
-                    <th className="py-3 px-3">Price Pre-Tax</th>
-                    <th className="py-3 px-3">Total Incl. VAT</th>
-                    <th className="py-3 px-3">Status</th>
-                    <th className="py-3 px-3">Buyer / Holder</th>
-                    <th className="py-3 px-3 text-right">Actions</th>
+                    <th className="py-3 px-3">{tp('colUnit')}</th>
+                    <th className="py-3 px-3">{tp('colBuilding')}</th>
+                    <th className="py-3 px-3">{tp('colType')}</th>
+                    <th className="py-3 px-3">{tp('colFloor')}</th>
+                    <th className="py-3 px-3">{tp('colSurface')}</th>
+                    <th className="py-3 px-3">{tp('colPriceHt')}</th>
+                    <th className="py-3 px-3">{tp('colPriceTtc')}</th>
+                    <th className="py-3 px-3">{tp('colStatus')}</th>
+                    <th className="py-3 px-3">{tp('colBuyerHolder')}</th>
+                    <th className="py-3 px-3 text-end">{tp('colActions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-container-high">
@@ -910,39 +922,40 @@ function ProgramDetailPageInner() {
                       <tr key={lot.id} className="hover:bg-surface-container-high/20">
                         <td className="py-3 px-3 font-bold">{lot.lotNumber}</td>
                         <td className="py-3 px-3 text-on-surface-variant">
-                          {lot.building?.name || 'Main'}
+                          {lot.building?.name || tp('mainBuilding')}
                         </td>
                         <td className="py-3 px-3 font-medium uppercase">{lot.typology || lot.type}</td>
                         <td className="py-3 px-3">
-                          {lot.floor === 0 ? 'RDC' : lot.floor > 0 ? `+${lot.floor}` : lot.floor}
+                          {lot.floor === 0 ? tp('floorShortGround') : lot.floor > 0 ? `+${lot.floor}` : lot.floor}
                         </td>
                         <td className="py-3 px-3">{lot.surfaceArea} m²</td>
                         <td className="py-3 px-3 font-mono">
-                          {lot.basePrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                          {lot.basePrice.toLocaleString(undefined, { style: 'currency', currency })}
                         </td>
                         <td className="py-3 px-3 font-mono font-bold">
-                          {lot.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                          {lot.totalPrice.toLocaleString(undefined, { style: 'currency', currency })}
                         </td>
                         <td className="py-3 px-3">
                           <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${style.text} ${style.bg}`}>
-                            {style.label}
+                            {named('unitStatus', lot.status)}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-on-surface-variant">
                           {lot.buyerLead
                             ? `${lot.buyerLead.firstName || ''} ${lot.buyerLead.lastName || ''}`
                             : lot.optionHolderLead
-                            ? `Hold: ${lot.optionHolderLead.firstName || ''}`
+                            ? tp('holdFor', { name: lot.optionHolderLead.firstName || '' })
                             : '—'}
                         </td>
-                        <td className="py-3 px-3 text-right space-x-2">
+                        <td className="py-3 px-3 text-end space-x-2">
                           <button
                             onClick={() => {
                               setEditingLot(lot);
                               setShowLotModal(true);
                             }}
                             className="p-1 hover:text-primary transition-colors"
-                            title="Edit"
+                            title={tp('edit')}
+                            aria-label={tp('edit')}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -965,13 +978,14 @@ function ProgramDetailPageInner() {
                 <div className="flex items-center justify-between border-b border-surface-container-high pb-4">
                   <div>
                     <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
-                      Unit Card
+                      {tp('unitCard')}
                     </span>
-                    <h2 className="text-xl font-bold text-on-surface mt-1">Lot {selectedLot.lotNumber}</h2>
+                    <h2 className="text-xl font-bold text-on-surface mt-1">{tp('unitTitle', { number: selectedLot.lotNumber })}</h2>
                   </div>
                   <button
                     onClick={() => setSelectedLot(null)}
                     className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-lg"
+                    aria-label={tp('close')}
                   >
                     ✕
                   </button>
@@ -980,13 +994,13 @@ function ProgramDetailPageInner() {
                 {/* Status Badge & Fast Action Bar */}
                 <div className="p-4 bg-surface-container-high/50 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-on-surface-variant">Current Status</span>
+                    <span className="text-xs font-semibold text-on-surface-variant">{tp('currentStatus')}</span>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                         STATUS_COLORS[selectedLot.status]?.text
                       } ${STATUS_COLORS[selectedLot.status]?.bg}`}
                     >
-                      {STATUS_COLORS[selectedLot.status]?.label}
+                      {named('unitStatus', selectedLot.status)}
                     </span>
                   </div>
 
@@ -999,14 +1013,14 @@ function ProgramDetailPageInner() {
                           className={`${secondaryButton} text-xs py-2 flex items-center justify-center gap-1.5`}
                         >
                           <Lock className="w-3.5 h-3.5" />
-                          <span>Put on Hold (48h)</span>
+                          <span>{tp('putOnHold')}</span>
                         </button>
                         <button
                           onClick={() => setReserveLot(selectedLot)}
                           className={`${primaryButton} text-xs py-2 flex items-center justify-center gap-1.5`}
                         >
                           <UserCheck className="w-3.5 h-3.5" />
-                          <span>Reserve Unit</span>
+                          <span>{tp('reserve')}</span>
                         </button>
                       </>
                     )}
@@ -1018,21 +1032,21 @@ function ProgramDetailPageInner() {
                           className={`${dangerButton} text-xs py-2 flex items-center justify-center gap-1.5`}
                         >
                           <Unlock className="w-3.5 h-3.5" />
-                          <span>Release Hold</span>
+                          <span>{tp('releaseHold')}</span>
                         </button>
                         <button
                           onClick={() => setReserveLot(selectedLot)}
                           className={`${primaryButton} text-xs py-2 flex items-center justify-center gap-1.5`}
                         >
                           <UserCheck className="w-3.5 h-3.5" />
-                          <span>Confirm Reserve</span>
+                          <span>{tp('confirmReserve')}</span>
                         </button>
                       </>
                     )}
 
                     {selectedLot.status === 'reserved' && (
                       <div className="col-span-2 text-center text-xs text-blue-800 font-semibold p-2 bg-blue-50 rounded">
-                        Unit is reserved. Subsequent calls for funds apply.
+                        {tp('reservedNote')}
                       </div>
                     )}
                   </div>
@@ -1044,34 +1058,34 @@ function ProgramDetailPageInner() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-on-surface">
                         <ShieldCheck className="w-4 h-4 text-amber-500" />
-                        <span>Client Construction Space</span>
+                        <span>{tp('portalTitle')}</span>
                       </div>
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-300">
-                        Hybrid Security
+                        {tp('portalBadge')}
                       </span>
                     </div>
 
                     <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                      Public 24-month construction diary & drone photo feed. Invoices, calls for funds, and TMA signatures are protected by on-demand 6-digit OTP sent to registered buyer.
+                      {tp('portalBody')}
                     </p>
 
                     {selectedLot.buyerLead?.email ? (
                       <div className="p-2 bg-surface rounded-lg border border-surface-container-high text-[11px] space-y-0.5">
-                        <span className="text-on-surface-variant block text-[10px] font-semibold">Registered Buyer:</span>
+                        <span className="text-on-surface-variant block text-[10px] font-semibold">{tp('registeredBuyer')}</span>
                         <strong className="text-on-surface block truncate">
                           {selectedLot.buyerLead.firstName} {selectedLot.buyerLead.lastName} ({selectedLot.buyerLead.email})
                         </strong>
                       </div>
                     ) : selectedLot.optionHolderLead?.email ? (
                       <div className="p-2 bg-surface rounded-lg border border-surface-container-high text-[11px] space-y-0.5">
-                        <span className="text-on-surface-variant block text-[10px] font-semibold">Option Holder:</span>
+                        <span className="text-on-surface-variant block text-[10px] font-semibold">{tp('optionHolder')}</span>
                         <strong className="text-on-surface block truncate">
                           {selectedLot.optionHolderLead.firstName} {selectedLot.optionHolderLead.lastName} ({selectedLot.optionHolderLead.email})
                         </strong>
                       </div>
                     ) : (
                       <div className="p-2 bg-surface rounded-lg border border-dashed border-surface-container-high text-[11px] text-on-surface-variant italic">
-                        No purchaser attached yet. Link can be previewed or sent to prospective buyers.
+                        {tp('noPurchaser')}
                       </div>
                     )}
 
@@ -1084,12 +1098,12 @@ function ProgramDetailPageInner() {
                         {copiedPortalToken ? (
                           <>
                             <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            <span>Copied Link!</span>
+                            <span>{tp('linkCopied')}</span>
                           </>
                         ) : (
                           <>
                             <Copy className="w-3.5 h-3.5" />
-                            <span>Copy Link</span>
+                            <span>{tp('copyLink')}</span>
                           </>
                         )}
                       </button>
@@ -1101,7 +1115,7 @@ function ProgramDetailPageInner() {
                         className={`${primaryButton} text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1.5`}
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Open Portal</span>
+                        <span>{tp('openPortal')}</span>
                       </a>
                     </div>
                   </div>
@@ -1111,7 +1125,7 @@ function ProgramDetailPageInner() {
                 {['reserved', 'contract_signed', 'deed_signed', 'delivered'].includes(selectedLot.status) && (
                   <div className="space-y-3 pt-2 border-t border-surface-container-high">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                      Sale &amp; documents
+                      {tp('saleDocs')}
                     </h4>
                     <UnitDocuments
                       workspaceId={workspaceId}
@@ -1127,29 +1141,29 @@ function ProgramDetailPageInner() {
                 {/* Characteristics */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                    Specifications
+                    {tp('specs')}
                   </h4>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="p-3 bg-surface-container-high/30 rounded-lg">
-                      <span className="text-on-surface-variant block">Typology</span>
+                      <span className="text-on-surface-variant block">{tp('typology')}</span>
                       <strong className="text-on-surface text-sm uppercase">
                         {selectedLot.typology || selectedLot.type}
                       </strong>
                     </div>
                     <div className="p-3 bg-surface-container-high/30 rounded-lg">
-                      <span className="text-on-surface-variant block">Habitable Surface</span>
+                      <span className="text-on-surface-variant block">{tp('surface')}</span>
                       <strong className="text-on-surface text-sm">{selectedLot.surfaceArea} m²</strong>
                     </div>
                     <div className="p-3 bg-surface-container-high/30 rounded-lg">
-                      <span className="text-on-surface-variant block">Floor</span>
+                      <span className="text-on-surface-variant block">{tp('floor')}</span>
                       <strong className="text-on-surface text-sm">
-                        {selectedLot.floor === 0 ? 'Ground' : `Floor ${selectedLot.floor}`}
+                        {selectedLot.floor === 0 ? tp('floorGround') : tp('floorValue', { n: selectedLot.floor })}
                       </strong>
                     </div>
                     <div className="p-3 bg-surface-container-high/30 rounded-lg">
-                      <span className="text-on-surface-variant block">Orientation</span>
+                      <span className="text-on-surface-variant block">{tp('orientation')}</span>
                       <strong className="text-on-surface text-sm">
-                        {selectedLot.orientation || 'South'}
+                        {selectedLot.orientation || '—'}
                       </strong>
                     </div>
                   </div>
@@ -1158,33 +1172,33 @@ function ProgramDetailPageInner() {
                 {/* Financial Breakdown */}
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                    Pricing Breakdown
+                    {tp('pricing')}
                   </h4>
                   <div className="p-4 bg-surface-container-high/40 rounded-xl space-y-2 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-on-surface-variant">Pre-Tax Base (HT)</span>
+                      <span className="text-on-surface-variant">{tp('priceHt')}</span>
                       <span className="font-mono font-medium">
-                        {selectedLot.basePrice.toLocaleString('fr-FR', {
+                        {selectedLot.basePrice.toLocaleString(undefined, {
                           style: 'currency',
-                          currency: 'EUR',
+                          currency,
                         })}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-on-surface-variant">VAT ({selectedLot.taxRate}%)</span>
+                      <span className="text-on-surface-variant">{tp('vat', { rate: selectedLot.taxRate })}</span>
                       <span className="font-mono font-medium">
-                        {(selectedLot.totalPrice - selectedLot.basePrice).toLocaleString('fr-FR', {
+                        {(selectedLot.totalPrice - selectedLot.basePrice).toLocaleString(undefined, {
                           style: 'currency',
-                          currency: 'EUR',
+                          currency,
                         })}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm font-bold pt-2 border-t border-surface-container-high text-primary">
-                      <span>Total All-Inclusive</span>
+                      <span>{tp('priceTtc')}</span>
                       <span>
-                        {selectedLot.totalPrice.toLocaleString('fr-FR', {
+                        {selectedLot.totalPrice.toLocaleString(undefined, {
                           style: 'currency',
-                          currency: 'EUR',
+                          currency,
                         })}
                       </span>
                     </div>
@@ -1195,7 +1209,7 @@ function ProgramDetailPageInner() {
                 <div className="space-y-3 pt-2 border-t border-surface-container-high">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                      Customizations (*TMA*)
+                      {tp('customizations')}
                     </h4>
                     {(selectedLot.status === 'optioned' ||
                       selectedLot.status === 'reserved' ||
@@ -1205,13 +1219,13 @@ function ProgramDetailPageInner() {
                         className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Request TMA</span>
+                        <span>{tp('requestTma')}</span>
                       </button>
                     )}
                   </div>
 
                   {currentLotTmas.length === 0 ? (
-                    <p className="text-xs text-on-surface-variant italic">No change orders on this lot.</p>
+                    <p className="text-xs text-on-surface-variant italic">{tp('noTmaOnLot')}</p>
                   ) : (
                     <div className="space-y-2">
                       {currentLotTmas.map((req: any) => {
@@ -1225,17 +1239,17 @@ function ProgramDetailPageInner() {
                             <div className="flex items-center justify-between text-xs">
                               <span className="font-bold text-on-surface">{req.title}</span>
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${style.text} ${style.bg}`}>
-                                {style.label}
+                                {named('tmaStatus', req.status)}
                               </span>
                             </div>
                             <div className="flex justify-between text-[11px] text-on-surface-variant">
-                              <span className="font-mono uppercase">{req.category}</span>
+                              <span>{named('tmaCategory', req.category)}</span>
                               {req.priceQuote > 0 && (
                                 <span className="font-bold text-primary">
                                   +
-                                  {req.priceQuote.toLocaleString('fr-FR', {
+                                  {req.priceQuote.toLocaleString(undefined, {
                                     style: 'currency',
-                                    currency: 'EUR',
+                                    currency,
                                   })}
                                 </span>
                               )}
@@ -1257,7 +1271,7 @@ function ProgramDetailPageInner() {
                   }}
                   className={`${secondaryButton} flex-1 text-xs py-2`}
                 >
-                  Edit Lot Details
+                  {tp('editUnit')}
                 </button>
               </div>
             </div>
@@ -1280,7 +1294,7 @@ function ProgramDetailPageInner() {
             setShowLotModal(false);
             setEditingLot(null);
             setSelectedLot(savedLot);
-            setToast({ message: 'Lot saved successfully!', type: 'success' });
+            setToast({ message: tp('toastSaved'), type: 'success' });
             fetchProgramData();
           }}
         />
@@ -1295,7 +1309,7 @@ function ProgramDetailPageInner() {
           onSuccess={(updated) => {
             setOptionLot(null);
             setSelectedLot(updated);
-            setToast({ message: 'Lot locked on temporary hold!', type: 'success' });
+            setToast({ message: tp('toastOnHold'), type: 'success' });
             fetchProgramData();
           }}
         />
@@ -1310,7 +1324,7 @@ function ProgramDetailPageInner() {
           onSuccess={(updated) => {
             setReserveLot(null);
             setSelectedLot(updated);
-            setToast({ message: 'Lot reserved successfully!', type: 'success' });
+            setToast({ message: tp('toastReserved'), type: 'success' });
             fetchProgramData();
           }}
         />
@@ -1326,7 +1340,7 @@ function ProgramDetailPageInner() {
             setCertifyMilestone(null);
             const count = result.billingResult?.generatedCount || 0;
             setToast({
-              message: `Milestone certified! ${count} Call(s) for Funds generated.`,
+              message: tp('toastCertified', { count }),
               type: 'success',
             });
             fetchProgramData();
@@ -1342,7 +1356,7 @@ function ProgramDetailPageInner() {
           onClose={() => setShowTmaLot(null)}
           onSuccess={(newTma) => {
             setShowTmaLot(null);
-            setToast({ message: `Change order ${newTma.reference} submitted!`, type: 'success' });
+            setToast({ message: tp('toastTmaCreated', { ref: newTma.reference }), type: 'success' });
             fetchProgramData();
           }}
         />
@@ -1356,7 +1370,7 @@ function ProgramDetailPageInner() {
           onClose={() => setReviewTma(null)}
           onSuccess={(updatedTma) => {
             setReviewTma(null);
-            setToast({ message: `TMA ${updatedTma.reference} updated successfully!`, type: 'success' });
+            setToast({ message: tp('toastTmaUpdated', { ref: updatedTma.reference }), type: 'success' });
             fetchProgramData();
           }}
         />

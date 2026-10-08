@@ -170,6 +170,16 @@ export async function DELETE(
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
+        // An account works in one workspace of its own and cannot make another,
+        // so the last one it owns stays.
+        const owned = await prisma.workspace.count({ where: { ownerId: session.user.id } })
+        if (owned <= 1) {
+            return NextResponse.json(
+                { error: 'This is your only workspace, so it cannot be deleted.', code: 'LAST_WORKSPACE' },
+                { status: 409 }
+            )
+        }
+
         await prisma.workspace.delete({
             where: { id: params.id },
         })

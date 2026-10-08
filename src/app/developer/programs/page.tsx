@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building, Plus, Search, MapPin, Calendar, CheckCircle2, Clock, Layers } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -12,7 +13,9 @@ import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { primaryButton, secondaryButton, inputClass } from '@/components/realestate/ui';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { Kpi, KpiGrid, Meter } from '@/components/developer/kpi';
+import { PROJECT_STATUSES } from '@/lib/crm/projects';
 
 function ProgramsPageInner() {
   const router = useRouter();
@@ -89,62 +92,39 @@ function ProgramsPageInner() {
     <AppShell>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-2 bg-primary/10 text-primary rounded-lg">
-                <Building className="w-6 h-6" />
-              </span>
-              <h1 className="text-2xl font-bold text-on-surface">Projects</h1>
-            </div>
-            <p className="text-sm text-on-surface-variant mt-1">
-              Residential developments, interactive lot inventory, and construction milestone tracking.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
+        <PageHeader
+          icon={Building}
+          title={t('realEstate.projects.title')}
+          subtitle={t('developerGuide.desc.projects')}
+          guide="projects"
+          actions={
             <button
               onClick={() => setShowModal(true)}
               className={`${primaryButton} flex items-center gap-2`}
             >
               <Plus className="w-4 h-4" />
-              <span>New Project</span>
+              <span>{t('developerDashboard.newProject')}</span>
             </button>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Global Developer Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-on-surface-variant">Projects</span>
-            <p className="text-2xl font-bold text-on-surface mt-1">{stats.totalPrograms}</p>
-          </div>
-          <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-on-surface-variant">Total Lots</span>
-            <p className="text-2xl font-bold text-on-surface mt-1">{stats.totalLots}</p>
-          </div>
-          <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-emerald-600">Available</span>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.available}</p>
-          </div>
-          <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-amber-600">Reserved / Optioned</span>
-            <p className="text-2xl font-bold text-amber-600 mt-1">{stats.reserved}</p>
-          </div>
-          <div className="p-4 bg-surface rounded-xl border border-surface-container-high shadow-sm">
-            <span className="text-xs font-medium text-blue-600">Pre-Sale Rate</span>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{stats.preSaleRate}%</p>
-          </div>
-        </div>
+        {/* Across all projects, in the dashboard's own figures. */}
+        <KpiGrid cols={5}>
+          <Kpi label={t('realEstate.projects.title')} value={stats.totalPrograms} />
+          <Kpi label={t('realEstate.projects.stats.totalUnits')} value={stats.totalLots} />
+          <Kpi label={t('realEstate.projects.stats.available')} value={stats.available} tone="text-emerald-700 dark:text-emerald-400" />
+          <Kpi label={t('realEstate.projects.stats.reserved')} value={stats.reserved} sub={t('realEstate.projects.stats.reservedHint')} tone="text-amber-700 dark:text-amber-400" />
+          <Kpi label={t('realEstate.projects.stats.sellThrough')} value={`${stats.preSaleRate}%`} tone="text-secondary" />
+        </KpiGrid>
 
         {/* Filters and Search Bar */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 bg-surface p-4 rounded-xl border border-surface-container-high shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center gap-3 p-4 rounded-xl border border-outline-variant/20 bg-surface-container-lowest/50">
           <div className="relative flex-1 w-full">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-on-surface-variant" />
+            <Search className="w-4 h-4 absolute start-3 top-3 text-on-surface-variant" />
             <input
               type="text"
-              className={`${inputClass} pl-9`}
-              placeholder="Search projects by name, reference, or city..."
+              className={`${inputClass} ps-9`}
+              placeholder={t('developerProjectList.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchPrograms()}
@@ -157,12 +137,10 @@ function ProgramsPageInner() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="">All Statuses</option>
-              <option value="study">Feasibility / Study</option>
-              <option value="commercialization">Commercialization</option>
-              <option value="construction">Under Construction</option>
-              <option value="delivery">Delivery Phase</option>
-              <option value="completed">Completed</option>
+              <option value="">{t('developerProjectList.allStatuses')}</option>
+              {PROJECT_STATUSES.map((status) => (
+                <option key={status} value={status}>{t(`developerProjectPage.programStatus.${status}` as MessageKey)}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -171,14 +149,12 @@ function ProgramsPageInner() {
         {loading ? (
           <PageSkeleton />
         ) : programs.length === 0 ? (
-          <div className="p-12 text-center bg-surface rounded-xl border border-dashed border-surface-container-high">
-            <Building className="w-12 h-12 text-on-surface-variant mx-auto mb-3 opacity-40" />
-            <h3 className="text-lg font-semibold text-on-surface">No projects yet</h3>
-            <p className="text-sm text-on-surface-variant mt-1 max-w-sm mx-auto">
-              Start by creating your first residential or commercial development project.
-            </p>
-            <button onClick={() => setShowModal(true)} className={`${primaryButton} mt-4`}>
-              Create Program
+          <div className="py-16 text-center border border-dashed border-outline-variant/40 rounded-xl">
+            <Building className="w-8 h-8 text-on-surface-variant/50 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-on-surface mb-1">{t('developerProjectList.emptyTitle')}</h3>
+            <p className="text-sm text-on-surface-variant max-w-sm mx-auto mb-5">{t('developerProjectList.emptyBody')}</p>
+            <button onClick={() => setShowModal(true)} className={primaryButton}>
+              {t('developerProjectList.createFirst')}
             </button>
           </div>
         ) : (
@@ -192,7 +168,7 @@ function ProgramsPageInner() {
               return (
                 <div
                   key={program.id}
-                  className="bg-surface rounded-xl border border-surface-container-high shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between overflow-hidden"
+                  className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest hover:border-secondary/40 transition-colors flex flex-col justify-between overflow-hidden"
                 >
                   {/* Cover. A development is bought on how it looks, so the card
                       leads with the image when there is one and stays compact
@@ -215,8 +191,8 @@ function ProgramsPageInner() {
                       <span className="text-xs font-mono px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-medium">
                         {program.reference}
                       </span>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-medium capitalize bg-primary/10 text-primary">
-                        {program.status}
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-secondary/10 text-secondary">
+                        {t(`developerProjectPage.programStatus.${program.status}` as MessageKey)}
                       </span>
                     </div>
 
@@ -234,17 +210,14 @@ function ProgramsPageInner() {
                     </div>
 
                     {/* Sales Progress Bar */}
-                    <div className="space-y-1.5 pt-2 border-t border-surface-container-high">
+                    <div className="space-y-1.5 pt-3 border-t border-outline-variant/20">
                       <div className="flex justify-between text-xs text-on-surface-variant">
-                        <span>Commercialization</span>
-                        <span className="font-semibold text-on-surface">{sellRatio}% Sold / Reserved</span>
+                        <span>{t('developerSales.stage.title')}</span>
+                        <span className="font-semibold text-on-surface tabular-nums">
+                          {t('developerProjectList.soldReserved', { percent: sellRatio })}
+                        </span>
                       </div>
-                      <div className="h-2 w-full bg-surface-container-high rounded-full overflow-hidden flex">
-                        <div
-                          className="bg-primary h-full transition-all"
-                          style={{ width: `${sellRatio}%` }}
-                        />
-                      </div>
+                      <Meter percent={sellRatio} label={t('developerSales.stage.title')} />
                     </div>
 
                     {/* Sales against plan, and what is still owed. Targets are optional,
@@ -279,22 +252,12 @@ function ProgramsPageInner() {
                     )}
 
                     {/* Unit distribution pills */}
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                      <div className="p-2 bg-surface-container-high/60 rounded">
-                        <span className="block text-on-surface-variant">Total</span>
-                        <strong className="text-on-surface text-sm">{program.totalUnits}</strong>
-                      </div>
-                      <div className="p-2 bg-emerald-50 rounded">
-                        <span className="block text-emerald-700">Available</span>
-                        <strong className="text-emerald-800 text-sm">{program.availableUnits}</strong>
-                      </div>
-                      <div className="p-2 bg-blue-50 rounded">
-                        <span className="block text-blue-700">Reserved</span>
-                        <strong className="text-blue-800 text-sm">
-                          {program.reservedUnits + program.soldUnits}
-                        </strong>
-                      </div>
-                    </div>
+                    <KpiGrid cols={4} fixed>
+                      <Kpi compact label={t('developerProjectPage.statTotal')} value={program.totalUnits} />
+                      <Kpi compact label={t('realEstate.projects.stats.available')} value={program.availableUnits} tone="text-emerald-700 dark:text-emerald-400" />
+                      <Kpi compact label={t('realEstate.projects.stats.reserved')} value={program.reservedUnits} tone="text-amber-700 dark:text-amber-400" />
+                      <Kpi compact label={t('realEstate.projects.stats.sold')} value={program.soldUnits} tone="text-secondary" />
+                    </KpiGrid>
 
                     {program.launchDate && (
                       <p className="text-xs text-on-surface-variant">
@@ -304,34 +267,32 @@ function ProgramsPageInner() {
                     )}
 
                     {/* Metadata Footer */}
-                    <div className="flex items-center justify-between text-xs text-on-surface-variant pt-2 border-t border-surface-container-high">
+                    <div className="flex items-center justify-between text-xs text-on-surface-variant pt-3 border-t border-outline-variant/20">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         <span>
-                          Delivery:{' '}
-                          {program.targetDeliveryDate
-                            ? new Date(program.targetDeliveryDate).toLocaleDateString('fr-FR', {
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : 'TBD'}
+                          {t('developerProjectPage.deliveryTarget', {
+                            date: program.targetDeliveryDate
+                              ? new Date(program.targetDeliveryDate).toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+                              : t('developerProjectList.tbd'),
+                          })}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Layers className="w-3.5 h-3.5" />
-                        <span>{program.buildings?.length || 1} Building(s)</span>
+                        <span>{t('developerProjectList.buildings', { count: program.buildings?.length || 1 })}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Card Action Link */}
-                  <div className="p-3 bg-surface-container-high/30 border-t border-surface-container-high flex justify-end">
+                  <div className="p-3 border-t border-outline-variant/20 flex justify-end">
                     <Link
                       href={`/developer/programs/${program.id}?workspace=${workspaceId}`}
                       className={`${primaryButton} text-xs py-1.5 px-3 flex items-center gap-1.5`}
                     >
-                      <span>Open Stacking Plan</span>
-                      <span>→</span>
+                      <span>{t('developerProjectList.open')}</span>
+                      <span className="rtl:rotate-180">→</span>
                     </Link>
                   </div>
                 </div>
@@ -347,7 +308,7 @@ function ProgramsPageInner() {
           onClose={() => setShowModal(false)}
           onSuccess={(newProgram) => {
             setShowModal(false);
-            setToast({ message: 'Project created successfully!', type: 'success' });
+            setToast({ message: t('developerProjectList.created'), type: 'success' });
             fetchPrograms();
           }}
         />

@@ -134,8 +134,12 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
   )
 
   // Baseline data accessible without password (construction diary, photos, unit specs)
+  // Amounts on the portal are in the developer's own currency.
+  const workspace = await prisma.workspace.findUnique({ where: { id: lot.workspaceId }, select: { currency: true } })
+
   const portalData: any = {
     isVerified,
+    currency: workspace?.currency || 'EUR',
     lot: {
       id: lot.id,
       lotNumber: lot.lotNumber,
@@ -161,6 +165,7 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
       postalCode: lot.program.postalCode,
       targetDeliveryDate: lot.program.targetDeliveryDate,
       architectName: lot.program.architectName,
+      countryCode: lot.program.countryCode,
       gfaBank: lot.program.gfaBank,
       status: lot.program.status,
       media: lot.program.media,

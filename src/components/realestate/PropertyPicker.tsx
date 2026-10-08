@@ -92,7 +92,7 @@ export default function PropertyPicker({
                         <button
                             key={property.id}
                             type="button"
-                            onClick={() => { onChange(property); setOpen(false); setQuery(''); }}
+                            onClick={(e) => { e.preventDefault(); /* see ContactPicker: inside a <label>, the default click would hit the clear button */ onChange(property); setOpen(false); setQuery(''); }}
                             className="w-full text-left px-3 py-2 hover:bg-surface-container-high transition-colors"
                         >
                             <span className="body-md text-on-surface">{property.title}</span>

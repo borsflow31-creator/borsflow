@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { Paperclip } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import { matchesOwnerFilter, type OwnerFilterValue } from '@/components/developer/OwnerFilter';
@@ -126,6 +127,7 @@ export default function PipelineBoard({
     ownerFilter = '',
 }: PipelineBoardProps) {
     const { t, formatCurrency, locale } = useI18n();
+    const workspaceCurrency = useWorkspaceCurrency(pipeline.workspaceId);
     const { data: session } = useSession();
     const isDeveloper = session?.user?.businessType === 'DEVELOPER';
     const agents = useWorkspaceAgents(workspaceId ?? pipeline.workspaceId);
@@ -269,7 +271,7 @@ export default function PipelineBoard({
 
     const formatValue = (value?: number | null) => {
         if (value == null) return '-';
-        return formatCurrency(value, 'USD');
+        return formatCurrency(value, workspaceCurrency);
     };
 
     if (loading) {

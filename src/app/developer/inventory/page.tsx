@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { LayoutGrid, Loader2, Rows3, Table2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -14,8 +15,9 @@ import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import {
     Chip, LOT_STATUS_LABEL, LOT_STATUS_TILE, LOT_STATUS_TONE, tableClass, tdClass, thClass,
 } from '@/components/developer/status';
-import { useI18n } from '@/i18n/I18nProvider';
-import { LOT_STATUSES } from '@/lib/crm/projects';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { LOT_STATUSES, summarizeUnits } from '@/lib/crm/projects';
+import { Kpi, KpiGrid } from '@/components/developer/kpi';
 
 const LOT_TYPES = ['apartment', 'house', 'parking', 'box', 'cellar', 'commercial'] as const;
 /** A deal exists on these, so a sale can be cancelled. */
@@ -39,6 +41,12 @@ function personName(p?: { firstName: string; lastName: string } | null): string 
 function InventoryInner() {
     const { workspaceId, ready } = useWorkspaceParam();
     const { t, formatNumber, formatDate } = useI18n();
+    /** A unit type in the reader's language ("apartment" -> "Appartement"); unknown types as stored. */
+    const typeName = (type: string) => {
+        const key = `developerProjectDialogs.type${type.charAt(0).toUpperCase()}${type.slice(1)}` as MessageKey;
+        const name = t(key);
+        return name === key ? type : name;
+    };
     const currency = useWorkspaceCurrency(workspaceId);
     const agents = useWorkspaceAgents(workspaceId);
 
@@ -114,11 +122,9 @@ function InventoryInner() {
         return out;
     }, [lots]);
 
-    const totals = useMemo(() => {
-        let value = 0;
-        for (const l of lots) value += l.totalPrice ?? 0;
-        return { count: lots.length, value };
-    }, [lots]);
+    // The same buckets as the dashboard and the project pages (an option counts as
+    // reserved, a signed deed as sold), for the units the filters show.
+    const totals = useMemo(() => summarizeUnits(lots), [lots]);
 
     if (!ready) return <PageSkeleton />;
     if (!workspaceId) return <AppShell><NoWorkspace /></AppShell>;
@@ -140,36 +146,42 @@ function InventoryInner() {
     return (
         <AppShell>
             <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-5">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 bg-primary/10 text-primary rounded-lg"><LayoutGrid className="w-6 h-6" /></span>
-                            <h1 className="text-2xl font-bold text-on-surface">{t('developer.inventoryTitle')}</h1>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mt-1">
-                            {t('developer.inventorySubtitle')} · {t('developer.unitsCount', { count: totals.count })} · {moneyCompact(totals.value)}
-                        </p>
-                    </div>
-                    <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
-                        {([['table', Table2, 'developer.inventoryTableView'], ['building', Rows3, 'developer.inventoryBuildingView']] as const).map(([key, Icon, label]) => (
-                            <button
-                                key={key}
-                                role="tab"
-                                aria-selected={view === key}
-                                onClick={() => setView(key)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                    view === key ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                                }`}
-                            >
-                                <Icon className="h-3.5 w-3.5" />
-                                {t(label)}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <PageHeader
+                    icon={LayoutGrid}
+                    title={t('developer.inventoryTitle')}
+                    subtitle={t('developer.inventorySubtitle')}
+                    guide="inventory"
+                    actions={
+                        <>
+                            <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
+                                {([['table', Table2, 'developer.inventoryTableView'], ['building', Rows3, 'developer.inventoryBuildingView']] as const).map(([key, Icon, label]) => (
+                                    <button
+                                        key={key}
+                                        role="tab"
+                                        aria-selected={view === key}
+                                        onClick={() => setView(key)}
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                            view === key ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                                        }`}
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {t(label)}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    }
+                />
+
+                <KpiGrid>
+                    <Kpi label={t('realEstate.projects.stats.totalUnits')} value={totals.total} sub={moneyCompact(totals.totalValue)} />
+                    <Kpi label={t('realEstate.projects.stats.available')} value={totals.available} sub={moneyCompact(totals.availableValue)} tone="text-emerald-700 dark:text-emerald-400" />
+                    <Kpi label={t('realEstate.projects.stats.reserved')} value={totals.reserved} sub={t('realEstate.projects.stats.reservedHint')} tone="text-amber-700 dark:text-amber-400" />
+                    <Kpi label={t('realEstate.projects.stats.sold')} value={totals.sold} sub={moneyCompact(totals.soldValue)} tone="text-secondary" />
+                </KpiGrid>
 
                 {/* Filters */}
-                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-4 2xl:grid-cols-8 gap-2">
                     <select className={selectClass} value={filters.programId} onChange={(e) => set({ programId: e.target.value, buildingId: '' })} aria-label={t('developer.filterAllProjects')}>
                         <option value="">{t('developer.filterAllProjects')}</option>
                         {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -182,9 +194,9 @@ function InventoryInner() {
                         <option value="">{t('developer.filterAllStatuses')}</option>
                         {LOT_STATUSES.map((s) => <option key={s} value={s}>{t(LOT_STATUS_LABEL[s])}</option>)}
                     </select>
-                    <select className={`${selectClass} capitalize`} value={filters.type} onChange={(e) => set({ type: e.target.value })} aria-label={t('developer.filterAllTypes')}>
+                    <select className={selectClass} value={filters.type} onChange={(e) => set({ type: e.target.value })} aria-label={t('developer.filterAllTypes')}>
                         <option value="">{t('developer.filterAllTypes')}</option>
-                        {LOT_TYPES.map((v) => <option key={v} value={v}>{v}</option>)}
+                        {LOT_TYPES.map((v) => <option key={v} value={v}>{typeName(v)}</option>)}
                     </select>
                     <select className={selectClass} value={filters.agentId} onChange={(e) => set({ agentId: e.target.value })} aria-label={t('developer.filterAllAgents')}>
                         <option value="">{t('developer.filterAllAgents')}</option>
@@ -247,8 +259,8 @@ function InventoryInner() {
                                         </td>
                                         <td className={tdClass}>{lot.building?.name ?? '–'}</td>
                                         <td className={`${tdClass} tabular-nums`}>{lot.floor}</td>
-                                        <td className={`${tdClass} capitalize`}>
-                                            {lot.type}{lot.typology ? ` · ${lot.typology}` : ''}
+                                        <td className={tdClass}>
+                                            {typeName(lot.type)}{lot.typology ? ` · ${lot.typology}` : ''}
                                         </td>
                                         <td className={`${tdClass} tabular-nums`}>{lot.bedrooms ?? '–'}</td>
                                         <td className={`${tdClass} text-end tabular-nums`}>{lot.surfaceArea} m²</td>

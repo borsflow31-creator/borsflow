@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Circle, ListChecks, Loader2, Plus, Trash2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -13,6 +14,7 @@ import { groupTasks } from '@/components/developer/task-groups';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { primaryButton } from '@/components/realestate/ui';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { localizeTaskTitle } from '@/lib/crm/task-titles';
 
 interface Task {
     id: string;
@@ -56,6 +58,10 @@ function TasksInner() {
     const groups = useMemo(() => groupTasks(tasks), [tasks]);
 
     const toggle = async (task: Task) => {
+        // Show the tick at once; the reload below confirms it (or puts it back).
+        setTasks((prev) => showDone
+            ? prev.map((x) => (x.id === task.id ? { ...x, completedAt: task.completedAt ? null : new Date().toISOString() } : x))
+            : prev.filter((x) => x.id !== task.id));
         const res = await fetch(`/api/developer/tasks/${task.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -85,19 +91,18 @@ function TasksInner() {
     return (
         <AppShell>
             <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 bg-primary/10 text-primary rounded-lg"><ListChecks className="w-6 h-6" /></span>
-                            <h1 className="text-2xl font-bold text-on-surface">{t('developerCrm.tasks.title')}</h1>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mt-1">{t('developerCrm.tasks.subtitle')}</p>
-                    </div>
-                    <button onClick={() => setAdding(true)} className={`${primaryButton} inline-flex items-center gap-2`}>
-                        <Plus className="w-4 h-4" />
-                        {t('developerCrm.tasks.add')}
-                    </button>
-                </div>
+                <PageHeader
+                    icon={ListChecks}
+                    title={t('developerCrm.tasks.title')}
+                    subtitle={t('developerCrm.tasks.subtitle')}
+                    guide="followUps"
+                    actions={
+                        <button onClick={() => setAdding(true)} className={`${primaryButton} inline-flex items-center gap-2`}>
+                            <Plus className="w-4 h-4" />
+                            {t('developerCrm.tasks.add')}
+                        </button>
+                    }
+                />
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
@@ -150,7 +155,7 @@ function TasksInner() {
                                                     {task.completedAt ? <CheckCircle2 className="h-5 w-5 text-secondary" /> : <Circle className="h-5 w-5" />}
                                                 </button>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className={`text-sm truncate ${task.completedAt ? 'line-through text-on-surface-variant/60' : 'text-on-surface font-medium'}`}>{task.title}</p>
+                                                    <p className={`text-sm truncate ${task.completedAt ? 'line-through text-on-surface-variant/60' : 'text-on-surface font-medium'}`}>{localizeTaskTitle(task.title, t)}</p>
                                                     <p className="text-xs text-on-surface-variant truncate">
                                                         <Link
                                                             href={`/crm?workspace=${workspaceId}&lead=${task.lead.id}&tab=customer`}

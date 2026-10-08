@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Loader2, Users } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import { DeltaChip } from '@/components/developer/DeveloperDashboard';
@@ -72,7 +73,10 @@ function TeamInner() {
             label: t(FUNNEL_LABEL[step.key]),
             value: step.count,
             valueLabel: String(step.count),
-            sub: previous && previous > 0
+            // Each step counts what happened in the period, not one cohort moving
+            // through, so a step can outnumber the one before it (reservations from
+            // last month's leads). A rate above 100% would mislead; show none.
+            sub: previous && previous > 0 && step.count <= previous
                 ? t('developerCrm.team.stepConversion', { percent: formatNumber((step.count / previous) * 100, { maximumFractionDigits: 0 }) })
                 : undefined,
         };
@@ -81,30 +85,31 @@ function TeamInner() {
     return (
         <AppShell>
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 bg-primary/10 text-primary rounded-lg"><Users className="w-6 h-6" /></span>
-                            <h1 className="text-2xl font-bold text-on-surface">{t('developerCrm.team.title')}</h1>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mt-1 max-w-xl">{t('developerCrm.team.subtitle')}</p>
-                    </div>
-                    <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
-                        {PERIODS.map((p) => (
-                            <button
-                                key={p.key}
-                                role="tab"
-                                aria-selected={period === p.key}
-                                onClick={() => setPeriod(p.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                    period === p.key ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                                }`}
-                            >
-                                {t(p.label)}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <PageHeader
+                    icon={Users}
+                    title={t('developerCrm.team.title')}
+                    subtitle={t('developerCrm.team.subtitle')}
+                    guide="team"
+                    actions={
+                        <>
+                            <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
+                                {PERIODS.map((p) => (
+                                    <button
+                                        key={p.key}
+                                        role="tab"
+                                        aria-selected={period === p.key}
+                                        onClick={() => setPeriod(p.key)}
+                                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                            period === p.key ? 'bg-surface-container-lowest text-on-surface shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                                        }`}
+                                    >
+                                        {t(p.label)}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    }
+                />
 
                 {failed && !data ? (
                     <p className="py-12 text-center text-sm text-on-surface-variant">

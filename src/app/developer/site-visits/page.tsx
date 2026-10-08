@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarDays, Loader2, Plus } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -70,19 +71,18 @@ function VisitsInner() {
     return (
         <AppShell>
             <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="p-2 bg-primary/10 text-primary rounded-lg"><CalendarDays className="w-6 h-6" /></span>
-                            <h1 className="text-2xl font-bold text-on-surface">{t('developerCrm.visits.title')}</h1>
-                        </div>
-                        <p className="text-sm text-on-surface-variant mt-1">{t('developerCrm.visits.subtitle')}</p>
-                    </div>
-                    <button onClick={() => setBooking(true)} className={`${primaryButton} inline-flex items-center gap-2`}>
-                        <Plus className="w-4 h-4" />
-                        {t('developerCrm.visits.schedule')}
-                    </button>
-                </div>
+                <PageHeader
+                    icon={CalendarDays}
+                    title={t('developerCrm.visits.title')}
+                    subtitle={t('developerCrm.visits.subtitle')}
+                    guide="siteVisits"
+                    actions={
+                        <button onClick={() => setBooking(true)} className={`${primaryButton} inline-flex items-center gap-2`}>
+                            <Plus className="w-4 h-4" />
+                            {t('developerCrm.visits.schedule')}
+                        </button>
+                    }
+                />
 
                 <div role="tablist" className="flex gap-1.5">
                     {TABS.map((tab) => (

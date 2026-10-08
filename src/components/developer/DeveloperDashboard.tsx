@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Building, Loader2, Minus, Plus } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowUpRight, ArrowRight, Building, Loader2, Minus, Plus } from 'lucide-react';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
+import { Kpi, KpiGrid, Section } from '@/components/developer/kpi';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { DashboardPeriod, DeveloperDashboard as DashboardData } from '@/lib/services/developer/dashboard';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
@@ -16,6 +18,55 @@ import {
 const PERIODS: DashboardPeriod[] = ['month', 'quarter', 'year'];
 
 /* ─── Small pieces ────────────────────────────────────────── */
+
+/**
+ * What a new developer sees before their first project: the four steps that get
+ * them selling, in the same order as the sidebar, each linking to its page.
+ */
+function GetStarted({ qs, onNewProject }: { qs: string; onNewProject: () => void }) {
+    const { t } = useI18n();
+    const steps = [
+        { title: t('developerGuide.start.step1'), body: t('developerGuide.start.step1Body'), action: onNewProject },
+        { title: t('developerGuide.start.step2'), body: t('developerGuide.start.step2Body'), href: `/developer/inventory${qs}` },
+        { title: t('developerGuide.start.step3'), body: t('developerGuide.start.step3Body'), href: `/developer/templates${qs}` },
+        { title: t('developerGuide.start.step4'), body: t('developerGuide.start.step4Body'), href: `/crm${qs}` },
+    ];
+    const rowClass = 'group w-full flex items-center gap-4 p-4 text-start hover:bg-surface-container-high transition-colors';
+    return (
+        <section className="border border-outline-variant/30 rounded-xl overflow-hidden">
+            <div className="p-6 border-b border-outline-variant/20 bg-surface-container-low">
+                <Building className="h-7 w-7 text-primary mb-3" />
+                <h2 className="text-lg font-semibold text-on-surface mb-1">{t('developerGuide.start.title')}</h2>
+                <p className="text-sm text-on-surface-variant">{t('developerGuide.start.body')}</p>
+            </div>
+            <ol className="divide-y divide-outline-variant/20">
+                {steps.map((step, i) => {
+                    const content = (
+                        <>
+                            <span className={`flex-none w-8 h-8 rounded-full text-sm font-semibold flex items-center justify-center ${
+                                i === 0 ? 'bg-secondary text-on-secondary' : 'bg-surface-container-high text-on-surface-variant'
+                            }`}>
+                                {i + 1}
+                            </span>
+                            <span className="flex-1 min-w-0">
+                                <span className="block text-sm font-medium text-on-surface">{step.title}</span>
+                                <span className="block text-xs text-on-surface-variant mt-0.5">{step.body}</span>
+                            </span>
+                            <ArrowRight className="h-4 w-4 text-on-surface-variant group-hover:text-on-surface rtl:rotate-180 transition-colors" />
+                        </>
+                    );
+                    return (
+                        <li key={i}>
+                            {step.href
+                                ? <Link href={step.href} className={rowClass}>{content}</Link>
+                                : <button type="button" onClick={step.action} className={rowClass}>{content}</button>}
+                        </li>
+                    );
+                })}
+            </ol>
+        </section>
+    );
+}
 
 /**
  * Change against the previous period. Direction is shown by an arrow and a sign,
@@ -49,45 +100,6 @@ export function DeltaChip({
             <Icon className="h-3 w-3" aria-hidden />
             {rounded > 0 ? '+' : ''}{rounded}{kind === 'points' ? ' pt' : '%'}
         </span>
-    );
-}
-
-function Kpi({
-    label, value, sub, delta,
-}: {
-    label: string;
-    value: React.ReactNode;
-    sub?: React.ReactNode;
-    delta?: React.ReactNode;
-}) {
-    return (
-        <div className="p-4 min-w-0 bg-surface-container-lowest">
-            <p className="text-xs text-on-surface-variant mb-1.5 truncate">{label}</p>
-            <p className="text-xl font-semibold text-on-surface tabular-nums truncate">{value}</p>
-            <div className="mt-1 flex items-center gap-2 min-h-[16px]">
-                {delta}
-                {sub && <span className="text-[11px] text-on-surface-variant/70 tabular-nums truncate">{sub}</span>}
-            </div>
-        </div>
-    );
-}
-
-function Section({
-    title, icon, children, className = '',
-}: {
-    title: string;
-    icon: string;
-    children: React.ReactNode;
-    className?: string;
-}) {
-    return (
-        <section className={`border border-outline-variant/20 rounded-xl bg-surface-container-lowest/50 p-5 min-w-0 ${className}`}>
-            <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-on-surface-variant text-base">{icon}</span>
-                <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{title}</h2>
-            </div>
-            {children}
-        </section>
     );
 }
 
@@ -206,6 +218,7 @@ export default function DeveloperDashboard({ workspaceId }: { workspaceId: strin
                         {firstName ? t('dashboard.greeting', { name: firstName }) : t('dashboard.greetingNoName')}
                     </p>
                     <h1 className="text-3xl font-bold text-on-surface">{t('developerDashboard.title')}</h1>
+                    <p className="text-sm text-on-surface-variant mt-1">{t('developerGuide.pages.dashboard.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div role="tablist" aria-label={t('developerDashboard.title')} className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
@@ -246,22 +259,12 @@ export default function DeveloperDashboard({ workspaceId }: { workspaceId: strin
                     <button onClick={load} className="text-sm font-medium text-secondary hover:underline">{t('developerDashboard.retry')}</button>
                 </div>
             ) : data && !data.hasProjects ? (
-                <div className="py-20 text-center border border-dashed border-outline-variant/40 rounded-xl">
-                    <Building className="h-8 w-8 text-on-surface-variant/50 mx-auto mb-3" />
-                    <h2 className="text-lg font-semibold text-on-surface mb-1">{t('developerDashboard.emptyTitle')}</h2>
-                    <p className="text-sm text-on-surface-variant max-w-sm mx-auto mb-5">{t('developerDashboard.emptyBody')}</p>
-                    <button
-                        onClick={() => setShowNewProject(true)}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-secondary text-on-secondary text-sm font-medium hover:opacity-90"
-                    >
-                        <Plus className="h-4 w-4" />
-                        {t('developerDashboard.newProject')}
-                    </button>
-                </div>
+                <GetStarted qs={qs} onNewProject={() => setShowNewProject(true)} />
             ) : data ? (
                 <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+                    <div className="mb-6"><StandaloneGuide id="dashboard" /></div>
                     {/* KPI grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-outline-variant/20 border border-outline-variant/20 rounded-xl overflow-hidden mb-6">
+                    <KpiGrid className="mb-6">
                         <Kpi
                             label={t('developerDashboard.kpiTotalSalesValue')}
                             value={money(data.kpis.totalSalesValue)}
@@ -321,7 +324,7 @@ export default function DeveloperDashboard({ workspaceId }: { workspaceId: strin
                             value={pct(data.kpis.target.percent)}
                             sub={data.kpis.target.revenueTarget > 0 ? `${money(data.kpis.target.achieved)} / ${money(data.kpis.target.revenueTarget)}` : undefined}
                         />
-                    </div>
+                    </KpiGrid>
 
                     {/* Charts + attention */}
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

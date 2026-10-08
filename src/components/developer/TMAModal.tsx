@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface TMAModalProps {
   workspaceId: string;
@@ -11,6 +12,10 @@ interface TMAModalProps {
 }
 
 export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAModalProps) {
+  const { t } = useI18n();
+  /** This dialog's messages. */
+  const td = (key: string, values?: Record<string, string | number>) =>
+    t(`developerProjectDialogs.${key}` as MessageKey, values);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +28,7 @@ export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAMo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
-      setError('Title and description are required.');
+      setError(td('tmaRequired'));
       return;
     }
 
@@ -47,19 +52,19 @@ export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAMo
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit TMA request');
+        throw new Error(data.error || td('tmaFailed'));
       }
 
       onSuccess(data.tma);
     } catch (err: any) {
-      setError(err.message || 'Error submitting TMA request');
+      setError(err.message || td('tmaFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={`New Change Order (TMA) - Lot ${lot.lotNumber}`} onClose={onClose}>
+    <Modal title={td('tmaNewTitle', { unit: lot.lotNumber })} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -68,50 +73,49 @@ export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAMo
         )}
 
         <div className="p-3 bg-surface-container-high rounded text-sm mb-4">
-          <p className="font-semibold text-on-surface">Target Unit: Lot {lot.lotNumber}</p>
+          <p className="font-semibold text-on-surface">{td('unitLine', { unit: lot.lotNumber })}</p>
           <p className="text-on-surface-variant text-xs mt-0.5">
-            Buyer:{' '}
             {lot.buyerLead
-              ? `${lot.buyerLead.firstName || ''} ${lot.buyerLead.lastName || ''}`
+              ? td('tmaBuyer', { name: `${lot.buyerLead.firstName || ''} ${lot.buyerLead.lastName || ''}`.trim() })
               : lot.optionHolderLead
-              ? `Hold: ${lot.optionHolderLead.firstName || ''}`
-              : 'Unassigned'}
+              ? td('tmaHold', { name: lot.optionHolderLead.firstName || '' })
+              : td('tmaNoBuyer')}
           </p>
         </div>
 
-        <Field label="Modification Category *">
+        <Field label={td('tmaCategory')}>
           <select className={inputClass} value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="electrical">Electrical (Additional sockets, switches, EV charging)</option>
-            <option value="plumbing">Plumbing (Additional water inlet, shower upgrade, sink)</option>
-            <option value="partitions">Partitions / Structural (Wall movement, pocket doors)</option>
-            <option value="finishes">Finishes & Materials (Flooring upgrade, premium tiling)</option>
-            <option value="other">Other Custom Work</option>
+            <option value="electrical">{td('catElectrical')}</option>
+            <option value="plumbing">{td('catPlumbing')}</option>
+            <option value="partitions">{td('catPartitions')}</option>
+            <option value="finishes">{td('catFinishes')}</option>
+            <option value="other">{td('catOther')}</option>
           </select>
         </Field>
 
-        <Field label="Request Summary / Title *" hint="e.g. Add 2 extra power sockets in Living Room">
+        <Field label={td('tmaSummary')} hint={td('tmaSummaryHint')}>
           <input
             type="text"
             className={inputClass}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Relocate kitchen water inlet"
+            placeholder={td('tmaSummaryPlaceholder')}
             required
           />
         </Field>
 
-        <Field label="Detailed Description & Specifications *">
+        <Field label={td('tmaDescription')}>
           <textarea
             className={`${inputClass} min-h-[90px]`}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe precise measurements, location on floor plans, and specific materials..."
+            placeholder={td('tmaDescriptionPlaceholder')}
             required
           />
         </Field>
 
         <div className="grid grid-cols-2 gap-4 pt-2 border-t border-surface-container-high">
-          <Field label="Estimated Internal Cost (€)" hint="Subcontractor cost (HT)">
+          <Field label={td('tmaCost')} hint={td('tmaCostHint')}>
             <input
               type="number"
               className={inputClass}
@@ -120,7 +124,7 @@ export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAMo
             />
           </Field>
 
-          <Field label="Sales Price Quote (€)" hint="Billed to purchaser (TTC)">
+          <Field label={td('tmaQuote')} hint={td('tmaQuoteHint')}>
             <input
               type="number"
               className={inputClass}
@@ -132,10 +136,10 @@ export default function TMAModal({ workspaceId, lot, onClose, onSuccess }: TMAMo
 
         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className={primaryButton} disabled={loading}>
-            {loading ? 'Submitting...' : 'Submit TMA Request'}
+            {loading ? td('saving') : td('tmaSubmit')}
           </button>
         </div>
       </form>

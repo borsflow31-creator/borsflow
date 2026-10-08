@@ -21,6 +21,7 @@ import { lotNetPrice } from '../commissions'
 import type { DeveloperContext } from './programs'
 import { ensureLotPublicToken, updateLot } from './lots'
 import { createTask } from './tasks'
+import { autoTaskTitle } from '@/lib/crm/task-titles'
 
 const KIND_PREFIX = { reservation: 'RES', contract: 'CON' } as const
 type DocumentKind = keyof typeof KIND_PREFIX
@@ -574,7 +575,7 @@ export async function acceptDocument(
       await createTask(actor, {
         leadId: doc.leadId ?? doc.lot.buyerLeadId ?? undefined,
         type: 'contract',
-        title: `Send the countersigned copy of ${doc.number}`,
+        title: autoTaskTitle('countersignedCopy', { number: doc.number }),
         dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         assigneeId: doc.lot.salesAgentId ?? undefined,
       })

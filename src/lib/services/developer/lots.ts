@@ -8,6 +8,7 @@ import { createTask } from './tasks'
 import { fireLotEvent } from './alerts'
 import { accrueLotCommission, cancelLotCommission, realizeLotCommission } from '../commissions'
 import { DEVELOPER_STAGE_RESERVED, DEVELOPER_STAGE_WON } from '@/lib/crm/lifecycle'
+import { autoTaskTitle } from '@/lib/crm/task-titles'
 
 export function generatePortalToken(): string {
   return randomBytes(20).toString('hex')
@@ -539,7 +540,7 @@ export async function reserveLot(
     await createTask(ctx, {
       leadId: input.buyerLeadId,
       type: 'reservation',
-      title: `Follow up on the reservation of ${lot.lotNumber}`,
+      title: autoTaskTitle('reservationFollowUp', { unit: lot.lotNumber }),
       dueAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
       assigneeId: salesAgentId,
     })

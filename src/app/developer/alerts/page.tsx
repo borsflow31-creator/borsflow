@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { BellRing, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -168,16 +169,15 @@ function AlertsInner() {
     return (
         <AppShell>
             <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <span className="p-2 bg-primary/10 text-primary rounded-lg"><BellRing className="w-6 h-6" /></span>
-                        <h1 className="text-2xl font-bold text-on-surface">{t('developerAlerts.title')}</h1>
-                    </div>
-                    <p className="text-sm text-on-surface-variant mt-1 max-w-xl">{t('developerAlerts.subtitle')}</p>
-                    {!loading && !canEdit && (
-                        <p className="text-xs text-on-surface-variant/80 mt-2">{t('developerAlerts.readOnly')}</p>
-                    )}
-                </div>
+                <PageHeader
+                    icon={BellRing}
+                    title={t('developerAlerts.title')}
+                    subtitle={t('developerAlerts.subtitle')}
+                    guide="alerts"
+                />
+                {!loading && !canEdit && (
+                    <p className="text-xs text-on-surface-variant/80 -mt-3">{t('developerAlerts.readOnly')}</p>
+                )}
 
                 {loading && rules.length === 0 ? (
                     <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" /></div>

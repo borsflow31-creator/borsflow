@@ -23,6 +23,7 @@ import { DEVELOPER_SALES_PIPELINE, DEVELOPER_STAGE_LOST, DEVELOPER_STAGE_WON } f
 import { ServiceError } from '../errors'
 import type { DeveloperContext } from './programs'
 import { createTask } from './tasks'
+import { autoTaskTitle } from '@/lib/crm/task-titles'
 
 /**
  * Automatic alerts for a developer's sales team.
@@ -227,7 +228,7 @@ export async function evaluateLeadAlerts(now: Date = new Date()): Promise<AlertR
       const name = fullName(lead)
       await createTask(
         { workspaceId, userId: lead.ownerId! },
-        { leadId: lead.id, type: 'follow_up', title: `Follow up with ${name}`, dueAt: now, assigneeId: lead.ownerId }
+        { leadId: lead.id, type: 'follow_up', title: autoTaskTitle('followUpWith', { name }), dueAt: now, assigneeId: lead.ownerId }
       )
       await notify({
         recipients: [lead.ownerId!],

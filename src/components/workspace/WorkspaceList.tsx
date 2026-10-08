@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ChevronDown, FolderPlus, UserPlus, Check, Mail } from 'lucide-react';
+import { ChevronDown, UserPlus, Check, Mail } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { Workspace } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -10,7 +10,6 @@ interface WorkspaceListProps {
     workspaces: Workspace[];
     currentWorkspaceId: string | null;
     onWorkspaceSelect: (workspaceId: string) => void;
-    onCreateWorkspace: () => void;
     onInviteUsers?: () => void;
     canInviteUsers?: boolean;
     isLoading?: boolean;
@@ -39,7 +38,6 @@ export default function WorkspaceList({
     workspaces,
     currentWorkspaceId,
     onWorkspaceSelect,
-    onCreateWorkspace,
     onInviteUsers,
     canInviteUsers = false,
     isLoading = false,
@@ -67,7 +65,11 @@ export default function WorkspaceList({
         });
     }, [workspaces, currentWorkspaceId]);
 
-    const active = sortedWorkspaces.find((w) => w.id === currentWorkspaceId);
+    const active = sortedWorkspaces.find((w) => w.id === currentWorkspaceId) ?? sortedWorkspaces[0];
+    // Every account has one workspace of its own. The menu is only worth opening
+    // when there is somewhere else to go: a workspace joined by invitation, or an
+    // invitation waiting for an answer.
+    const canSwitch = sortedWorkspaces.length > 1 || pendingInvitationCount > 0;
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -90,17 +92,21 @@ export default function WorkspaceList({
             {/* Workspace trigger row */}
             <div className="flex items-center gap-1">
                 <button
-                    onClick={() => setOpen((v) => !v)}
-                    className="flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-surface-container-highest transition-colors duration-150 min-w-0"
-                    aria-label={t('workspace.list.switchWorkspace')}
-                    aria-expanded={open}
+                    type="button"
+                    onClick={() => canSwitch && setOpen((v) => !v)}
+                    disabled={!canSwitch}
+                    className={`flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-colors duration-150 min-w-0 disabled:cursor-default ${
+                        canSwitch ? 'hover:bg-surface-container-highest' : ''
+                    }`}
+                    aria-label={canSwitch ? t('workspace.list.switchWorkspace') : undefined}
+                    aria-expanded={canSwitch ? open : undefined}
                 >
                     {/* Avatar */}
                     <div className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-on-secondary font-bold text-xs flex-shrink-0 shadow-sm">
                         {active?.icon || (active ? getInitials(active.name) : '?')}
                     </div>
                     {/* Name */}
-                    <div className="flex-1 min-w-0 text-left">
+                    <div className="flex-1 min-w-0 text-start">
                         <p className="flex items-center gap-1.5 text-sm font-semibold text-on-surface leading-tight min-w-0">
                             <span className="truncate">{active?.name ?? 'Select workspace'}</span>
                             {active && isInvited(active) && (
@@ -117,9 +123,11 @@ export default function WorkspaceList({
                             {pendingInvitationCount}
                         </span>
                     )}
-                    <ChevronDown
-                        className={`h-3.5 w-3.5 text-on-surface-variant flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-                    />
+                    {canSwitch && (
+                        <ChevronDown
+                            className={`h-3.5 w-3.5 text-on-surface-variant flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+                        />
+                    )}
                 </button>
 
                 {/* Invite button — only for owners/admins with an active workspace */}
@@ -136,7 +144,7 @@ export default function WorkspaceList({
             </div>
 
             {/* Dropdown */}
-            {open && (
+            {open && canSwitch && (
                 <div className="mt-1.5 bg-surface-container-highest rounded-xl shadow-xl border border-outline-variant/10 overflow-hidden">
                     <div className="p-1.5 max-h-56 overflow-y-auto custom-scrollbar">
                         {sortedWorkspaces.length === 0 ? (
@@ -159,7 +167,7 @@ export default function WorkspaceList({
                                         }`}>
                                             {ws.icon || getInitials(ws.name)}
                                         </div>
-                                        <span className="flex-1 text-sm font-medium truncate text-left">{ws.name}</span>
+                                        <span className="flex-1 text-sm font-medium truncate text-start">{ws.name}</span>
                                         {isInvited(ws) && (
                                             <InvitedBadge label={t('workspace.list.invitedBadge')} title={invitedTitle(ws)} />
                                         )}
@@ -180,7 +188,7 @@ export default function WorkspaceList({
                                     <div className="w-6 h-6 rounded-md bg-secondary/10 text-secondary flex items-center justify-center flex-shrink-0">
                                         <Mail className="h-3.5 w-3.5" />
                                     </div>
-                                    <span className="flex-1 text-sm font-medium text-left">{t('workspace.list.invitations')}</span>
+                                    <span className="flex-1 text-sm font-medium text-start">{t('workspace.list.invitations')}</span>
                                     <span className="px-1.5 py-0.5 rounded-full bg-secondary text-on-secondary text-[10px] font-bold leading-none">
                                         {pendingInvitationCount}
                                     </span>
@@ -188,18 +196,6 @@ export default function WorkspaceList({
                             </div>
                         </>
                     )}
-                    <div className="h-px bg-outline-variant/10" />
-                    <div className="p-1.5">
-                        <button
-                            onClick={() => { setOpen(false); onCreateWorkspace(); }}
-                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors duration-150"
-                        >
-                            <div className="w-6 h-6 rounded-md bg-surface-container-high flex items-center justify-center flex-shrink-0">
-                                <FolderPlus className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="text-sm font-medium">{t('workspace.list.newWorkspace')}</span>
-                        </button>
-                    </div>
                 </div>
             )}
         </div>

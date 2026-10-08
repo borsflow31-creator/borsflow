@@ -545,15 +545,25 @@ export default function BuyerPortalPage() {
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
                   <span className="text-slate-400 block text-[11px]">Supervising Architect</span>
                   <strong className="text-white block font-medium">
-                    {program.architectName || 'Registered Architecture Firm (DPLG)'}
+                    {program.architectName || '—'}
                   </strong>
                   <span className="text-[10px] text-slate-300 block">Stage certifications</span>
                 </div>
 
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
                   <span className="text-slate-400 block text-[11px]">Legal Framework</span>
-                  <strong className="text-white block font-medium">VEFA (Off-Plan Sale)</strong>
-                  <span className="text-[10px] text-slate-300 block">CCH Art. L. 261-1 et seq.</span>
+                  {/* The off-plan sale regime of the project's country: VSP under Law 11-04 in
+                      Algeria, VEFA under the Construction and Housing Code in France. */}
+                  <strong className="text-white block font-medium">
+                    {program.countryCode === 'FR' ? 'VEFA (vente en l’état futur d’achèvement)' : 'VSP (vente sur plans)'}
+                  </strong>
+                  <span className="text-[10px] text-slate-300 block">
+                    {program.countryCode === 'FR'
+                      ? 'CCH art. L. 261-1 et suivants'
+                      : program.countryCode === 'DZ'
+                        ? 'Loi n° 11-04 du 17 février 2011 (promotion immobilière)'
+                        : ''}
+                  </span>
                 </div>
               </div>
             </div>
@@ -714,28 +724,28 @@ export default function BuyerPortalPage() {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-[11px] font-medium text-slate-500 block">Total Agreed Price (TTC)</span>
                       <strong className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5 block">
-                        {pricing.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        {pricing.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                       <span className="text-[11px] font-medium text-slate-500 block">Total Invoiced Calls</span>
                       <strong className="text-base sm:text-lg font-bold text-slate-800 font-mono mt-0.5 block">
-                        {totalCalled.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        {totalCalled.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                       <span className="text-[11px] font-medium text-emerald-700 block">Total Payments Received</span>
                       <strong className="text-base sm:text-lg font-bold text-emerald-800 font-mono mt-0.5 block">
-                        {totalPaid.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        {totalPaid.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
                       <span className="text-[11px] font-medium text-amber-700 block">Remaining Balance</span>
                       <strong className="text-base sm:text-lg font-bold text-amber-900 font-mono mt-0.5 block">
-                        {remainingBalance.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                        {remainingBalance.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                       </strong>
                     </div>
                   </div>
@@ -777,7 +787,7 @@ export default function BuyerPortalPage() {
                             <td className="py-3 px-3 font-semibold text-slate-900">{call.milestoneTitle}</td>
                             <td className="py-3 px-3 font-bold">{call.percentage}%</td>
                             <td className="py-3 px-3 font-mono font-bold text-slate-900">
-                              {call.amount.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                              {call.amount.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                             </td>
                             <td className="py-3 px-3">
                               <span
@@ -895,7 +905,7 @@ export default function BuyerPortalPage() {
                               <span className="text-xs text-slate-500 block sm:inline sm:mr-2">Quoted Cost:</span>
                               <span className="text-sm font-bold text-slate-900 font-mono">
                                 {tma.priceQuote > 0
-                                  ? tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
+                                  ? tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })
                                   : 'Under Estimation'}
                               </span>
                             </div>
@@ -915,7 +925,7 @@ export default function BuyerPortalPage() {
                                   <span>Official Quote Ready for Your Signature</span>
                                 </span>
                                 <p className="text-[11px] text-slate-600">
-                                  Price Quote: <strong className="font-mono font-bold text-slate-900">{tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</strong>
+                                  Price Quote: <strong className="font-mono font-bold text-slate-900">{tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}</strong>
                                   {tma.techApproverNote ? ` · Technical Note: "${tma.techApproverNote}"` : ''}
                                 </p>
                               </div>
@@ -1227,7 +1237,7 @@ export default function BuyerPortalPage() {
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
                 <span className="font-semibold text-slate-700">Addendum Price (TTC):</span>
                 <strong className="text-base font-mono font-bold text-slate-900">
-                  {signingTma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+                  {signingTma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
                 </strong>
               </div>
             </div>

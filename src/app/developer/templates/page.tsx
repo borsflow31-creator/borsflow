@@ -3,6 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
+import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
@@ -26,18 +28,27 @@ const SAMPLE: Record<string, string> = {
     typology: 'T3',
     floor: '2',
     surface: '68',
-    list_price: '€250,000.00',
-    discount: '€5,000.00',
-    net_price: '€204,166.67',
     vat_rate: '20%',
-    final_price: '€245,000.00',
-    reservation_fee: '€5,000.00',
     agent: 'Sam Lee',
-    amount_due: '€36,750.00',
     milestone: 'Foundations complete',
     due_date: '2026-11-06',
     portal_link: 'https://app.example.com/view/buyer/…',
 };
+
+/** The sample amounts, in the workspace's own currency so the preview reads like a real document. */
+function sampleFor(currency: string, kind: TemplateKind): Record<string, string> {
+    const money = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
+    return {
+        ...SAMPLE,
+        document_number: kind === 'contract' ? 'CON-2026-0001' : 'RES-2026-0001',
+        list_price: money(250000),
+        discount: money(5000),
+        net_price: money(204166.67),
+        final_price: money(245000),
+        reservation_fee: money(5000),
+        amount_due: money(36750),
+    };
+}
 
 interface Saved { id: string; programId: string | null; kind: TemplateKind; name: string; subject: string | null; body: string }
 interface Defaults { name: string; subject: string | null; body: string }
@@ -45,6 +56,7 @@ interface Defaults { name: string; subject: string | null; body: string }
 function TemplatesInner() {
     const { workspaceId, ready } = useWorkspaceParam();
     const { t } = useI18n();
+    const currency = useWorkspaceCurrency(workspaceId);
 
     const [saved, setSaved] = useState<Saved[]>([]);
     const [defaults, setDefaults] = useState<Record<TemplateKind, Defaults> | null>(null);
@@ -53,6 +65,7 @@ function TemplatesInner() {
     const [loading, setLoading] = useState(true);
 
     const [kind, setKind] = useState<TemplateKind>('reservation');
+    const sample = useMemo(() => sampleFor(currency, kind), [currency, kind]);
     const [scope, setScope] = useState<string>(''); // '' = the workspace default; otherwise a project id
     const [name, setName] = useState('');
     const [subject, setSubject] = useState('');
@@ -100,7 +113,7 @@ function TemplatesInner() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [kind, scope, defaults, saved]);
 
-    const preview = useMemo(() => renderTemplate(body, SAMPLE), [body]);
+    const preview = useMemo(() => renderTemplate(body, sample), [body, sample]);
     const known = useMemo(() => new Set(fields), [fields]);
     const unknown = useMemo(() => placeholdersIn(`${subject}\n${body}`).filter((p) => !known.has(p)), [subject, body, known]);
 
@@ -147,13 +160,12 @@ function TemplatesInner() {
     return (
         <AppShell>
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <span className="p-2 bg-primary/10 text-primary rounded-lg"><FileText className="w-6 h-6" /></span>
-                        <h1 className="text-2xl font-bold text-on-surface">{t('developerSales.templates.title')}</h1>
-                    </div>
-                    <p className="text-sm text-on-surface-variant mt-1 max-w-2xl">{t('developerSales.templates.subtitle')}</p>
-                </div>
+                <PageHeader
+                    icon={FileText}
+                    title={t('developerSales.templates.title')}
+                    subtitle={t('developerSales.templates.subtitle')}
+                    guide="templates"
+                />
 
                 <div className="flex flex-wrap items-center gap-3">
                     <div role="tablist" className="inline-flex rounded-lg border border-outline-variant/30 p-0.5 bg-surface-container-low">
@@ -248,7 +260,7 @@ function TemplatesInner() {
                             <p className="text-xs font-medium text-on-surface-variant mb-2">{t('developerSales.templates.preview')}</p>
                             <div className="border border-outline-variant/20 rounded-xl p-5 bg-surface-container-lowest max-h-[640px] overflow-y-auto">
                                 {kind === 'payment_reminder' && subject && (
-                                    <p className="text-sm font-semibold text-on-surface mb-3">{renderTemplate(subject, SAMPLE).text}</p>
+                                    <p className="text-sm font-semibold text-on-surface mb-3">{renderTemplate(subject, sample).text}</p>
                                 )}
                                 <pre className="whitespace-pre-wrap font-sans text-sm text-on-surface leading-relaxed">{preview.text}</pre>
                             </div>

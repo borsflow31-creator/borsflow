@@ -8,6 +8,8 @@ import NoWorkspace from '@/components/NoWorkspace';
 import { useI18n } from '@/i18n/I18nProvider';
 import PipelineBoard from '@/components/crm/PipelineBoard';
 import LeadListView from '@/components/crm/LeadListView';
+import SubjectListView from '@/components/crm/SubjectListView';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 import LeadModal, { type LeadModalTab } from '@/components/crm/LeadModal';
 import PipelineModal from '@/components/crm/PipelineModal';
 import LeadListModal from '@/components/crm/LeadListModal';
@@ -24,6 +26,8 @@ import { useWorkspaceInfo } from '@/components/realestate/ui';
 import { SUBJECT_ENDPOINTS, type SubjectType } from '@/lib/crm/subjects';
 import EnquiryModal from '@/components/realestate/EnquiryModal';
 import OwnerFilter, { type OwnerFilterValue } from '@/components/developer/OwnerFilter';
+
+const VIEW_MODE_KEY = 'crm-view-mode-v2';
 
 interface Pipeline {
     id: string;
@@ -101,7 +105,7 @@ function CRMPageInner() {
     const [stageLeadCounts, setStageLeadCounts] = useState<Record<string, number>>({});
     const [stageCountsLoaded, setStageCountsLoaded] = useState(false);
     const [workspaceName, setWorkspaceName] = useState('');
-    const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+    const [viewMode, setViewMode] = useState<'kanban' | 'list'>('list');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [hydrated, setHydrated] = useState(false);
 
@@ -115,6 +119,12 @@ function CRMPageInner() {
     // buyer journey and the owner funnel. Which one is selected decides what the
     // header offers and what the board draws.
     const boardSubject: SubjectType = selectedPipeline?.subjectType ?? 'Lead';
+    /** Interests open on their property's interests tab; properties on their own page. */
+    const openSubjectCard = (card: any) => router.push(
+        boardSubject === 'Interest'
+            ? `/properties/${card.propertyId ?? card.property?.id}?workspace=${effectiveWorkspaceId}&tab=interests`
+            : `/properties/${card.id}?workspace=${effectiveWorkspaceId}`
+    );
 
     // currentWorkspaceId is restored from localStorage after the first render; without this
     // gate a direct visit to /crm flashes the "no workspace" screen before the board appears.
@@ -144,18 +154,26 @@ function CRMPageInner() {
         }
     };
 
-    // Load view mode preference from localStorage
+    // The list is the default. The key was renamed when it became the default so
+    // everyone starts on the list once; a later choice of kanban is remembered.
     useEffect(() => {
-        const savedViewMode = localStorage.getItem('crm-view-mode');
-        if (savedViewMode === 'kanban' || savedViewMode === 'list') {
-            setViewMode(savedViewMode);
+        try {
+            const savedViewMode = localStorage.getItem(VIEW_MODE_KEY);
+            if (savedViewMode === 'kanban' || savedViewMode === 'list') {
+                setViewMode(savedViewMode);
+            }
+        } catch {
+            // Storage blocked: stay on the list.
         }
     }, []);
 
-    // Save view mode preference to localStorage
     const handleViewModeChange = (mode: 'kanban' | 'list') => {
         setViewMode(mode);
-        localStorage.setItem('crm-view-mode', mode);
+        try {
+            localStorage.setItem(VIEW_MODE_KEY, mode);
+        } catch {
+            // Storage blocked: the choice lasts for this visit only.
+        }
     };
 
     useEffect(() => {
@@ -557,7 +575,7 @@ function CRMPageInner() {
                         </div>
 
                         {/* View Toggle */}
-                        {selectedPipeline && boardSubject === 'Lead' && (
+                        {selectedPipeline && (
                             <ViewToggle
                                 viewMode={viewMode}
                                 onViewModeChange={handleViewModeChange}
@@ -622,10 +640,26 @@ function CRMPageInner() {
                     </div>
                 </div>
 
+                {isDeveloper && boardSubject === 'Lead' && (
+                    <div className="mb-6 space-y-3">
+                        <p className="text-sm text-on-surface-variant">{t('developerGuide.pages.buyers.subtitle')}</p>
+                        <StandaloneGuide id="buyers" />
+                    </div>
+                )}
+
                 {/* Pipeline Board / List View */}
                 {selectedPipeline ? (
                     <div className="h-[calc(100vh-180px)]">
-                        {boardSubject !== 'Lead' ? (
+                        {boardSubject !== 'Lead' && viewMode === 'list' ? (
+                            <SubjectListView
+                                pipeline={selectedPipeline}
+                                subjectType={boardSubject as 'Interest' | 'Property'}
+                                workspaceId={effectiveWorkspaceId}
+                                refreshKey={boardRefreshKey}
+                                currency={workspaceInfo.currency}
+                                onOpen={openSubjectCard}
+                            />
+                        ) : boardSubject !== 'Lead' ? (
                             <PipelineBoard
                                 pipeline={selectedPipeline}
                                 leadLists={leadLists}
@@ -635,11 +669,7 @@ function CRMPageInner() {
                                 renderCard={boardSubject === 'Interest'
                                     ? (card) => <InterestBoardCard interest={card} currency={workspaceInfo.currency} />
                                     : (card) => <PropertyBoardCard property={card} currency={workspaceInfo.currency} />}
-                                onOpenCard={(card) => router.push(
-                                    boardSubject === 'Interest'
-                                        ? `/properties/${card.propertyId}?workspace=${effectiveWorkspaceId}&tab=interests`
-                                        : `/properties/${card.id}?workspace=${effectiveWorkspaceId}`
-                                )}
+                                onOpenCard={openSubjectCard}
                                 onMoveError={showError}
                                 onLeadDelete={handleLeadDelete}
                                 onPipelineUpdate={handlePipelineUpdate}

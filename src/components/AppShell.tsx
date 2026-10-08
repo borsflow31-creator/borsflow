@@ -29,7 +29,6 @@ import { cachedJson, peekCached, invalidateCached } from '@/lib/client-cache';
 import { Workspace } from '@/types';
 import { Role } from '@/lib/workspace';
 // Only downloaded when first opened, so they don't weigh on every page load.
-const CreateWorkspaceModal    = dynamic(() => import('@/components/workspace/CreateWorkspaceModal'), { ssr: false });
 const InviteUsersModal        = dynamic(() => import('@/components/workspace/InviteUsersModal'), { ssr: false });
 const PendingInvitationsModal = dynamic(() => import('@/components/workspace/PendingInvitationsModal'), { ssr: false });
 const AIChatPanel             = dynamic(() => import('@/components/AIChatPanel'), { ssr: false });
@@ -41,58 +40,87 @@ const INVITATIONS_URL  = '/api/invitations/pending';
 const workspaceUrl = (id: string) => `/api/workspaces/${id}`;
 
 /* ─── Nav config ─────────────────────────────────────────── */
-type NavGroup = { labelKey: MessageKey; items: { labelKey: MessageKey; href: string; icon: typeof Home; basePath: string }[] };
+type NavItem = {
+    labelKey: MessageKey;
+    /** One plain sentence on what the page is for, shown on hover. */
+    descKey: MessageKey;
+    href: string;
+    icon: typeof Home;
+    basePath: string;
+};
+type NavGroup = {
+    labelKey: MessageKey;
+    items: NavItem[];
+    /** Secondary tools start folded so the workflow stays on screen. */
+    defaultCollapsed?: boolean;
+};
+
+const item = (labelKey: MessageKey, desc: string, href: string, icon: typeof Home, basePath: string): NavItem =>
+    ({ labelKey, descKey: `developerGuide.desc.${desc}` as MessageKey, href, icon, basePath });
+
+const HOME        = item('nav.home',                   'home',           '/dashboard',       Home,          '/dashboard');
+const PAGES       = item('nav.pages',                  'pages',          '__workspace__',    FileText,      '/workspaces');
+const KANBAN      = item('nav.kanban',                 'kanban',         '__kanban__',       Columns,       '/kanban-board-view');
+const CHAT        = item('nav.chat',                   'chat',           '__chat__',         MessageSquare, '__chat__');
+const MEETINGS    = item('nav.meetings',               'meetings',       '__meetings__',     CalendarDays,  '/meetings');
+const EMAIL       = item('nav.emailMarketing',         'emailMarketing', '/email-marketing', Mail,          '/email-marketing');
+const QUOTES      = item('nav.quotes',                 'quotes',         '__quotes__',       QuoteIcon,     '/quotes');
+const INVOICES    = item('nav.invoices',               'invoices',       '__invoices__',     DollarSign,    '/invoices');
+const COMMISSIONS = item('realEstate.nav.commissions', 'commissions',    '__commissions__',  Percent,       '/commissions');
 
 const GENERAL_GROUP: NavGroup = {
     labelKey: 'nav.groupGeneral',
-    items: [
-        { labelKey: 'nav.home',   href: '/dashboard',         icon: Home,      basePath: '/dashboard' },
-        { labelKey: 'nav.pages',  href: '__workspace__',       icon: FileText,  basePath: '/workspaces' },
-        { labelKey: 'nav.kanban',    href: '__kanban__',    icon: Columns,         basePath: '/kanban-board-view' },
-        { labelKey: 'nav.chat',      href: '__chat__',      icon: MessageSquare,   basePath: '__chat__' },
-    ],
+    items: [HOME, PAGES, KANBAN, CHAT],
 };
 
 /**
- * What a developer works in, in three groups so the list stays short: the selling
- * (buyers, follow-ups, visits, how the team is doing), the building (projects,
- * stock, money coming in, buyer change requests) and the general tools. The
- * agency's listing-side modules (properties, viewings, mandates, offers,
- * commissions) do not apply to selling off-plan, so they are left out rather than
- * greyed.
+ * A developer's sidebar follows the order the work happens in: set a project up
+ * (the project, its units, its documents), sell it (buyers, visits, follow-ups),
+ * look after the sale (calls for funds, buyer changes, commissions), then see how
+ * it went. General tools sit folded at the bottom. The agency's listing-side
+ * modules (properties, viewings, mandates, offers) do not apply to selling
+ * off-plan, so they are left out rather than greyed.
  */
 const DEVELOPER_GROUPS: NavGroup[] = [
-    GENERAL_GROUP,
     {
-        labelKey: 'developerCrm.nav.groupSales',
+        labelKey: 'developerGuide.nav.groupOverview',
+        items: [HOME, item('developerAlerts.nav', 'alerts', '__alerts__', BellRing, '/developer/alerts')],
+    },
+    {
+        labelKey: 'developerGuide.nav.groupSetup',
         items: [
-            { labelKey: 'developer.navBuyers',            href: '__crm__',        icon: Users,         basePath: '/crm' },
-            { labelKey: 'developerCrm.nav.followUps',     href: '__followups__',  icon: ListChecks,    basePath: '/developer/tasks' },
-            { labelKey: 'developerCrm.nav.siteVisits',    href: '__sitevisits__', icon: CalendarCheck, basePath: '/developer/site-visits' },
-            { labelKey: 'developerCrm.nav.teamActivity',  href: '__team__',       icon: Activity,      basePath: '/developer/team' },
-            { labelKey: 'realEstate.nav.commissions',     href: '__commissions__', icon: Percent,      basePath: '/commissions' },
-            { labelKey: 'developerSales.nav.reports',     href: '__reports__',    icon: BarChart3,     basePath: '/developer/reports' },
+            item('developer.navProjects',        'projects',  '__programs__',  Building,      '/developer/programs'),
+            item('developer.navInventory',       'inventory', '__inventory__', LayoutGrid,    '/developer/inventory'),
+            item('developerSales.nav.templates', 'templates', '__templates__', FileSignature, '/developer/templates'),
         ],
     },
     {
-        labelKey: 'developerCrm.nav.groupDevelopment',
+        labelKey: 'developerGuide.nav.groupSell',
         items: [
-            { labelKey: 'developer.navProjects',      href: '__programs__',      icon: Building,      basePath: '/developer/programs' },
-            { labelKey: 'developer.navInventory',     href: '__inventory__',     icon: LayoutGrid,    basePath: '/developer/inventory' },
-            { labelKey: 'developer.navCollections',   href: '__collections__',   icon: Wallet,        basePath: '/developer/collections' },
-            { labelKey: 'developer.navModifications', href: '__modifications__', icon: ClipboardList, basePath: '/developer/modifications' },
-            { labelKey: 'developerSales.nav.templates', href: '__templates__',   icon: FileSignature, basePath: '/developer/templates' },
+            item('developer.navBuyers',         'buyers',     '__crm__',        Users,         '/crm'),
+            item('developerCrm.nav.siteVisits', 'siteVisits', '__sitevisits__', CalendarCheck, '/developer/site-visits'),
+            item('developerCrm.nav.followUps',  'followUps',  '__followups__',  ListChecks,    '/developer/tasks'),
         ],
     },
     {
-        labelKey: 'developerCrm.nav.groupWorkspace',
+        labelKey: 'developerGuide.nav.groupAfterSale',
         items: [
-            { labelKey: 'nav.meetings',       href: '__meetings__',     icon: CalendarDays, basePath: '/meetings' },
-            { labelKey: 'nav.emailMarketing', href: '/email-marketing', icon: Mail,         basePath: '/email-marketing' },
-            { labelKey: 'nav.quotes',         href: '__quotes__',       icon: QuoteIcon,    basePath: '/quotes' },
-            { labelKey: 'nav.invoices',       href: '__invoices__',     icon: DollarSign,   basePath: '/invoices' },
-            { labelKey: 'developerAlerts.nav', href: '__alerts__',      icon: BellRing,     basePath: '/developer/alerts' },
+            item('developer.navCollections',   'collections',   '__collections__',   Wallet,        '/developer/collections'),
+            item('developer.navModifications', 'modifications', '__modifications__', ClipboardList, '/developer/modifications'),
+            COMMISSIONS,
         ],
+    },
+    {
+        labelKey: 'developerGuide.nav.groupPerformance',
+        items: [
+            item('developerCrm.nav.teamActivity', 'team',    '__team__',    Activity,  '/developer/team'),
+            item('developerSales.nav.reports',    'reports', '__reports__', BarChart3, '/developer/reports'),
+        ],
+    },
+    {
+        labelKey: 'developerGuide.nav.groupTools',
+        defaultCollapsed: true,
+        items: [PAGES, KANBAN, CHAT, MEETINGS, EMAIL, QUOTES, INVOICES],
     },
 ];
 
@@ -101,17 +129,17 @@ const AGENCY_GROUPS: NavGroup[] = [
     {
         labelKey: 'nav.groupBusiness',
         items: [
-            { labelKey: 'realEstate.nav.properties', href: '__properties__', icon: Building2,     basePath: '/properties' },
-            { labelKey: 'realEstate.nav.buyers',     href: '__crm__',        icon: Users,         basePath: '/crm' },
-            { labelKey: 'realEstate.nav.viewings',   href: '__viewings__',   icon: Eye,           basePath: '/viewings' },
-            { labelKey: 'realEstate.nav.mandates',   href: '__mandates__',   icon: FileSignature, basePath: '/mandates' },
-            { labelKey: 'realEstate.nav.offers',     href: '__offers__',     icon: HandCoins,     basePath: '/offers' },
-            { labelKey: 'realEstate.nav.commissions', href: '__commissions__', icon: Percent,    basePath: '/commissions' },
-            { labelKey: 'nav.meetings',              href: '__meetings__',   icon: CalendarDays,  basePath: '/meetings' },
-            { labelKey: 'nav.emailMarketing',        href: '/email-marketing', icon: Mail,        basePath: '/email-marketing' },
-            { labelKey: 'realEstate.nav.services',   href: '__products__',   icon: Package,       basePath: '/products' },
-            { labelKey: 'nav.quotes',                href: '__quotes__',     icon: QuoteIcon,     basePath: '/quotes' },
-            { labelKey: 'nav.invoices',       href: '__invoices__', icon: DollarSign,   basePath: '/invoices' },
+            item('realEstate.nav.properties', 'properties', '__properties__', Building2,     '/properties'),
+            item('realEstate.nav.buyers',     'buyers',     '__crm__',        Users,         '/crm'),
+            item('realEstate.nav.viewings',   'viewings',   '__viewings__',   Eye,           '/viewings'),
+            item('realEstate.nav.mandates',   'mandates',   '__mandates__',   FileSignature, '/mandates'),
+            item('realEstate.nav.offers',     'offers',     '__offers__',     HandCoins,     '/offers'),
+            COMMISSIONS,
+            MEETINGS,
+            EMAIL,
+            item('realEstate.nav.services',   'services',   '__products__',   Package,       '/products'),
+            QUOTES,
+            INVOICES,
         ],
     },
 ];
@@ -119,6 +147,27 @@ const AGENCY_GROUPS: NavGroup[] = [
 /** Accounts that have not answered the sign-up question yet get the agency list behind the popup. */
 function navGroupsFor(businessType: string | null | undefined): NavGroup[] {
     return businessType === 'DEVELOPER' ? DEVELOPER_GROUPS : AGENCY_GROUPS;
+}
+
+/** Which sidebar sections someone opened or folded, remembered per browser. */
+const NAV_GROUPS_KEY = 'sidebar-groups-open';
+
+function readOpenGroups(): Record<string, boolean> {
+    try {
+        const raw = localStorage.getItem(NAV_GROUPS_KEY);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeOpenGroups(value: Record<string, boolean>) {
+    try {
+        localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify(value));
+    } catch {
+        // Storage blocked: the sections reset on the next visit.
+    }
 }
 
 /* ─── Types ───────────────────────────────────────────────── */
@@ -134,64 +183,51 @@ function getInitials(name: string) {
     return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
+/** Pages scoped to a workspace: the placeholder and the path it opens, with `?workspace=` added. */
+const WORKSPACE_ROUTES: Record<string, string> = {
+    __kanban__:        '/kanban-board-view',
+    __crm__:           '/crm',
+    __meetings__:      '/meetings',
+    __properties__:    '/properties',
+    __programs__:      '/developer/programs',
+    __inventory__:     '/developer/inventory',
+    __collections__:   '/developer/collections',
+    __modifications__: '/developer/modifications',
+    __followups__:     '/developer/tasks',
+    __sitevisits__:    '/developer/site-visits',
+    __team__:          '/developer/team',
+    __reports__:       '/developer/reports',
+    __templates__:     '/developer/templates',
+    __alerts__:        '/developer/alerts',
+    __viewings__:      '/viewings',
+    __mandates__:      '/mandates',
+    __offers__:        '/offers',
+    __commissions__:   '/commissions',
+    __products__:      '/products',
+    __quotes__:        '/quotes',
+    __invoices__:      '/invoices',
+};
+
 function resolveHref(
     raw: string,
     workspace: { id: string; name: string; icon?: string } | null,
     firstPageId?: string | null,
     fallbackWorkspaceId?: string | null,
 ): string {
-    if (!workspace) {
-        if (raw === '__workspace__') return '/dashboard';
-        if (raw === '__kanban__')   return fallbackWorkspaceId ? `/kanban-board-view?workspace=${fallbackWorkspaceId}` : '/kanban-board-view';
-        if (raw === '__crm__')      return '/crm';
-        if (raw === '__meetings__') return '/meetings';
-        if (raw === '__properties__') return '/properties';
-        if (raw === '__programs__') return '/developer/programs';
-        if (raw === '__inventory__') return '/developer/inventory';
-        if (raw === '__collections__') return '/developer/collections';
-        if (raw === '__modifications__') return '/developer/modifications';
-        if (raw === '__followups__') return '/developer/tasks';
-        if (raw === '__sitevisits__') return '/developer/site-visits';
-        if (raw === '__team__') return '/developer/team';
-        if (raw === '__reports__') return '/developer/reports';
-        if (raw === '__templates__') return '/developer/templates';
-        if (raw === '__alerts__') return '/developer/alerts';
-        if (raw === '__viewings__') return '/viewings';
-        if (raw === '__mandates__') return '/mandates';
-        if (raw === '__offers__')   return '/offers';
-        if (raw === '__commissions__') return '/commissions';
-        if (raw === '__products__') return '/products';
-        if (raw === '__quotes__')   return '/quotes';
-        if (raw === '__invoices__') return '/invoices';
-        if (raw === '__chat__')     return fallbackWorkspaceId ? `/workspaces/${fallbackWorkspaceId}/chat` : '#';
-        return raw;
-    }
+    const wsId = workspace?.id ?? null;
     if (raw === '__workspace__') {
+        if (!workspace) return '/dashboard';
         return firstPageId ? `/pages/${firstPageId}` : `/workspaces/${workspace.id}`;
     }
-    if (raw === '__kanban__')    return `/kanban-board-view?workspace=${workspace.id}`;
-    if (raw === '__crm__')       return `/crm?workspace=${workspace.id}`;
-    if (raw === '__meetings__')  return `/meetings?workspace=${workspace.id}`;
-    if (raw === '__properties__') return `/properties?workspace=${workspace.id}`;
-    if (raw === '__programs__')   return `/developer/programs?workspace=${workspace.id}`;
-    if (raw === '__inventory__')  return `/developer/inventory?workspace=${workspace.id}`;
-    if (raw === '__collections__') return `/developer/collections?workspace=${workspace.id}`;
-    if (raw === '__modifications__') return `/developer/modifications?workspace=${workspace.id}`;
-    if (raw === '__followups__') return `/developer/tasks?workspace=${workspace.id}`;
-    if (raw === '__sitevisits__') return `/developer/site-visits?workspace=${workspace.id}`;
-    if (raw === '__team__') return `/developer/team?workspace=${workspace.id}`;
-    if (raw === '__reports__') return `/developer/reports?workspace=${workspace.id}`;
-    if (raw === '__templates__') return `/developer/templates?workspace=${workspace.id}`;
-    if (raw === '__alerts__') return `/developer/alerts?workspace=${workspace.id}`;
-    if (raw === '__viewings__')  return `/viewings?workspace=${workspace.id}`;
-    if (raw === '__mandates__')  return `/mandates?workspace=${workspace.id}`;
-    if (raw === '__offers__')    return `/offers?workspace=${workspace.id}`;
-    if (raw === '__commissions__') return `/commissions?workspace=${workspace.id}`;
-    if (raw === '__products__')  return `/products?workspace=${workspace.id}`;
-    if (raw === '__quotes__')    return `/quotes?workspace=${workspace.id}`;
-    if (raw === '__invoices__')  return `/invoices?workspace=${workspace.id}`;
-    if (raw === '__chat__')      return `/workspaces/${workspace.id}/chat`;
-    return raw;
+    if (raw === '__chat__') {
+        const id = wsId ?? fallbackWorkspaceId;
+        return id ? `/workspaces/${id}/chat` : '#';
+    }
+    const path = WORKSPACE_ROUTES[raw];
+    if (!path) return raw;
+    // Kanban falls back to the stored workspace; the other pages resolve it themselves.
+    const id = raw === '__kanban__' ? wsId ?? fallbackWorkspaceId : wsId;
+    return id ? `${path}?workspace=${id}` : path;
 }
 
 /* ─── Component ───────────────────────────────────────────── */
@@ -238,7 +274,6 @@ export default function AppShell({
     } | null>(null);
     const [userRole,             setUserRole]             = useState<Role>('member');
 
-    const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
     const [showInviteUsersModal,     setShowInviteUsersModal]     = useState(false);
     const [pendingInvitations,        setPendingInvitations]        = useState<PendingInvitation[]>(() => peekCached<{ invitations?: PendingInvitation[] }>(INVITATIONS_URL)?.invitations || []);
     const [isLoadingInvitations,      setIsLoadingInvitations]      = useState(false);
@@ -251,6 +286,18 @@ export default function AppShell({
     useEffect(() => { if (aiPanelOpen) setAiPanelLoaded(true); }, [aiPanelOpen]);
     const [firstPageId,              setFirstPageId]              = useState<string | null>(null);
     const [showUserMenu,             setShowUserMenu]             = useState(false);
+    const [openGroups,               setOpenGroups]               = useState<Record<string, boolean>>({});
+    useEffect(() => { setOpenGroups(readOpenGroups()); }, []);
+    const toggleGroup = (key: string, open: boolean) => {
+        setOpenGroups((prev) => {
+            const next = { ...prev, [key]: !open };
+            writeOpenGroups(next);
+            return next;
+        });
+    };
+    // The description shown beside a hovered sidebar item. Drawn outside the
+    // scrolling nav so it is never clipped.
+    const [navHint, setNavHint] = useState<{ label: string; desc: string; top: number; left?: number; right?: number } | null>(null);
     const userMenuRef = useRef<HTMLDivElement>(null);
 
     /* mobile detection */
@@ -278,6 +325,15 @@ export default function AppShell({
     }, [session?.user?.id]);
 
     useEffect(() => { fetchWorkspaces(); }, [fetchWorkspaces]);
+
+    // Everyone has a workspace of their own, so there is always one to be in: pick
+    // it when nothing is stored yet, or when the stored one is no longer theirs.
+    useEffect(() => {
+        if (workspaces.length === 0) return;
+        if (!currentWorkspaceId || !workspaces.some((w) => w.id === currentWorkspaceId)) {
+            setWorkspace(workspaces[0].id);
+        }
+    }, [workspaces, currentWorkspaceId, setWorkspace]);
 
     /* invitations addressed to the current user */
     const loadPendingInvitations = useCallback(async (force = false) => {
@@ -367,8 +423,13 @@ export default function AppShell({
             crumbs.push({ label: currentPage.title, href: `/pages/${currentPage.id}` });
         }
         if (pathname === '/settings') crumbs.push({ label: t('nav.settings'), href: '/settings' });
+        // Any other page in the sidebar is named after its sidebar entry.
+        if (crumbs.length === 1 && pathname !== '/dashboard') {
+            const entry = navGroups.flatMap((g) => g.items).find((it) => it.basePath.startsWith('/') && pathname.startsWith(it.basePath));
+            if (entry) crumbs.push({ label: t(entry.labelKey), href: pathname });
+        }
         return crumbs;
-    }, [explicitBreadcrumbs, effectiveWorkspace, currentPage, pathname, t]);
+    }, [explicitBreadcrumbs, effectiveWorkspace, currentPage, pathname, t, navGroups]);
 
     /* close dropdown on outside click */
     useEffect(() => {
@@ -437,12 +498,6 @@ export default function AppShell({
         router.push(`/workspaces/${id}`);
     };
 
-    const handleCreateWorkspace = async (newWs: Workspace) => {
-        setToast({ message: t('shell.workspaceCreated'), type: 'success' });
-        await fetchWorkspaces(true);
-        handleWorkspaceSelect(newWs.id);
-    };
-
     const handleRespondToInvitation = async (invitationId: string, choice: 'accept' | 'decline') => {
         const invitation = pendingInvitations.find((i) => i.id === invitationId);
         setRespondingInvitationId(invitationId);
@@ -492,9 +547,9 @@ export default function AppShell({
     const isEffectivelyExpanded = !sidebarCollapsed || (!shouldCollapseSidebar && isSidebarHovered);
     const sidebarWidth    = isEffectivelyExpanded ? 'w-64' : 'w-[60px]';
     const sidebarTranslate = isMobile
-        ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full')
+        ? (sidebarOpen ? 'translate-x-0' : '-translate-x-full rtl:translate-x-full')
         : 'translate-x-0';
-    const contentMargin  = isMobile ? '' : (sidebarCollapsed ? 'ml-[60px]' : 'ml-64');
+    const contentMargin  = isMobile ? '' : (sidebarCollapsed ? 'ms-[60px]' : 'ms-64');
 
     /* user info */
     const userName    = session?.user?.name || session?.user?.email || 'User';
@@ -534,7 +589,7 @@ export default function AppShell({
             {isMobile && (
                 <button
                     onClick={toggleSidebar}
-                    className="fixed top-3 left-3 z-50 p-2 rounded-xl bg-surface-container-highest shadow-md hover:shadow-lg transition-all"
+                    className="fixed top-3 start-3 z-50 p-2 rounded-xl bg-surface-container-highest shadow-md hover:shadow-lg transition-all"
                     aria-label={t('shell.toggleSidebar')}
                 >
                     {sidebarOpen
@@ -548,10 +603,10 @@ export default function AppShell({
                 onMouseEnter={() => setIsSidebarHovered(true)}
                 onMouseLeave={() => setIsSidebarHovered(false)}
                 className={`
-                    fixed left-0 top-0 h-full z-40
+                    fixed start-0 top-0 h-full z-40
                     bg-surface-container-low
                     flex flex-col
-                    border-r border-outline-variant/10
+                    border-e border-outline-variant/10
                     transition-all duration-300 ease-in-out
                     ${sidebarWidth} ${sidebarTranslate}
                 `}
@@ -570,13 +625,12 @@ export default function AppShell({
                             </button>
                         </div>
                     ) : (
-                        <div className="flex items-start justify-between pr-2">
+                        <div className="flex items-start justify-between pe-2">
                             <div className="flex-1 min-w-0">
                                 <WorkspaceList
                                     workspaces={workspaces}
                                     currentWorkspaceId={currentWorkspaceId}
                                     onWorkspaceSelect={handleWorkspaceSelect}
-                                    onCreateWorkspace={() => setShowCreateWorkspaceModal(true)}
                                     onInviteUsers={() => setShowInviteUsersModal(true)}
                                     canInviteUsers={canInviteUsers}
                                     isLoading={isLoadingWorkspaces}
@@ -612,28 +666,66 @@ export default function AppShell({
                 )}
 
                 {/* ── Navigation ── */}
-                <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-1" role="navigation">
-                    {navGroups.map((group) => (
+                <nav
+                    className="flex-1 overflow-y-auto custom-scrollbar px-2 py-1"
+                    role="navigation"
+                    onScroll={() => setNavHint(null)}
+                    onMouseLeave={() => setNavHint(null)}
+                >
+                    {navGroups.map((group) => {
+                        const hasActive = group.items.some((it) => isActive(it.basePath));
+                        // The section holding the current page is always open.
+                        const open = hasActive || (openGroups[group.labelKey] ?? !group.defaultCollapsed);
+                        const groupId = `nav-group-${group.labelKey.replace(/\./g, '-')}`;
+                        const showItems = !isEffectivelyExpanded || open;
+                        return (
                         <div key={group.labelKey} className="mb-3">
-                            {/* Group label — hidden when collapsed */}
+                            {/* Group label — hidden when collapsed; folds the section */}
                             {isEffectivelyExpanded && (
-                                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60 select-none">
-                                    {t(group.labelKey)}
-                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGroup(group.labelKey, open)}
+                                    disabled={hasActive}
+                                    aria-expanded={open}
+                                    aria-controls={groupId}
+                                    title={t('developerGuide.nav.toggleGroup')}
+                                    className="w-full flex items-center justify-between px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant/60 hover:text-on-surface-variant disabled:hover:text-on-surface-variant/60 disabled:cursor-default select-none transition-colors"
+                                >
+                                    <span>{t(group.labelKey)}</span>
+                                    {!hasActive && (
+                                        <ChevronRight className={`h-3 w-3 transition-transform duration-150 ${open ? 'rotate-90' : 'rtl:rotate-180'}`} />
+                                    )}
+                                </button>
                             )}
-                            <div className="space-y-0.5">
+                            {showItems && (
+                            <div id={groupId} className="space-y-0.5">
                                 {group.items.map((item) => {
                                     const href      = resolveHref(item.href, effectiveWorkspace ?? null, firstPageId, currentWorkspaceId);
                                     const active    = isActive(item.basePath);
                                     const Icon      = item.icon;
                                     const label     = t(item.labelKey);
+                                    const desc      = t(item.descKey);
+                                    const showHint = (e: React.SyntheticEvent<HTMLElement>) => {
+                                        if (isMobile) return;
+                                        const r = e.currentTarget.getBoundingClientRect();
+                                        // Beside the item, on the content side: right of it, or left of it in RTL.
+                                        const rtl = document.documentElement.dir === 'rtl';
+                                        setNavHint(rtl
+                                            ? { label, desc, top: r.top + r.height / 2, right: window.innerWidth - r.left + 8 }
+                                            : { label, desc, top: r.top + r.height / 2, left: r.right + 8 });
+                                    };
                                     return (
                                         <Link
                                             key={item.basePath}
                                             href={href}
-                                            title={!isEffectivelyExpanded ? label : undefined}
                                             aria-label={label}
+                                            aria-description={desc}
                                             aria-current={active ? 'page' : undefined}
+                                            onMouseEnter={showHint}
+                                            onFocus={showHint}
+                                            onMouseLeave={() => setNavHint(null)}
+                                            onBlur={() => setNavHint(null)}
+                                            onClick={() => setNavHint(null)}
                                             className={`
                                                 group flex items-center gap-3 rounded-xl
                                                 transition-colors duration-150
@@ -660,8 +752,10 @@ export default function AppShell({
                                     );
                                 })}
                             </div>
+                            )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </nav>
 
                 {/* ── Footer ── */}
@@ -725,7 +819,7 @@ export default function AppShell({
                                 {userInitials}
                             </div>
                             {isEffectivelyExpanded && (
-                                <div className="flex-1 min-w-0 text-left">
+                                <div className="flex-1 min-w-0 text-start">
                                     <p className="text-sm font-medium text-on-surface truncate leading-tight">{userName}</p>
                                     <p className="text-[10px] text-on-surface-variant leading-tight">{t('shell.account')}</p>
                                 </div>
@@ -735,7 +829,7 @@ export default function AppShell({
                             )}
                         </button>
                         {showUserMenu && (
-                            <div className="absolute bottom-full left-0 mb-1 w-44 bg-surface-container rounded-xl border border-outline-variant/20 shadow-lg overflow-hidden z-50">
+                            <div className="absolute bottom-full start-0 mb-1 w-44 bg-surface-container rounded-xl border border-outline-variant/20 shadow-lg overflow-hidden z-50">
                                 <Link
                                     href="/settings"
                                     onClick={() => setShowUserMenu(false)}
@@ -788,17 +882,17 @@ export default function AppShell({
                             <div ref={searchRef} className="relative">
                                 <form onSubmit={handleSearch} className="flex items-center gap-2">
                                     <div className="relative">
-                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface-variant pointer-events-none" />
+                                        <Search className="absolute start-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface-variant pointer-events-none" />
                                         <input
                                             type="text"
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             placeholder={t('shell.searchPlaceholder')}
                                             autoFocus
-                                            className="w-56 pl-8 pr-3 py-1.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
+                                            className="w-56 ps-8 pe-3 py-1.5 bg-surface-container-high rounded-lg text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
                                         />
                                         {searchLoading && (
-                                            <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface-variant animate-spin" />
+                                            <Loader2 className="absolute end-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-on-surface-variant animate-spin" />
                                         )}
                                     </div>
                                     <button
@@ -810,7 +904,7 @@ export default function AppShell({
                                     </button>
                                 </form>
                                 {showDropdown && (
-                                    <div className="absolute top-full mt-1 left-0 w-72 bg-surface-container-low border border-outline-variant/20 rounded-xl shadow-lg overflow-hidden z-50">
+                                    <div className="absolute top-full mt-1 start-0 w-72 bg-surface-container-low border border-outline-variant/20 rounded-xl shadow-lg overflow-hidden z-50">
                                         {searchResults.length === 0 ? (
                                             <p className="px-4 py-3 text-sm text-on-surface-variant">{t('shell.noResultsFound')}</p>
                                         ) : (
@@ -906,11 +1000,6 @@ export default function AppShell({
             )}
 
             {/* ── Modals ── */}
-            {showCreateWorkspaceModal && <CreateWorkspaceModal
-                isOpen={showCreateWorkspaceModal}
-                onClose={() => setShowCreateWorkspaceModal(false)}
-                onSuccess={handleCreateWorkspace}
-            />}
             {showInviteUsersModal && <InviteUsersModal
                 isOpen={showInviteUsersModal}
                 onClose={() => setShowInviteUsersModal(false)}
@@ -927,6 +1016,18 @@ export default function AppShell({
                 respondingId={respondingInvitationId}
                 respondingChoice={respondingChoice}
             />}
+
+            {/* ── Sidebar item description ── */}
+            {navHint && (
+                <div
+                    role="tooltip"
+                    style={{ top: navHint.top, left: navHint.left, right: navHint.right }}
+                    className="fixed z-50 -translate-y-1/2 max-w-[260px] rounded-lg bg-on-surface text-surface px-3 py-2 shadow-lg pointer-events-none"
+                >
+                    <p className="text-xs font-semibold">{navHint.label}</p>
+                    <p className="text-xs opacity-80 mt-0.5 leading-snug">{navHint.desc}</p>
+                </div>
+            )}
 
             {/* ── First-run business type question ── */}
             {needsBusinessType && <BusinessTypeModal />}

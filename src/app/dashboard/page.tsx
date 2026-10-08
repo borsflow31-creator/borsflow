@@ -9,7 +9,7 @@ import DeveloperDashboard from '@/components/developer/DeveloperDashboard'
 import { useAppStore } from '@/store/appStore'
 import { useI18n } from '@/i18n/I18nProvider'
 import { TrendingUp, Clock, AlertCircle, FileText as FileTextIcon } from 'lucide-react'
-import { cachedJson, invalidateCached } from '@/lib/client-cache'
+import { cachedJson } from '@/lib/client-cache'
 
 interface Workspace {
     id: string
@@ -54,9 +54,6 @@ export default function DashboardPage() {
     const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
     const [billingAnalytics, setBillingAnalytics] = useState<BillingAnalytics | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false)
-    const [newWorkspaceName, setNewWorkspaceName] = useState('')
-    const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [quickCaptureText, setQuickCaptureText] = useState('')
     const [quickCaptureWorkspaceId, setQuickCaptureWorkspaceId] = useState('')
@@ -113,49 +110,6 @@ export default function DashboardPage() {
             setRecentActivity(activities)
         } catch (error) {
             console.error('Error fetching recent activity:', error)
-        }
-    }
-
-    const handleCreateWorkspace = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!newWorkspaceName.trim()) return
-
-        try {
-            const response = await fetch('/api/workspaces', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: newWorkspaceName,
-                    description: newWorkspaceDescription,
-                }),
-            })
-
-            if (response.ok) {
-                invalidateCached('/api/workspaces')
-                const data = await response.json()
-                setWorkspaces([...workspaces, data.workspace])
-                setNewWorkspaceName('')
-                setNewWorkspaceDescription('')
-                setShowNewWorkspaceModal(false)
-
-                if (!quickCaptureWorkspaceId) setQuickCaptureWorkspaceId(data.workspace.id)
-
-                // Add activity
-                setRecentActivity([
-                    {
-                        id: Date.now().toString(),
-                        type: 'workspace_created',
-                        title: data.workspace.name,
-                        timestamp: new Date().toISOString(),
-                        workspaceName: data.workspace.name,
-                    },
-                    ...recentActivity,
-                ])
-            }
-        } catch (error) {
-            console.error('Error creating workspace:', error)
         }
     }
 
@@ -385,12 +339,6 @@ export default function DashboardPage() {
                                 <span className="material-symbols-outlined text-on-surface-variant text-base">grid_view</span>
                                 <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.workspaces')}</h2>
                             </div>
-                            <button
-                                onClick={() => setShowNewWorkspaceModal(true)}
-                                className="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded-sm hover:bg-surface-container-low"
-                            >
-                                <span className="material-symbols-outlined text-[17px]">add</span>
-                            </button>
                         </div>
                         
                         {filteredWorkspaces.length > 0 ? (
@@ -427,59 +375,6 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Subtle Modal - mimicking Notion's command menus */}
-            {showNewWorkspaceModal && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
-                    <div
-                        className="absolute inset-0 bg-black/5 backdrop-blur-[2px] transition-opacity"
-                        onClick={() => setShowNewWorkspaceModal(false)}
-                    ></div>
-                    <div className="relative bg-surface-container-lowest rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] w-full max-w-[400px] border border-outline-variant/20 overflow-hidden mix-card p-0 animate-in fade-in slide-in-from-bottom-4 duration-200">
-                        <div className="px-5 py-3 border-b border-outline-variant/10">
-                            <h2 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('dashboard.createWorkspaceModalTitle')}</h2>
-                        </div>
-                        <form onSubmit={handleCreateWorkspace} className="p-5">
-                            <div className="space-y-4">
-                                <div>
-                                    <input
-                                        type="text"
-                                        value={newWorkspaceName}
-                                        onChange={(e) => setNewWorkspaceName(e.target.value)}
-                                        className="w-full text-base bg-transparent border-b border-transparent hover:border-outline-variant/30 focus:border-secondary focus:outline-none transition-colors pb-1 placeholder:text-on-surface-variant/40 font-medium"
-                                        placeholder={t('dashboard.workspaceNamePlaceholder')}
-                                        autoFocus
-                                    />
-                                </div>
-                                <div>
-                                    <textarea
-                                        value={newWorkspaceDescription}
-                                        onChange={(e) => setNewWorkspaceDescription(e.target.value)}
-                                        className="w-full text-sm bg-transparent border-b border-transparent hover:border-outline-variant/30 focus:border-secondary focus:outline-none transition-colors pb-1 placeholder:text-on-surface-variant/40 resize-none"
-                                        placeholder={t('dashboard.workspaceDescriptionPlaceholder')}
-                                        rows={2}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex justify-end gap-2 mt-6">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowNewWorkspaceModal(false)}
-                                    className="px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low border border-transparent hover:border-outline-variant/20 rounded transition-all"
-                                >
-                                    {t('common.cancel')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={!newWorkspaceName.trim()}
-                                    className="px-3 py-1.5 text-xs font-medium bg-on-surface text-surface-container-lowest rounded hover:bg-on-surface/90 shadow-sm transition-all disabled:opacity-30"
-                                >
-                                    {t('common.create')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </AppShell>
     )
 }

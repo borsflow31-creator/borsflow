@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Banknote, Building2, CheckCircle2, Clock, Tag, Wallet } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { PROJECT_STATUSES, projectProgress, summarizeUnits } from '@/lib/crm/projects';
+import { Kpi, KpiGrid, Meter, Section } from './kpi';
 
 /**
  * The numbers that answer "how is this project doing": how much stock is left,
@@ -30,92 +30,33 @@ export default function ProjectDashboard({
 
     const sellThrough = totals.total > 0 ? Math.round(((totals.reserved + totals.sold) / totals.total) * 100) : 0;
 
-    const tiles = [
-        {
-            key: 'total',
-            label: t('realEstate.projects.stats.totalUnits'),
-            value: String(totals.total),
-            sub: formatCurrency(totals.totalValue, currency),
-            icon: Building2,
-            tone: 'text-on-surface',
-        },
-        {
-            key: 'available',
-            label: t('realEstate.projects.stats.available'),
-            value: String(totals.available),
-            sub: formatCurrency(totals.availableValue, currency),
-            icon: Tag,
-            tone: 'text-emerald-700',
-        },
-        {
-            key: 'reserved',
-            label: t('realEstate.projects.stats.reserved'),
-            value: String(totals.reserved),
-            sub: t('realEstate.projects.stats.reservedHint'),
-            icon: Clock,
-            tone: 'text-amber-700',
-        },
-        {
-            key: 'sold',
-            label: t('realEstate.projects.stats.sold'),
-            value: String(totals.sold),
-            sub: formatCurrency(totals.soldValue, currency),
-            icon: CheckCircle2,
-            tone: 'text-blue-700',
-        },
-    ];
-
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {tiles.map((tile) => (
-                    <div key={tile.key} className="p-4 bg-surface-container rounded-xl">
-                        <div className="flex items-center justify-between gap-2">
-                            <span className="body-xs text-on-surface-variant">{tile.label}</span>
-                            <tile.icon className={`w-4 h-4 ${tile.tone}`} aria-hidden="true" />
-                        </div>
-                        <p className={`title-lg font-bold mt-1 ${tile.tone}`}>{tile.value}</p>
-                        <p className="body-xs text-on-surface-variant truncate" title={tile.sub}>{tile.sub}</p>
-                    </div>
-                ))}
-            </div>
+            <KpiGrid>
+                <Kpi label={t('realEstate.projects.stats.totalUnits')} value={totals.total} sub={formatCurrency(totals.totalValue, currency)} />
+                <Kpi label={t('realEstate.projects.stats.available')} value={totals.available} sub={formatCurrency(totals.availableValue, currency)} tone="text-emerald-700 dark:text-emerald-400" />
+                <Kpi label={t('realEstate.projects.stats.reserved')} value={totals.reserved} sub={t('realEstate.projects.stats.reservedHint')} tone="text-amber-700 dark:text-amber-400" />
+                <Kpi label={t('realEstate.projects.stats.sold')} value={totals.sold} sub={formatCurrency(totals.soldValue, currency)} tone="text-secondary" />
+            </KpiGrid>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Sell-through: what share of the project is no longer on offer. */}
-                <div className="p-4 bg-surface-container rounded-xl space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                        <span className="body-sm text-on-surface flex items-center gap-1.5">
-                            <Wallet className="w-4 h-4 text-on-surface-variant" aria-hidden="true" />
-                            {t('realEstate.projects.stats.sellThrough')}
+                <Section title={t('realEstate.projects.stats.sellThrough')} icon="trending_up">
+                    <div className="flex items-baseline justify-between gap-2 mb-2">
+                        <span className="text-2xl font-semibold text-on-surface tabular-nums">{sellThrough}%</span>
+                        <span className="text-xs text-on-surface-variant tabular-nums">
+                            {t('realEstate.projects.stats.remainingInventory', { value: formatCurrency(totals.availableValue, currency) })}
                         </span>
-                        <span className="body-sm font-semibold text-on-surface">{sellThrough}%</span>
                     </div>
-                    <div
-                        className="h-2 rounded-full bg-surface-container-high overflow-hidden"
-                        role="progressbar"
-                        aria-valuenow={sellThrough}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={t('realEstate.projects.stats.sellThrough')}
-                    >
-                        <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${sellThrough}%` }} />
-                    </div>
-                    <p className="body-xs text-on-surface-variant">
-                        {t('realEstate.projects.stats.remainingInventory', {
-                            value: formatCurrency(totals.availableValue, currency),
-                        })}
-                    </p>
-                </div>
+                    <Meter percent={sellThrough} label={t('realEstate.projects.stats.sellThrough')} />
+                </Section>
 
                 {/* Lifecycle position, not a construction percentage. */}
-                <div className="p-4 bg-surface-container rounded-xl space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                        <span className="body-sm text-on-surface flex items-center gap-1.5">
-                            <Banknote className="w-4 h-4 text-on-surface-variant" aria-hidden="true" />
-                            {t('realEstate.projects.stats.stage')}
-                        </span>
-                        <span className="body-sm font-semibold text-on-surface">
-                            {t(`realEstate.projects.status.${status}` as never)}
+                <Section title={t('realEstate.projects.stats.stage')} icon="construction">
+                    <div className="flex items-baseline justify-between gap-2 mb-2">
+                        <span className="text-2xl font-semibold text-on-surface">{t(`realEstate.projects.status.${status}` as never)}</span>
+                        <span className="text-xs text-on-surface-variant tabular-nums">
+                            {t('realEstate.projects.stats.stageHint', { percent: String(progress) })}
                         </span>
                     </div>
                     <ol className="flex items-center gap-1" aria-label={t('realEstate.projects.stats.stage')}>
@@ -124,16 +65,13 @@ export default function ProjectDashboard({
                             return (
                                 <li
                                     key={step}
-                                    className={`h-2 flex-1 rounded-full ${reached ? 'bg-primary' : 'bg-surface-container-high'}`}
+                                    className={`h-1.5 flex-1 rounded-full ${reached ? 'bg-secondary' : 'bg-surface-container-high'}`}
                                     title={t(`realEstate.projects.status.${step}` as never)}
                                 />
                             );
                         })}
                     </ol>
-                    <p className="body-xs text-on-surface-variant">
-                        {t('realEstate.projects.stats.stageHint', { percent: String(progress) })}
-                    </p>
-                </div>
+                </Section>
             </div>
         </div>
     );

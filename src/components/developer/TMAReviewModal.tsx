@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton, dangerButton } from '@/components/realestate/ui';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface TMAReviewModalProps {
   workspaceId: string;
@@ -16,6 +17,10 @@ export default function TMAReviewModal({
   onClose,
   onSuccess,
 }: TMAReviewModalProps) {
+  const { t } = useI18n();
+  /** This dialog's messages. */
+  const td = (key: string, values?: Record<string, string | number>) =>
+    t(`developerProjectDialogs.${key}` as MessageKey, values);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,18 +46,18 @@ export default function TMAReviewModal({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to review TMA');
+      if (!res.ok) throw new Error(data.error || td('revFailed'));
 
       onSuccess(data.tma);
     } catch (err: any) {
-      setError(err.message || 'Error reviewing TMA');
+      setError(err.message || td('revFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleAccept = async () => {
-    if (!confirm('Formally mark this TMA as signed/accepted? This will automatically increase the lot’s total price balance.')) {
+    if (!confirm(td('revAcceptConfirm'))) {
       return;
     }
 
@@ -70,18 +75,18 @@ export default function TMAReviewModal({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to accept TMA');
+      if (!res.ok) throw new Error(data.error || td('revFailed'));
 
       onSuccess(data.tma);
     } catch (err: any) {
-      setError(err.message || 'Error accepting TMA');
+      setError(err.message || td('revFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={`Review Change Order: ${tma.reference}`} onClose={onClose} wide>
+    <Modal title={td('revTitle', { ref: tma.reference })} onClose={onClose} wide>
       <div className="space-y-4">
         {error && (
           <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -93,10 +98,10 @@ export default function TMAReviewModal({
         <div className="p-4 bg-surface-container-high rounded-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-surface text-on-surface">
-              {tma.category.toUpperCase()}
+              {t(`developerProjectPage.tmaCategory.${tma.category}` as MessageKey)}
             </span>
-            <span className="text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary capitalize">
-              {tma.status.replace('_', ' ')}
+            <span className="text-xs font-bold px-2 py-0.5 rounded bg-primary/10 text-primary">
+              {t(`developerProjectPage.tmaStatus.${tma.status}` as MessageKey)}
             </span>
           </div>
           <h3 className="text-base font-bold text-on-surface">{tma.title}</h3>
@@ -104,17 +109,17 @@ export default function TMAReviewModal({
         </div>
 
         {/* Technical Review Fields */}
-        <Field label="Technical Feasibility Review & Notes (*Conducteur de Travaux*)">
+        <Field label={td('revNote')}>
           <textarea
             className={`${inputClass} min-h-[70px]`}
             value={techNote}
             onChange={(e) => setTechNote(e.target.value)}
-            placeholder="Validate whether site stage allows modification, structural impacts, duct paths..."
+            placeholder={td('revNotePlaceholder')}
           />
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Trade Contractor Execution Cost (€ HT)">
+          <Field label={td('revCost')}>
             <input
               type="number"
               className={inputClass}
@@ -123,7 +128,7 @@ export default function TMAReviewModal({
             />
           </Field>
 
-          <Field label="Client Billed Price Quote (€ TTC)">
+          <Field label={td('revQuote')}>
             <input
               type="number"
               className={inputClass}
@@ -134,13 +139,13 @@ export default function TMAReviewModal({
         </div>
 
         {tma.status !== 'accepted' && (
-          <Field label="Signed Addendum Document Reference (*Avenant TMA*)">
+          <Field label={td('revSigned')}>
             <input
               type="text"
               className={inputClass}
               value={signedDoc}
               onChange={(e) => setSignedDoc(e.target.value)}
-              placeholder="e.g. Avenant_TMA_Signe_LotA302.pdf or signature ID"
+              placeholder={td('revSignedPlaceholder')}
             />
           </Field>
         )}
@@ -148,7 +153,7 @@ export default function TMAReviewModal({
         {/* Actions Bar */}
         <div className="flex items-center justify-between pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Close
+            {td('close')}
           </button>
 
           <div className="flex items-center gap-2">
@@ -159,7 +164,7 @@ export default function TMAReviewModal({
                 className={`${secondaryButton} text-xs py-2`}
                 disabled={loading}
               >
-                {loading ? 'Saving...' : 'Validate Feasibility & Quote'}
+                {loading ? td('saving') : td('revApprove')}
               </button>
             )}
 
@@ -170,7 +175,7 @@ export default function TMAReviewModal({
                 className={`${primaryButton} text-xs py-2`}
                 disabled={loading}
               >
-                {loading ? 'Processing...' : 'Formalize & Sign Addendum'}
+                {loading ? td('saving') : td('revAccept')}
               </button>
             )}
           </div>

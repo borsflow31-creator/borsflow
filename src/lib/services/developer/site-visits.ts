@@ -9,6 +9,7 @@ import type { DeveloperContext } from './programs'
 import { advanceBuyerLead } from './buyer-stage'
 import { touchLead } from './lead-sync'
 import { createTask } from './tasks'
+import { autoTaskTitle } from '@/lib/crm/task-titles'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DEFAULT_VISIT_MINUTES = 45
@@ -204,9 +205,9 @@ export async function recordSiteVisitOutcome(
     const assigneeId = meeting.userId ?? ctx.userId
     const dueAt = new Date(Date.now() + DAY_MS)
     if (!attended) {
-      await createTask(ctx, { leadId, type: 'call', title: `Rebook the missed site visit (${buyer})`, dueAt, assigneeId })
+      await createTask(ctx, { leadId, type: 'call', title: autoTaskTitle('visitRebook', { name: buyer }), dueAt, assigneeId })
     } else if (outcome === 'interested' || outcome === 'needs_follow_up') {
-      await createTask(ctx, { leadId, type: 'follow_up', title: `Follow up after the site visit (${buyer})`, dueAt, assigneeId })
+      await createTask(ctx, { leadId, type: 'follow_up', title: autoTaskTitle('visitFollowUp', { name: buyer }), dueAt, assigneeId })
     }
   }
 

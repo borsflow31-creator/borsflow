@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
 import ContactPicker, { type PickedContact } from '@/components/realestate/ContactPicker';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { useWorkspaceCurrency } from './useWorkspaceCurrency';
 
 interface ReserveModalProps {
   workspaceId: string;
@@ -22,7 +23,11 @@ function today(): string {
 
 export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: ReserveModalProps) {
   const { t } = useI18n();
+  /** This dialog's messages. */
+  const td = (key: string, values?: Record<string, string | number>) =>
+    t(`developerProjectDialogs.${key}` as MessageKey, values);
   const agents = useWorkspaceAgents(workspaceId);
+  const currency = useWorkspaceCurrency(workspaceId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +44,7 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!buyer) {
-      setError('Please select a buyer lead.');
+      setError(td('resPickBuyer'));
       return;
     }
 
@@ -62,19 +67,19 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to reserve lot');
+        throw new Error(data.error || td('resFailed'));
       }
 
       onSuccess(data.lot);
     } catch (err: any) {
-      setError(err.message || 'Error reserving lot');
+      setError(err.message || td('resFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title={`Formalize Reservation for Lot ${lot.lotNumber}`} onClose={onClose}>
+    <Modal title={td('resTitle', { unit: lot.lotNumber })} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -83,14 +88,14 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
         )}
 
         <div className="p-3 bg-surface-container-high rounded text-sm mb-4">
-          <p className="font-semibold text-on-surface">Unit: Lot {lot.lotNumber}</p>
+          <p className="font-semibold text-on-surface">{td('unitLine', { unit: lot.lotNumber })}</p>
           <p className="text-on-surface-variant">
-            {lot.typology} · {lot.surfaceArea} m² · Total:{' '}
-            {lot.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}
+            {lot.typology} · {lot.surfaceArea} m² ·{' '}
+            {lot.totalPrice.toLocaleString(undefined, { style: 'currency', currency })}
           </p>
         </div>
 
-        <Field label="Buyer Lead (Purchaser) *">
+        <Field label={td('resBuyer')}>
           <ContactPicker
             workspaceId={workspaceId}
             value={buyer}
@@ -141,18 +146,18 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
         )}
 
         <div className="p-3 bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded space-y-1">
-          <p className="font-semibold">What happens upon reservation:</p>
-          <p>• The unit status transitions permanently to <strong>Reserved</strong>.</p>
-          <p>• The reservation deposit and cooling-off timeline begin.</p>
-          <p>• This lot will be included in subsequent statutory construction milestone calls for funds.</p>
+          <p className="font-semibold">{td('resWhatTitle')}</p>
+          <p>• {td('resWhat1')}</p>
+          <p>• {td('resWhat2')}</p>
+          <p>• {td('resWhat3')}</p>
         </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="submit" className={primaryButton} disabled={loading || !buyer}>
-            {loading ? 'Reserving...' : 'Confirm Reservation'}
+            {loading ? td('resSaving') : td('resSubmit')}
           </button>
         </div>
       </form>

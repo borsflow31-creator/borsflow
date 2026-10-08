@@ -127,7 +127,7 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" dir="ltr" className={`${dmSans.variable} ${albertSans.variable} ${jetbrainsMono.variable}`}>
+        <html lang="en" dir="ltr" suppressHydrationWarning className={`${dmSans.variable} ${albertSans.variable} ${jetbrainsMono.variable}`}>
             <head>
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <script dangerouslySetInnerHTML={{ __html: localeScript }} />

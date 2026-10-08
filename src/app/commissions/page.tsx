@@ -2,7 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import AppShell from '@/components/AppShell';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import SelectRefined from '@/components/ui/SelectRefined';
@@ -141,8 +143,16 @@ function SplitEditor({
 function CommissionsPageInner() {
     const { t, formatCurrency } = useI18n();
     const { workspaceId, ready } = useWorkspaceParam();
+    const { data: session } = useSession();
+    const isDeveloper = session?.user?.businessType === 'DEVELOPER';
     const info = useWorkspaceInfo(workspaceId);
     const [tab, setTab] = useState<Tab>('forecast');
+    // The forecast is built from an agency's mandates on the market; a developer
+    // has none, so it would always read zero. Developers start on what is accrued.
+    const tabs = isDeveloper ? TABS.filter(name => name !== 'forecast') : TABS;
+    useEffect(() => {
+        if (isDeveloper && tab === 'forecast') setTab('accrued');
+    }, [isDeveloper, tab]);
     const [mine, setMine] = useState(false);
     const [rows, setRows] = useState<CommissionRow[]>([]);
     const [earnings, setEarnings] = useState<Earning[]>([]);
@@ -208,7 +218,7 @@ function CommissionsPageInner() {
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                     <div>
                         <h1 className="display-md text-on-surface">{t('realEstate.commissions.title')}</h1>
-                        <p className="body-md text-on-surface-variant">{t('realEstate.commissions.subtitle')}</p>
+                        <p className="body-md text-on-surface-variant">{isDeveloper ? t('developerGuide.desc.commissions') : t('realEstate.commissions.subtitle')}</p>
                     </div>
                     {canModerate && (
                         <label className="flex items-center gap-2 body-sm text-on-surface">
@@ -217,6 +227,8 @@ function CommissionsPageInner() {
                         </label>
                     )}
                 </div>
+
+                {isDeveloper && <StandaloneGuide id="commissions" />}
 
                 <section aria-label={t('realEstate.commissions.earnings.title')} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {([['accrued', totalOf.accrued], ['realized', totalOf.realized], ['paid', totalOf.paid]] as const).map(([key, value]) => (
@@ -228,7 +240,7 @@ function CommissionsPageInner() {
                 </section>
 
                 <div className="flex flex-wrap gap-2" role="tablist">
-                    {TABS.map(name => (
+                    {tabs.map(name => (
                         <button key={name} role="tab" aria-selected={tab === name} onClick={() => setTab(name)}
                             className={`px-4 py-2 rounded-lg body-md transition-colors ${tab === name ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface hover:bg-surface-container-high'}`}>
                             {t(`realEstate.commissions.tabs.${name}` as MessageKey)}

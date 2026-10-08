@@ -5,6 +5,7 @@ import { readBoolean, readNumber, readString } from '../parse'
 import type { DeveloperContext } from './programs'
 import { touchLead } from './lead-sync'
 import { createTask } from './tasks'
+import { autoTaskTitle } from '@/lib/crm/task-titles'
 
 export const CALL_DIRECTIONS = ['outbound', 'inbound'] as const
 
@@ -63,7 +64,7 @@ export async function logCall(
     task = await createTask(ctx, {
       leadId: lead.id,
       type: 'call',
-      title: answered ? `Follow up with ${name}` : `Call ${name} back`,
+      title: autoTaskTitle(answered ? 'followUpWith' : 'callBack', { name }),
       dueAt: input.followUpAt as string,
     })
   }

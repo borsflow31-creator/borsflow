@@ -266,6 +266,30 @@
         "value": "helvetica-bold",
         "createdAt": "2026-10-07T20:01:44.355Z",
         "reason": "agent decision, not user-confirmed: React-PDF output uses the built-in PDF font set, as src/lib/documents/pdf.tsx already does; DESIGN.md typography governs the web UI, not generated PDFs"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "ibm plex sans arabic",
+        "createdAt": "2026-10-08T21:31:45.550Z",
+        "reason": "Claude: the Arabic version of the onboarding video needs an Arabic typeface; the brand fonts DM Sans and Albert Sans have no Arabic glyphs"
+      },
+      {
+        "rule": "design-system-color",
+        "value": "*",
+        "files": [
+          "brag-output-2026-10-08-214637/composition/index.html"
+        ],
+        "createdAt": "2026-10-08T21:42:17.489Z",
+        "reason": "Claude: one-off onboarding video composition, not app UI; colours are tints of the brand indigo and radii are video framing"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "brag-output-2026-10-08-214637/composition/index.html"
+        ],
+        "createdAt": "2026-10-08T21:42:17.609Z",
+        "reason": "Claude: one-off onboarding video composition, not app UI; colours are tints of the brand indigo and radii are video framing"
       }
     ]
   }

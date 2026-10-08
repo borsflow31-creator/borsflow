@@ -103,7 +103,16 @@ export default function ContactPicker({
                         <button
                             key={contact.id}
                             type="button"
-                            onClick={() => { onChange(contact); setOpen(false); setQuery(''); }}
+                            onClick={(e) => {
+                                // The picker usually sits inside a <label> (Field). Picking
+                                // swaps this list for the chosen contact and its clear
+                                // button; left alone, the label's default click then lands
+                                // on that clear button and empties the choice at once.
+                                e.preventDefault();
+                                onChange(contact);
+                                setOpen(false);
+                                setQuery('');
+                            }}
                             className="w-full text-left px-3 py-2 hover:bg-surface-container-high transition-colors"
                         >
                             <span className="body-md text-on-surface">{contactName(contact)}</span>
