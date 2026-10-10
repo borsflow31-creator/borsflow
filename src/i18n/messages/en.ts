@@ -4415,6 +4415,275 @@ export interface Messages {
     };
   };
   // </developerGuide:type>
+  developerCommissions: {
+    accrued: string;
+    realized: string;
+    paid: string;
+    empty: string;
+    company: string;
+  };
+  templateSample: {
+    developer: string;
+    buyerName: string;
+    buyerPhone: string;
+    project: string;
+    projectAddress: string;
+    unitType: string;
+    agent: string;
+    milestone: string;
+  };
+  developerActivity: {
+    taskCreated: string;
+    taskCompleted: string;
+    callFromAnswered: string;
+    callFromMissed: string;
+    callToAnswered: string;
+    callToMissed: string;
+    visitBooked: string;
+    visitBookedUnit: string;
+    visitDone: string;
+    visitMissed: string;
+    documentSent: string;
+    documentAccepted: string;
+  };
+  notificationTitles: {
+    notContacted: string;
+    unitReserved: string;
+    unitUnderContract: string;
+    overduePayment: string;
+    documentAccepted: string;
+    followUpWith: string;
+    cardDueSoon: string;
+    taskOverdue: string;
+    taskDueSoon: string;
+    mandateEndsTomorrow: string;
+    mandateEnds: string;
+    buyerMatches: string;
+    buyersMatch: string;
+    viewingFeedback: string;
+    invoiceOverdue: string;
+    quoteExpired: string;
+    invoiceViewed: string;
+    quoteViewed: string;
+    quoteAccepted: string;
+    quoteRejected: string;
+    meetingStartingSoon: string;
+    meetingBooked: string;
+    meetingRescheduled: string;
+    meetingCancelled: string;
+    assigned: string;
+    mentionedInComment: string;
+    repliedToComment: string;
+    mentionedInChannel: string;
+    joined: string;
+  };
+  buyerPortal: {
+    loading: string;
+    errors: {
+      load: string;
+      sendCode: string;
+      invalidCode: string;
+      submit: string;
+      sign: string;
+    };
+    restricted: {
+      title: string;
+      expired: string;
+      help: string;
+    };
+    header: {
+      clientSpace: string;
+      secure: string;
+      lock: string;
+      unlock: string;
+    };
+    unitNumber: string;
+    groundFloor: string;
+    floor: string;
+    hero: {
+      welcome: string;
+      handover: string;
+      progress: string;
+      percentDone: string;
+    };
+    tabs: {
+      journal: string;
+      unit: string;
+      financial: string;
+      tma: string;
+      documents: string;
+    };
+    journal: {
+      title: string;
+      subtitle: string;
+      drone: string;
+      recent: string;
+      photo: string;
+      emptyTitle: string;
+      emptyBody: string;
+    };
+    protections: {
+      title: string;
+      guarantee: string;
+      guaranteeHint: string;
+      architect: string;
+      architectHint: string;
+      legal: string;
+    };
+    unit: {
+      title: string;
+      subtitle: string;
+      typology: string;
+      area: string;
+      floor: string;
+      orientation: string;
+      annexes: string;
+    };
+    snags: {
+      title: string;
+      subtitle: string;
+      count: string;
+      general: string;
+      trade: string;
+    };
+    financial: {
+      lockedTitle: string;
+      lockedBody: string;
+      codeSentTo: string;
+      sendCode: string;
+      totalPrice: string;
+      totalCalled: string;
+      totalPaid: string;
+      remaining: string;
+      title: string;
+      subtitle: string;
+      print: string;
+      cols: {
+        number: string;
+        milestone: string;
+        tranche: string;
+        amount: string;
+        status: string;
+        document: string;
+      };
+      viewReceipt: string;
+      soon: string;
+      empty: string;
+    };
+    callStatus: {
+      draft: string;
+      issued: string;
+      sent: string;
+      "sent_to_bank": string;
+      paid: string;
+      overdue: string;
+    };
+    tma: {
+      lockedTitle: string;
+      lockedBody: string;
+      title: string;
+      subtitle: string;
+      request: string;
+      quoted: string;
+      estimating: string;
+      readyToSign: string;
+      techNote: string;
+      reviewSign: string;
+      signed: string;
+      empty: string;
+    };
+    unlockWithEmail: string;
+    tmaStatus: {
+      requested: string;
+      "feasibility_approved": string;
+      "quote_sent": string;
+      accepted: string;
+      rejected: string;
+      completed: string;
+    };
+    category: {
+      finishes: string;
+      electrical: string;
+      plumbing: string;
+      masonry: string;
+      flooring: string;
+      other: string;
+    };
+    documents: {
+      title: string;
+      body: string;
+    };
+    otp: {
+      title: string;
+      requestTitle: string;
+      requestBody: string;
+      sending: string;
+      send: string;
+      enter: string;
+      testCode: string;
+      resend: string;
+      verifying: string;
+      verify: string;
+    };
+    request: {
+      title: string;
+      category: string;
+      titleLabel: string;
+      titlePlaceholder: string;
+      details: string;
+      detailsPlaceholder: string;
+      reviewTitle: string;
+      reviewBody: string;
+      submitting: string;
+      submit: string;
+    };
+    cancel: string;
+    sign: {
+      title: string;
+      subject: string;
+      category: string;
+      techNote: string;
+      price: string;
+      name: string;
+      namePlaceholder: string;
+      consent: string;
+      signing: string;
+      submit: string;
+    };
+  };
+  crmDefaults: {
+    pipelines: {
+      contacts: string;
+      buyerJourney: string;
+      ownerMandate: string;
+      buyerSales: string;
+    };
+    stages: {
+      new: string;
+      contacted: string;
+      qualified: string;
+      nurturing: string;
+      lost: string;
+      enquiry: string;
+      briefRecorded: string;
+      viewingBooked: string;
+      viewingDone: string;
+      offer: string;
+      underContract: string;
+      closed: string;
+      prospect: string;
+      valuationBooked: string;
+      valuationDone: string;
+      mandateSigned: string;
+      live: string;
+      underOffer: string;
+      sold: string;
+      siteVisit: string;
+      negotiation: string;
+      reserved: string;
+      won: string;
+    };
+  };
   developerProjectList: {
     searchPlaceholder: string;
     allStatuses: string;
@@ -9154,6 +9423,275 @@ const en: Messages = {
     },
   },
   // </developerGuide:value>
+  developerCommissions: {
+    accrued: "Accrued (contract signed)",
+    realized: "Earned (deed signed)",
+    paid: "Paid out",
+    empty: "No commissions yet. One is recorded when a unit's sales contract is signed, if its project has a commission rate.",
+    company: "Company",
+  },
+  templateSample: {
+    developer: "Acme Developments",
+    buyerName: "Jordan Rivera",
+    buyerPhone: "+1 555 0100",
+    project: "Parkside Gardens",
+    projectAddress: "12 Park Avenue, Springfield",
+    unitType: "apartment",
+    agent: "Sam Lee",
+    milestone: "Foundations complete",
+  },
+  developerActivity: {
+    taskCreated: "Follow-up added for {buyer}: {title}",
+    taskCompleted: "Follow-up done for {buyer}: {title}",
+    callFromAnswered: "Call from {buyer}: answered",
+    callFromMissed: "Call from {buyer}: no answer",
+    callToAnswered: "Call to {buyer}: answered",
+    callToMissed: "Call to {buyer}: no answer",
+    visitBooked: "Site visit booked: {project}",
+    visitBookedUnit: "Site visit booked: {project} · {unit}",
+    visitDone: "Site visit done at {project}: {outcome}",
+    visitMissed: "{buyer} did not attend the site visit at {project}",
+    documentSent: "{kind} {number} sent to {buyer}",
+    documentAccepted: "{kind} {number} accepted by {name}",
+  },
+  notificationTitles: {
+    notContacted: "{name} has not been contacted",
+    unitReserved: "Unit {unit} reserved in {project}",
+    unitUnderContract: "Unit {unit} under contract in {project}",
+    overduePayment: "Overdue payment: unit {unit}",
+    documentAccepted: "{number} accepted by {name}",
+    followUpWith: "Follow up with {name}",
+    cardDueSoon: "Due soon: \"{title}\"",
+    taskOverdue: "Overdue: {task}",
+    taskDueSoon: "Due soon: {task}",
+    mandateEndsTomorrow: "Mandate {reference} on {property} ends tomorrow",
+    mandateEnds: "Mandate {reference} on {property} ends in {days} days",
+    buyerMatches: "1 buyer matches {property}",
+    buyersMatch: "{count} buyers match {property}",
+    viewingFeedback: "Viewing feedback on {property}",
+    invoiceOverdue: "Invoice {number} for {client} is overdue",
+    quoteExpired: "Quote {number} for {client} expired",
+    invoiceViewed: "{client} viewed invoice {number}",
+    quoteViewed: "{client} viewed quote {number}",
+    quoteAccepted: "{client} accepted quote {number}",
+    quoteRejected: "{client} rejected quote {number}",
+    meetingStartingSoon: "Starting soon: {title}",
+    meetingBooked: "Meeting booked: {title}",
+    meetingRescheduled: "Meeting rescheduled: {title}",
+    meetingCancelled: "Meeting cancelled: {title}",
+    assigned: "You were assigned to \"{title}\"",
+    mentionedInComment: "{name} mentioned you in a comment",
+    repliedToComment: "{name} replied to your comment",
+    mentionedInChannel: "{name} mentioned you in #{channel}",
+    joined: "{name} joined {workspace}",
+  },
+  buyerPortal: {
+    loading: "Opening your client space…",
+    errors: {
+      load: "Could not load your client space",
+      sendCode: "Could not send the verification code",
+      invalidCode: "Invalid code",
+      submit: "Could not send your request",
+      sign: "Could not sign the addendum",
+    },
+    restricted: {
+      title: "Access restricted",
+      expired: "This link is no longer valid or has expired.",
+      help: "Check the link in the email from your developer, or contact your sales advisor.",
+    },
+    header: {
+      clientSpace: "Client space",
+      secure: "Financial space unlocked",
+      lock: "Lock",
+      unlock: "Unlock the financial space",
+    },
+    unitNumber: "Lot {number}",
+    groundFloor: "Ground floor",
+    floor: "Floor {floor}",
+    hero: {
+      welcome: "Welcome, {name}",
+      handover: "Planned handover",
+      progress: "Construction progress",
+      percentDone: "{percent}% complete",
+    },
+    tabs: {
+      journal: "Site journal",
+      unit: "My unit",
+      financial: "Calls for funds",
+      tma: "Modifications",
+      documents: "Documents",
+    },
+    journal: {
+      title: "Construction timeline and site updates",
+      subtitle: "Regular progress updates from the site team.",
+      drone: "Aerial drone tour",
+      recent: "Recent update",
+      photo: "Site progress photo",
+      emptyTitle: "New photos are on their way",
+      emptyBody: "The site team will publish the next photos and drone flyover shortly.",
+    },
+    protections: {
+      title: "Your legal protections",
+      guarantee: "Completion guarantee",
+      guaranteeHint: "Completion secured by a guarantor",
+      architect: "Supervising architect",
+      architectHint: "Certifies each construction stage",
+      legal: "Legal framework",
+    },
+    unit: {
+      title: "Unit details and annexes",
+      subtitle: "Technical details for lot {number}.",
+      typology: "Typology",
+      area: "Living area",
+      floor: "Floor",
+      orientation: "Orientation",
+      annexes: "Linked lots (parking, cellar)",
+    },
+    snags: {
+      title: "Post-handover warranty and snags",
+      subtitle: "Defects reported after handover and how their repair is going.",
+      count: "{open} open / {total} total",
+      general: "General",
+      trade: "Trade:",
+    },
+    financial: {
+      lockedTitle: "Protected financial information",
+      lockedBody: "To see your calls for funds, receipts and bank letters, confirm your identity with a 6-digit code.",
+      codeSentTo: "The code will be sent to:",
+      sendCode: "Send a verification code",
+      totalPrice: "Agreed price (incl. tax)",
+      totalCalled: "Total called",
+      totalPaid: "Total paid",
+      remaining: "Remaining balance",
+      title: "Calls for funds",
+      subtitle: "Your payment schedule, following the certified construction stages.",
+      print: "Print statement",
+      cols: {
+        number: "Notice",
+        milestone: "Stage",
+        tranche: "Share",
+        amount: "Amount due",
+        status: "Status",
+        document: "Document",
+      },
+      viewReceipt: "View receipt",
+      soon: "Available soon",
+      empty: "No calls for funds issued yet.",
+    },
+    callStatus: {
+      draft: "Draft",
+      issued: "To pay",
+      sent: "To pay",
+      "sent_to_bank": "Sent to your bank",
+      paid: "Paid",
+      overdue: "Overdue",
+    },
+    tma: {
+      lockedTitle: "Protected modifications",
+      lockedBody: "Confirm your identity with an email code to see your modification requests, follow quotes and sign addenda.",
+      title: "Modifications to your unit",
+      subtitle: "Personalise finishes and layout with your developer.",
+      request: "Request a modification",
+      quoted: "Quote:",
+      estimating: "Being estimated",
+      readyToSign: "Quote ready for your signature",
+      techNote: "Technical note: \"{note}\"",
+      reviewSign: "Review and sign the addendum",
+      signed: "Addendum signed electronically",
+      empty: "No modification requests for this unit yet.",
+    },
+    unlockWithEmail: "Unlock with an email code",
+    tmaStatus: {
+      requested: "Requested",
+      "feasibility_approved": "Feasible",
+      "quote_sent": "Quote sent",
+      accepted: "Accepted",
+      rejected: "Declined",
+      completed: "Done",
+    },
+    category: {
+      finishes: "Finishes and paint",
+      electrical: "Electrical and sockets",
+      plumbing: "Plumbing and sanitary",
+      masonry: "Partitions and layout",
+      flooring: "Flooring and tiling",
+      other: "Other",
+    },
+    documents: {
+      title: "Your documents",
+      body: "Confirm your identity with an email code to read and accept the documents your developer sent you.",
+    },
+    otp: {
+      title: "Confirm your identity",
+      requestTitle: "Receive a one-time code",
+      requestBody: "We will send a 6-digit code to your address:",
+      sending: "Sending…",
+      send: "Send the code",
+      enter: "Enter the 6-digit code sent to:",
+      testCode: "Test code: {code}",
+      resend: "Resend",
+      verifying: "Checking…",
+      verify: "Verify and unlock",
+    },
+    request: {
+      title: "Request a modification",
+      category: "Category",
+      titleLabel: "What would you like? *",
+      titlePlaceholder: "e.g. An extra socket on the kitchen island",
+      details: "Details and location *",
+      detailsPlaceholder: "Describe the change, the room and the dimensions…",
+      reviewTitle: "Technical review",
+      reviewBody: "Your request goes to the site manager and the supervising architect. Once it is confirmed feasible, a quote will appear here for your signature.",
+      submitting: "Sending…",
+      submit: "Send the request",
+    },
+    cancel: "Cancel",
+    sign: {
+      title: "Sign the modification addendum",
+      subject: "Subject:",
+      category: "Category:",
+      techNote: "Technical note:",
+      price: "Addendum price (incl. tax):",
+      name: "Your full legal name (electronic signature) *",
+      namePlaceholder: "First and last name",
+      consent: "I accept this quote. I authorise the developer to carry out these works on lot {number} and to add this amount to my purchase contract.",
+      signing: "Signing…",
+      submit: "Accept and sign",
+    },
+  },
+  crmDefaults: {
+    pipelines: {
+      contacts: "Contacts",
+      buyerJourney: "Buyer journey",
+      ownerMandate: "Owner / mandate",
+      buyerSales: "Buyer sales",
+    },
+    stages: {
+      new: "New",
+      contacted: "Contacted",
+      qualified: "Qualified",
+      nurturing: "Nurturing",
+      lost: "Lost",
+      enquiry: "Enquiry",
+      briefRecorded: "Brief recorded",
+      viewingBooked: "Viewing booked",
+      viewingDone: "Viewing done",
+      offer: "Offer",
+      underContract: "Under contract",
+      closed: "Closed",
+      prospect: "Prospect",
+      valuationBooked: "Valuation booked",
+      valuationDone: "Valuation done",
+      mandateSigned: "Mandate signed",
+      live: "Live",
+      underOffer: "Under offer",
+      sold: "Sold",
+      siteVisit: "Site visit",
+      negotiation: "Negotiation",
+      reserved: "Reserved",
+      won: "Won",
+    },
+  },
   developerProjectList: {
     searchPlaceholder: "Search by name, reference or city…",
     allStatuses: "All statuses",

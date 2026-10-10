@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Paperclip } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { pipelineLabel, stageLabel, statusLabel } from '@/components/crm/labels';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
@@ -135,11 +136,7 @@ export default function PipelineBoard({
     const [loading, setLoading] = useState(true);
     const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchLeads();
-    }, [pipeline.id, refreshKey]);
-
-    const fetchLeads = async () => {
+    const fetchLeads = useCallback(async () => {
         try {
             setLoading(true);
             // Leads answer with a bare array; the newer endpoints with a named envelope.
@@ -160,7 +157,12 @@ export default function PipelineBoard({
         } finally {
             setLoading(false);
         }
-    };
+    }, [pipeline.id, pipeline.workspaceId, subjectType, workspaceId]);
+
+    // Reload when the board changes or the parent asks for fresh data.
+    useEffect(() => {
+        fetchLeads();
+    }, [fetchLeads, refreshKey]);
 
     const handleDragEnd = async (result: DropResult) => {
         if (!result.destination) return;
@@ -288,7 +290,7 @@ export default function PipelineBoard({
             {/* Pipeline Header */}
             <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <h2 className="headline-lg text-on-surface">{pipeline.name}</h2>
+                    <h2 className="headline-lg text-on-surface">{pipelineLabel(pipeline.name, t)}</h2>
                     {pipeline.description && (
                         <p className="body-md text-on-surface-variant">{pipeline.description}</p>
                     )}
@@ -325,7 +327,7 @@ export default function PipelineBoard({
                                 <div className="bg-surface-container rounded-lg p-3 sm:p-4 h-full flex flex-col">
                                     {/* Stage Header */}
                                     <div className="mb-4 flex items-center justify-between">
-                                        <h3 className="headline-sm text-on-surface">{stage}</h3>
+                                        <h3 className="headline-sm text-on-surface">{stageLabel(stage, t)}</h3>
                                         <span className="body-sm text-on-surface-variant bg-surface-container-highest px-2 py-1 rounded">
                                             {stageLeads.length}
                                         </span>
@@ -416,7 +418,7 @@ export default function PipelineBoard({
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex flex-wrap gap-1">
                                                                         <span className={`body-xs px-2 py-1 rounded ${getStatusColor(lead.status)}`}>
-                                                                            {lead.status}
+                                                                            {statusLabel(lead.status, t)}
                                                                         </span>
                                                                         {lead.tags && lead.tags.length > 0 && (
                                                                             lead.tags.slice(0, 2).map((tag, tagIndex) => (

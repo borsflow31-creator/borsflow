@@ -1,5 +1,4 @@
-import type Groq from 'groq-sdk'
-import { getGroq } from '@/lib/groq'
+import { getAi, providerErrorMessage, type ChatMessage } from '@/lib/ai/provider'
 import { canAffordAnotherRound, settleAiCredits, type AiReservation } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens, estimateTokens, type TokenUsage } from '@/lib/billing/ai-pricing'
 import { toTokenUsage } from '@/lib/ai/billed-completion'
@@ -13,8 +12,6 @@ import { runTool, toolDefinitions, toolLabel, type ToolContext } from './tools'
  * produces no tool calls, and a final round with tools disabled guarantees an
  * answer. Usage from every round is billed once, at the end, whatever happens.
  */
-
-type ChatMessage = Groq.Chat.Completions.ChatCompletionMessageParam
 
 export type AgentEvent =
   | { t: 'text'; v: string }
@@ -47,12 +44,12 @@ export async function runAgent(params: {
 }): Promise<void> {
   const { ctx, reservation, send, signal } = params
   const conversation: ChatMessage[] = [...params.messages]
-  const tools = toolDefinitions(ctx.role)
+  const tools = toolDefinitions(ctx.role, ctx.isDeveloper)
   const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 }
   let status: 'ok' | 'error' | 'aborted' = 'ok'
   let emittedText = false
-  // Llama occasionally emits a malformed tool call, which Groq rejects with
-  // `tool_use_failed`. One retry with tools off still gets the user an answer.
+  // A model occasionally emits a malformed tool call, which the upstream provider
+  // rejects (`tool_use_failed`). One retry with tools off still gets an answer.
   let toolsDisabled = false
 
   try {
@@ -66,21 +63,31 @@ export async function runAgent(params: {
       }
 
       const lastRound = round === MAX_TOOL_ROUNDS || toolsDisabled
+      // On the forced last round, say so: some models otherwise end silently
+      // when they can't call the tool they wanted.
+      if (lastRound && round > 0) {
+        conversation.push({
+          role: 'system',
+          content: "No more tools can be used. Answer the user's question now, in their language, using the tool results above; if they don't answer it, say what you found and what is missing.",
+        })
+      }
       let text = ''
       let reported: TokenUsage | null = null
       const calls = new Map<number, PendingCall>()
 
       try {
-        const stream = await getGroq().chat.completions.create(
+        const stream = await getAi().chat.completions.create(
           {
             model: reservation.model,
             messages: conversation,
             tools,
             tool_choice: lastRound ? 'none' : 'auto',
             stream: true,
+            // Usage arrives once, in the final chunk.
+            stream_options: { include_usage: true },
             temperature: 0.3,
             max_completion_tokens: MAX_OUTPUT_TOKENS,
-            ...reasoningOptions(reservation.model),
+            ...(reasoningOptions(reservation.model) as object),
           },
           { signal }
         )
@@ -101,7 +108,7 @@ export async function runAgent(params: {
             if (call.function?.arguments) pending.args += call.function.arguments
             calls.set(call.index, pending)
           }
-          reported = toTokenUsage(chunk.x_groq?.usage) ?? reported
+          reported = toTokenUsage(chunk.usage) ?? reported
         }
       } catch (error) {
         const partial = [...calls.values()].map((call) => call.args).join('')
@@ -147,12 +154,19 @@ export async function runAgent(params: {
       console.error('AI agent failed:', error)
       send({
         t: 'error',
-        message: emittedText
-          ? 'The answer was cut off because the AI service stopped responding. Try again.'
-          : 'The AI service could not answer. Try again in a moment.',
+        // A key, credit or model problem won't fix itself; say so instead of "try again".
+        message:
+          providerErrorMessage(error) ??
+          (emittedText
+            ? 'The answer was cut off because the AI service stopped responding. Try again.'
+            : 'The AI service could not answer. Try again in a moment.'),
       })
     }
   } finally {
+    // Never leave the user with an empty reply.
+    if (status === 'ok' && !emittedText) {
+      send({ t: 'text', v: "Sorry, I couldn't put an answer together for that. Try asking it another way, or be more specific." })
+    }
     const produced = usage.inputTokens + usage.outputTokens > 0
     const credits = await settleAiCredits(reservation, produced ? usage : null, status)
     send({ t: 'done', credits })
@@ -164,7 +178,7 @@ function addUsage(total: TokenUsage, round: TokenUsage) {
   total.outputTokens += round.outputTokens
 }
 
-/** Fallback when a round ends without Groq's usage report. */
+/** Fallback when a round ends without the provider's usage report. */
 function estimateRound(conversation: ChatMessage[], output: string): TokenUsage {
   if (!output) return { inputTokens: 0, outputTokens: 0 }
   return { inputTokens: estimateMessageTokens(conversation), outputTokens: estimateTokens(output) }

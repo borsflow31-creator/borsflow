@@ -3,7 +3,7 @@
 A Cloudflare Worker that drives every cron job for the app.
 
 Vercel Cron on the Hobby plan runs at most once per day, but this app's jobs need
-minute, half-hour and hourly granularity. This Worker owns all six schedules and
+minute, half-hour and hourly granularity. This Worker owns every schedule and
 calls the app's existing HTTP cron endpoints. **Nothing about the app itself
 moves to Cloudflare** — this is a scheduler, not a host. `vercel.json` carries no
 crons; this Worker is the only scheduler for the app.
@@ -11,11 +11,21 @@ crons; this Worker is the only scheduler for the app.
 | Job | Schedule |
 |---|---|
 | `/api/cron/process-automations` | every minute |
+| `/api/cron/process-scheduled-campaigns` | every minute |
 | `/api/cron/process-email-queue` | every minute |
+| `/api/cron/lead-alerts` | every minute |
 | `/api/cron/refresh-tokens` | every 30 minutes (minutes `0` and `30` of the tick) |
 | `/api/cron/expire-invitations` | hourly (minute `0` of the tick) |
-| `/api/cron/mark-overdue` | hourly (minute `0` of the tick) |
-| `/api/cron/sync-calendars` | hourly (minute `0` of the tick) |
+| `/api/cron/mark-overdue` | hourly |
+| `/api/cron/sync-calendars` | hourly |
+| `/api/cron/notification-reminders` | hourly |
+| `/api/cron/call-reminders` | hourly |
+| `/api/cron/project-alerts` | hourly |
+| `/api/cron/mandate-expiry` | hourly |
+| `/api/cron/offer-expiry` | hourly |
+| `/api/cron/refresh-segments` | hourly |
+| `/api/cron/property-matches` | daily at 07:00 UTC |
+| `/api/cron/vendor-reports` | daily at 07:00 UTC |
 
 The every-minute jobs run **sequentially, automations first**: automations
 materialize emails into the queue, so draining the queue second means a step
@@ -27,7 +37,7 @@ when the minute matches, rather than spending a second trigger from the
 account's limit. `expire-invitations` also prunes old rate-limit events while
 it's at it. The manual `fetch` trigger runs every job regardless of the clock.
 
-> Do not add any of these six paths back to `vercel.json` while this Worker is
+> Do not add any of these paths back to `vercel.json` while this Worker is
 > deployed — `process-email-queue` has no DB-level lock, so two schedulers
 > hitting it concurrently can double-send, and the others aren't idempotent
 > against overlap either.

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { stageLabel } from '@/components/crm/labels';
 import InterestModal from './InterestModal';
 import { Badge, STATUS_TONE, errorFrom, primaryButton, useWorkspaceInfo } from './ui';
 import BriefsPanel from './BriefsPanel';
@@ -71,7 +72,7 @@ export default function LeadInterests({
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Badge>{row.stage}</Badge>
+                                <Badge>{stageLabel(row.stage, t)}</Badge>
                                 {row.status !== 'active' && (
                                     <Badge tone={STATUS_TONE[row.status] ?? 'neutral'}>{t(`realEstate.interests.status.${row.status}` as MessageKey)}</Badge>
                                 )}

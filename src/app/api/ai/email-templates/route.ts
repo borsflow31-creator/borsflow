@@ -6,6 +6,7 @@ import { reserveAiCredits } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens } from '@/lib/billing/ai-pricing'
 import { streamBilled } from '@/lib/ai/billed-completion'
 import { QUALITY_MODEL } from '@/lib/ai/models'
+import { AI_NOT_CONFIGURED, isAiConfigured, providerErrorMessage } from '@/lib/ai/provider'
 
 const MAX_OUTPUT_TOKENS = 3000
 const MAX_FIELD_CHARS = 1000
@@ -15,14 +16,14 @@ const json = (body: unknown, status = 500) =>
 
 export async function POST(req: NextRequest) {
   // Every other AI route requires a session. Without one this endpoint was an
-  // open proxy to the Groq account: anyone could spend the quota.
+  // open proxy to the AI provider account: anyone could spend the quota.
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
     return json({ error: 'Unauthorized' }, 401)
   }
 
-  if (!process.env.GROQ_API_KEY) {
-    return json({ error: 'GROQ_API_KEY is not configured' }, 500)
+  if (!isAiConfigured()) {
+    return json({ error: AI_NOT_CONFIGURED }, 500)
   }
 
   const { templateType, campaignContext, workspaceId } = await req.json()
@@ -75,7 +76,7 @@ Return ONLY the HTML — no markdown, no code blocks, no explanation.`,
   } catch (error) {
     // An upstream failure (bad key, quota, outage) used to escape as an empty 500.
     console.error('AI email template generation failed:', error)
-    return json({ error: 'The AI service could not generate a template. Try again later.' }, 502)
+    return json({ error: providerErrorMessage(error) ?? 'The AI service could not generate a template. Try again later.' }, 502)
   }
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getLeadAccess } from '@/lib/crm/lead-access'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 import { logCall } from '@/lib/services/developer/calls'
+import { refuseNonDeveloper } from '@/lib/crm/access'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,8 @@ export async function POST(
 
     const result = await getLeadAccess(id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
     const { access } = result
 
     const logged = await logCall({ workspaceId: access.workspaceId, userId: access.userId }, id, body)

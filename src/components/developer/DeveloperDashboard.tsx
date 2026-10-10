@@ -7,6 +7,7 @@ import { AlertCircle, ArrowDownRight, ArrowUpRight, ArrowRight, Building, Loader
 import { StandaloneGuide } from '@/components/ui/PageHeader';
 import { Kpi, KpiGrid, Section } from '@/components/developer/kpi';
 import { useI18n } from '@/i18n/I18nProvider';
+import { stageLabel } from '@/components/crm/labels';
 import type { DashboardPeriod, DeveloperDashboard as DashboardData } from '@/lib/services/developer/dashboard';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
@@ -368,7 +369,7 @@ export default function DeveloperDashboard({ workspaceId }: { workspaceId: strin
                             <Section title={t('developerDashboard.chartLeadFunnel')} icon="filter_alt">
                                 <HBars
                                     rows={data.series.leadFunnel.map((s) => ({
-                                        key: s.stage, label: s.stage, value: s.count, valueLabel: String(s.count),
+                                        key: s.stage, label: stageLabel(s.stage, t), value: s.count, valueLabel: String(s.count),
                                         sub: s.value > 0 ? money(s.value) : undefined,
                                     }))}
                                     empty={t('developerDashboard.noLeadData')}

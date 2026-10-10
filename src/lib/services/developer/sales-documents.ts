@@ -392,7 +392,7 @@ export async function sendDocument(ctx: DeveloperContext & { canModerate?: boole
     'sales_document_sent',
     doc.lead.id,
     `${KIND_LABEL[doc.kind as DocumentKind]} ${doc.number} sent to ${buyer}`,
-    { documentId: doc.id, number: doc.number, hash, ...(doc.visibility !== 'team' ? { visibility: doc.visibility } : {}) },
+    { documentId: doc.id, number: doc.number, kind: doc.kind, buyer, hash, ...(doc.visibility !== 'team' ? { visibility: doc.visibility } : {}) },
     doc.lead.id
   )
 
@@ -591,7 +591,7 @@ export async function acceptDocument(
       'sales_document_accepted',
       doc.leadId,
       `${KIND_LABEL[doc.kind as DocumentKind]} ${doc.number} accepted by ${name}`,
-      { documentId: doc.id, number: doc.number, hash: doc.contentHash, ...(doc.visibility !== 'team' ? { visibility: doc.visibility } : {}) },
+      { documentId: doc.id, number: doc.number, kind: doc.kind, name, hash: doc.contentHash, ...(doc.visibility !== 'team' ? { visibility: doc.visibility } : {}) },
       doc.leadId
     )
   }

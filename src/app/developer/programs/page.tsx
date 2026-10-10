@@ -252,7 +252,7 @@ function ProgramsPageInner() {
                     )}
 
                     {/* Unit distribution pills */}
-                    <KpiGrid cols={4} fixed>
+                    <KpiGrid cols={2} fixed>
                       <Kpi compact label={t('developerProjectPage.statTotal')} value={program.totalUnits} />
                       <Kpi compact label={t('realEstate.projects.stats.available')} value={program.availableUnits} tone="text-emerald-700 dark:text-emerald-400" />
                       <Kpi compact label={t('realEstate.projects.stats.reserved')} value={program.reservedUnits} tone="text-amber-700 dark:text-amber-400" />

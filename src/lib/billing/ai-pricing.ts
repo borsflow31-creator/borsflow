@@ -19,14 +19,16 @@ interface ModelPrice {
 }
 
 /**
- * Groq's last published on-demand list prices. The console now lists these
- * models as "Contact Sales", so update this table from the Groq invoice or
- * contract when the real rate is known.
+ * OpenRouter's listed prices (USD per million tokens) for the models in
+ * `@/lib/ai/models`, read from https://openrouter.ai/api/v1/models on 2026-10-10. The others stay for AI_*_MODEL overrides.
+ * OpenRouter lists the cheapest provider's rate; update this table if the
+ * account's actual spend differs.
  */
 export const MODEL_PRICING: Record<string, ModelPrice> = {
-  'llama-3.1-8b-instant': { inputPerM: 0.05, outputPerM: 0.08 },
-  'llama-3.3-70b-versatile': { inputPerM: 0.59, outputPerM: 0.79 },
-  'openai/gpt-oss-20b': { inputPerM: 0.075, outputPerM: 0.3 },
+  'google/gemini-2.5-flash-lite': { inputPerM: 0.1, outputPerM: 0.4 },
+  'meta-llama/llama-3.1-8b-instruct': { inputPerM: 0.05, outputPerM: 0.08 },
+  'meta-llama/llama-3.3-70b-instruct': { inputPerM: 0.22, outputPerM: 0.5 },
+  'openai/gpt-oss-20b': { inputPerM: 0.018, outputPerM: 0.09 },
 }
 
 /** 1 credit = $0.001 of model spend. The single knob for what a credit is worth. */
@@ -43,7 +45,7 @@ const CREDIT_MICRO_USD = Math.round(CREDIT_USD * MICRO)
 function priceFor(model: string): ModelPrice {
   const known = MODEL_PRICING[model]
   if (known) return known
-  // An unknown model (e.g. a GROQ_*_MODEL override) is billed at the most
+  // An unknown model (e.g. an AI_*_MODEL override) is billed at the most
   // expensive known rate, so a misconfiguration can't make AI free.
   return Object.values(MODEL_PRICING).reduce((a, b) =>
     b.inputPerM + b.outputPerM > a.inputPerM + a.outputPerM ? b : a
@@ -68,7 +70,7 @@ export function creditsFor(model: string, usage: TokenUsage): number {
 
 /**
  * Rough token count for text: about 4 characters per token for English. Used to
- * size reservations and as the fallback when a call ends without Groq reporting
+ * size reservations and as the fallback when a call ends without the provider reporting
  * usage (an abort or a stream error).
  */
 export function estimateTokens(text: string): number {

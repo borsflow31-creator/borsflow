@@ -1,5 +1,4 @@
 import { NextRequest } from 'next/server'
-import type Groq from 'groq-sdk'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -8,6 +7,7 @@ import { reserveAiCredits } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens, estimateTokens } from '@/lib/billing/ai-pricing'
 import { linkedAbortController } from '@/lib/ai/billed-completion'
 import { AGENT_MODEL } from '@/lib/ai/models'
+import { AI_NOT_CONFIGURED, isAiConfigured, type ChatMessage as ProviderMessage } from '@/lib/ai/provider'
 import { buildSystemPrompt, safeTimeZone } from '@/lib/ai/agent/prompt'
 import { MAX_OUTPUT_TOKENS, runAgent, type AgentEvent } from '@/lib/ai/agent/run'
 import { toolDefinitions } from '@/lib/ai/agent/tools'
@@ -26,7 +26,7 @@ const MAX_CONTEXT_CHARS = 8000
 /** Conversation history kept per request, in estimated tokens. */
 const HISTORY_TOKEN_BUDGET = 6000
 
-type ChatMessage = Groq.Chat.Completions.ChatCompletionMessageParam
+type ChatMessage = ProviderMessage
 
 const jsonError = (error: string | undefined, status: number | undefined) =>
     new Response(JSON.stringify({ error: error ?? 'Request failed' }), {
@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
         return jsonError('Unauthorized', 401)
     }
 
-    if (!process.env.GROQ_API_KEY) {
-        return jsonError('GROQ_API_KEY is not configured', 500)
+    if (!isAiConfigured()) {
+        return jsonError(AI_NOT_CONFIGURED, 500)
     }
 
     let body: any
@@ -106,7 +106,8 @@ export async function POST(req: NextRequest) {
 
     const [role, workspace, user] = await Promise.all([
         getWorkspaceRole(workspaceId, userId),
-        prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+        // The owner's business type decides the workspace's kind, as everywhere else.
+        prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, owner: { select: { businessType: true } } } }),
         prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
     ])
 
@@ -114,18 +115,21 @@ export async function POST(req: NextRequest) {
         ? body.context.slice(0, MAX_CONTEXT_CHARS)
         : undefined
 
+    const isDeveloper = workspace?.owner?.businessType === 'DEVELOPER'
+    const timeZone = safeTimeZone(body.timeZone)
     const systemPrompt = buildSystemPrompt({
         userName: user?.name ?? null,
         workspaceName: workspace?.name ?? 'Workspace',
         role,
-        timeZone: safeTimeZone(body.timeZone),
+        timeZone,
         now: new Date(),
         pageContext,
+        isDeveloper,
     })
     const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }, ...trimHistory(history)]
 
     // Reserve one round's worth; extra tool rounds are settled on real usage.
-    const toolTokens = estimateTokens(JSON.stringify(toolDefinitions(role)))
+    const toolTokens = estimateTokens(JSON.stringify(toolDefinitions(role, isDeveloper)))
     const reserve = await reserveAiCredits({
         userId,
         workspaceId,
@@ -155,7 +159,7 @@ export async function POST(req: NextRequest) {
                 }
             }
             await runAgent({
-                ctx: { userId, workspaceId, role },
+                ctx: { userId, workspaceId, role, isDeveloper, timeZone },
                 reservation: reserve.reservation,
                 messages,
                 send,

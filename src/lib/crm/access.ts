@@ -55,6 +55,32 @@ export async function getWorkspaceAccess(
   }
 }
 
+/**
+ * The developer features (projects, units, calls for funds, follow-ups...) belong
+ * to real estate developer workspaces: the workspace owner's business type, the
+ * same rule the sidebar and the developer pages use. Null when allowed, else a
+ * ready 403 response.
+ */
+export async function refuseNonDeveloper(workspaceId: string): Promise<NextResponse | null> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { owner: { select: { businessType: true } } },
+  })
+  if (workspace?.owner?.businessType === 'DEVELOPER') return null
+  return NextResponse.json({ error: 'This feature is for real estate developer workspaces' }, { status: 403 })
+}
+
+/** `getWorkspaceAccess`, for the developer API: also refuses a non-developer workspace. */
+export async function getDeveloperAccess(
+  workspaceId: string,
+  opts: { write?: boolean } = {}
+): Promise<{ access: WorkspaceAccess } | Failure> {
+  const result = await getWorkspaceAccess(workspaceId, opts)
+  if ('error' in result) return result
+  const refused = await refuseNonDeveloper(workspaceId)
+  return refused ? { error: refused } : result
+}
+
 async function viaRecord<T extends { workspaceId: string }>(
   record: T | null,
   notFound: string,

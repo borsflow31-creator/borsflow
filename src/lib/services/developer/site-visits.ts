@@ -194,7 +194,7 @@ export async function recordSiteVisitOutcome(
       description: attended
         ? `Site visit done at ${meeting.program?.name ?? 'the project'}: ${outcome!.replace(/_/g, ' ')}`
         : `${buyer || 'Buyer'} did not attend the site visit at ${meeting.program?.name ?? 'the project'}`,
-      metadata: { attended, outcome, comments },
+      metadata: { attended, outcome, comments, buyer, program: meeting.program?.name ?? null },
       leadId,
       meetingId,
     })

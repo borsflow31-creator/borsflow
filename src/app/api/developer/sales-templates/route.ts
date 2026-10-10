@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 import { listTemplates, saveTemplate } from '@/lib/services/developer/sales-documents'
 import { DEFAULT_TEMPLATES, MERGE_FIELDS } from '@/lib/documents/sales-merge'
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId)
+    const result = await getDeveloperAccess(workspaceId)
     if ('error' in result) return result.error
 
     const templates = await listTemplates({ workspaceId, userId: result.access.userId })
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
 
     const template = await saveTemplate({ workspaceId, userId: result.access.userId }, body)

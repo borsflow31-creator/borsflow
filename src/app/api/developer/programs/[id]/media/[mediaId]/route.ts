@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin'
-import { getProgramAccess } from '@/lib/crm/access'
+import { getProgramAccess, refuseNonDeveloper } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { canBeCover } from '@/lib/crm/projects'
 
@@ -16,6 +16,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
 
     const media = await prisma.programMedia.findFirst({
       where: { id: params.mediaId, programId: params.id },
@@ -61,6 +63,8 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
 
     const media = await prisma.programMedia.findFirst({
       where: { id: params.mediaId, programId: params.id },

@@ -109,7 +109,7 @@ export async function createTask(ctx: DeveloperContext, input: TaskInput) {
     'task_created',
     leadId,
     `Follow-up added for ${`${lead.firstName} ${lead.lastName}`.trim()}: ${title}`,
-    { taskId: task.id, type, dueAt: dueAt.toISOString() },
+    { taskId: task.id, type, dueAt: dueAt.toISOString(), buyer: `${lead.firstName} ${lead.lastName}`.trim(), title },
     leadId
   )
   return task
@@ -173,7 +173,7 @@ export async function completeTask(ctx: DeveloperContext, id: string) {
     'task_completed',
     existing.leadId,
     `Follow-up done for ${`${existing.lead.firstName} ${existing.lead.lastName}`.trim()}: ${existing.title}`,
-    { taskId: id, type: existing.type },
+    { taskId: id, type: existing.type, buyer: `${existing.lead.firstName} ${existing.lead.lastName}`.trim(), title: existing.title },
     existing.leadId
   )
   return loadTaskWithRelations(id)

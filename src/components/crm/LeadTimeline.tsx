@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { relativeTime } from '@/lib/relative-time';
-import { REAL_ESTATE_ACTIVITY_TYPES, describeActivity } from '@/components/realestate/activity';
+import { DEVELOPER_ACTIVITY_TYPES, REAL_ESTATE_ACTIVITY_TYPES, describeActivity } from '@/components/realestate/activity';
+import { stageLabel } from '@/components/crm/labels';
 
 interface TimelineEntry {
   id: string;
@@ -153,7 +154,7 @@ export default function LeadTimeline({ leadId, workspaceId }: { leadId: string; 
       case 'lead_stage_changed':
         return {
           icon: ArrowRightLeft, tone: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
-          title: t('crm.timeline.stageChanged', { from: d.from ?? '?', to: d.to ?? '?' }),
+          title: t('crm.timeline.stageChanged', { from: d.from ? stageLabel(d.from, t) : '?', to: d.to ? stageLabel(d.to, t) : '?' }),
           body: null,
         };
       case 'lead_updated': {
@@ -228,7 +229,7 @@ export default function LeadTimeline({ leadId, workspaceId }: { leadId: string; 
       default: {
         // Property, buyer-interest, mandate, offer and viewing events share this
         // timeline: the same Activity row that shows on the property shows here.
-        const sentence = REAL_ESTATE_ACTIVITY_TYPES.has(entry.type) ? describeActivity(entry.type, d, t, formatCurrency) : null;
+        const sentence = REAL_ESTATE_ACTIVITY_TYPES.has(entry.type) || DEVELOPER_ACTIVITY_TYPES.has(entry.type) ? describeActivity(entry.type, d, t, formatCurrency) : null;
         return {
           icon: sentence ? Building2 : Pencil,
           tone: sentence ? 'bg-teal-500/15 text-teal-600 dark:text-teal-400' : 'bg-surface-container-highest text-on-surface-variant',

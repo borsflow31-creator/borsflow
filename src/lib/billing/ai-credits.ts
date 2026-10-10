@@ -15,7 +15,7 @@ import { creditsFor, type TokenUsage } from './ai-pricing'
  *   1. `reserveAiCredits` takes an estimate up front through the atomic
  *      `consumeUsage`, so a workspace with no credits left is refused before any
  *      model spend, and two concurrent requests can't both take the last credits.
- *   2. `settleAiCredits` prices the tokens Groq reported and adjusts the counter
+ *   2. `settleAiCredits` prices the tokens the provider reported and adjusts the counter
  *      by the difference, in the month the reservation was taken, and writes one
  *      `AiUsageEvent` row.
  *

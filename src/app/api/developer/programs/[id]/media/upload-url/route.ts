@@ -11,7 +11,7 @@ import { prisma } from '@/lib/prisma'
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin'
 import { consumeRateLimits, rateLimitedResponse } from '@/lib/api/rate-limit'
 import { MAX_VIDEO_UPLOAD_SIZE, VIDEO_FILE_TYPES } from '@/lib/uploads'
-import { getProgramAccess } from '@/lib/crm/access'
+import { getProgramAccess, refuseNonDeveloper } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { MAX_MEDIA_PER_PROGRAM, MEDIA_UPLOAD_RATE_LIMIT, mediaStoragePrefix } from '@/lib/crm/media-storage'
 
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
     const { access } = result
 
     const count = await prisma.programMedia.count({ where: { programId: params.id } })

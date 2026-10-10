@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AppShell from '@/components/AppShell';
 import NoWorkspace from '@/components/NoWorkspace';
 import { useI18n } from '@/i18n/I18nProvider';
+import { pipelineLabel } from '@/components/crm/labels';
 import PipelineBoard from '@/components/crm/PipelineBoard';
 import LeadListView from '@/components/crm/LeadListView';
 import SubjectListView from '@/components/crm/SubjectListView';
@@ -28,6 +29,16 @@ import EnquiryModal from '@/components/realestate/EnquiryModal';
 import OwnerFilter, { type OwnerFilterValue } from '@/components/developer/OwnerFilter';
 
 const VIEW_MODE_KEY = 'crm-view-mode-v2';
+
+/** Reads the API's { error } message, falling back to a caller-supplied default. */
+async function errorFrom(response: Response, fallback: string): Promise<string> {
+    try {
+        const data = await response.json();
+        return typeof data?.error === 'string' ? data.error : fallback;
+    } catch {
+        return fallback;
+    }
+}
 
 interface Pipeline {
     id: string;
@@ -142,17 +153,8 @@ function CRMPageInner() {
         return store.onFinishHydration(() => setHydrated(true));
     }, []);
 
-    const showError = (message: string) => setToast({ message, type: 'error' });
+    const showError = useCallback((message: string) => setToast({ message, type: 'error' }), []);
 
-    /** Reads the API's { error } message, falling back to a caller-supplied default. */
-    const errorFrom = async (response: Response, fallback: string) => {
-        try {
-            const data = await response.json();
-            return typeof data?.error === 'string' ? data.error : fallback;
-        } catch {
-            return fallback;
-        }
-    };
 
     // The list is the default. The key was renamed when it became the default so
     // everyone starts on the list once; a later choice of kanban is remembered.
@@ -176,24 +178,16 @@ function CRMPageInner() {
         }
     };
 
-    useEffect(() => {
-        if (effectiveWorkspaceId) {
-            fetchPipelines();
-            fetchLeadLists();
-            fetchWorkspace();
-        }
-    }, [effectiveWorkspaceId]);
-
-    const fetchWorkspace = async () => {
+    const fetchWorkspace = useCallback(async () => {
         try {
             const data = await cachedJson(`/api/workspaces/${effectiveWorkspaceId}`);
             setWorkspaceName(data.workspace?.name || '');
         } catch (error) {
             console.error('Error fetching workspace:', error);
         }
-    };
+    }, [effectiveWorkspaceId]);
 
-    const fetchPipelines = async () => {
+    const fetchPipelines = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch(`/api/pipelines?workspaceId=${effectiveWorkspaceId}`);
@@ -217,9 +211,9 @@ function CRMPageInner() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [effectiveWorkspaceId, searchParams, showError, t]);
 
-    const fetchLeadLists = async () => {
+    const fetchLeadLists = useCallback(async () => {
         try {
             const response = await fetch(`/api/lead-lists?workspaceId=${effectiveWorkspaceId}`);
             if (response.ok) {
@@ -231,7 +225,15 @@ function CRMPageInner() {
         } catch (error) {
             console.error('Error fetching lead lists:', error);
         }
-    };
+    }, [effectiveWorkspaceId, showError, t]);
+
+    useEffect(() => {
+        if (effectiveWorkspaceId) {
+            fetchPipelines();
+            fetchLeadLists();
+            fetchWorkspace();
+        }
+    }, [effectiveWorkspaceId, fetchPipelines, fetchLeadLists, fetchWorkspace]);
 
     const handlePipelineSelect = (pipeline: Pipeline) => {
         setSelectedPipeline(pipeline);
@@ -554,7 +556,7 @@ function CRMPageInner() {
                         <div className="flex items-center gap-2 w-full sm:w-auto">
                             <SelectRefined
                                 value={selectedPipeline?.id || ''}
-                                options={pipelines.map(p => ({ value: p.id, label: p.name }))}
+                                options={pipelines.map(p => ({ value: p.id, label: pipelineLabel(p.name, t) }))}
                                 onChange={(val) => {
                                     const pipeline = pipelines.find(p => p.id === val);
                                     if (pipeline) handlePipelineSelect(pipeline);

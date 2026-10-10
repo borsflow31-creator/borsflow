@@ -13,37 +13,51 @@ import { Field, inputClass, primaryButton, secondaryButton } from '@/components/
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { TEMPLATE_KINDS, placeholdersIn, renderTemplate, type TemplateKind } from '@/lib/documents/sales-merge';
 
-/** Made-up figures, so the preview shows the shape of a finished document without a real buyer. */
-const SAMPLE: Record<string, string> = {
-    document_number: 'CON-2026-0001',
-    date: '2026-10-07',
-    developer: 'Acme Developments',
-    buyer_name: 'Jordan Rivera',
-    buyer_email: 'jordan@example.com',
-    buyer_phone: '+1 555 0100',
-    project: 'Les Jardins du Parc',
-    project_address: '12 Avenue des Fleurs, 33000 Bordeaux',
-    unit: 'A201',
-    unit_type: 'apartment',
-    typology: 'T3',
-    floor: '2',
-    surface: '68',
-    vat_rate: '20%',
-    agent: 'Sam Lee',
-    milestone: 'Foundations complete',
-    due_date: '2026-11-06',
-    portal_link: 'https://app.example.com/view/buyer/…',
-};
+type Translate = ReturnType<typeof useI18n>['t'];
 
-/** The sample amounts, in the workspace's own currency so the preview reads like a real document. */
-function sampleFor(currency: string, kind: TemplateKind): Record<string, string> {
-    const money = (n: number) => new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(n);
+/**
+ * Currencies in which a flat costs millions: the sample amounts are scaled so the
+ * preview reads like a real document (a 250 000 DZD flat does not exist).
+ */
+const SAMPLE_SCALE: Record<string, number> = { DZD: 60, MAD: 4, TND: 1.2, TRY: 30, EGP: 25 };
+
+/**
+ * Made-up figures, so the preview shows the shape of a finished document without a
+ * real buyer: names and places in the reader's language, amounts in the workspace's
+ * currency.
+ */
+function sampleFor(
+    currency: string,
+    kind: TemplateKind,
+    t: Translate,
+    formatCurrency: (amount: number, currency?: string) => string,
+    formatDate: (date: Date | string | number) => string
+): Record<string, string> {
+    const scale = SAMPLE_SCALE[currency] ?? 1;
+    const money = (n: number) => formatCurrency(Math.round(n * scale), currency);
+    const vat = currency === 'DZD' ? 19 : 20;
     return {
-        ...SAMPLE,
         document_number: kind === 'contract' ? 'CON-2026-0001' : 'RES-2026-0001',
+        date: formatDate('2026-10-07'),
+        developer: t('templateSample.developer'),
+        buyer_name: t('templateSample.buyerName'),
+        buyer_email: 'buyer@example.com',
+        buyer_phone: t('templateSample.buyerPhone'),
+        project: t('templateSample.project'),
+        project_address: t('templateSample.projectAddress'),
+        unit: 'A201',
+        unit_type: t('templateSample.unitType'),
+        typology: 'T3',
+        floor: '2',
+        surface: '68',
+        vat_rate: `${vat}%`,
+        agent: t('templateSample.agent'),
+        milestone: t('templateSample.milestone'),
+        due_date: formatDate('2026-11-06'),
+        portal_link: 'https://app.example.com/view/buyer/…',
         list_price: money(250000),
         discount: money(5000),
-        net_price: money(204166.67),
+        net_price: money(245000 / (1 + vat / 100)),
         final_price: money(245000),
         reservation_fee: money(5000),
         amount_due: money(36750),
@@ -55,7 +69,7 @@ interface Defaults { name: string; subject: string | null; body: string }
 
 function TemplatesInner() {
     const { workspaceId, ready } = useWorkspaceParam();
-    const { t } = useI18n();
+    const { t, formatCurrency, formatDate } = useI18n();
     const currency = useWorkspaceCurrency(workspaceId);
 
     const [saved, setSaved] = useState<Saved[]>([]);
@@ -65,7 +79,7 @@ function TemplatesInner() {
     const [loading, setLoading] = useState(true);
 
     const [kind, setKind] = useState<TemplateKind>('reservation');
-    const sample = useMemo(() => sampleFor(currency, kind), [currency, kind]);
+    const sample = useMemo(() => sampleFor(currency, kind, t, formatCurrency, formatDate), [currency, kind, t, formatCurrency, formatDate]);
     const [scope, setScope] = useState<string>(''); // '' = the workspace default; otherwise a project id
     const [name, setName] = useState('');
     const [subject, setSubject] = useState('');

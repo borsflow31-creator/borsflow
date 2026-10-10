@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit, Trash2, Paperclip } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { sourceLabel, stageLabel, statusLabel } from '@/components/crm/labels';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
@@ -99,11 +100,7 @@ export default function LeadListView({
     const [showFilters, setShowFilters] = useState(false);
     const [showActionsMenu, setShowActionsMenu] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchLeads();
-    }, [pipeline.id, refreshKey]);
-
-    const fetchLeads = async () => {
+    const fetchLeads = useCallback(async () => {
         try {
             setLoading(true);
             const response = await fetch(`/api/leads?pipelineId=${pipeline.id}`);
@@ -116,7 +113,12 @@ export default function LeadListView({
         } finally {
             setLoading(false);
         }
-    };
+    }, [pipeline.id]);
+
+    // Reload when the board changes or the parent asks for fresh data.
+    useEffect(() => {
+        fetchLeads();
+    }, [fetchLeads, refreshKey]);
 
     // Get unique values for filters
     const uniqueStatuses = useMemo(() => {
@@ -388,7 +390,7 @@ export default function LeadListView({
                                             onChange={() => handleFilterToggle('status', status)}
                                             className="w-4 h-4 rounded border-surface-container-high text-primary focus:ring-primary"
                                         />
-                                        <span className="body-sm text-on-surface capitalize">{status}</span>
+                                        <span className="body-sm text-on-surface">{statusLabel(status, t)}</span>
                                     </label>
                                 ))}
                             </div>
@@ -406,7 +408,7 @@ export default function LeadListView({
                                             onChange={() => handleFilterToggle('stage', stage)}
                                             className="w-4 h-4 rounded border-surface-container-high text-primary focus:ring-primary"
                                         />
-                                        <span className="body-sm text-on-surface">{stage}</span>
+                                        <span className="body-sm text-on-surface">{stageLabel(stage, t)}</span>
                                     </label>
                                 ))}
                             </div>
@@ -424,7 +426,7 @@ export default function LeadListView({
                                             onChange={() => handleFilterToggle('source', source)}
                                             className="w-4 h-4 rounded border-surface-container-high text-primary focus:ring-primary"
                                         />
-                                        <span className="body-sm text-on-surface">{source}</span>
+                                        <span className="body-sm text-on-surface">{sourceLabel(source, t)}</span>
                                     </label>
                                 ))}
                             </div>
@@ -582,17 +584,17 @@ export default function LeadListView({
                                     </td>
                                     <td className="px-3 sm:px-4 py-3">
                                         <span className={`body-xs px-2 py-1 rounded ${getStatusColor(lead.status)}`}>
-                                            {lead.status}
+                                            {statusLabel(lead.status, t)}
                                         </span>
                                     </td>
                                     <td className="hidden sm:table-cell px-4 py-3 text-sm text-on-surface">
-                                        {lead.stage}
+                                        {stageLabel(lead.stage, t)}
                                     </td>
                                     <td className="hidden md:table-cell px-4 py-3 text-sm font-medium text-on-surface">
                                         {formatValue(lead.value)}
                                     </td>
                                     <td className="hidden lg:table-cell px-4 py-3 text-sm text-on-surface">
-                                        {lead.source || '-'}
+                                        {lead.source ? sourceLabel(lead.source, t) : '-'}
                                     </td>
                                     <td className="hidden md:table-cell px-4 py-3">
                                         <div className="flex flex-wrap gap-1">

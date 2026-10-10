@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { relativeTime } from '@/lib/relative-time';
+import { localizeTaskTitle } from '@/lib/crm/task-titles';
 import { errorFrom } from './ui';
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -14,6 +15,12 @@ export const REAL_ESTATE_ACTIVITY_TYPES = new Set([
     'mandate_created', 'mandate_status_changed', 'mandate_renewed',
     'price_changed', 'offer_made', 'offer_accepted', 'offer_rejected', 'offer_withdrawn',
     'viewing_booked', 'viewing_feedback',
+]);
+
+/** The developer CRM's events: calls, follow-ups, site visits and sales documents. */
+export const DEVELOPER_ACTIVITY_TYPES = new Set([
+    'call_logged', 'task_created', 'task_completed', 'site_visit_booked', 'site_visit_completed',
+    'sales_document_sent', 'sales_document_accepted',
 ]);
 
 /**
@@ -78,6 +85,38 @@ export function describeActivity(
             return t('realEstate.activity.viewingBooked', { property: text(data.property) });
         case 'viewing_feedback':
             return t('realEstate.activity.viewingFeedback', { property: text(data.property), level: text(data.level, '-') });
+        // Developer events. Rows logged before their metadata carried the names
+        // return null and show the stored description.
+        case 'call_logged':
+            if (!data.buyer) return null;
+            return t(`developerActivity.call${data.direction === 'inbound' ? 'From' : 'To'}${data.answered ? 'Answered' : 'Missed'}` as MessageKey, { buyer: text(data.buyer) });
+        case 'task_created':
+        case 'task_completed':
+            if (!data.buyer || !data.title) return null;
+            return t(type === 'task_created' ? 'developerActivity.taskCreated' : 'developerActivity.taskCompleted', {
+                buyer: text(data.buyer),
+                title: localizeTaskTitle(String(data.title), t),
+            });
+        case 'site_visit_booked':
+            if (!data.program) return null;
+            return data.unit
+                ? t('developerActivity.visitBookedUnit', { project: text(data.program), unit: text(data.unit) })
+                : t('developerActivity.visitBooked', { project: text(data.program) });
+        case 'site_visit_completed':
+            if (!data.program) return null;
+            if (!data.attended) return data.buyer ? t('developerActivity.visitMissed', { buyer: text(data.buyer), project: text(data.program) }) : null;
+            return t('developerActivity.visitDone', {
+                project: text(data.program),
+                outcome: data.outcome ? t(`developerCrm.visits.outcome_${data.outcome}` as MessageKey) : '',
+            });
+        case 'sales_document_sent':
+        case 'sales_document_accepted': {
+            if (!data.kind) return null;
+            const kind = t(`developerCrm.templates.kind_${data.kind}` as MessageKey);
+            return type === 'sales_document_sent'
+                ? t('developerActivity.documentSent', { kind, number: text(data.number), buyer: text(data.buyer) })
+                : t('developerActivity.documentAccepted', { kind, number: text(data.number), name: text(data.name) });
+        }
         default:
             return null;
     }

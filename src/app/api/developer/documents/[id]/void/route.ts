@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 import { voidDocument } from '@/lib/services/developer/sales-documents'
 
@@ -18,7 +18,7 @@ export async function POST(
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
 
     const document = await voidDocument({ workspaceId, userId: result.access.userId, canModerate: result.access.canModerate }, id)

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 import { issueDocument, listDocumentsForLot } from '@/lib/services/developer/sales-documents'
 
@@ -15,7 +15,7 @@ export async function GET(
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId)
+    const result = await getDeveloperAccess(workspaceId)
     if ('error' in result) return result.error
 
     const documents = await listDocumentsForLot({ workspaceId, userId: result.access.userId }, id, result.access.canModerate)
@@ -39,7 +39,7 @@ export async function POST(
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
 
     const issued = await issueDocument({ workspaceId, userId: result.access.userId }, id, body.kind)

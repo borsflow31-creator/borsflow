@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import PortalDocuments from '@/components/developer/PortalDocuments';
+import { useI18n, type Locale, type MessageKey } from '@/i18n/I18nProvider';
 import {
   Building2,
   Calendar,
@@ -29,8 +30,32 @@ import {
   Check,
 } from 'lucide-react';
 
+const LOCALES: Locale[] = ['en', 'fr', 'es', 'ar', 'de'];
+
+/** A status label from `group`, or the raw value when it has no translation. */
+function labelOr(t: (key: MessageKey) => string, group: string, value: string): string {
+  const key = `buyerPortal.${group}.${value}` as MessageKey;
+  const text = t(key);
+  return text === key ? value.replace(/_/g, ' ') : text;
+}
+
 export default function BuyerPortalPage() {
   const { token } = useParams<{ token: string }>();
+  const { t, locale, setLocale, formatCurrency, formatDate } = useI18n();
+
+  // A buyer opens this link from an email, usually on a browser that has never
+  // chosen a language here: follow the browser's language until they pick one.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('app_locale')) return;
+      const browser = navigator.language.slice(0, 2) as Locale;
+      if (LOCALES.includes(browser) && browser !== locale) setLocale(browser);
+    } catch {
+      // Storage blocked: stay in the default language.
+    }
+    // Only on first load: afterwards the buyer's own choice wins.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -80,15 +105,15 @@ export default function BuyerPortalPage() {
     fetch(`/api/public/buyer/${token}`, { headers })
       .then(async (res) => {
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Failed to load portal');
+        if (!res.ok) throw new Error(json.error || t('buyerPortal.errors.load'));
         setData(json);
       })
       .catch((err) => {
         console.error('Error loading portal:', err);
-        setError(err.message || 'Error loading construction portal');
+        setError(err.message || t('buyerPortal.errors.load'));
       })
       .finally(() => setLoading(false));
-  }, [token, sessionToken]);
+  }, [token, sessionToken, t]);
 
   useEffect(() => {
     if (token) {
@@ -105,7 +130,7 @@ export default function BuyerPortalPage() {
         method: 'POST',
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to send verification code');
+      if (!res.ok) throw new Error(json.error || t('buyerPortal.errors.sendCode'));
 
       setOtpInfo(json);
       setOtpStep('verify');
@@ -113,7 +138,7 @@ export default function BuyerPortalPage() {
         setOtpCode(json.devCode); // Pre-fill in dev mode for instant testability
       }
     } catch (err: any) {
-      setOtpError(err.message || 'Error sending code');
+      setOtpError(err.message || t('buyerPortal.errors.sendCode'));
     } finally {
       setOtpLoading(false);
     }
@@ -133,7 +158,7 @@ export default function BuyerPortalPage() {
         body: JSON.stringify({ code: otpCode.trim() }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Invalid code');
+      if (!res.ok) throw new Error(json.error || t('buyerPortal.errors.invalidCode'));
 
       if (json.sessionToken) {
         setSessionToken(json.sessionToken);
@@ -141,7 +166,7 @@ export default function BuyerPortalPage() {
         setShowOtpModal(false);
       }
     } catch (err: any) {
-      setOtpError(err.message || 'Verification failed');
+      setOtpError(err.message || t('buyerPortal.errors.invalidCode'));
     } finally {
       setOtpLoading(false);
     }
@@ -170,13 +195,13 @@ export default function BuyerPortalPage() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to submit request');
+      if (!res.ok) throw new Error(json.error || t('buyerPortal.errors.submit'));
       setShowRequestTmaModal(false);
       setTmaTitle('');
       setTmaDescription('');
       loadPortalData();
     } catch (err: any) {
-      alert(err.message || 'Error submitting request');
+      alert(err.message || t('buyerPortal.errors.submit'));
     } finally {
       setTmaSubmitting(false);
     }
@@ -197,18 +222,19 @@ export default function BuyerPortalPage() {
         body: JSON.stringify({ signatureName: signatureName.trim() }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to sign addendum');
+      if (!res.ok) throw new Error(json.error || t('buyerPortal.errors.sign'));
       setSigningTma(null);
       setSignatureName('');
       setSignatureAccepted(false);
       loadPortalData();
     } catch (err: any) {
-      setSignError(err.message || 'Failed to sign addendum');
+      setSignError(err.message || t('buyerPortal.errors.sign'));
     } finally {
       setSignSubmitting(false);
     }
   };
 
+  const money = (amount: number) => formatCurrency(amount, data?.currency || 'EUR');
   const callsForFunds = data?.callsForFunds;
   const pricing = data?.pricing;
   const program = data?.program;
@@ -246,7 +272,7 @@ export default function BuyerPortalPage() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm font-medium text-slate-600">Connecting to your development space...</p>
+          <p className="text-sm font-medium text-slate-600">{t('buyerPortal.loading')}</p>
         </div>
       </div>
     );
@@ -259,10 +285,10 @@ export default function BuyerPortalPage() {
           <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Access Restricted</h2>
-          <p className="text-sm text-slate-600">{error || 'This link is no longer valid or has expired.'}</p>
+          <h2 className="text-xl font-bold text-slate-900">{t('buyerPortal.restricted.title')}</h2>
+          <p className="text-sm text-slate-600">{error || t('buyerPortal.restricted.expired')}</p>
           <p className="text-xs text-slate-400">
-            Please check the link received in your developer email or contact your representative.
+            {t('buyerPortal.restricted.help')}
           </p>
         </div>
       </div>
@@ -282,7 +308,7 @@ export default function BuyerPortalPage() {
             </span>
             <div>
               <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider block leading-tight">
-                Client Space
+                {t('buyerPortal.header.clientSpace')}
               </span>
               <h1 className="text-sm sm:text-base font-bold text-white truncate max-w-[200px] sm:max-w-md">
                 {program.name}
@@ -296,13 +322,13 @@ export default function BuyerPortalPage() {
               <div className="flex items-center gap-2">
                 <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Secure Financial Space</span>
+                  <span>{t('buyerPortal.header.secure')}</span>
                 </span>
                 <button
                   onClick={handleLockSession}
                   className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded border border-slate-700 hover:border-slate-500 transition-colors"
                 >
-                  Lock
+                  {t('buyerPortal.header.lock')}
                 </button>
               </div>
             ) : (
@@ -314,7 +340,7 @@ export default function BuyerPortalPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all shadow-sm"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Unlock Financial Space</span>
+                <span>{t('buyerPortal.header.unlock')}</span>
               </button>
             )}
           </div>
@@ -328,20 +354,20 @@ export default function BuyerPortalPage() {
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                  Lot {lot.lotNumber}
+                  {t('buyerPortal.unitNumber', { number: lot.lotNumber })}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-slate-200 uppercase">
-                  {lot.typology || lot.type} · {lot.surfaceArea} m²
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-slate-200">
+                  <span className="uppercase">{lot.typology || lot.type}</span> · {lot.surfaceArea} m²
                 </span>
                 {lot.floor !== undefined && (
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-slate-200">
-                    {lot.floor === 0 ? 'Ground Floor' : `Floor ${lot.floor}`}
+                    {lot.floor === 0 ? t('buyerPortal.groundFloor') : t('buyerPortal.floor', { floor: lot.floor })}
                   </span>
                 )}
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Welcome, {buyer.displayName}
+                {t('buyerPortal.hero.welcome', { name: buyer.displayName })}
               </h2>
 
               <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-2">
@@ -355,13 +381,10 @@ export default function BuyerPortalPage() {
 
             {program.targetDeliveryDate && (
               <div className="p-3 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm sm:text-right">
-                <span className="text-[11px] font-medium text-slate-400 block">Target Handover</span>
+                <span className="text-[11px] font-medium text-slate-400 block">{t('buyerPortal.hero.handover')}</span>
                 <span className="text-base font-bold text-amber-400 flex items-center sm:justify-end gap-1.5 mt-0.5">
                   <Calendar className="w-4 h-4" />
-                  {new Date(program.targetDeliveryDate).toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  {formatDate(program.targetDeliveryDate, { month: 'long', year: 'numeric' })}
                 </span>
               </div>
             )}
@@ -370,8 +393,8 @@ export default function BuyerPortalPage() {
           {/* Construction Progress Bar Tracker */}
           <div className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md space-y-3">
             <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-200">Physical Construction Progress</span>
-              <span className="font-bold text-amber-400 text-sm">{currentCompletionPercent}% Completed</span>
+              <span className="font-semibold text-slate-200">{t('buyerPortal.hero.progress')}</span>
+              <span className="font-bold text-amber-400 text-sm">{t('buyerPortal.hero.percentDone', { percent: currentCompletionPercent })}</span>
             </div>
 
             <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex p-0.5">
@@ -415,7 +438,7 @@ export default function BuyerPortalPage() {
             }`}
           >
             <Camera className="w-4 h-4" />
-            <span>Site Journal</span>
+            <span>{t('buyerPortal.tabs.journal')}</span>
           </button>
 
           <button
@@ -427,7 +450,7 @@ export default function BuyerPortalPage() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>My Unit</span>
+            <span>{t('buyerPortal.tabs.unit')}</span>
           </button>
 
           <button
@@ -439,7 +462,7 @@ export default function BuyerPortalPage() {
             }`}
           >
             <DollarSign className="w-4 h-4" />
-            <span>Calls for Funds</span>
+            <span>{t('buyerPortal.tabs.financial')}</span>
             {!isVerified && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
           </button>
 
@@ -452,7 +475,7 @@ export default function BuyerPortalPage() {
             }`}
           >
             <Wrench className="w-4 h-4" />
-            <span>Change Orders (TMA)</span>
+            <span>{t('buyerPortal.tabs.tma')}</span>
             {!isVerified && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
           </button>
 
@@ -465,7 +488,7 @@ export default function BuyerPortalPage() {
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>Documents</span>
+            <span>{t('buyerPortal.tabs.documents')}</span>
             {!isVerified && <Lock className="w-3 h-3 text-amber-500 ml-0.5" />}
           </button>
         </div>
@@ -479,9 +502,9 @@ export default function BuyerPortalPage() {
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Construction Timeline & Drone Updates</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.journal.title')}</h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Regular progress updates certified by the site management team.
+                    {t('buyerPortal.journal.subtitle')}
                   </p>
                 </div>
               </div>
@@ -500,7 +523,7 @@ export default function BuyerPortalPage() {
                             <span className="p-3 bg-white/20 backdrop-blur-sm rounded-full group-hover:scale-110 transition-transform">
                               <Play className="w-6 h-6 fill-white" />
                             </span>
-                            <span className="text-xs font-semibold">Aerial Drone Tour</span>
+                            <span className="text-xs font-semibold">{t('buyerPortal.journal.drone')}</span>
                           </div>
                         ) : (
                           <Camera className="w-8 h-8 text-slate-500" />
@@ -508,9 +531,9 @@ export default function BuyerPortalPage() {
                       </div>
                       <div className="p-4 space-y-1">
                         <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">
-                          {item.updateMonth || 'Recent Update'}
+                          {item.updateMonth || t('buyerPortal.journal.recent')}
                         </span>
-                        <h4 className="text-sm font-bold text-slate-900">{item.title || 'Site Progress Photo'}</h4>
+                        <h4 className="text-sm font-bold text-slate-900">{item.title || t('buyerPortal.journal.photo')}</h4>
                       </div>
                     </div>
                   ))}
@@ -518,9 +541,9 @@ export default function BuyerPortalPage() {
               ) : (
                 <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
                   <Camera className="w-8 h-8 text-slate-400 mx-auto" />
-                  <p className="text-sm font-semibold text-slate-700">Recent photos are being processed</p>
+                  <p className="text-sm font-semibold text-slate-700">{t('buyerPortal.journal.emptyTitle')}</p>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    The supervising engineer will publish the next monthly drone flyover and stage photos shortly.
+                    {t('buyerPortal.journal.emptyBody')}
                   </p>
                 </div>
               )}
@@ -530,28 +553,28 @@ export default function BuyerPortalPage() {
             <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-sm border border-slate-800 space-y-4">
               <div className="flex items-center gap-2 text-amber-400">
                 <ShieldCheck className="w-5 h-5" />
-                <h4 className="text-sm font-bold uppercase tracking-wider">Statutory Protections & Accreditations</h4>
+                <h4 className="text-sm font-bold uppercase tracking-wider">{t('buyerPortal.protections.title')}</h4>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Financial Completion Guarantee</span>
+                  <span className="text-slate-400 block text-[11px]">{t('buyerPortal.protections.guarantee')}</span>
                   <strong className="text-white block font-medium">
-                    {program.gfaBank || 'GFA Extrinsèque (Garantie de Fin d\'Achèvement)'}
+                    {program.gfaBank || '—'}
                   </strong>
-                  <span className="text-[10px] text-emerald-400 block">Bank-secured completion</span>
+                  <span className="text-[10px] text-emerald-400 block">{t('buyerPortal.protections.guaranteeHint')}</span>
                 </div>
 
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Supervising Architect</span>
+                  <span className="text-slate-400 block text-[11px]">{t('buyerPortal.protections.architect')}</span>
                   <strong className="text-white block font-medium">
                     {program.architectName || '—'}
                   </strong>
-                  <span className="text-[10px] text-slate-300 block">Stage certifications</span>
+                  <span className="text-[10px] text-slate-300 block">{t('buyerPortal.protections.architectHint')}</span>
                 </div>
 
                 <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-slate-400 block text-[11px]">Legal Framework</span>
+                  <span className="text-slate-400 block text-[11px]">{t('buyerPortal.protections.legal')}</span>
                   {/* The off-plan sale regime of the project's country: VSP under Law 11-04 in
                       Algeria, VEFA under the Construction and Housing Code in France. */}
                   <strong className="text-white block font-medium">
@@ -574,49 +597,49 @@ export default function BuyerPortalPage() {
         {activeTab === 'unit' && (
           <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Unit Specifications & Annexes</h3>
+              <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.unit.title')}</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Technical layout details for Lot {lot.lotNumber}.
+                {t('buyerPortal.unit.subtitle', { number: lot.lotNumber })}
               </p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-xs text-slate-500 block">Typology</span>
+                <span className="text-xs text-slate-500 block">{t('buyerPortal.unit.typology')}</span>
                 <strong className="text-lg font-bold text-slate-900 uppercase">
                   {lot.typology || lot.type}
                 </strong>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-xs text-slate-500 block">Habitable Area</span>
+                <span className="text-xs text-slate-500 block">{t('buyerPortal.unit.area')}</span>
                 <strong className="text-lg font-bold text-slate-900">{lot.surfaceArea} m²</strong>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-xs text-slate-500 block">Floor Level</span>
+                <span className="text-xs text-slate-500 block">{t('buyerPortal.unit.floor')}</span>
                 <strong className="text-lg font-bold text-slate-900">
-                  {lot.floor === 0 ? 'Ground' : `Floor ${lot.floor}`}
+                  {lot.floor === 0 ? t('buyerPortal.groundFloor') : t('buyerPortal.floor', { floor: lot.floor })}
                 </strong>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-xs text-slate-500 block">Orientation</span>
-                <strong className="text-lg font-bold text-slate-900">{lot.orientation || 'South'}</strong>
+                <span className="text-xs text-slate-500 block">{t('buyerPortal.unit.orientation')}</span>
+                <strong className="text-lg font-bold text-slate-900">{lot.orientation || '—'}</strong>
               </div>
             </div>
 
             {/* Annexes */}
             {lot.annexes && lot.annexes.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-slate-100">
-                <h4 className="text-sm font-bold text-slate-900">Associated Lots (Parking / Cellar)</h4>
+                <h4 className="text-sm font-bold text-slate-900">{t('buyerPortal.unit.annexes')}</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {lot.annexes.map((annex: any, idx: number) => (
                     <div
                       key={idx}
                       className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs"
                     >
-                      <span className="font-bold text-slate-900">Lot {annex.lotNumber}</span>
+                      <span className="font-bold text-slate-900">{t('buyerPortal.unitNumber', { number: annex.lotNumber })}</span>
                       <span className="px-2 py-0.5 rounded bg-white font-medium capitalize text-slate-600">
                         {annex.type}
                       </span>
@@ -631,11 +654,11 @@ export default function BuyerPortalPage() {
               <div className="space-y-3 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900">Post-Handover Warranty & Snagging (*GPA*)</h4>
-                    <p className="text-xs text-slate-500">Statutory 1-year perfect completion guarantee (*Garantie de Parfait Achèvement*).</p>
+                    <h4 className="text-sm font-bold text-slate-900">{t('buyerPortal.snags.title')}</h4>
+                    <p className="text-xs text-slate-500">{t('buyerPortal.snags.subtitle')}</p>
                   </div>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                    {snags.filter((s: any) => s.status !== 'resolved').length} open / {snags.length} total
+                    {t('buyerPortal.snags.count', { open: snags.filter((s: any) => s.status !== 'resolved').length, total: snags.length })}
                   </span>
                 </div>
 
@@ -647,7 +670,7 @@ export default function BuyerPortalPage() {
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{snag.roomLocation || 'General'}</span>
+                          <span className="font-bold text-slate-900">{snag.roomLocation || t('buyerPortal.snags.general')}</span>
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                               snag.severity === 'critical'
@@ -674,7 +697,7 @@ export default function BuyerPortalPage() {
 
                       {snag.tradeContractor && (
                         <div className="sm:text-right text-[11px] text-slate-500">
-                          <span>Trade: </span>
+                          <span>{t('buyerPortal.snags.trade')} </span>
                           <strong className="text-slate-800">{snag.tradeContractor}</strong>
                         </div>
                       )}
@@ -695,15 +718,15 @@ export default function BuyerPortalPage() {
                   <Lock className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Protected Financial Information</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.financial.lockedTitle')}</h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    To access your official stage payment notices (*Appels de fonds*), invoices, and mortgage lending letters, please verify your identity using a 6-digit code.
+                    {t('buyerPortal.financial.lockedBody')}
                   </p>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 flex items-center justify-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400" />
-                  <span>Code will be sent to: <strong>{buyer.maskedEmail}</strong></span>
+                  <span>{t('buyerPortal.financial.codeSentTo')} <strong>{buyer.maskedEmail}</strong></span>
                 </div>
 
                 <button
@@ -713,7 +736,7 @@ export default function BuyerPortalPage() {
                   }}
                   className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
                 >
-                  Send Verification Code (OTP)
+                  {t('buyerPortal.financial.sendCode')}
                 </button>
               </div>
             ) : (
@@ -722,30 +745,30 @@ export default function BuyerPortalPage() {
                 {pricing && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-[11px] font-medium text-slate-500 block">Total Agreed Price (TTC)</span>
+                      <span className="text-[11px] font-medium text-slate-500 block">{t('buyerPortal.financial.totalPrice')}</span>
                       <strong className="text-base sm:text-lg font-bold text-slate-900 font-mono mt-0.5 block">
-                        {pricing.totalPrice.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                        {money(pricing.totalPrice)}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                      <span className="text-[11px] font-medium text-slate-500 block">Total Invoiced Calls</span>
+                      <span className="text-[11px] font-medium text-slate-500 block">{t('buyerPortal.financial.totalCalled')}</span>
                       <strong className="text-base sm:text-lg font-bold text-slate-800 font-mono mt-0.5 block">
-                        {totalCalled.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                        {money(totalCalled)}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                      <span className="text-[11px] font-medium text-emerald-700 block">Total Payments Received</span>
+                      <span className="text-[11px] font-medium text-emerald-700 block">{t('buyerPortal.financial.totalPaid')}</span>
                       <strong className="text-base sm:text-lg font-bold text-emerald-800 font-mono mt-0.5 block">
-                        {totalPaid.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                        {money(totalPaid)}
                       </strong>
                     </div>
 
                     <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
-                      <span className="text-[11px] font-medium text-amber-700 block">Remaining Balance</span>
+                      <span className="text-[11px] font-medium text-amber-700 block">{t('buyerPortal.financial.remaining')}</span>
                       <strong className="text-base sm:text-lg font-bold text-amber-900 font-mono mt-0.5 block">
-                        {remainingBalance.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                        {money(remainingBalance)}
                       </strong>
                     </div>
                   </div>
@@ -753,9 +776,9 @@ export default function BuyerPortalPage() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Stage Invoices (*Appels de Fonds*)</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.financial.title')}</h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Statutory stage billing schedule according to certified construction milestones.
+                      {t('buyerPortal.financial.subtitle')}
                     </p>
                   </div>
                   <button
@@ -763,7 +786,7 @@ export default function BuyerPortalPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm print:hidden"
                   >
                     <Printer className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Print Statement</span>
+                    <span>{t('buyerPortal.financial.print')}</span>
                   </button>
                 </div>
 
@@ -772,12 +795,12 @@ export default function BuyerPortalPage() {
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                          <th className="py-2.5 px-3">Call Notice #</th>
-                          <th className="py-2.5 px-3">Milestone</th>
-                          <th className="py-2.5 px-3">Tranche</th>
-                          <th className="py-2.5 px-3">Amount Due</th>
-                          <th className="py-2.5 px-3">Status</th>
-                          <th className="py-2.5 px-3 text-right">Document</th>
+                          <th className="py-2.5 px-3">{t('buyerPortal.financial.cols.number')}</th>
+                          <th className="py-2.5 px-3">{t('buyerPortal.financial.cols.milestone')}</th>
+                          <th className="py-2.5 px-3">{t('buyerPortal.financial.cols.tranche')}</th>
+                          <th className="py-2.5 px-3">{t('buyerPortal.financial.cols.amount')}</th>
+                          <th className="py-2.5 px-3">{t('buyerPortal.financial.cols.status')}</th>
+                          <th className="py-2.5 px-3 text-right">{t('buyerPortal.financial.cols.document')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -787,7 +810,7 @@ export default function BuyerPortalPage() {
                             <td className="py-3 px-3 font-semibold text-slate-900">{call.milestoneTitle}</td>
                             <td className="py-3 px-3 font-bold">{call.percentage}%</td>
                             <td className="py-3 px-3 font-mono font-bold text-slate-900">
-                              {call.amount.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                              {money(call.amount)}
                             </td>
                             <td className="py-3 px-3">
                               <span
@@ -797,7 +820,7 @@ export default function BuyerPortalPage() {
                                     : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
-                                {call.status}
+                                {labelOr(t, 'callStatus', call.status)}
                               </span>
                             </td>
                             <td className="py-3 px-3 text-right">
@@ -808,11 +831,11 @@ export default function BuyerPortalPage() {
                                   rel="noopener noreferrer"
                                   className="text-primary hover:underline font-semibold flex items-center justify-end gap-1"
                                 >
-                                  <span>View Receipt</span>
+                                  <span>{t('buyerPortal.financial.viewReceipt')}</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </a>
                               ) : (
-                                <span className="text-slate-400">Available soon</span>
+                                <span className="text-slate-400">{t('buyerPortal.financial.soon')}</span>
                               )}
                             </td>
                           </tr>
@@ -821,7 +844,7 @@ export default function BuyerPortalPage() {
                     </table>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic py-4">No calls for funds issued yet.</p>
+                  <p className="text-xs text-slate-500 italic py-4">{t('buyerPortal.financial.empty')}</p>
                 )}
               </div>
             )}
@@ -837,9 +860,9 @@ export default function BuyerPortalPage() {
                   <Lock className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Protected Customization Portal</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.tma.lockedTitle')}</h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Verify your identity with an OTP code to view your approved change orders (*TMA*), track quotes, and sign addenda.
+                    {t('buyerPortal.tma.lockedBody')}
                   </p>
                 </div>
                 <button
@@ -849,16 +872,16 @@ export default function BuyerPortalPage() {
                   }}
                   className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
                 >
-                  Unlock with Email Code (OTP)
+                  {t('buyerPortal.unlockWithEmail')}
                 </button>
               </div>
             ) : (
               <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Customizations & Change Orders (*TMA*)</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.tma.title')}</h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Personalize your finishes and layout modifications with the developer.
+                      {t('buyerPortal.tma.subtitle')}
                     </p>
                   </div>
                   <button
@@ -866,7 +889,7 @@ export default function BuyerPortalPage() {
                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-all shadow-sm"
                   >
                     <Plus className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Request Customization</span>
+                    <span>{t('buyerPortal.tma.request')}</span>
                   </button>
                 </div>
 
@@ -886,7 +909,7 @@ export default function BuyerPortalPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs font-bold text-slate-500">{tma.reference}</span>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white text-slate-700 uppercase border border-slate-200">
-                                {tma.category}
+                                {labelOr(t, 'category', tma.category)}
                               </span>
                               <span
                                 className={`text-[10px] font-bold px-2 py-0.5 rounded capitalize ${
@@ -897,16 +920,16 @@ export default function BuyerPortalPage() {
                                     : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
-                                {tma.status.replace('_', ' ')}
+                                {labelOr(t, 'tmaStatus', tma.status)}
                               </span>
                             </div>
 
                             <div className="text-right">
-                              <span className="text-xs text-slate-500 block sm:inline sm:mr-2">Quoted Cost:</span>
+                              <span className="text-xs text-slate-500 block sm:inline sm:mr-2">{t('buyerPortal.tma.quoted')}</span>
                               <span className="text-sm font-bold text-slate-900 font-mono">
                                 {tma.priceQuote > 0
-                                  ? tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })
-                                  : 'Under Estimation'}
+                                  ? money(tma.priceQuote)
+                                  : t('buyerPortal.tma.estimating')}
                               </span>
                             </div>
                           </div>
@@ -922,11 +945,11 @@ export default function BuyerPortalPage() {
                               <div className="space-y-0.5">
                                 <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
                                   <PenTool className="w-3.5 h-3.5 text-amber-600" />
-                                  <span>Official Quote Ready for Your Signature</span>
+                                  <span>{t('buyerPortal.tma.readyToSign')}</span>
                                 </span>
                                 <p className="text-[11px] text-slate-600">
-                                  Price Quote: <strong className="font-mono font-bold text-slate-900">{tma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}</strong>
-                                  {tma.techApproverNote ? ` · Technical Note: "${tma.techApproverNote}"` : ''}
+                                  {t('buyerPortal.tma.quoted')} <strong className="font-mono font-bold text-slate-900">{money(tma.priceQuote)}</strong>
+                                  {tma.techApproverNote ? ` · ${t('buyerPortal.tma.techNote', { note: tma.techApproverNote })}` : ''}
                                 </p>
                               </div>
                               <button
@@ -939,7 +962,7 @@ export default function BuyerPortalPage() {
                                 className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
                               >
                                 <PenTool className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Review & Sign Addendum</span>
+                                <span>{t('buyerPortal.tma.reviewSign')}</span>
                               </button>
                             </div>
                           )}
@@ -949,11 +972,11 @@ export default function BuyerPortalPage() {
                             <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs flex items-center justify-between">
                               <span className="text-emerald-800 font-medium flex items-center gap-1.5">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                <span>{tma.signedAddendumDoc || 'Addendum Signed Digitally'}</span>
+                                <span>{tma.signedAddendumDoc || t('buyerPortal.tma.signed')}</span>
                               </span>
                               {tma.signedAt && (
                                 <span className="text-slate-500 text-[11px]">
-                                  {new Date(tma.signedAt).toLocaleDateString()}
+                                  {formatDate(tma.signedAt)}
                                 </span>
                               )}
                             </div>
@@ -963,7 +986,7 @@ export default function BuyerPortalPage() {
                     })}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic py-4">No change orders submitted for this unit.</p>
+                  <p className="text-xs text-slate-500 italic py-4">{t('buyerPortal.tma.empty')}</p>
                 )}
               </div>
             )}
@@ -979,9 +1002,9 @@ export default function BuyerPortalPage() {
                   <Lock className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">Your documents</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('buyerPortal.documents.title')}</h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Verify your identity with an email code to read and accept the documents your developer has sent you.
+                    {t('buyerPortal.documents.body')}
                   </p>
                 </div>
                 <button
@@ -991,7 +1014,7 @@ export default function BuyerPortalPage() {
                   }}
                   className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm"
                 >
-                  Unlock with Email Code
+                  {t('buyerPortal.unlockWithEmail')}
                 </button>
               </div>
             ) : (
@@ -1006,7 +1029,7 @@ export default function BuyerPortalPage() {
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Verify Identity</h3>
+              <h3 className="text-base font-bold text-slate-900">{t('buyerPortal.otp.title')}</h3>
               <button
                 onClick={() => setShowOtpModal(false)}
                 className="text-slate-400 hover:text-slate-600 text-sm"
@@ -1027,9 +1050,9 @@ export default function BuyerPortalPage() {
                   <Mail className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-900">Receive a One-Time Code</p>
+                  <p className="text-sm font-semibold text-slate-900">{t('buyerPortal.otp.requestTitle')}</p>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    We will send a 6-digit confirmation code to your registered contact address:
+                    {t('buyerPortal.otp.requestBody')}
                   </p>
                   <strong className="text-xs text-slate-900 block pt-1">{buyer.maskedEmail}</strong>
                 </div>
@@ -1040,17 +1063,17 @@ export default function BuyerPortalPage() {
                   disabled={otpLoading}
                   className="w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {otpLoading ? 'Sending...' : 'Send 6-Digit Code'}
+                  {otpLoading ? t('buyerPortal.otp.sending') : t('buyerPortal.otp.send')}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 <div className="text-center space-y-1">
-                  <p className="text-xs text-slate-500">Enter the 6-digit code sent to:</p>
+                  <p className="text-xs text-slate-500">{t('buyerPortal.otp.enter')}</p>
                   <strong className="text-xs text-slate-900 block">{otpInfo?.maskedEmail}</strong>
                   {otpInfo?.devCode && (
                     <span className="inline-block text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold mt-1">
-                      Test Code: {otpInfo.devCode}
+                      {t('buyerPortal.otp.testCode', { code: otpInfo.devCode })}
                     </span>
                   )}
                 </div>
@@ -1074,14 +1097,14 @@ export default function BuyerPortalPage() {
                     onClick={() => setOtpStep('request')}
                     className="flex-1 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                   >
-                    Resend
+                    {t('buyerPortal.otp.resend')}
                   </button>
                   <button
                     type="submit"
                     disabled={otpLoading || otpCode.length < 6}
                     className="flex-1 py-2.5 px-4 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
                   >
-                    {otpLoading ? 'Verifying...' : 'Verify & Unlock'}
+                    {otpLoading ? t('buyerPortal.otp.verifying') : t('buyerPortal.otp.verify')}
                   </button>
                 </div>
               </form>
@@ -1100,8 +1123,8 @@ export default function BuyerPortalPage() {
                   <Wrench className="w-5 h-5 text-amber-500" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Request Customization (*TMA*)</h3>
-                  <p className="text-xs text-slate-500">Lot {lot.lotNumber} · {lot.typology || lot.type}</p>
+                  <h3 className="text-base font-bold text-slate-900">{t('buyerPortal.request.title')}</h3>
+                  <p className="text-xs text-slate-500">{t('buyerPortal.unitNumber', { number: lot.lotNumber })} · {lot.typology || lot.type}</p>
                 </div>
               </div>
               <button
@@ -1115,30 +1138,30 @@ export default function BuyerPortalPage() {
             <form onSubmit={handleRequestTma} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Category
+                  {t('buyerPortal.request.category')}
                 </label>
                 <select
                   value={tmaCategory}
                   onChange={(e) => setTmaCategory(e.target.value)}
                   className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"
                 >
-                  <option value="finishes">Finishes & Paint</option>
-                  <option value="electrical">Electrical & Outlets</option>
-                  <option value="plumbing">Plumbing & Sanitary</option>
-                  <option value="masonry">Partitions & Layout</option>
-                  <option value="flooring">Flooring & Tiling</option>
-                  <option value="other">Other Upgrade</option>
+                  <option value="finishes">{t('buyerPortal.category.finishes')}</option>
+                  <option value="electrical">{t('buyerPortal.category.electrical')}</option>
+                  <option value="plumbing">{t('buyerPortal.category.plumbing')}</option>
+                  <option value="masonry">{t('buyerPortal.category.masonry')}</option>
+                  <option value="flooring">{t('buyerPortal.category.flooring')}</option>
+                  <option value="other">{t('buyerPortal.category.other')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Title of Request *
+                  {t('buyerPortal.request.titleLabel')}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Additional electrical outlet on kitchen island"
+                  placeholder={t('buyerPortal.request.titlePlaceholder')}
                   value={tmaTitle}
                   onChange={(e) => setTmaTitle(e.target.value)}
                   className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -1147,12 +1170,12 @@ export default function BuyerPortalPage() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Detailed Specifications & Location *
+                  {t('buyerPortal.request.details')}
                 </label>
                 <textarea
                   required
                   rows={4}
-                  placeholder="Describe your desired modification, exact room, and dimensions..."
+                  placeholder={t('buyerPortal.request.detailsPlaceholder')}
                   value={tmaDescription}
                   onChange={(e) => setTmaDescription(e.target.value)}
                   className="w-full text-xs p-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -1162,10 +1185,10 @@ export default function BuyerPortalPage() {
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
                 <span className="font-bold flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Technical Review Process</span>
+                  <span>{t('buyerPortal.request.reviewTitle')}</span>
                 </span>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Your request will be submitted directly to the site manager and supervising architect. Once feasibility is confirmed, an official quote will be posted here for your signature.
+                  {t('buyerPortal.request.reviewBody')}
                 </p>
               </div>
 
@@ -1175,14 +1198,14 @@ export default function BuyerPortalPage() {
                   onClick={() => setShowRequestTmaModal(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
-                  Cancel
+                  {t('buyerPortal.cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={tmaSubmitting}
                   className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {tmaSubmitting ? 'Submitting...' : 'Submit Request'}
+                  {tmaSubmitting ? t('buyerPortal.request.submitting') : t('buyerPortal.request.submit')}
                 </button>
               </div>
             </form>
@@ -1200,8 +1223,8 @@ export default function BuyerPortalPage() {
                   <PenTool className="w-5 h-5 text-emerald-600" />
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Sign Customization Addendum</h3>
-                  <p className="text-xs text-slate-500 font-mono">{signingTma.reference} · Lot {lot.lotNumber}</p>
+                  <h3 className="text-base font-bold text-slate-900">{t('buyerPortal.sign.title')}</h3>
+                  <p className="text-xs text-slate-500 font-mono">{signingTma.reference} · {t('buyerPortal.unitNumber', { number: lot.lotNumber })}</p>
                 </div>
               </div>
               <button
@@ -1221,23 +1244,23 @@ export default function BuyerPortalPage() {
 
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">Subject:</span>
+                <span className="text-slate-500">{t('buyerPortal.sign.subject')}</span>
                 <strong className="text-slate-900">{signingTma.title}</strong>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Category:</span>
-                <span className="uppercase font-mono text-slate-700">{signingTma.category}</span>
+                <span className="text-slate-500">{t('buyerPortal.sign.category')}</span>
+                <span className="font-mono text-slate-700">{labelOr(t, 'category', signingTma.category)}</span>
               </div>
               {signingTma.techApproverNote && (
                 <div className="pt-2 border-t border-slate-200 text-[11px] text-slate-600">
-                  <strong className="text-slate-800 block">Technical Validation Note:</strong>
+                  <strong className="text-slate-800 block">{t('buyerPortal.sign.techNote')}</strong>
                   {signingTma.techApproverNote}
                 </div>
               )}
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                <span className="font-semibold text-slate-700">Addendum Price (TTC):</span>
+                <span className="font-semibold text-slate-700">{t('buyerPortal.sign.price')}</span>
                 <strong className="text-base font-mono font-bold text-slate-900">
-                  {signingTma.priceQuote.toLocaleString('fr-FR', { style: 'currency', currency: data?.currency || 'EUR' })}
+                  {money(signingTma.priceQuote)}
                 </strong>
               </div>
             </div>
@@ -1245,12 +1268,12 @@ export default function BuyerPortalPage() {
             <form onSubmit={handleSignTma} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Purchaser Full Legal Name (Electronic Signature) *
+                  {t('buyerPortal.sign.name')}
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. John Doe"
+                  placeholder={t('buyerPortal.sign.namePlaceholder')}
                   value={signatureName}
                   onChange={(e) => setSignatureName(e.target.value)}
                   className="w-full text-xs py-2.5 px-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -1266,7 +1289,7 @@ export default function BuyerPortalPage() {
                   className="mt-0.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                 />
                 <span className="leading-relaxed">
-                  I accept and validate this price quotation. I authorize the real estate developer to execute these customization works on Lot {lot.lotNumber} and incorporate this amount into my purchase contract (*Avenant aux travaux modificateurs acquéreurs*).
+                  {t('buyerPortal.sign.consent', { number: lot.lotNumber })}
                 </span>
               </label>
 
@@ -1276,7 +1299,7 @@ export default function BuyerPortalPage() {
                   onClick={() => setSigningTma(null)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                 >
-                  Cancel
+                  {t('buyerPortal.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -1284,7 +1307,7 @@ export default function BuyerPortalPage() {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  <span>{signSubmitting ? 'Signing...' : 'Accept & Sign Addendum'}</span>
+                  <span>{signSubmitting ? t('buyerPortal.sign.signing') : t('buyerPortal.sign.submit')}</span>
                 </button>
               </div>
             </form>

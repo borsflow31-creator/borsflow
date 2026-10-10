@@ -61,7 +61,9 @@ function SplitEditor({
     agents,
     onSaved,
     onClose,
+    isDeveloper,
 }: {
+    isDeveloper: boolean;
     commission: CommissionRow;
     agents: { id: string; name: string }[];
     onSaved: () => void;
@@ -75,7 +77,7 @@ function SplitEditor({
     const total = rows.reduce((sum, r) => sum + (Number(r.sharePercent) || 0), 0);
     const over = total > 100 + 1e-9;
     const roleOptions = SPLIT_ROLES.map(r => ({ value: r, label: t(`realEstate.commissions.roles.${r}` as MessageKey) }));
-    const agentOptions = [{ value: '', label: t('realEstate.commissions.shares.agency') }, ...agents.map(a => ({ value: a.id, label: a.name }))];
+    const agentOptions = [{ value: '', label: t(isDeveloper ? 'developerCommissions.company' : 'realEstate.commissions.shares.agency') }, ...agents.map(a => ({ value: a.id, label: a.name }))];
     const currency = commission.currency || 'USD';
 
     const save = async () => {
@@ -233,7 +235,7 @@ function CommissionsPageInner() {
                 <section aria-label={t('realEstate.commissions.earnings.title')} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {([['accrued', totalOf.accrued], ['realized', totalOf.realized], ['paid', totalOf.paid]] as const).map(([key, value]) => (
                         <div key={key} className="bg-surface-container rounded-lg p-4">
-                            <p className="body-sm text-on-surface-variant">{t(`realEstate.commissions.earnings.${key}` as MessageKey)}</p>
+                            <p className="body-sm text-on-surface-variant">{t(`${isDeveloper ? 'developerCommissions' : 'realEstate.commissions.earnings'}.${key}` as MessageKey)}</p>
                             <p className="headline-md text-on-surface">{formatCurrency(value, currency)}</p>
                         </div>
                     ))}
@@ -262,7 +264,7 @@ function CommissionsPageInner() {
                             <ul className="space-y-2">
                                 {forecast!.rows.map(r => (
                                     <li key={r.userId ?? 'none'} className="flex flex-wrap items-center justify-between gap-2 bg-surface-container rounded-lg px-4 py-3">
-                                        <span className="body-md text-on-surface">{info.agents.find(a => a.id === r.userId)?.name || t('realEstate.commissions.shares.agency')}</span>
+                                        <span className="body-md text-on-surface">{info.agents.find(a => a.id === r.userId)?.name || t(isDeveloper ? 'developerCommissions.company' : 'realEstate.commissions.shares.agency')}</span>
                                         <span className="body-sm text-on-surface-variant">{t('realEstate.commissions.forecast.listings', { count: r.listings })}</span>
                                         <span className="body-md text-on-surface">{formatCurrency(r.weighted, currency)} <span className="body-xs text-on-surface-variant">/ {formatCurrency(r.potential, currency)}</span></span>
                                     </li>
@@ -271,7 +273,7 @@ function CommissionsPageInner() {
                         )}
                     </section>
                 ) : rows.length === 0 ? (
-                    <p className="body-md text-on-surface-variant text-center py-12">{t('realEstate.commissions.empty')}</p>
+                    <p className="body-md text-on-surface-variant text-center py-12">{t(isDeveloper ? 'developerCommissions.empty' : 'realEstate.commissions.empty')}</p>
                 ) : (
                     <ul className="space-y-4">
                         {rows.map(c => (
@@ -299,7 +301,7 @@ function CommissionsPageInner() {
                                 <ul className="divide-y divide-outline-variant/20">
                                     {c.splits.map(s => (
                                         <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2 body-sm">
-                                            <span className="text-on-surface">{s.user?.name || s.user?.email || t('realEstate.commissions.shares.agency')} <span className="text-on-surface-variant">· {t(`realEstate.commissions.roles.${s.role}` as MessageKey)}</span></span>
+                                            <span className="text-on-surface">{s.user?.name || s.user?.email || t(isDeveloper ? 'developerCommissions.company' : 'realEstate.commissions.shares.agency')} <span className="text-on-surface-variant">· {t(`realEstate.commissions.roles.${s.role}` as MessageKey)}</span></span>
                                             <span className="text-on-surface-variant">{s.sharePercent}%</span>
                                             <span className="text-on-surface">{formatCurrency(s.amount, c.currency || currency)}</span>
                                         </li>
@@ -316,7 +318,7 @@ function CommissionsPageInner() {
                     </ul>
                 )}
 
-                {editing && <SplitEditor commission={editing} agents={info.agents} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+                {editing && <SplitEditor isDeveloper={isDeveloper} commission={editing} agents={info.agents} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
             </div>
         </AppShell>
     );

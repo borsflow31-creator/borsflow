@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Loader2 } from 'lucide-react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { stageLabel } from '@/components/crm/labels';
 import { SUBJECT_ENDPOINTS } from '@/lib/crm/subjects';
 import { Badge, STATUS_TONE, contactName } from '@/components/realestate/ui';
 import type { InterestCardData, PropertyBoardData } from '@/components/realestate/cards';
@@ -126,7 +127,7 @@ export default function SubjectListView({
                                         ? [interest.property.title, interest.property.city].filter(Boolean).join(' · ')
                                         : [property?.vendor ? contactName(property.vendor) : null, property?.city, property?.reference].filter(Boolean).join(' · ')}
                                 </td>
-                                <td className="px-4 py-3 text-on-surface">{row.stage ?? '–'}</td>
+                                <td className="px-4 py-3 text-on-surface">{row.stage ? stageLabel(row.stage, t) : '–'}</td>
                                 <td className="px-4 py-3">
                                     <Badge tone={STATUS_TONE[status] ?? 'neutral'}>{t(statusKey)}</Badge>
                                 </td>

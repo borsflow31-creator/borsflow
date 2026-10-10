@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { stageLabel } from '@/components/crm/labels';
 import SelectRefined from '@/components/ui/SelectRefined';
 import InterestModal from './InterestModal';
 import { Badge, STATUS_TONE, contactName, errorFrom, primaryButton, secondaryButton } from './ui';
@@ -92,7 +93,7 @@ export default function InterestsPanel({
 
     if (loading) return <div className="skeleton h-40 rounded-lg" />;
 
-    const stageOptions = (current: string) => Array.from(new Set([...stages, current])).map(s => ({ value: s, label: s }));
+    const stageOptions = (current: string) => Array.from(new Set([...stages, current])).map(s => ({ value: s, label: stageLabel(s, t) }));
 
     return (
         <div className="space-y-4">

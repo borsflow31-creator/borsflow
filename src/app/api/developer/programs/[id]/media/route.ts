@@ -17,7 +17,7 @@ import { prisma } from '@/lib/prisma'
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin'
 import { consumeRateLimits, rateLimitedResponse } from '@/lib/api/rate-limit'
 import { contentMatchesType } from '@/lib/uploads'
-import { getProgramAccess } from '@/lib/crm/access'
+import { getProgramAccess, refuseNonDeveloper } from '@/lib/crm/access'
 import { signMediaPaths } from '@/lib/crm/media-urls'
 import { failure } from '@/lib/api/respond'
 import {
@@ -50,6 +50,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id)
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
     const { access } = result
 
     const rows = await prisma.programMedia.findMany({
@@ -91,6 +93,8 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
     const { access } = result
 
     const count = await prisma.programMedia.count({ where: { programId: params.id } })
@@ -260,6 +264,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   try {
     const result = await getProgramAccess(params.id, { write: true })
     if ('error' in result) return result.error
+    const notDeveloper = await refuseNonDeveloper(result.access.workspaceId)
+    if (notDeveloper) return notDeveloper
 
     const body = await request.json().catch(() => null)
     const order: unknown = body?.order

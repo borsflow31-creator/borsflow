@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
+import { pipelineLabel, stageLabel } from '@/components/crm/labels'
 import { cachedJson } from '@/lib/client-cache'
 
 export interface PipelineOption {
@@ -76,7 +77,7 @@ export default function PipelineStagePicker({ pipelines, pipelineId, stages, onC
         >
           <option value="">{emptyLabel}</option>
           {pipelines.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id}>{pipelineLabel(p.name, t)}</option>
           ))}
         </select>
       </div>
@@ -100,7 +101,7 @@ export default function PipelineStagePicker({ pipelines, pipelineId, stages, onC
                       : 'border border-outline-variant/40 bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'
                   }`}
                 >
-                  {stage}
+                  {stageLabel(stage, t)}
                 </button>
               )
             })}

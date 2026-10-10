@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { getDocumentPdf } from '@/lib/services/developer/sales-documents'
 
@@ -16,7 +16,7 @@ export async function GET(
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId)
+    const result = await getDeveloperAccess(workspaceId)
     if ('error' in result) return result.error
 
     const { buffer, filename } = await getDocumentPdf(workspaceId, id, undefined, { canModerate: result.access.canModerate })

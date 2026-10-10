@@ -1,5 +1,5 @@
-import type Groq from 'groq-sdk'
-import { getGroq } from '@/lib/groq'
+import { getAi, type ChatCompletion, type ChatCompletionChunk, type ChatMessage } from '@/lib/ai/provider'
+import { reasoningOptions } from '@/lib/ai/models'
 import { settleAiCredits, type AiReservation } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens, estimateTokens, type TokenUsage } from '@/lib/billing/ai-pricing'
 
@@ -11,20 +11,18 @@ import { estimateMessageTokens, estimateTokens, type TokenUsage } from '@/lib/bi
  * (editor edits, template/product/email generation) goes through here.
  */
 
-type ChatMessage = Groq.Chat.Completions.ChatCompletionMessageParam
-
 export interface CompletionOptions {
   reservation: AiReservation
   messages: ChatMessage[]
   maxTokens: number
   temperature?: number
-  /** Ask Groq for a JSON object. The prompt must also say "JSON". */
+  /** Ask for a JSON object. The prompt must also say "JSON". */
   json?: boolean
   /** Aborts the upstream call, e.g. the incoming request's signal. */
   signal?: AbortSignal
 }
 
-/** Tokens Groq reported, or null when it reported none. */
+/** Tokens the provider reported, or null when it reported none. */
 export function toTokenUsage(
   usage: { prompt_tokens?: number; completion_tokens?: number } | null | undefined
 ): TokenUsage | null {
@@ -58,6 +56,8 @@ function requestBody(options: CompletionOptions) {
     max_completion_tokens: options.maxTokens,
     ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
     ...(options.json ? { response_format: { type: 'json_object' as const } } : {}),
+    // OpenRouter-only options (reasoning) ride along; the SDK passes them through.
+    ...(reasoningOptions(options.reservation.model) as object),
   }
 }
 
@@ -68,9 +68,9 @@ function requestBody(options: CompletionOptions) {
 export async function completeBilled(
   options: CompletionOptions
 ): Promise<{ text: string; credits: number }> {
-  let completion: Groq.Chat.Completions.ChatCompletion
+  let completion: ChatCompletion
   try {
-    completion = await getGroq().chat.completions.create(
+    completion = await getAi().chat.completions.create(
       { ...requestBody(options), stream: false },
       { signal: options.signal }
     )
@@ -94,10 +94,11 @@ export async function completeBilled(
 export async function streamBilled(options: CompletionOptions): Promise<ReadableStream<Uint8Array>> {
   const abort = linkedAbortController(options.signal)
 
-  let stream: AsyncIterable<Groq.Chat.Completions.ChatCompletionChunk>
+  let stream: AsyncIterable<ChatCompletionChunk>
   try {
-    stream = await getGroq().chat.completions.create(
-      { ...requestBody(options), stream: true },
+    stream = await getAi().chat.completions.create(
+      // Usage arrives once, in the final chunk.
+      { ...requestBody(options), stream: true, stream_options: { include_usage: true } },
       { signal: abort.signal }
     )
   } catch (error) {
@@ -119,7 +120,7 @@ export async function streamBilled(options: CompletionOptions): Promise<Readable
             output += text
             controller.enqueue(encoder.encode(text))
           }
-          reported = toTokenUsage(chunk.x_groq?.usage) ?? reported
+          reported = toTokenUsage(chunk.usage) ?? reported
         }
       } catch (error) {
         status = abort.signal.aborted ? 'aborted' : 'error'

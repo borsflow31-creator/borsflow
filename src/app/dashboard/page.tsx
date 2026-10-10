@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -64,13 +64,6 @@ export default function DashboardPage() {
         }
     }, [status, router])
 
-    useEffect(() => {
-        if (session) {
-            fetchWorkspaces()
-            fetchRecentActivity()
-        }
-    }, [session])
-
     const fetchWorkspaces = async () => {
         try {
             const data = await cachedJson('/api/workspaces')
@@ -96,7 +89,7 @@ export default function DashboardPage() {
         }
     }
 
-    const fetchRecentActivity = async () => {
+    const fetchRecentActivity = useCallback(async () => {
         try {
             const response = await fetch('/api/pages?limit=5&sort=updatedAt')
             const data = await response.json()
@@ -111,7 +104,16 @@ export default function DashboardPage() {
         } catch (error) {
             console.error('Error fetching recent activity:', error)
         }
-    }
+    }, [t])
+
+    useEffect(() => {
+        if (session) {
+            fetchWorkspaces()
+            fetchRecentActivity()
+        }
+        // fetchWorkspaces only reads state setters; the session is what should trigger it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session, fetchRecentActivity])
 
     const handleQuickCapture = async (e: React.FormEvent) => {
         e.preventDefault()

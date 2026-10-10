@@ -6,6 +6,7 @@ import { reserveAiCredits } from '@/lib/billing/ai-credits';
 import { estimateMessageTokens } from '@/lib/billing/ai-pricing';
 import { completeBilled } from '@/lib/ai/billed-completion';
 import { QUALITY_MODEL } from '@/lib/ai/models';
+import { AI_NOT_CONFIGURED, isAiConfigured, providerErrorMessage } from '@/lib/ai/provider';
 
 const MAX_OUTPUT_TOKENS = 800;
 const MAX_PROMPT_CHARS = 2000;
@@ -56,8 +57,8 @@ function sanitizeSuggestion(value: any): ProductSuggestion {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.GROQ_API_KEY) {
-      return NextResponse.json({ error: 'GROQ_API_KEY is not configured' }, { status: 500 });
+    if (!isAiConfigured()) {
+      return NextResponse.json({ error: AI_NOT_CONFIGURED }, { status: 500 });
     }
 
     const body = await request.json();
@@ -177,8 +178,8 @@ export async function POST(request: NextRequest) {
     console.error('Error generating product suggestion:', error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : 'Failed to generate AI product suggestion',
+        // The provider's raw error can name the key or the account; never pass it through.
+        error: providerErrorMessage(error) ?? 'Could not generate an AI product suggestion. Try again later.',
       },
       { status: 500 }
     );

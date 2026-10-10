@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 import { RULE_PARAMS } from '@/lib/crm/alert-rules'
 import { getRules, saveRule } from '@/lib/services/developer/alerts'
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId)
+    const result = await getDeveloperAccess(workspaceId)
     if ('error' in result) return result.error
 
     return NextResponse.json({
@@ -36,7 +36,7 @@ export async function PUT(request: NextRequest) {
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
 
     await saveRule(

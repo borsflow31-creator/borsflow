@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bell, Check, Loader2, MessageSquare, DollarSign, CalendarDays, Columns } from 'lucide-react';
-import { formatDistanceToNowStrict } from 'date-fns';
 import {
     fetchNotifications,
     fetchUnreadCount,
@@ -13,6 +12,8 @@ import {
     type NotificationItem,
 } from '@/lib/notifications-client';
 import { useI18n } from '@/i18n/I18nProvider';
+import { relativeTime } from '@/lib/relative-time';
+import { localizeNotificationTitle } from '@/lib/notifications/titles';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -205,6 +206,7 @@ function NotificationGroup({
     items: NotificationItem[];
     onClick: (item: NotificationItem) => void;
 }) {
+    const { t, locale } = useI18n();
     return (
         <div>
             <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-on-surface-variant/70">{label}</p>
@@ -227,10 +229,10 @@ function NotificationGroup({
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-sm leading-snug ${unread ? 'font-medium text-on-surface' : 'text-on-surface-variant'}`}>
-                                        {item.title}
+                                        {localizeNotificationTitle(item.title, t)}
                                     </p>
                                     <p className="text-[11px] text-on-surface-variant/70 mt-0.5">
-                                        {formatDistanceToNowStrict(new Date(item.createdAt), { addSuffix: true })}
+                                        {relativeTime(item.createdAt, locale)}
                                     </p>
                                 </div>
                                 {unread && <span className="w-2 h-2 rounded-full bg-secondary flex-shrink-0 mt-2" />}

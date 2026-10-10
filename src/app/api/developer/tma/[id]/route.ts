@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { getTMARequest, deleteTMARequest } from '@/lib/services/developer/tma'
 
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
 
-    const result = await getWorkspaceAccess(workspaceId)
+    const result = await getDeveloperAccess(workspaceId)
     if ('error' in result) return result.error
     const { access } = result
 
@@ -38,7 +38,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
 
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
     const { access } = result
 

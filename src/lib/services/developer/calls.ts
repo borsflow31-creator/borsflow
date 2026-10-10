@@ -53,7 +53,7 @@ export async function logCall(
     entityType: 'lead',
     entityId: lead.id,
     description: `${direction === 'inbound' ? 'Call from' : 'Call to'} ${name}: ${answered ? 'answered' : 'no answer'}`,
-    metadata: { direction, answered, durationMin, note },
+    metadata: { direction, answered, durationMin, note, buyer: name },
     leadId: lead.id,
   })
 

@@ -6,6 +6,7 @@ import { reserveAiCredits } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens } from '@/lib/billing/ai-pricing'
 import { completeBilled } from '@/lib/ai/billed-completion'
 import { UTILITY_MODEL } from '@/lib/ai/models'
+import { AI_NOT_CONFIGURED, isAiConfigured, providerErrorMessage } from '@/lib/ai/provider'
 
 const MAX_OUTPUT_TOKENS = 2048
 const MAX_INPUT_CHARS = 4000
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!isAiConfigured()) {
       return new Response(JSON.stringify({ error: 'AI service not configured' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       }))
     } catch (error) {
       console.error('AI template generation failed:', error)
-      return new Response(JSON.stringify({ error: 'The AI service could not generate a template. Try again later.' }), {
+      return new Response(JSON.stringify({ error: providerErrorMessage(error) ?? 'The AI service could not generate a template. Try again later.' }), {
         status: 502,
         headers: { 'Content-Type': 'application/json' },
       })

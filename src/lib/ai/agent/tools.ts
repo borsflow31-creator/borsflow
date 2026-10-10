@@ -1,4 +1,4 @@
-import type Groq from 'groq-sdk'
+import type { ChatTool } from '@/lib/ai/provider'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { buildPageAccessWhere, getUserPageAccess, hasPermission, type Role } from '@/lib/workspace'
@@ -8,6 +8,8 @@ import { createLead } from '@/lib/services/leads'
 import { createMeeting } from '@/lib/services/meetings'
 import { ServiceError } from '@/lib/services/errors'
 import { blocksToText, pageContentToText, snippetAround, textToBlocks, truncate } from '@/lib/ai/page-text'
+import { summarizeUnits } from '@/lib/crm/projects'
+import { listSiteVisits } from '@/lib/services/developer/site-visits'
 
 /**
  * The workspace assistant's tools. Every query is scoped to the caller's
@@ -19,6 +21,10 @@ export interface ToolContext {
   userId: string
   workspaceId: string
   role: Role
+  /** A real estate developer's workspace gets the project, unit and sales tools. */
+  isDeveloper?: boolean
+  /** The user's IANA time zone, for "today". */
+  timeZone?: string
 }
 
 export interface ToolOutcome {
@@ -36,6 +42,8 @@ interface AgentTool {
   parameters: Record<string, unknown>
   /** Create tools need `content:create`; read tools only workspace membership. */
   writes: boolean
+  /** Only offered in a real estate developer's workspace. */
+  developerOnly?: boolean
   execute(ctx: ToolContext, args: Args): Promise<ToolOutcome>
 }
 
@@ -85,6 +93,20 @@ function dateArg(args: Args, key: string): Date | undefined {
 }
 
 const insensitive = (value: string) => ({ contains: value, mode: 'insensitive' as const })
+
+const UNIT_STATUS_FILTERS = ['available', 'optioned', 'reserved', 'contract_signed', 'deed_signed', 'delivered', 'sold', 'reserved_or_on_hold'] as const
+
+/** The last moment of today in `timeZone` (UTC when unknown). */
+function endOfDayIn(timeZone: string | undefined, now: Date): Date {
+  const zone = timeZone || 'UTC'
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(now)
+    .split('-')
+    .map(Number)
+  // The zone's offset from UTC right now, in milliseconds.
+  const offset = new Date(now.toLocaleString('en-US', { timeZone: zone })).getTime() - new Date(now.toLocaleString('en-US', { timeZone: 'UTC' })).getTime()
+  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - offset)
+}
 
 // ─── Tools ───────────────────────────────────────────────────────────────────
 
@@ -171,7 +193,7 @@ const TOOLS: AgentTool[] = [
     name: 'search_leads',
     label: 'Looking up CRM leads',
     description:
-      'Find CRM leads by name, company or email, and/or by status. Returns contact details, deal value, stage and notes.',
+      'Find CRM leads (buyers) by name, company or email, by status, and/or by pipeline stage. Returns contact details, deal value, stage, owner, budget, project of interest, next follow-up and notes.',
     parameters: {
       type: 'object',
       properties: {
@@ -179,6 +201,11 @@ const TOOLS: AgentTool[] = [
         status: {
           type: 'string',
           description: 'Filter by status: new, contacted, qualified, proposal, negotiation, won, lost',
+        },
+        stage: {
+          type: 'string',
+          description:
+            "Filter by pipeline stage. A developer's buyers move through: New, Contacted, Qualified, Site visit, Negotiation, Reserved, Won, Lost. Prefer stage over status for buyers.",
         },
         limit: { type: 'integer', description: 'Max results (default 10, max 25)' },
       },
@@ -188,10 +215,12 @@ const TOOLS: AgentTool[] = [
     async execute(ctx, args) {
       const query = str(args, 'query', 100)
       const status = str(args, 'status', 30)?.toLowerCase()
+      const stage = str(args, 'stage', 40)
       const leads = await prisma.lead.findMany({
         where: {
           pipeline: { workspaceId: ctx.workspaceId },
           ...(status ? { status } : {}),
+          ...(stage ? { stage: { equals: stage, mode: 'insensitive' as const } } : {}),
           ...(query
             ? {
                 OR: [
@@ -217,14 +246,22 @@ const TOOLS: AgentTool[] = [
           notes: true,
           updatedAt: true,
           pipeline: { select: { name: true } },
+          budgetMin: true,
+          budgetMax: true,
+          interestedTypology: true,
+          nextFollowUpAt: true,
+          owner: { select: { name: true } },
+          interestedProgram: { select: { name: true } },
         },
         orderBy: { updatedAt: 'desc' },
         take: limitArg(args, 10, 25),
       })
       return {
-        data: leads.map(({ notes, pipeline, ...lead }) => ({
+        data: leads.map(({ notes, pipeline, owner, interestedProgram, ...lead }) => ({
           ...lead,
           pipeline: pipeline.name,
+          owner: owner?.name ?? null,
+          projectOfInterest: interestedProgram?.name ?? null,
           notes: notes ? truncate(notes, 200) : null,
         })),
       }
@@ -234,7 +271,7 @@ const TOOLS: AgentTool[] = [
     name: 'list_tasks',
     label: 'Checking tasks',
     description:
-      'List kanban tasks, optionally filtered by status, priority, words in the title, or due date. Sorted by due date.',
+      'List tasks on the internal kanban board, optionally filtered by status, priority, words in the title, or due date. Not sales follow-ups with buyers (use list_follow_ups for those).',
     parameters: {
       type: 'object',
       properties: {
@@ -457,6 +494,321 @@ const TOOLS: AgentTool[] = [
     },
   },
 
+  // ─── Developer tools (real estate developer workspaces only) ──────────────
+
+  {
+    name: 'list_projects',
+    label: 'Checking projects',
+    description:
+      'List the real estate development projects (programmes) with their status, city, unit counts (total, available, reserved or on hold, sold), sales targets, value sold and value still available. Use for questions about projects or how many units are left.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Words in the project name, commercial name, reference or city' },
+      },
+      required: [],
+    },
+    writes: false,
+    developerOnly: true,
+    async execute(ctx, args) {
+      const query = str(args, 'query', 100)
+      const [programs, workspace] = await Promise.all([
+        prisma.program.findMany({
+          where: {
+            workspaceId: ctx.workspaceId,
+            ...(query
+              ? {
+                  OR: [
+                    { name: insensitive(query) },
+                    { commercialName: insensitive(query) },
+                    { reference: insensitive(query) },
+                    { city: insensitive(query) },
+                  ],
+                }
+              : {}),
+          },
+          select: {
+            id: true,
+            reference: true,
+            name: true,
+            commercialName: true,
+            city: true,
+            status: true,
+            targetDeliveryDate: true,
+            salesTargetUnits: true,
+            revenueTarget: true,
+            lots: { select: { status: true, totalPrice: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 20,
+        }),
+        prisma.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { currency: true } }),
+      ])
+      return {
+        data: {
+          currency: workspace?.currency ?? 'EUR',
+          projects: programs.map(({ lots, ...program }) => {
+            const totals = summarizeUnits(lots)
+            return {
+              ...program,
+              name: program.commercialName || program.name,
+              url: `/developer/programs/${program.id}`,
+              units: { total: totals.total, available: totals.available, reservedOrOnHold: totals.reserved, sold: totals.sold },
+              valueSold: totals.soldValue,
+              valueAvailable: totals.availableValue,
+            }
+          }),
+        },
+      }
+    },
+  },
+  {
+    name: 'search_units',
+    label: 'Searching units',
+    description:
+      'Find units (lots: apartments, parking spaces, shops) across projects, by project, status, typology (T2/F2, T3/F3...), floor or price. Returns how many match plus the first ones with price, area, floor, status and buyer.',
+    parameters: {
+      type: 'object',
+      properties: {
+        project: { type: 'string', description: 'Project name, commercial name or reference' },
+        status: {
+          type: 'string',
+          enum: ['available', 'optioned', 'reserved', 'contract_signed', 'deed_signed', 'delivered', 'sold', 'reserved_or_on_hold'],
+          description: '"sold" = contract or deed signed or delivered; "reserved_or_on_hold" = reserved or optioned',
+        },
+        typology: { type: 'string', description: 'e.g. T3 (an F3 in Algeria is a T3)' },
+        floor: { type: 'integer', description: '0 is the ground floor' },
+        max_price: { type: 'number', description: 'Maximum price including tax' },
+        limit: { type: 'integer', description: 'Max units listed (default 15, max 40)' },
+      },
+      required: [],
+    },
+    writes: false,
+    developerOnly: true,
+    async execute(ctx, args) {
+      const project = str(args, 'project', 100)
+      const status = oneOf(args, 'status', UNIT_STATUS_FILTERS)
+      const typology = str(args, 'typology', 20)?.toUpperCase().replace(/^F(\d)$/, 'T$1')
+      const floor = num(args, 'floor')
+      const maxPrice = num(args, 'max_price')
+      const where: Prisma.DevelopmentLotWhereInput = {
+        workspaceId: ctx.workspaceId,
+        ...(project
+          ? { program: { OR: [{ name: insensitive(project) }, { commercialName: insensitive(project) }, { reference: insensitive(project) }] } }
+          : {}),
+        ...(status === 'sold'
+          ? { status: { in: ['contract_signed', 'deed_signed', 'delivered'] } }
+          : status === 'reserved_or_on_hold'
+            ? { status: { in: ['reserved', 'optioned'] } }
+            : status
+              ? { status }
+              : {}),
+        ...(typology ? { typology: { equals: typology, mode: 'insensitive' as const } } : {}),
+        ...(floor !== undefined ? { floor: Math.round(floor) } : {}),
+        ...(maxPrice !== undefined ? { totalPrice: { lte: maxPrice } } : {}),
+      }
+      const [count, lots, workspace] = await Promise.all([
+        prisma.developmentLot.count({ where }),
+        prisma.developmentLot.findMany({
+          where,
+          select: {
+            lotNumber: true,
+            type: true,
+            typology: true,
+            floor: true,
+            surfaceArea: true,
+            totalPrice: true,
+            status: true,
+            program: { select: { name: true, commercialName: true } },
+            building: { select: { name: true } },
+            buyerLead: { select: { firstName: true, lastName: true } },
+          },
+          orderBy: [{ program: { name: 'asc' } }, { floor: 'asc' }, { lotNumber: 'asc' }],
+          take: limitArg(args, 15, 40),
+        }),
+        prisma.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { currency: true } }),
+      ])
+      return {
+        data: {
+          matching: count,
+          currency: workspace?.currency ?? 'EUR',
+          units: lots.map(({ program, building, buyerLead, ...lot }) => ({
+            ...lot,
+            project: program.commercialName || program.name,
+            building: building?.name ?? null,
+            buyer: buyerLead ? `${buyerLead.firstName} ${buyerLead.lastName}`.trim() : null,
+          })),
+        },
+      }
+    },
+  },
+  {
+    name: 'list_follow_ups',
+    label: 'Checking follow-ups',
+    description:
+      "List sales follow-ups (calls, reminders, documents to send to buyers), not the kanban board. Use for questions about follow-ups, reminders, calls to make, or what is overdue or due today. Defaults to the user's own open follow-ups.",
+    parameters: {
+      type: 'object',
+      properties: {
+        when: { type: 'string', enum: ['overdue', 'today', 'upcoming', 'all_open'], description: 'Default all_open' },
+        scope: { type: 'string', enum: ['mine', 'everyone'], description: 'Default mine' },
+        limit: { type: 'integer', description: 'Max results (default 20, max 40)' },
+      },
+      required: [],
+    },
+    writes: false,
+    developerOnly: true,
+    async execute(ctx, args) {
+      const when = oneOf(args, 'when', ['overdue', 'today', 'upcoming', 'all_open'] as const) ?? 'all_open'
+      const everyone = oneOf(args, 'scope', ['mine', 'everyone'] as const) === 'everyone'
+      const now = new Date()
+      const endOfToday = endOfDayIn(ctx.timeZone, now)
+      const dueAt =
+        when === 'overdue' ? { lt: now }
+        : when === 'today' ? { lte: endOfToday }
+        : when === 'upcoming' ? { gt: endOfToday }
+        : undefined
+      const tasks = await prisma.leadTask.findMany({
+        where: {
+          workspaceId: ctx.workspaceId,
+          completedAt: null,
+          ...(everyone ? {} : { assigneeId: ctx.userId }),
+          ...(dueAt ? { dueAt } : {}),
+        },
+        select: {
+          title: true,
+          type: true,
+          dueAt: true,
+          lead: { select: { firstName: true, lastName: true, phone: true } },
+          assignee: { select: { name: true } },
+        },
+        orderBy: { dueAt: 'asc' },
+        take: limitArg(args, 20, 40),
+      })
+      return {
+        data: {
+          url: '/developer/tasks',
+          followUps: tasks.map(({ lead, assignee, ...task }) => ({
+            ...task,
+            overdue: task.dueAt < now,
+            buyer: `${lead.firstName} ${lead.lastName}`.trim(),
+            buyerPhone: lead.phone,
+            assignedTo: assignee?.name ?? null,
+          })),
+        },
+      }
+    },
+  },
+  {
+    name: 'list_calls_for_funds',
+    label: 'Checking calls for funds',
+    description:
+      'List calls for funds (payment requests sent to buyers at each construction milestone), by status: unpaid, overdue (past due and unpaid) or paid; optionally for one project.',
+    parameters: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['unpaid', 'overdue', 'paid', 'all'], description: 'Default unpaid' },
+        project: { type: 'string', description: 'Project name or reference' },
+        limit: { type: 'integer', description: 'Max results (default 20, max 40)' },
+      },
+      required: [],
+    },
+    writes: false,
+    developerOnly: true,
+    async execute(ctx, args) {
+      const status = oneOf(args, 'status', ['unpaid', 'overdue', 'paid', 'all'] as const) ?? 'unpaid'
+      const project = str(args, 'project', 100)
+      const now = new Date()
+      const open = ['issued', 'sent_to_bank', 'overdue']
+      const where: Prisma.CallForFundsWhereInput = {
+        workspaceId: ctx.workspaceId,
+        // "Overdue" is past due and unpaid, whether or not the nightly job has
+        // flipped the status yet.
+        ...(status === 'paid' ? { status: 'paid' }
+          : status === 'overdue' ? { status: { in: open }, dueAt: { lt: now } }
+          : status === 'unpaid' ? { status: { in: open } }
+          : {}),
+        ...(project
+          ? { lot: { program: { OR: [{ name: insensitive(project) }, { commercialName: insensitive(project) }, { reference: insensitive(project) }] } } }
+          : {}),
+      }
+      const [calls, total, workspace] = await Promise.all([
+        prisma.callForFunds.findMany({
+          where,
+          select: {
+            callNumber: true,
+            amount: true,
+            status: true,
+            dueAt: true,
+            paidAt: true,
+            milestone: { select: { title: true } },
+            lot: {
+              select: {
+                lotNumber: true,
+                program: { select: { name: true, commercialName: true } },
+                buyerLead: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: { dueAt: 'asc' },
+          take: limitArg(args, 20, 40),
+        }),
+        prisma.callForFunds.aggregate({ where, _sum: { amount: true }, _count: true }),
+        prisma.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { currency: true } }),
+      ])
+      return {
+        data: {
+          matching: total._count,
+          totalAmount: total._sum.amount ?? 0,
+          currency: workspace?.currency ?? 'EUR',
+          url: '/developer/collections',
+          calls: calls.map(({ milestone, lot, ...call }) => ({
+            ...call,
+            overdue: call.status !== 'paid' && !!call.dueAt && call.dueAt < now,
+            milestone: milestone?.title ?? null,
+            unit: lot.lotNumber,
+            project: lot.program.commercialName || lot.program.name,
+            buyer: lot.buyerLead ? `${lot.buyerLead.firstName} ${lot.buyerLead.lastName}`.trim() : null,
+          })),
+        },
+      }
+    },
+  },
+  {
+    name: 'list_site_visits',
+    label: 'Checking site visits',
+    description:
+      'List site visits of buyers to projects: upcoming ones, past ones, or past visits still waiting for their outcome to be recorded.',
+    parameters: {
+      type: 'object',
+      properties: {
+        when: { type: 'string', enum: ['upcoming', 'past', 'needs_outcome'], description: 'Default upcoming' },
+        limit: { type: 'integer', description: 'Max results (default 15, max 30)' },
+      },
+      required: [],
+    },
+    writes: false,
+    developerOnly: true,
+    async execute(ctx, args) {
+      const when = oneOf(args, 'when', ['upcoming', 'past', 'needs_outcome'] as const) ?? 'upcoming'
+      const visits = await listSiteVisits({ workspaceId: ctx.workspaceId, userId: ctx.userId }, { when })
+      return {
+        data: {
+          url: '/developer/site-visits',
+          visits: visits.slice(0, limitArg(args, 15, 30)).map((visit) => ({
+            startTime: visit.startTime,
+            status: visit.status,
+            outcome: visit.outcome,
+            buyer: visit.lead ? `${visit.lead.firstName} ${visit.lead.lastName}`.trim() : null,
+            project: visit.program?.name ?? null,
+            unit: visit.lot?.lotNumber ?? null,
+            host: visit.user?.name ?? null,
+          })),
+        },
+      }
+    },
+  },
+
   // ─── Create tools ──────────────────────────────────────────────────────────
 
   {
@@ -640,9 +992,9 @@ const TOOLS: AgentTool[] = [
 const TOOLS_BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]))
 
 /** Tool definitions for the model. Viewers are not offered create tools at all. */
-export function toolDefinitions(role: Role): Groq.Chat.Completions.ChatCompletionTool[] {
+export function toolDefinitions(role: Role, isDeveloper = false): ChatTool[] {
   const canCreate = hasPermission(role, 'content:create')
-  return TOOLS.filter((tool) => !tool.writes || canCreate).map((tool) => ({
+  return TOOLS.filter((tool) => (!tool.writes || canCreate) && (!tool.developerOnly || isDeveloper)).map((tool) => ({
     type: 'function' as const,
     function: { name: tool.name, description: tool.description, parameters: tool.parameters },
   }))
@@ -667,6 +1019,8 @@ export async function runTool(
   let ok = false
   if (!tool) {
     outcome = { data: { error: `Unknown tool "${name}"` } }
+  } else if (tool.developerOnly && !ctx.isDeveloper) {
+    outcome = { data: { error: 'This tool is only for real estate developer workspaces' } }
   } else if (tool.writes && !hasPermission(ctx.role, 'content:create')) {
     outcome = { data: { error: 'The user has view-only access and cannot create content' } }
   } else {

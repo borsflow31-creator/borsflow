@@ -7,6 +7,7 @@ import LeadFiles from '@/components/crm/LeadFiles';
 import LeadTimeline from '@/components/crm/LeadTimeline';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n } from '@/i18n/I18nProvider';
+import { stageLabel } from '@/components/crm/labels';
 import LeadInterests from '@/components/realestate/LeadInterests';
 import LeadBriefFields, { type LeadBriefValues } from '@/components/developer/LeadBriefFields';
 import CustomerTab from '@/components/developer/CustomerTab';
@@ -152,8 +153,8 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
     ], [t]);
 
     const stageOptions = useMemo(() => 
-        pipeline?.stages.map(s => ({ value: s, label: s })) || [], 
-    [pipeline]);
+        pipeline?.stages.map(s => ({ value: s, label: stageLabel(s, t) })) || [], 
+    [pipeline, t]);
 
     const runAI = async (type: 'summary' | 'emailDraft') => {
         setAiPanel(type);

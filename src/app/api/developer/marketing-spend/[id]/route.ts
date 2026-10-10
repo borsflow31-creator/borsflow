@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { deleteSpend } from '@/lib/services/developer/marketing-spend'
 
@@ -15,7 +15,7 @@ export async function DELETE(
     if (!workspaceId) {
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
 
     return NextResponse.json(await deleteSpend({ workspaceId, userId: result.access.userId }, id))

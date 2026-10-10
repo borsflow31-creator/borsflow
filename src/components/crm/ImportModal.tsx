@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { pipelineLabel, stageLabel } from '@/components/crm/labels';
 
 interface Pipeline {
     id: string;
@@ -217,7 +218,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                     <div>
                         <h2 className="title-lg text-on-surface">{t('crm.importModal.title')}</h2>
                         <p className="body-sm text-on-surface-variant mt-0.5">
-                            {t('crm.importModal.pipelineLabel')} <span className="font-medium">{pipeline.name}</span>
+                            {t('crm.importModal.pipelineLabel')} <span className="font-medium">{pipelineLabel(pipeline.name, t)}</span>
                         </p>
                     </div>
                     <button
@@ -406,7 +407,7 @@ export default function ImportModal({ pipeline, onClose, onImportComplete }: Imp
                             </div>
                             {!!result.stageCoerced && (
                                 <p className="body-sm text-on-surface-variant">
-                                    {t('crm.importModal.stageCoercedNotice', { count: result.stageCoerced, pipelineName: pipeline.name, firstStage: pipeline.stages[0] })}
+                                    {t('crm.importModal.stageCoercedNotice', { count: result.stageCoerced, pipelineName: pipelineLabel(pipeline.name, t), firstStage: stageLabel(pipeline.stages[0], t) })}
                                 </p>
                             )}
                             {result.errors.length > 0 && (

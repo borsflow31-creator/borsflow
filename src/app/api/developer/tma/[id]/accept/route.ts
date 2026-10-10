@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getWorkspaceAccess } from '@/lib/crm/access'
+import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure, readBody } from '@/lib/api/respond'
 import { acceptTMARequest } from '@/lib/services/developer/tma'
 
@@ -18,7 +18,7 @@ export async function POST(
       return NextResponse.json({ error: 'Workspace ID is required' }, { status: 400 })
     }
 
-    const result = await getWorkspaceAccess(workspaceId, { write: true })
+    const result = await getDeveloperAccess(workspaceId, { write: true })
     if ('error' in result) return result.error
     const { access } = result
 

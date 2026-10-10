@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider'
+import { pipelineLabel, stageLabel } from '@/components/crm/labels'
 import { X, Zap, Plus, Trash2, Loader2, GitBranch, Mail, ArrowUp, ArrowDown, Clock } from 'lucide-react'
 
 type TFunction = (key: MessageKey, values?: Record<string, string | number>) => string
@@ -398,7 +399,7 @@ export default function AutomationModal({
                   {pipelines.map(p => (
                     <option key={p.id} value={p.id}>
                       {/* The board decides what is enrolled, so say which kind it is. */}
-                      {p.name} — {t(`realEstate.subjects.${p.subjectType}` as MessageKey)}
+                      {pipelineLabel(p.name, t)} — {t(`realEstate.subjects.${p.subjectType}` as MessageKey)}
                     </option>
                   ))}
                 </select>
@@ -419,7 +420,7 @@ export default function AutomationModal({
                   <option value="">{selectedPipeline ? t('emailMarketing.automationModal.selectStage') : t('emailMarketing.automationModal.pickPipelineFirst')}</option>
                   {selectedPipeline?.stages.map(stage => (
                     <option key={stage} value={stage}>
-                      {stage}
+                      {stageLabel(stage, t)}
                     </option>
                   ))}
                 </select>
@@ -441,7 +442,7 @@ export default function AutomationModal({
                     .filter(stage => stage !== formData.toStage)
                     .map(stage => (
                       <option key={stage} value={stage}>
-                        {stage}
+                        {stageLabel(stage, t)}
                       </option>
                     ))}
                 </select>

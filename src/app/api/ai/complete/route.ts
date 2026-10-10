@@ -8,6 +8,7 @@ import { reserveAiCredits } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens } from '@/lib/billing/ai-pricing'
 import { completeBilled, streamBilled } from '@/lib/ai/billed-completion'
 import { UTILITY_MODEL } from '@/lib/ai/models'
+import { AI_NOT_CONFIGURED, isAiConfigured, providerErrorMessage } from '@/lib/ai/provider'
 
 /**
  * One-shot text tasks for editor features: rewrite in a tone, draft an outline,
@@ -42,8 +43,8 @@ export async function POST(req: NextRequest) {
     return jsonError('Unauthorized', 401)
   }
 
-  if (!process.env.GROQ_API_KEY) {
-    return jsonError('GROQ_API_KEY is not configured', 500)
+  if (!isAiConfigured()) {
+    return jsonError(AI_NOT_CONFIGURED, 500)
   }
 
   let body: any
@@ -132,6 +133,6 @@ export async function POST(req: NextRequest) {
     return new Response(stream, { headers })
   } catch (error) {
     console.error('AI completion failed:', error)
-    return jsonError('The AI service could not answer. Try again later.', 502)
+    return jsonError(providerErrorMessage(error) ?? 'The AI service could not answer. Try again later.', 502)
   }
 }

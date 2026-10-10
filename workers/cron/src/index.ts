@@ -46,7 +46,19 @@ const HOURLY_JOBS = [
   '/api/cron/notification-reminders',
   '/api/cron/call-reminders',
   '/api/cron/project-alerts',
+  // Agency housekeeping: expiring mandates and offers, stale segments.
+  '/api/cron/mandate-expiry',
+  '/api/cron/offer-expiry',
+  '/api/cron/refresh-segments',
 ] as const
+
+/**
+ * Emails people read once a day: buyers' new-match digests and vendors' periodic
+ * reports (each route only sends what is due). Run at 07:00 UTC, morning in
+ * Europe and North Africa.
+ */
+const DAILY_JOBS = ['/api/cron/property-matches', '/api/cron/vendor-reports'] as const
+const DAILY_HOUR_UTC = 7
 
 interface JobResult {
   path: string
@@ -123,12 +135,14 @@ async function runAll(env: Env, jobs: readonly string[]): Promise<JobResult[]> {
 
 export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const minute = new Date(controller.scheduledTime).getUTCMinutes()
+    const tick = new Date(controller.scheduledTime)
+    const minute = tick.getUTCMinutes()
     const isTopOfHour = minute === 0
+    const isDailyTick = isTopOfHour && tick.getUTCHours() === DAILY_HOUR_UTC
     // minute 0 satisfies both checks; only add HALF_HOURLY_JOBS once, via the
     // hourly branch, so refresh-tokens isn't called twice on the hour.
     const jobs = isTopOfHour
-      ? [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS]
+      ? [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS, ...(isDailyTick ? DAILY_JOBS : [])]
       : minute % 30 === 0
         ? [...JOBS, ...HALF_HOURLY_JOBS]
         : JOBS
@@ -150,8 +164,8 @@ export default {
       return new Response('Unauthorized', { status: 401 })
     }
 
-    // A manual run exercises every job, half-hourly and hourly ones included.
-    const results = await runAll(env, [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS])
+    // A manual run exercises every job, half-hourly, hourly and daily ones included.
+    const results = await runAll(env, [...JOBS, ...HALF_HOURLY_JOBS, ...HOURLY_JOBS, ...DAILY_JOBS])
 
     return Response.json({
       ran: results.length,
