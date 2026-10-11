@@ -4,14 +4,14 @@ import React from 'react'
 import Image from 'next/image'
 import { useI18n } from '@/i18n/I18nProvider'
 
-type Variant = 'editor' | 'financials'
+type Variant = 'listings' | 'commissions'
 
 export const Evidence = ({ variant }: { variant: Variant }) => {
     const { t } = useI18n()
 
     /* One block per instance, so the two captures can be placed apart in the
-       scroll instead of stacked. Each carries its own framing: the editor capture
-       is inset in the reading column, the financials capture breaks the left edge.
+       scroll instead of stacked. Each carries its own framing: the listing capture
+       is inset in the reading column, the commissions capture breaks the left edge.
        Alternating a mirrored module read as one component twice, not two ideas. */
     const BLOCKS: Record<Variant, {
         title: string
@@ -21,26 +21,26 @@ export const Evidence = ({ variant }: { variant: Variant }) => {
         w: number
         h: number
     }> = {
-        editor: {
-            title: t('landing.evidence.editorTitle'),
-            body: t('landing.evidence.editorBody'),
-            src: '/shots/pages.webp',
-            alt: t('landing.evidence.editorAlt'),
+        listings: {
+            title: t('landing.evidence.listingsTitle'),
+            body: t('landing.evidence.listingsBody'),
+            src: '/shots/listing.webp',
+            alt: t('landing.evidence.listingsAlt'),
             w: 2160,
-            h: 1350,
+            h: 1208,
         },
-        financials: {
-            title: t('landing.evidence.financialsTitle'),
-            body: t('landing.evidence.financialsBody'),
-            src: '/shots/invoices.webp',
-            alt: t('landing.evidence.financialsAlt'),
+        commissions: {
+            title: t('landing.evidence.commissionsTitle'),
+            body: t('landing.evidence.commissionsBody'),
+            src: '/shots/commissions.webp',
+            alt: t('landing.evidence.commissionsAlt'),
             w: 2160,
-            h: 1058,
+            h: 1245,
         },
     }
 
     const b = BLOCKS[variant]
-    const bleedLeft = variant === 'financials'
+    const bleedLeft = variant === 'commissions'
 
     if (bleedLeft) {
         return (

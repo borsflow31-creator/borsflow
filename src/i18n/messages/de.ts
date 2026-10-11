@@ -1214,11 +1214,11 @@ const de: Messages = {
   landing: {
     footer: {
       linkPipeline: 'Pipeline',
-      linkDocuments: 'Dokumente',
+      linkListings: 'Objekte',
       linkHowItWorks: 'So funktioniert es',
       linkAssistant: 'KI-Assistent',
       linkRolesTeam: 'Rollen & Team',
-      linkQuotesInvoices: 'Angebote & Rechnungen',
+      linkCommissions: 'Provisionen',
       linkPricing: 'Preise',
       tagline: 'Das CRM für Maklerbüros: Objekte, Eigentümer, Käufer, Besichtigungen, Angebote und Provisionen in einem Arbeitsbereich.',
       productHeading: 'Produkt',
@@ -1271,12 +1271,12 @@ const de: Messages = {
       closeDemo: 'Demo schließen',
     },
     evidence: {
-      editorTitle: 'Dokumente, die sich um Ihre Daten herum selbst schreiben',
-      editorBody: 'Erstellen Sie Seiten und Dokumente, die Live-Felder aus Ihren Objekten und Kontakten übernehmen und so nie von der Realität abweichen.',
-      editorAlt: 'BorsFlow-Dokumenteneditor mit einer aus Live-Workspace-Daten erstellten Seite',
-      financialsTitle: 'Angebote und Rechnungen am selben Ort wie das Geschäft',
-      financialsBody: 'Verwandeln Sie ein Angebot mit einem Klick in eine Rechnung, behalten Sie den Überblick über Bezahltes und Überfälliges, ohne den Arbeitsbereich zu verlassen.',
-      financialsAlt: 'BorsFlow-Rechnungsansicht mit Angebot-zu-Rechnung-Umwandlung und Zahlungsstatus',
+      listingsTitle: 'Jedes Objekt mit allem, was dazu passiert ist',
+      listingsBody: 'Fotos, Auftrag, jede Besichtigung mit dem Feedback des Käufers und jedes Angebot auf einem Datensatz. Nehmen Sie ein Angebot an, und die konkurrierenden werden für Sie abgelehnt.',
+      listingsAlt: 'BorsFlow-Objektseite eines Hauses in Dublin, geöffnet auf dem Angebots-Tab mit drei konkurrierenden Angeboten',
+      commissionsTitle: 'Die Provision steht fest, sobald ein Angebot angenommen ist',
+      commissionsBody: 'Die Gebühr kommt aus dem Auftrag, wird zwischen Listing-Makler, verkaufendem Makler und Agentur aufgeteilt und wandert mit dem Verkauf von abgegrenzt über realisiert zu bezahlt.',
+      commissionsAlt: 'BorsFlow-Provisionsansicht mit abgegrenzten Gebühren, jeweils aufgeteilt auf Agentur, Listing-Makler und verkaufenden Makler',
     },
     finalCta: {
       step1: 'Arbeitsbereich erstellen',

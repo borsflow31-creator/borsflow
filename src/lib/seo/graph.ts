@@ -132,18 +132,18 @@ function softwareApplication(base: string, locale: Locale): Node {
         screenshot: [
             {
                 '@type': 'ImageObject',
-                url: `${base}/shots/crm.webp`,
+                url: `${base}/shots/buyer-board.webp`,
                 caption: m.landing.hero.plateAlt,
             },
             {
                 '@type': 'ImageObject',
-                url: `${base}/shots/pages.webp`,
-                caption: m.landing.evidence.editorAlt,
+                url: `${base}/shots/listing.webp`,
+                caption: m.landing.evidence.listingsAlt,
             },
             {
                 '@type': 'ImageObject',
-                url: `${base}/shots/invoices.webp`,
-                caption: m.landing.evidence.financialsAlt,
+                url: `${base}/shots/commissions.webp`,
+                caption: m.landing.evidence.commissionsAlt,
             },
         ],
         softwareVersion: '1.0',

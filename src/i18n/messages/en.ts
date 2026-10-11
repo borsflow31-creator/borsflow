@@ -1560,11 +1560,11 @@ export interface Messages {
   landing: {
     footer: {
       linkPipeline: string;
-      linkDocuments: string;
+      linkListings: string;
       linkHowItWorks: string;
       linkAssistant: string;
       linkRolesTeam: string;
-      linkQuotesInvoices: string;
+      linkCommissions: string;
       linkPricing: string;
       tagline: string;
       productHeading: string;
@@ -1617,12 +1617,12 @@ export interface Messages {
       closeDemo: string;
     };
     evidence: {
-      editorTitle: string;
-      editorBody: string;
-      editorAlt: string;
-      financialsTitle: string;
-      financialsBody: string;
-      financialsAlt: string;
+      listingsTitle: string;
+      listingsBody: string;
+      listingsAlt: string;
+      commissionsTitle: string;
+      commissionsBody: string;
+      commissionsAlt: string;
     };
     finalCta: {
       step1: string;
@@ -6290,11 +6290,11 @@ const en: Messages = {
   landing: {
     footer: {
       linkPipeline: 'Pipeline',
-      linkDocuments: 'Documents',
+      linkListings: 'Listings',
       linkHowItWorks: 'How it works',
       linkAssistant: 'AI assistant',
       linkRolesTeam: 'Roles & team',
-      linkQuotesInvoices: 'Quotes & invoices',
+      linkCommissions: 'Commissions',
       linkPricing: 'Pricing',
       tagline: 'The CRM for estate agencies: listings, owners, buyers, viewings, offers and commissions in one workspace.',
       productHeading: 'Product',
@@ -6347,12 +6347,12 @@ const en: Messages = {
       closeDemo: 'Close demo',
     },
     evidence: {
-      editorTitle: 'Documents that write themselves around your data',
-      editorBody: 'Build pages and docs that pull live fields from your listings and contacts, so they never fall out of sync with reality.',
-      editorAlt: 'BorsFlow document editor showing a page built from live workspace data',
-      financialsTitle: 'Quotes and invoices in the same place as the deal',
-      financialsBody: 'Turn a quote into an invoice in one click, track what is paid and what is overdue, without leaving the workspace.',
-      financialsAlt: 'BorsFlow invoices view showing quote-to-invoice conversion and payment status',
+      listingsTitle: 'Every listing, with everything that happened on it',
+      listingsBody: 'Photos, the mandate, each viewing with the buyer’s feedback and every offer sit on one record. Accept an offer and the competing ones are declined for you.',
+      listingsAlt: 'BorsFlow listing page for a Dublin terrace, open on its offers tab with three competing offers',
+      commissionsTitle: 'Commission worked out the moment an offer is accepted',
+      commissionsBody: 'The fee comes from the mandate, is split between listing agent, selling agent and agency, and moves from accrued to realized to paid as the sale completes.',
+      commissionsAlt: 'BorsFlow commissions view listing accrued fees, each split between the agency, the listing agent and the selling agent',
     },
     finalCta: {
       step1: 'Create your workspace',

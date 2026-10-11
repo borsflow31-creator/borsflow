@@ -23,11 +23,11 @@ export const LandingPage = () => {
        middleware, so a visitor clicking one would be bounced to sign-in. */
     const PRODUCT_LINKS = [
         { label: t('landing.footer.linkPipeline'), href: '#features' },
-        { label: t('landing.footer.linkDocuments'), href: '#editor' },
+        { label: t('landing.footer.linkListings'), href: '#listings' },
         { label: t('landing.footer.linkHowItWorks'), href: '#journey' },
         { label: t('landing.footer.linkAssistant'), href: '#assistant' },
         { label: t('landing.footer.linkRolesTeam'), href: '#team' },
-        { label: t('landing.footer.linkQuotesInvoices'), href: '#financials' },
+        { label: t('landing.footer.linkCommissions'), href: '#commissions' },
         { label: t('landing.footer.linkPricing'), href: '/pricing' },
     ]
 
@@ -38,11 +38,11 @@ export const LandingPage = () => {
             <BentoGrid />
             {/* The captures are spread down the scroll rather than stacked
                 behind the fold: roughly 10%, 45% and 75% of the page. */}
-            <Evidence variant="editor" />
+            <Evidence variant="listings" />
             <FourStageJourney />
             <AIIntegration />
             <TeamWorkspace />
-            <Evidence variant="financials" />
+            <Evidence variant="commissions" />
             <WhyChoose />
             <PricingSection />
             <SupportSection />

@@ -1,0 +1,4 @@
+{
+  "prompt": "Screenshot of the BorsFlow application itself, showing a listing’s Offers tab with three competing offers. Captured 2026-10-11 with scripts/demo/capture-landing.mjs at 1440x900 CSS px, deviceScaleFactor 2, dark theme, signed in as the temporary agency demo account (scripts/demo/seed-agency.ts). Cropped to 2880x1610 where the interface content ends, scaled to 2160px wide and encoded to WebP. The interface is the real shipped UI, not a mock. The records shown (the Kestrel Lane Estates workspace, its Dublin listings, buyers, offers and commissions) were authored solely for this capture and deleted from the database afterwards. No retouching beyond the crop.",
+  "createdAt": "2026-10-11T05:40:17.437Z"
+}

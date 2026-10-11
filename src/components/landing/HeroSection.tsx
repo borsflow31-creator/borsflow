@@ -78,7 +78,7 @@ export const HeroSection = () => {
                 >
                     <div className="plate-raster taste-plinth overflow-hidden p-1.5 sm:p-2">
                         <Image
-                            src="/shots/crm.webp"
+                            src="/shots/buyer-board.webp"
                             alt={t('landing.hero.plateAlt')}
                             width={2160}
                             height={930}

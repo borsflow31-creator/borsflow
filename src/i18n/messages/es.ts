@@ -1214,11 +1214,11 @@ const es: Messages = {
   landing: {
     footer: {
       linkPipeline: 'Pipeline',
-      linkDocuments: 'Documentos',
+      linkListings: 'Inmuebles',
       linkHowItWorks: 'Cómo funciona',
       linkAssistant: 'Asistente IA',
       linkRolesTeam: 'Roles y equipo',
-      linkQuotesInvoices: 'Presupuestos y facturas',
+      linkCommissions: 'Comisiones',
       linkPricing: 'Precios',
       tagline: 'El CRM para agencias inmobiliarias: propiedades, propietarios, compradores, visitas, ofertas y comisiones en un solo espacio.',
       productHeading: 'Producto',
@@ -1271,12 +1271,12 @@ const es: Messages = {
       closeDemo: 'Cerrar demo',
     },
     evidence: {
-      editorTitle: 'Documentos que se escriben solos alrededor de tus datos',
-      editorBody: 'Crea páginas y documentos que toman campos en vivo de tus propiedades y contactos, para que nunca se desfasen de la realidad.',
-      editorAlt: 'Editor de documentos de BorsFlow mostrando una página construida con datos en vivo del espacio de trabajo',
-      financialsTitle: 'Presupuestos y facturas en el mismo lugar que la venta',
-      financialsBody: 'Convierte un presupuesto en factura con un clic, controla lo que está pagado y lo que está atrasado, sin salir del espacio de trabajo.',
-      financialsAlt: 'Vista de facturas de BorsFlow mostrando la conversión de presupuesto a factura y el estado de los pagos',
+      listingsTitle: 'Cada inmueble, con todo lo que ha pasado en él',
+      listingsBody: 'Fotos, el mandato, cada visita con la opinión del comprador y cada oferta en una sola ficha. Acepta una oferta y las que compiten con ella se rechazan por ti.',
+      listingsAlt: 'Ficha de inmueble de BorsFlow de una casa en Dublín, abierta en la pestaña de ofertas con tres ofertas en competencia',
+      commissionsTitle: 'La comisión calculada en cuanto se acepta una oferta',
+      commissionsBody: 'Los honorarios salen del mandato, se reparten entre el agente captador, el agente vendedor y la agencia, y pasan de devengados a realizados y pagados a medida que se cierra la venta.',
+      commissionsAlt: 'Vista de comisiones de BorsFlow con honorarios devengados, cada uno repartido entre la agencia, el agente captador y el agente vendedor',
     },
     finalCta: {
       step1: 'Crea tu espacio de trabajo',

@@ -1214,11 +1214,11 @@ const fr: Messages = {
   landing: {
     footer: {
       linkPipeline: 'Pipeline',
-      linkDocuments: 'Documents',
+      linkListings: 'Biens',
       linkHowItWorks: 'Comment ça marche',
       linkAssistant: 'Assistant IA',
       linkRolesTeam: 'Rôles et équipe',
-      linkQuotesInvoices: 'Devis et factures',
+      linkCommissions: 'Commissions',
       linkPricing: 'Tarifs',
       tagline: 'Le CRM des agences immobilières : biens, propriétaires, acquéreurs, visites, offres et commissions dans un seul espace.',
       productHeading: 'Produit',
@@ -1271,12 +1271,12 @@ const fr: Messages = {
       closeDemo: 'Fermer la démo',
     },
     evidence: {
-      editorTitle: 'Des documents qui s’écrivent autour de vos données',
-      editorBody: 'Créez des pages et documents qui reprennent en direct les champs de vos biens et contacts, pour qu’ils ne divergent jamais de la réalité.',
-      editorAlt: 'Éditeur de documents BorsFlow montrant une page construite à partir de données en direct de l’espace de travail',
-      financialsTitle: 'Devis et factures au même endroit que l’affaire',
-      financialsBody: 'Transformez un devis en facture en un clic, suivez ce qui est payé et ce qui est en retard, sans quitter l’espace de travail.',
-      financialsAlt: 'Vue des factures BorsFlow montrant la conversion devis-facture et le statut des paiements',
+      listingsTitle: 'Chaque bien, avec tout ce qui s’y est passé',
+      listingsBody: 'Photos, mandat, chaque visite avec l’avis de l’acquéreur et chaque offre sur une seule fiche. Acceptez une offre et les offres concurrentes sont refusées pour vous.',
+      listingsAlt: 'Fiche de bien BorsFlow d’une maison à Dublin, ouverte sur l’onglet des offres avec trois offres concurrentes',
+      commissionsTitle: 'La commission calculée dès qu’une offre est acceptée',
+      commissionsBody: 'Les honoraires viennent du mandat, sont répartis entre l’agent du mandat, l’agent vendeur et l’agence, et passent de provisionnés à acquis puis payés au fil de la vente.',
+      commissionsAlt: 'Vue des commissions BorsFlow listant des honoraires provisionnés, chacun réparti entre l’agence, l’agent du mandat et l’agent vendeur',
     },
     finalCta: {
       step1: 'Créez votre espace de travail',

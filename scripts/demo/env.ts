@@ -40,3 +40,15 @@ export const DEMO_USERS = [
   { key: 'yacine', email: 'demo.yacine@example.com', name: 'Yacine Meziane', role: 'member' },
 ] as const
 export const DEMO_WORKSPACE_NAME = 'Promotion El Bina (démo)'
+
+/**
+ * The agency demo, used to capture the landing page screenshots
+ * (scripts/demo/seed-agency.ts, scripts/demo/capture-landing.mjs). Same rule:
+ * nothing outside this list is ever modified or deleted.
+ */
+export const AGENCY_DEMO_USERS = [
+  { key: 'owner', email: 'demo.agence@example.com', name: 'Claire Donnelly', role: 'owner' },
+  { key: 'ronan', email: 'demo.ronan@example.com', name: 'Ronan Walsh', role: 'admin' },
+  { key: 'aoife', email: 'demo.aoife@example.com', name: 'Aoife Brennan', role: 'member' },
+] as const
+export const AGENCY_DEMO_WORKSPACE_NAME = 'Kestrel Lane Estates'
