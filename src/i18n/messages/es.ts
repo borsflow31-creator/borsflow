@@ -4417,6 +4417,10 @@ const es: Messages = {
     },
   },
   // </developerGuide:value>
+  settingsOffer: {
+    heading: "Tu oferta",
+    permanent: "Elegida al registrarte. Define tu panel y tus menús, y no se puede cambiar.",
+  },
   leadStatusSync: {
     followsStage: "Sigue la etapa",
   },

@@ -7,6 +7,7 @@ import AppShell from '@/components/AppShell'
 import { useAppStore } from '@/store/appStore'
 import Toast from '@/components/Toast'
 import { PlanUsageSettings } from '@/components/billing/PlanUsageSettings'
+import { BusinessTypeCard } from '@/components/settings/BusinessTypeCard'
 import NotificationSettings from '@/components/settings/NotificationSettings'
 import { useI18n } from '@/i18n/I18nProvider'
 import {
@@ -291,9 +292,15 @@ function SettingsPageInner() {
                     {/* Content */}
                     <main className="flex-1 max-w-2xl">
 
-                        {activeSection === 'billing' && <PlanUsageSettings workspaceId={currentWorkspaceId} />}
+                        {activeSection === 'billing' && (
+                            <>
+                                <BusinessTypeCard />
+                                <PlanUsageSettings workspaceId={currentWorkspaceId} />
+                            </>
+                        )}
 
                         {/* ── Profile ─────────────────────────────────────────── */}
+                        {activeSection === 'profile' && <BusinessTypeCard />}
                         {activeSection === 'profile' && (
                             <div className="bg-surface-container-low rounded-lg p-6 ambient-shadow">
                                 <div className="flex items-center gap-4 mb-6">

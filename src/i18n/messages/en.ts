@@ -4415,6 +4415,10 @@ export interface Messages {
     };
   };
   // </developerGuide:type>
+  settingsOffer: {
+    heading: string;
+    permanent: string;
+  };
   leadStatusSync: {
     followsStage: string;
   };
@@ -9493,6 +9497,10 @@ const en: Messages = {
     },
   },
   // </developerGuide:value>
+  settingsOffer: {
+    heading: "Your offer",
+    permanent: "Chosen when you signed up. It sets your dashboard and menus, and cannot be changed.",
+  },
   leadStatusSync: {
     followsStage: "Follows the stage",
   },

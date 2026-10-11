@@ -4417,6 +4417,10 @@ const ar: Messages = {
     },
   },
   // </developerGuide:value>
+  settingsOffer: {
+    heading: "عرضك",
+    permanent: "اختير عند التسجيل. يحدد لوحة التحكم والقوائم، ولا يمكن تغييره.",
+  },
   leadStatusSync: {
     followsStage: "يتبع المرحلة",
   },

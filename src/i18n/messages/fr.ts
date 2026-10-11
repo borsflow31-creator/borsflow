@@ -4417,6 +4417,10 @@ const fr: Messages = {
     },
   },
   // </developerGuide:value>
+  settingsOffer: {
+    heading: "Votre offre",
+    permanent: "Choisie à l’inscription. Elle définit votre tableau de bord et vos menus, et ne peut pas être modifiée.",
+  },
   leadStatusSync: {
     followsStage: "Suit l’étape",
   },

@@ -4417,6 +4417,10 @@ const de: Messages = {
     },
   },
   // </developerGuide:value>
+  settingsOffer: {
+    heading: "Ihr Angebot",
+    permanent: "Bei der Registrierung gewählt. Es bestimmt Ihr Dashboard und Ihre Menüs und kann nicht geändert werden.",
+  },
   leadStatusSync: {
     followsStage: "Folgt der Phase",
   },
