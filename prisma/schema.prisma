@@ -21,6 +21,8 @@ model User {
   // Chosen once, on first sign-in, and fixed after. Null means not chosen yet,
   // which is what shows the business-type popup. Decides the dashboard and nav.
   businessType                  BusinessType?
+  /// The language the person chose (en, fr, es, ar, de): their emails and notifications are written in it. Null until they choose; English is used meanwhile.
+  locale                        String?
   notificationsEmail            Boolean                 @default(true)
   notificationsPush             Boolean                 @default(true)
   // Per-category overrides: { [category]: { inApp: boolean, email: boolean } }.

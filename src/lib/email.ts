@@ -147,6 +147,8 @@ export function renderEmail(layout: {
   action?: { label: string; url: string }
   note?: string
   footer: string
+  /** The reader's language; Arabic also turns the layout right to left. */
+  lang?: string
 }): string {
   const { ground, surface, hairline, ink, muted, signal, display, text } = EMAIL
   const action = layout.action
@@ -162,7 +164,7 @@ export function renderEmail(layout: {
     ? `<p style="margin:${layout.action ? '0' : '24px 0 0'};font-family:${text};font-size:14px;line-height:1.625;color:${muted};">${layout.note}</p>`
     : ''
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${layout.lang ?? 'en'}" dir="${layout.lang === 'ar' ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -170,7 +172,7 @@ export function renderEmail(layout: {
   <meta name="supported-color-schemes" content="light">
   <title>${layout.title}</title>
 </head>
-<body style="margin:0;padding:0;background:${ground};">
+<body dir="${layout.lang === 'ar' ? 'rtl' : 'ltr'}" style="margin:0;padding:0;background:${ground};">
   <div style="display:none;max-height:0;overflow:hidden;">${layout.preheader}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${ground};">
     <tr>

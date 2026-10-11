@@ -8,6 +8,7 @@ import { normalizeEmail } from '@/lib/email/normalize'
 import { findUserByEmail } from '@/lib/api/user'
 import { consumeRateLimits, rateLimitHeaders, type RateLimitRule } from '@/lib/api/rate-limit'
 import { safeCallbackUrl } from '@/lib/url'
+import { parseLocale } from '@/i18n/server'
 
 /**
  * Sign-ups per IP, so accounts cannot be created in bulk, and per address,
@@ -132,6 +133,8 @@ export async function POST(request: Request) {
                 email,
                 password: hashedPassword,
                 name: name || null,
+                // The language picked on the form: their emails are written in it.
+                locale: parseLocale(body.locale),
             },
         })
 

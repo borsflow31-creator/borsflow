@@ -4415,6 +4415,70 @@ export interface Messages {
     };
   };
   // </developerGuide:type>
+  signupLanguage: {
+    label: string;
+    hint: string;
+  };
+  notificationBodies: {
+    noResponse: string;
+    noFollowUp: string;
+    forBuyer: string;
+    unit: string;
+    behindTarget: string;
+    lowStock: string;
+    cancellations: string;
+  };
+  notificationEmailNote: {
+    quote_accepted: string;
+    quote_expired: string;
+    invoice_overdue: string;
+    offer_received: string;
+    offer_accepted: string;
+    mandate_expiring: string;
+    property_matched: string;
+    document_accepted: string;
+    call_overdue: string;
+    lead_no_response: string;
+    lead_no_followup: string;
+    project_behind_target: string;
+    low_inventory: string;
+    high_cancellations: string;
+    meetings_booked: string;
+    meetings_rescheduled: string;
+    meetings_cancelled: string;
+  };
+  notificationEmailAction: {
+    openWorkspace: string;
+    readAndReply: string;
+    openChat: string;
+    openQuote: string;
+    openInvoice: string;
+    openOffer: string;
+    openMandate: string;
+    openProperty: string;
+    openMatches: string;
+    openBuyer: string;
+    openCollections: string;
+    openFollowUps: string;
+    openInventory: string;
+    openProjects: string;
+    openReports: string;
+    openMeetings: string;
+    openBoard: string;
+  };
+  notificationEmailCategory: {
+    team: string;
+    sales: string;
+    meetings: string;
+    tasks: string;
+  };
+  notificationEmail: {
+    greeting: string;
+    greetingNoName: string;
+    inWorkspace: string;
+    footer: string;
+    manage: string;
+  };
   developerCommissions: {
     accrued: string;
     realized: string;
@@ -4476,6 +4540,9 @@ export interface Messages {
     repliedToComment: string;
     mentionedInChannel: string;
     joined: string;
+    behindTarget: string;
+    lowStock: string;
+    highCancellations: string;
   };
   buyerPortal: {
     loading: string;
@@ -9423,6 +9490,70 @@ const en: Messages = {
     },
   },
   // </developerGuide:value>
+  signupLanguage: {
+    label: "Language",
+    hint: "The app, and the emails and notifications we send you, will be in this language. You can change it later.",
+  },
+  notificationBodies: {
+    noResponse: "A new buyer arrived over {minutes} minutes ago and nobody has logged a call, a visit or a follow-up.",
+    noFollowUp: "Nothing has been booked with this buyer for {days} days, so a follow-up was added for you.",
+    forBuyer: "For {buyer}.",
+    unit: "Unit {unit}",
+    behindTarget: "{sold} of {target} units sold; the plan expected about {expected} by now.",
+    lowStock: "Only {available} of {total} units are still available.",
+    cancellations: "{cancelled} of {deals} deals in the last {days} days were cancelled.",
+  },
+  notificationEmailNote: {
+    quote_accepted: "You can turn an accepted quote into an invoice from the quote itself.",
+    quote_expired: "Need to keep it on the table? Duplicate it and send a fresh one with a new expiry date.",
+    invoice_overdue: "Resending the invoice from its page emails the client the same document with its payment link.",
+    offer_received: "Compare it with any competing offers before you take it to the vendor.",
+    offer_accepted: "The property is now under offer and competing offers were rejected.",
+    mandate_expiring: "Call the vendor to renew, or let it lapse and the listing comes off the market.",
+    property_matched: "Buyers with a matching search brief are waiting to hear about it.",
+    document_accepted: "The accepted copy, with the acceptance record, is on the buyer's file.",
+    call_overdue: "The buyer has been sent an automatic reminder.",
+    lead_no_response: "New buyers are most likely to be won by whoever answers first.",
+    lead_no_followup: "A follow-up has been added for you so this buyer does not go quiet.",
+    project_behind_target: "Sales are behind a straight line from launch to delivery. You can change this alert under Alerts.",
+    low_inventory: "You can change this alert under Alerts.",
+    high_cancellations: "You can change this alert under Alerts.",
+    meetings_booked: "It is on your BorsFlow calendar.",
+    meetings_rescheduled: "Your BorsFlow calendar already shows the new time.",
+    meetings_cancelled: "Nothing to do — it is off your calendar.",
+  },
+  notificationEmailAction: {
+    openWorkspace: "Open workspace",
+    readAndReply: "Read and reply",
+    openChat: "Open chat",
+    openQuote: "Open quote",
+    openInvoice: "Open invoice",
+    openOffer: "Open offer",
+    openMandate: "Open mandate",
+    openProperty: "Open property",
+    openMatches: "Open matches",
+    openBuyer: "Open buyer",
+    openCollections: "Open collections",
+    openFollowUps: "Open follow-ups",
+    openInventory: "Open inventory",
+    openProjects: "Open projects",
+    openReports: "Open reports",
+    openMeetings: "Open meetings",
+    openBoard: "Open board",
+  },
+  notificationEmailCategory: {
+    team: "Team",
+    sales: "Sales & billing",
+    meetings: "Meetings",
+    tasks: "Tasks",
+  },
+  notificationEmail: {
+    greeting: "Hi {name},",
+    greetingNoName: "Hi,",
+    inWorkspace: "In {workspace}",
+    footer: "Sent to {email} because {category} notifications are on for your BorsFlow account.",
+    manage: "Change what you're emailed",
+  },
   developerCommissions: {
     accrued: "Accrued (contract signed)",
     realized: "Earned (deed signed)",
@@ -9484,6 +9615,9 @@ const en: Messages = {
     repliedToComment: "{name} replied to your comment",
     mentionedInChannel: "{name} mentioned you in #{channel}",
     joined: "{name} joined {workspace}",
+    behindTarget: "{project} is behind its sales target",
+    lowStock: "{project} is running low on stock",
+    highCancellations: "{project} has a high cancellation rate",
   },
   buyerPortal: {
     loading: "Opening your client space…",

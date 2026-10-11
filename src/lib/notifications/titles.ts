@@ -1,5 +1,5 @@
 /**
- * Notification titles in the reader's language.
+ * Notification titles and bodies in the reader's language (the bell, and the emails).
  *
  * A notification's title is stored as English text when the event happens, by a
  * server that does not know who will read it or in which language. The bell
@@ -16,6 +16,9 @@ import { localizeTaskTitle } from '@/lib/crm/task-titles'
 const TEMPLATES: Array<[key: string, template: string]> = [
   // Real estate developer
   ['notContacted', '{name} has not been contacted'],
+  ['behindTarget', '{project} is behind its sales target'],
+  ['lowStock', '{project} is running low on stock'],
+  ['highCancellations', '{project} has a high cancellation rate'],
   ['unitReserved', 'Unit {unit} reserved in {project}'],
   ['unitUnderContract', 'Unit {unit} under contract in {project}'],
   ['overduePayment', 'Overdue payment: unit {unit}'],
@@ -50,7 +53,18 @@ const TEMPLATES: Array<[key: string, template: string]> = [
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const MATCHERS = TEMPLATES.map(([key, template]) => {
+/** The bodies the system writes, translated as `notificationBodies.<key>`. */
+const BODY_TEMPLATES: Array<[key: string, template: string]> = [
+  ['noResponse', 'A new buyer arrived over {minutes} minutes ago and nobody has logged a call, a visit or a follow-up.'],
+  ['noFollowUp', 'Nothing has been booked with this buyer for {days} days, so a follow-up was added for you.'],
+  ['forBuyer', 'For {buyer}.'],
+  ['unit', 'Unit {unit}'],
+  ['behindTarget', '{sold} of {target} units sold; the plan expected about {expected} by now.'],
+  ['lowStock', 'Only {available} of {total} units are still available.'],
+  ['cancellations', '{cancelled} of {deals} deals in the last {days} days were cancelled.'],
+]
+
+const compile = (templates: Array<[key: string, template: string]>) => templates.map(([key, template]) => {
   const names: string[] = []
   const source = template
     .split(/(\{\w+\})/)
@@ -63,6 +77,9 @@ const MATCHERS = TEMPLATES.map(([key, template]) => {
     .join('')
   return { key, names, pattern: new RegExp(`^${source}$`) }
 })
+
+const MATCHERS = compile(TEMPLATES)
+const BODY_MATCHERS = compile(BODY_TEMPLATES)
 
 type Translate = (key: MessageKey, params?: Record<string, string | number>) => string
 
@@ -77,4 +94,13 @@ export function localizeNotificationTitle(title: string, t: Translate): string {
     return t(`notificationTitles.${key}` as MessageKey, params)
   }
   return title
+}
+
+/** A body the system wrote, translated; anything else (a comment, a reason someone typed) as stored. */
+export function localizeNotificationBody(body: string, t: Translate): string {
+  for (const { key, names, pattern } of BODY_MATCHERS) {
+    const match = body.match(pattern)
+    if (match) return t(`notificationBodies.${key}` as MessageKey, Object.fromEntries(names.map((n, i) => [n, match[i + 1]])))
+  }
+  return body
 }

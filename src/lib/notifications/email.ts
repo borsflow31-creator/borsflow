@@ -12,7 +12,11 @@
 import { escapeHtml } from '@/lib/html';
 import { EMAIL, emailParagraph, emailQuote, renderEmail } from '@/lib/email';
 import { absoluteUrl } from '@/lib/url';
-import { CATEGORY_LABELS, TYPE_CATEGORY, type NotificationType } from './types';
+import type { Messages } from '@/i18n/messages/en';
+import type { Locale, MessageKey } from '@/i18n/I18nProvider';
+import type { ServerTranslate } from '@/i18n/server';
+import { TYPE_CATEGORY, type NotificationType } from './types';
+import { localizeNotificationBody, localizeNotificationTitle } from './titles';
 
 /** Where the footer link sends someone who wants fewer of these. */
 const PREFS_PATH = '/settings?section=notifications';
@@ -27,53 +31,46 @@ const PREFS_PATH = '/settings?section=notifications';
  * Typing this as a full Record means a new notification type will not compile
  * until someone has decided what its email says.
  */
-const NOTIFICATION_EMAIL: Record<NotificationType, { action: string | null; note?: string }> = {
-  'team.invitation_accepted': { action: 'Open workspace' },
-  'team.mentioned_comment': { action: 'Read and reply' },
-  'team.mentioned_chat': { action: 'Open chat' },
-  'team.comment_reply': { action: 'Read and reply' },
+type ActionKey = keyof Messages['notificationEmailAction'];
 
-  'sales.quote_viewed': { action: 'Open quote' },
-  'sales.quote_accepted': {
-    action: 'Open quote',
-    note: 'You can turn an accepted quote into an invoice from the quote itself.',
-  },
-  'sales.quote_rejected': { action: 'Open quote' },
-  'sales.quote_expired': {
-    action: 'Open quote',
-    note: 'Need to keep it on the table? Duplicate it and send a fresh one with a new expiry date.',
-  },
-  'sales.invoice_viewed': { action: 'Open invoice' },
-  'sales.invoice_paid': { action: 'Open invoice' },
-  'sales.invoice_overdue': {
-    action: 'Open invoice',
-    note: 'Resending the invoice from its page emails the client the same document with its payment link.',
-  },
+const NOTIFICATION_EMAIL: Record<NotificationType, { action: ActionKey | null; note?: true }> = {
+  'team.invitation_accepted': { action: 'openWorkspace' },
+  'team.mentioned_comment': { action: 'readAndReply' },
+  'team.mentioned_chat': { action: 'openChat' },
+  'team.comment_reply': { action: 'readAndReply' },
 
-  'crm.offer_received': { action: 'Open offer', note: 'Compare it with any competing offers before you take it to the vendor.' },
-  'crm.offer_accepted': { action: 'Open offer', note: 'The property is now under offer and competing offers were rejected.' },
-  'crm.offer_rejected': { action: 'Open offer' },
-  'crm.mandate_expiring': { action: 'Open mandate', note: 'Call the vendor to renew, or let it lapse and the listing comes off the market.' },
-  'crm.viewing_feedback': { action: 'Open property' },
-  'crm.property_matched': { action: 'Open matches', note: 'Buyers with a matching search brief are waiting to hear about it.' },
-  'crm.document_accepted': { action: 'Open buyer', note: 'The accepted copy, with the acceptance record, is on the buyer\'s file.' },
-  'crm.call_overdue': { action: 'Open collections', note: 'The buyer has been sent an automatic reminder.' },
-  'alerts.lead_no_response': { action: 'Open buyer', note: 'New buyers are most likely to be won by whoever answers first.' },
-  'alerts.lead_no_followup': { action: 'Open follow-ups', note: 'A follow-up has been added for you so this buyer does not go quiet.' },
-  'alerts.reservation_created': { action: 'Open inventory' },
-  'alerts.contract_signed': { action: 'Open inventory' },
-  'alerts.project_behind_target': { action: 'Open projects', note: 'Sales are behind a straight line from launch to delivery. You can change this alert under Alerts.' },
-  'alerts.low_inventory': { action: 'Open inventory', note: 'You can change this alert under Alerts.' },
-  'alerts.high_cancellations': { action: 'Open reports', note: 'You can change this alert under Alerts.' },
+  'sales.quote_viewed': { action: 'openQuote' },
+  'sales.quote_accepted': { action: 'openQuote', note: true },
+  'sales.quote_rejected': { action: 'openQuote' },
+  'sales.quote_expired': { action: 'openQuote', note: true },
+  'sales.invoice_viewed': { action: 'openInvoice' },
+  'sales.invoice_paid': { action: 'openInvoice' },
+  'sales.invoice_overdue': { action: 'openInvoice', note: true },
 
-  'meetings.booked': { action: 'Open meetings', note: 'It is on your BorsFlow calendar.' },
-  'meetings.rescheduled': { action: 'Open meetings', note: 'Your BorsFlow calendar already shows the new time.' },
-  'meetings.cancelled': { action: null, note: 'Nothing to do — it is off your calendar.' },
-  'meetings.reminder': { action: 'Open meetings' },
+  'crm.offer_received': { action: 'openOffer', note: true },
+  'crm.offer_accepted': { action: 'openOffer', note: true },
+  'crm.offer_rejected': { action: 'openOffer' },
+  'crm.mandate_expiring': { action: 'openMandate', note: true },
+  'crm.viewing_feedback': { action: 'openProperty' },
+  'crm.property_matched': { action: 'openMatches', note: true },
+  'crm.document_accepted': { action: 'openBuyer', note: true },
+  'crm.call_overdue': { action: 'openCollections', note: true },
+  'alerts.lead_no_response': { action: 'openBuyer', note: true },
+  'alerts.lead_no_followup': { action: 'openFollowUps', note: true },
+  'alerts.reservation_created': { action: 'openInventory' },
+  'alerts.contract_signed': { action: 'openInventory' },
+  'alerts.project_behind_target': { action: 'openProjects', note: true },
+  'alerts.low_inventory': { action: 'openInventory', note: true },
+  'alerts.high_cancellations': { action: 'openReports', note: true },
 
-  'tasks.card_assigned': { action: 'Open board' },
-  'tasks.card_due_soon': { action: 'Open board' },
-  'tasks.followup_due': { action: 'Open follow-ups' },
+  'meetings.booked': { action: 'openMeetings', note: true },
+  'meetings.rescheduled': { action: 'openMeetings', note: true },
+  'meetings.cancelled': { action: null, note: true },
+  'meetings.reminder': { action: 'openMeetings' },
+
+  'tasks.card_assigned': { action: 'openBoard' },
+  'tasks.card_due_soon': { action: 'openBoard' },
+  'tasks.followup_due': { action: 'openFollowUps' },
 };
 
 /**
@@ -86,11 +83,11 @@ const NOTIFICATION_EMAIL: Record<NotificationType, { action: string | null; note
  * (`Meeting.timezone`), and anything else is stated in UTC rather than silently
  * shown in the server's.
  */
-export function formatNotificationTime({ at, timeZone }: NotificationTime): string {
+export function formatNotificationTime({ at, timeZone }: NotificationTime, locale: Locale = 'en'): string {
   // Spelled out as components rather than dateStyle/timeStyle: ECMA-402 rejects
   // combining those with timeZoneName, and naming the zone is the whole point.
   const format = (zone: string) =>
-    new Intl.DateTimeFormat('en-GB', {
+    new Intl.DateTimeFormat(DATE_LOCALE[locale], {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -108,6 +105,15 @@ export function formatNotificationTime({ at, timeZone }: NotificationTime): stri
     // otherwise throw inside notify() and lose the notification entirely.
     return format('UTC');
   }
+}
+
+/** Regional variants that write dates the way readers of each language expect (24-hour, day first). */
+const DATE_LOCALE: Record<Locale, string> = { en: 'en-GB', fr: 'fr-FR', es: 'es-ES', de: 'de-DE', ar: 'ar-DZ' };
+
+/** The note under the button, keyed by the event (`meetings.booked` -> `meetings_booked`, `sales.quote_accepted` -> `quote_accepted`). */
+function noteKey(type: NotificationType): MessageKey {
+  const name = type.startsWith('meetings.') ? type.replace('.', '_') : type.split('.')[1];
+  return `notificationEmailNote.${name}` as MessageKey;
 }
 
 export interface NotificationTime {
@@ -143,6 +149,9 @@ export interface NotificationEmailInput {
   when?: NotificationTime;
   /** In-app path, e.g. `/quotes/abc123`. */
   href?: string;
+  /** The recipient's language, and its translator (see i18n/server). */
+  locale?: Locale;
+  t: ServerTranslate;
 }
 
 /**
@@ -153,20 +162,34 @@ export interface NotificationEmailInput {
  * also the subject, so heading and subject matching is what makes the mail
  * recognisable once it is open.
  */
-export function renderNotificationEmail(input: NotificationEmailInput): { html: string; text: string } {
-  const { action, note } = NOTIFICATION_EMAIL[input.type];
-  const categoryLabel = CATEGORY_LABELS[TYPE_CATEGORY[input.type]].label;
+export function renderNotificationEmail(input: NotificationEmailInput): { html: string; text: string; subject: string } {
+  const { t } = input;
+  const locale = input.locale ?? 'en';
+  const spec = NOTIFICATION_EMAIL[input.type];
+  const action = spec.action ? t(`notificationEmailAction.${spec.action}` as MessageKey) : null;
+  const note = spec.note ? t(noteKey(input.type)) : null;
+  const categoryLabel = t(`notificationEmailCategory.${TYPE_CATEGORY[input.type]}` as MessageKey);
   const firstName = input.recipient.name?.trim().split(/\s+/)[0];
-  const greeting = firstName ? `Hi ${firstName},` : 'Hi,';
+  const greeting = firstName ? t('notificationEmail.greeting', { name: firstName }) : t('notificationEmail.greetingNoName');
   const url = input.href ? absoluteUrl(input.href) : undefined;
+
+  // The title and body were written in English when the event happened; the
+  // system's own wording is translated, anything a person typed is kept.
+  const title = localizeNotificationTitle(input.title, t);
+  let body = input.body ? localizeNotificationBody(input.body, t) : '';
+  // Reminders also spell the time into the body, in English. The context line
+  // states it in the reader's language, so drop the English copy.
+  if (body && input.when) {
+    body = body.replace(formatNotificationTime(input.when), '').replace(/\s*·\s*$/, '').trim();
+  }
 
   // Where and when, on one line, so the heading does not have to repeat it.
   const context: string[] = [];
-  if (input.workspaceName) context.push(`In ${input.workspaceName}`);
-  if (input.when) context.push(formatNotificationTime(input.when));
+  if (input.workspaceName) context.push(t('notificationEmail.inWorkspace', { workspace: input.workspaceName }));
+  if (input.when) context.push(formatNotificationTime(input.when, locale));
   const contextLine = context.join(' · ');
 
-  const quoted = input.body ? excerpt(input.body) : '';
+  const quoted = body ? excerpt(body) : '';
 
   // The preheader is the grey line beside the subject in an inbox list. The
   // subject is already the title, so repeating it there wastes the one place
@@ -183,32 +206,31 @@ export function renderNotificationEmail(input: NotificationEmailInput): { html: 
       : '') +
     (quoted ? emailQuote(escapeHtml(quoted)) : '');
 
+  const footer = t('notificationEmail.footer', { email: input.recipient.email, category: categoryLabel });
+  const manage = t('notificationEmail.manage');
+
   const html = renderEmail({
-    title: input.title,
+    title,
     preheader: escapeHtml(preheader),
-    heading: escapeHtml(input.title),
+    heading: escapeHtml(title),
     body: bodyHtml,
-    action: action && url ? { label: action, url: escapeHtml(url) } : undefined,
+    action: action && url ? { label: escapeHtml(action), url: escapeHtml(url) } : undefined,
     note: note ? escapeHtml(note) : undefined,
     footer:
-      `Sent to ${escapeHtml(input.recipient.email)} because ${escapeHtml(
-        categoryLabel
-      )} notifications are on for your BorsFlow account. ` +
-      `<a href="${escapeHtml(absoluteUrl(PREFS_PATH))}" style="color:${EMAIL.muted};">Change what you're emailed</a>.`,
+      `${escapeHtml(footer)} ` +
+      `<a href="${escapeHtml(absoluteUrl(PREFS_PATH))}" style="color:${EMAIL.muted};">${escapeHtml(manage)}</a>.`,
+    lang: locale,
   });
 
   // Blocks, not lines: each entry is separated by a blank line, which is what
   // keeps the quoted excerpt and the link readable in a text-only client.
-  const blocks = [`${greeting}\n\n${input.title}`];
+  const blocks = [`${greeting}\n\n${title}`];
   if (contextLine) blocks.push(contextLine);
   if (quoted) blocks.push(`"${quoted}"`);
   if (action && url) blocks.push(`${action}: ${url}`);
   if (note) blocks.push(note);
-  blocks.push(
-    `—\nSent to ${input.recipient.email} because ${categoryLabel} notifications are on for your BorsFlow account.\n` +
-      `Change what you're emailed: ${absoluteUrl(PREFS_PATH)}`
-  );
+  blocks.push(`—\n${footer}\n${manage}: ${absoluteUrl(PREFS_PATH)}`);
   const text = blocks.join('\n\n');
 
-  return { html, text };
+  return { html, text, subject: title };
 }

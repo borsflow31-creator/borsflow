@@ -3,6 +3,7 @@ import { sendTransactionalEmail } from '@/lib/email';
 import { resolvePrefs } from './prefs';
 import { renderNotificationEmail, type NotificationTime } from './email';
 import { TYPE_CATEGORY, isEmailableType, type NotificationType } from './types';
+import { parseLocale, serverTranslator } from '@/i18n/server';
 
 export interface NotifyInput {
   /** User ids to notify. The actor (if included) and duplicates are dropped automatically. */
@@ -48,7 +49,7 @@ export async function notify(input: NotifyInput): Promise<void> {
 
     const users = await prisma.user.findMany({
       where: { id: { in: recipientIds } },
-      select: { id: true, email: true, name: true, notificationsEmail: true, notificationPrefs: true },
+      select: { id: true, email: true, name: true, notificationsEmail: true, notificationPrefs: true, locale: true },
     });
 
     const rows: {
@@ -63,7 +64,7 @@ export async function notify(input: NotifyInput): Promise<void> {
       dedupeKey: string | null;
       emailedAt: Date | null;
     }[] = [];
-    const emailTargets: { id: string; email: string; name: string | null }[] = [];
+    const emailTargets: { id: string; email: string; name: string | null; locale: string | null }[] = [];
 
     for (const user of users) {
       const prefs = resolvePrefs(user.notificationPrefs)[category];
@@ -84,7 +85,7 @@ export async function notify(input: NotifyInput): Promise<void> {
         emailedAt: willEmail ? new Date() : null,
       });
 
-      if (willEmail) emailTargets.push({ id: user.id, email: user.email, name: user.name });
+      if (willEmail) emailTargets.push({ id: user.id, email: user.email, name: user.name, locale: user.locale });
     }
 
     // An event with a dedupeKey may be raised again by a cron re-run or a webhook
@@ -125,8 +126,11 @@ export async function notify(input: NotifyInput): Promise<void> {
         : null;
 
       await Promise.allSettled(
-        emailTargets.map((user) => {
-          const { html, text } = renderNotificationEmail({
+        emailTargets.map(async (user) => {
+          // Each person reads it in the language they chose (English until they choose).
+          const locale = parseLocale(user.locale) ?? 'en';
+          const t = await serverTranslator(locale);
+          const { html, text, subject } = renderNotificationEmail({
             type: input.type,
             recipient: { name: user.name, email: user.email },
             workspaceName,
@@ -134,8 +138,10 @@ export async function notify(input: NotifyInput): Promise<void> {
             body: input.body,
             when: input.when,
             href: input.href,
+            locale,
+            t,
           });
-          return sendTransactionalEmail({ to: user.email, subject: input.title, html, text });
+          return sendTransactionalEmail({ to: user.email, subject, html, text });
         })
       );
     }

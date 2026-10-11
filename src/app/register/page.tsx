@@ -6,12 +6,21 @@ import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 import { AlertCircle, ArrowRight, Layers, MailCheck } from 'lucide-react';
 import { safeCallbackUrl } from '@/lib/url';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type Locale } from '@/i18n/I18nProvider';
+
+/** Each language in its own name, so anyone can find theirs whatever the page is in. */
+const LANGUAGES: { code: Locale; name: string }[] = [
+    { code: 'en', name: 'English' },
+    { code: 'fr', name: 'Français' },
+    { code: 'es', name: 'Español' },
+    { code: 'de', name: 'Deutsch' },
+    { code: 'ar', name: 'العربية' },
+];
 
 function RegisterContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { t } = useI18n();
+    const { t, locale, setLocale } = useI18n();
     // Preserve ?callbackUrl= across sign-up so an invited user lands back on
     // their invitation after logging in. Relative paths only (no open redirect).
     const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'), null);
@@ -70,6 +79,7 @@ function RegisterContent() {
                     name,
                     email,
                     password,
+                    locale,
                     // So the verification link returns here, not to the dashboard.
                     callbackUrl,
                 }),
@@ -217,6 +227,28 @@ function RegisterContent() {
                                 required
                                 disabled={isLoading}
                             />
+                        </div>
+
+                        <div>
+                            <label htmlFor="locale" className="block mb-2 text-xs font-medium text-[var(--n-text)]">
+                                {t('signupLanguage.label')}
+                            </label>
+                            {/* Switching it also switches this page, so the choice is visible at once. */}
+                            <select
+                                id="locale"
+                                value={locale}
+                                onChange={(e) => setLocale(e.target.value as Locale)}
+                                className={field}
+                                disabled={isLoading}
+                                aria-describedby="locale-hint"
+                            >
+                                {LANGUAGES.map((l) => (
+                                    <option key={l.code} value={l.code}>{l.name}</option>
+                                ))}
+                            </select>
+                            <p id="locale-hint" className="mt-2 text-xs text-[var(--n-muted)]">
+                                {t('signupLanguage.hint')}
+                            </p>
                         </div>
 
                         <button
