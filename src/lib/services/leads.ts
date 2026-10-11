@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { isWorkspaceMember } from '@/lib/crm/access'
 import { parseStages } from '@/lib/crm/lifecycle'
 import { scoreLead } from '@/lib/crm/lead-score'
+import { leadStatusForStage } from '@/lib/crm/lead-status'
 import { assignOwnerForNewLead } from './developer/lead-assignment'
 import { ServiceError } from './errors'
 
@@ -180,7 +181,7 @@ export async function createLead(pipeline: PipelineRecord, input: CreateLeadInpu
       phone,
       company,
       position,
-      status: status || 'new',
+      status: leadStatusForStage(leadStage) ?? (status || 'new'),
       stage: leadStage,
       value: parsedValue,
       source,

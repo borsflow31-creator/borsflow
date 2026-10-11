@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { leadStatusForStage } from '@/lib/crm/lead-status';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -66,7 +67,8 @@ export async function POST(request: NextRequest) {
 
         if (!workspace) {
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-        }
+        }
+
 
         // Membership is not enough to change content: viewers are read-only.
         if (!(await canEditContent(workspace.id, session.user.id))) {
@@ -146,7 +148,7 @@ export async function POST(request: NextRequest) {
                         phone: row.phone?.trim().slice(0, 50) || null,
                         company: row.company?.trim().slice(0, 100) || null,
                         position: row.position?.trim().slice(0, 100) || null,
-                        status,
+                        status: leadStatusForStage(stage) ?? status,
                         stage,
                         value: parsedValue && !isNaN(parsedValue) ? parsedValue : null,
                         source,

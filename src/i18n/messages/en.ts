@@ -4415,6 +4415,9 @@ export interface Messages {
     };
   };
   // </developerGuide:type>
+  leadStatusSync: {
+    followsStage: string;
+  };
   signupLanguage: {
     label: string;
     hint: string;
@@ -9490,6 +9493,9 @@ const en: Messages = {
     },
   },
   // </developerGuide:value>
+  leadStatusSync: {
+    followsStage: "Follows the stage",
+  },
   signupLanguage: {
     label: "Language",
     hint: "The app, and the emails and notifications we send you, will be in this language. You can change it later.",

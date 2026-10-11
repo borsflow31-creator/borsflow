@@ -4417,6 +4417,9 @@ const fr: Messages = {
     },
   },
   // </developerGuide:value>
+  leadStatusSync: {
+    followsStage: "Suit l’étape",
+  },
   signupLanguage: {
     label: "Langue",
     hint: "L’application, ainsi que les e-mails et notifications que nous vous envoyons, seront dans cette langue. Vous pourrez la changer plus tard.",

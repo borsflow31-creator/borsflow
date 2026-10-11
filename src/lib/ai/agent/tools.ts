@@ -1,6 +1,7 @@
 import type { ChatTool } from '@/lib/ai/provider'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { effectiveLeadStatus } from '@/lib/crm/lead-status'
 import { buildPageAccessWhere, getUserPageAccess, hasPermission, type Role } from '@/lib/workspace'
 import { createPage } from '@/lib/services/pages'
 import { createKanbanCard, CARD_PRIORITIES, CARD_STATUSES } from '@/lib/services/kanban'
@@ -259,6 +260,7 @@ const TOOLS: AgentTool[] = [
       return {
         data: leads.map(({ notes, pipeline, owner, interestedProgram, ...lead }) => ({
           ...lead,
+          status: effectiveLeadStatus(lead),
           pipeline: pipeline.name,
           owner: owner?.name ?? null,
           projectOfInterest: interestedProgram?.name ?? null,

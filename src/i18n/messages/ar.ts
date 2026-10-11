@@ -4417,6 +4417,9 @@ const ar: Messages = {
     },
   },
   // </developerGuide:value>
+  leadStatusSync: {
+    followsStage: "يتبع المرحلة",
+  },
   signupLanguage: {
     label: "اللغة",
     hint: "سيكون التطبيق، والرسائل والإشعارات التي نرسلها إليك، بهذه اللغة. يمكنك تغييرها لاحقًا.",

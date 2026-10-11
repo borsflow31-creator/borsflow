@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { CrmLogger } from '@/lib/crm/logger'
+import { leadStatusForStage } from '@/lib/crm/lead-status'
 import { onSubjectStageChanged } from '@/lib/crm/subject-events'
 import { DEVELOPER_SALES_PIPELINE, parseStages } from '@/lib/crm/lifecycle'
 
@@ -54,7 +55,7 @@ export async function advanceBuyerLead(
 
     await prisma.lead.update({
       where: { id: lead.id },
-      data: { stage: targetStage, order: (last._max.order ?? -1) + 1 },
+      data: { stage: targetStage, order: (last._max.order ?? -1) + 1, ...(leadStatusForStage(targetStage) && { status: leadStatusForStage(targetStage)! }) },
     })
 
     await Promise.allSettled([

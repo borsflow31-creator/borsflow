@@ -5,6 +5,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, MoreVertical, Edit,
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { sourceLabel, stageLabel, statusLabel } from '@/components/crm/labels';
+import { effectiveLeadStatus } from '@/lib/crm/lead-status';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
@@ -122,7 +123,7 @@ export default function LeadListView({
 
     // Get unique values for filters
     const uniqueStatuses = useMemo(() => {
-        return Array.from(new Set(leads.map(lead => lead.status))).sort();
+        return Array.from(new Set(leads.map(lead => effectiveLeadStatus(lead)))).sort();
     }, [leads]);
 
     const uniqueStages = useMemo(() => {
@@ -144,7 +145,7 @@ export default function LeadListView({
             if (!matchesOwnerFilter(lead, ownerFilter, session?.user?.id)) return false;
 
             // Status filter
-            if (filters.status.length > 0 && !filters.status.includes(lead.status)) {
+            if (filters.status.length > 0 && !filters.status.includes(effectiveLeadStatus(lead))) {
                 return false;
             }
 
@@ -206,7 +207,7 @@ export default function LeadListView({
                     comparison = (a.email || '').localeCompare(b.email || '');
                     break;
                 case 'status':
-                    comparison = a.status.localeCompare(b.status);
+                    comparison = effectiveLeadStatus(a).localeCompare(effectiveLeadStatus(b));
                     break;
                 case 'stage':
                     comparison = a.stage.localeCompare(b.stage);
@@ -583,8 +584,8 @@ export default function LeadListView({
                                         {lead.email || '-'}
                                     </td>
                                     <td className="px-3 sm:px-4 py-3">
-                                        <span className={`body-xs px-2 py-1 rounded ${getStatusColor(lead.status)}`}>
-                                            {statusLabel(lead.status, t)}
+                                        <span className={`body-xs px-2 py-1 rounded ${getStatusColor(effectiveLeadStatus(lead))}`}>
+                                            {statusLabel(effectiveLeadStatus(lead), t)}
                                         </span>
                                     </td>
                                     <td className="hidden sm:table-cell px-4 py-3 text-sm text-on-surface">

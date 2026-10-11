@@ -6,6 +6,7 @@ import { Paperclip } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pipelineLabel, stageLabel, statusLabel } from '@/components/crm/labels';
+import { effectiveLeadStatus } from '@/lib/crm/lead-status';
 import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
@@ -417,8 +418,8 @@ export default function PipelineBoard({
                                                                 {/* Lead Tags and Status */}
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex flex-wrap gap-1">
-                                                                        <span className={`body-xs px-2 py-1 rounded ${getStatusColor(lead.status)}`}>
-                                                                            {statusLabel(lead.status, t)}
+                                                                        <span className={`body-xs px-2 py-1 rounded ${getStatusColor(effectiveLeadStatus(lead))}`}>
+                                                                            {statusLabel(effectiveLeadStatus(lead), t)}
                                                                         </span>
                                                                         {lead.tags && lead.tags.length > 0 && (
                                                                             lead.tags.slice(0, 2).map((tag, tagIndex) => (

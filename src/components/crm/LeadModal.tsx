@@ -6,8 +6,9 @@ import MeetingList from '@/components/scheduling/MeetingList';
 import LeadFiles from '@/components/crm/LeadFiles';
 import LeadTimeline from '@/components/crm/LeadTimeline';
 import SelectRefined from '@/components/ui/SelectRefined';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { stageLabel } from '@/components/crm/labels';
+import { leadStatusForStage } from '@/lib/crm/lead-status';
 import LeadInterests from '@/components/realestate/LeadInterests';
 import LeadBriefFields, { type LeadBriefValues } from '@/components/developer/LeadBriefFields';
 import CustomerTab from '@/components/developer/CustomerTab';
@@ -152,6 +153,8 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         { value: 'lost', label: t('crm.leadModal.status.lost') },
     ], [t]);
 
+    const impliedStatus = leadStatusForStage(formData.stage);
+
     const stageOptions = useMemo(() => 
         pipeline?.stages.map(s => ({ value: s, label: stageLabel(s, t) })) || [], 
     [pipeline, t]);
@@ -293,7 +296,9 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
     };
 
     const handleFieldChange = (name: keyof typeof formData, value: any) => {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        // A built-in stage decides the status, so the two can never disagree.
+        const implied = name === 'stage' ? leadStatusForStage(value) : null;
+        setFormData(prev => ({ ...prev, [name]: value, ...(implied && { status: implied }) }));
         
         // Validate field on change if it's been touched
         if (touched.has(name)) {
@@ -636,14 +641,6 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <SelectRefined
-                                        label={t('crm.leadModal.statusLabel')}
-                                        value={formData.status}
-                                        options={statusOptions}
-                                        onChange={(val) => handleFieldChange('status', val)}
-                                    />
-                                </div>
-                                <div>
-                                    <SelectRefined
                                         label={t('crm.leadModal.stageLabel')}
                                         value={formData.stage}
                                         options={stageOptions}
@@ -651,6 +648,25 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         disabled={!pipeline}
                                         placeholder={!pipeline ? t('crm.leadModal.noPipelineSelected') : t('crm.leadModal.selectStagePlaceholder')}
                                     />
+                                </div>
+                                <div>
+                                    {impliedStatus ? (
+                                        // Set by the stage: shown, not edited, so it cannot contradict it.
+                                        <>
+                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.statusLabel')}</span>
+                                            <p className="px-3 py-2 body-md rounded-lg bg-surface-container-low border border-outline-variant/40 text-on-surface">
+                                                {t(`crm.leadModal.status.${impliedStatus}` as MessageKey)}
+                                                <span className="ms-2 body-sm text-on-surface-variant">· {t('leadStatusSync.followsStage')}</span>
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <SelectRefined
+                                            label={t('crm.leadModal.statusLabel')}
+                                            value={formData.status}
+                                            options={statusOptions}
+                                            onChange={(val) => handleFieldChange('status', val)}
+                                        />
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">

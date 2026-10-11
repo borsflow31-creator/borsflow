@@ -9,6 +9,7 @@
 
 import { createHmac, timingSafeEqual } from 'crypto'
 import { escapeHtml } from '@/lib/html'
+import { effectiveLeadStatus } from '@/lib/crm/lead-status'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || 'default-secret'
@@ -134,7 +135,7 @@ function buildTokenMap(ctx: MergeContext): Record<string, string> {
     phone: lead.phone || '',
     company: lead.company || '',
     position: lead.position || '',
-    status: lead.status || '',
+    status: lead.status ? effectiveLeadStatus(lead) : '',
     stage: lead.stage || '',
     source: lead.source || '',
     value: formatValue(lead.value, ctx.currency),

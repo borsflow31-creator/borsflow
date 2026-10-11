@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { leadStatusForStage } from '@/lib/crm/lead-status';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -155,8 +156,10 @@ export async function PUT(
             ...(phone !== undefined && { phone }),
             ...(company !== undefined && { company }),
             ...(position !== undefined && { position }),
+            // A built-in stage sets the status; a custom one keeps the status sent (or stored).
             ...(status !== undefined && { status }),
             ...(stage !== undefined && { stage }),
+            ...(leadStatusForStage(stage) && { status: leadStatusForStage(stage)! }),
             ...(parsedValue !== undefined && { value: parsedValue }),
             ...(source !== undefined && { source }),
             ...(notes !== undefined && { notes }),
