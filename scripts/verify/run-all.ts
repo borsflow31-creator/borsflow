@@ -26,8 +26,9 @@ import projectsAndMedia from './14-projects-and-media'
 import developerLeads from './15-developer-leads'
 import developerSales from './16-developer-sales'
 import developerAlerts from './17-developer-alerts'
+import smtpProvider from './18-smtp-provider'
 
-const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17'])
+const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17', '18'])
 
 async function main() {
   const scenarios: { id: string; run: () => Promise<ScenarioResult> }[] = [
@@ -48,6 +49,7 @@ async function main() {
     { id: '15', run: developerLeads },
     { id: '16', run: developerSales },
     { id: '17', run: developerAlerts },
+    { id: '18', run: smtpProvider },
   ]
 
   const hasDatabase = Boolean(process.env.VERIFY_DATABASE_URL)

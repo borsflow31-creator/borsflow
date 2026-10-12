@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
-import { X, Settings, Key, Mail, CheckCircle2, AlertCircle, Eye, EyeOff, ChevronDown } from 'lucide-react'
+import { X, Settings, Key, Mail, CheckCircle2, AlertCircle, Eye, EyeOff, ChevronDown, Server } from 'lucide-react'
 
 interface ProviderModalProps {
   isOpen: boolean
@@ -56,9 +56,24 @@ export default function ProviderModal({
     { value: 'mailgun', label: 'Mailgun', icon: <img src="https://www.vectorlogo.zone/logos/mailgun/mailgun-icon.svg" className="w-5 h-5 ml-1" alt="" /> },
     { value: 'postmark', label: 'Postmark', icon: <img src="https://www.vectorlogo.zone/logos/postmarkapp/postmarkapp-icon.svg" className="w-5 h-5 ml-1" alt="" /> },
     { value: 'brevo', label: 'Brevo', icon: <img src="https://cdn.simpleicons.org/brevo/008060" className="w-5 h-5 ml-1" alt="" /> },
-    // "Custom SMTP" was offered here but never implemented: it collected no host
-    // or port, and every email sent through it was reported sent while nothing
-    // was delivered. Re-add it once there is an SMTP sender behind it.
+    // The workspace's own mail server. Offered again now that SmtpProvider sends
+    // through it: the old "Custom SMTP" option collected no host or port and
+    // reported every email as sent while nothing was delivered.
+    { value: 'smtp', label: t('emailMarketing.providerModal.smtpLabel'), icon: <Server className="w-5 h-5 ml-1 text-on-surface-variant" /> },
+  ]
+
+  const isSmtp = formData.type === 'smtp'
+  const smtp = formData.config as { host?: string; port?: number | string; secure?: boolean; user?: string }
+  /** The SMTP block lives inside `config`, so it is edited as one object. */
+  const setSmtp = (patch: Partial<typeof smtp>) => {
+    setFormData(prev => ({ ...prev, config: { ...(prev.config as object), ...patch } }))
+    setErrors(prev => { const next = { ...prev }; delete next.smtpHost; return next })
+  }
+  const smtpPorts = [
+    { value: 587, label: t('emailMarketing.providerModal.smtpPort587') },
+    { value: 465, label: t('emailMarketing.providerModal.smtpPort465') },
+    { value: 2525, label: t('emailMarketing.providerModal.smtpPort2525') },
+    { value: 25, label: t('emailMarketing.providerModal.smtpPort25') },
   ]
 
   // Providers whose bounce/complaint webhook BorsFlow creates on the account itself
@@ -121,9 +136,18 @@ export default function ProviderModal({
       newErrors.name = t('emailMarketing.providerModal.nameRequired')
     }
     if (!formData.apiKey.trim()) {
-      newErrors.apiKey = t('emailMarketing.providerModal.apiKeyRequired')
+      newErrors.apiKey = formData.type === 'smtp'
+        ? t('emailMarketing.providerModal.smtpPasswordRequired')
+        : t('emailMarketing.providerModal.apiKeyRequired')
     } else if (formData.type === 'ses' && !formData.apiKey.startsWith('****') && !formData.apiKey.includes(':')) {
       newErrors.apiKey = t('emailMarketing.providerModal.sesKeyFormat')
+    }
+    // The server checks the address properly (it is the one that connects to
+    // it); this only catches an empty or obviously wrong field before the trip.
+    if (formData.type === 'smtp') {
+      const host = String((formData.config as any)?.host || '').trim()
+      if (!host) newErrors.smtpHost = t('emailMarketing.providerModal.smtpHostRequired')
+      else if (!host.includes('.') || /\s/.test(host)) newErrors.smtpHost = t('emailMarketing.providerModal.smtpHostInvalid')
     }
     if (!formData.fromEmail.trim()) {
       newErrors.fromEmail = t('emailMarketing.providerModal.fromEmailRequired')
@@ -154,6 +178,8 @@ export default function ProviderModal({
           apiKey: formData.apiKey,
           fromEmail: formData.fromEmail,
           region: formData.region,
+          // The SMTP server address; ignored by the API providers.
+          config: formData.type === 'smtp' ? formData.config : undefined,
           // A saved provider only has its masked key here; the server fills in the real one
           providerId: provider?.id
         })
@@ -321,6 +347,62 @@ export default function ProviderModal({
                 </div>
               )}
 
+              {isSmtp && (
+                <>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-on-surface mb-1">
+                      {t('emailMarketing.providerModal.smtpHost')}
+                    </label>
+                    <input
+                      type="text"
+                      value={smtp.host || ''}
+                      onChange={(e) => setSmtp({ host: e.target.value })}
+                      placeholder={t('emailMarketing.providerModal.smtpHostPlaceholder')}
+                      autoComplete="off"
+                      className={`w-full px-4 py-2 bg-transparent text-on-surface border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
+                        errors.smtpHost ? 'border-red-500' : 'border-outline-variant/40'
+                      }`}
+                    />
+                    {errors.smtpHost && <p className="mt-1 text-sm text-error">{errors.smtpHost}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-on-surface mb-1">
+                      {t('emailMarketing.providerModal.smtpPort')}
+                    </label>
+                    <select
+                      value={String(smtp.port ?? 587)}
+                      onChange={(e) => {
+                        const port = Number(e.target.value)
+                        // 465 is implicit TLS; the two disagreeing is a hang, so
+                        // the port decides the encryption rather than the user.
+                        setSmtp({ port, secure: port === 465 })
+                      }}
+                      className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                    >
+                      {smtpPorts.map(port => (
+                        <option key={port.value} value={port.value}>{port.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-on-surface mb-1">
+                      {t('emailMarketing.providerModal.smtpUser')}
+                    </label>
+                    <input
+                      type="text"
+                      value={smtp.user || ''}
+                      onChange={(e) => setSmtp({ user: e.target.value })}
+                      placeholder={t('emailMarketing.providerModal.smtpUserPlaceholder')}
+                      autoComplete="off"
+                      className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
+                    />
+                    <p className="mt-1 text-xs text-on-surface-variant">{t('emailMarketing.providerModal.smtpUserHint')}</p>
+                  </div>
+                </>
+              )}
+
               {formData.type === 'ses' && (
                 <div>
                   <label className="block text-sm font-medium text-on-surface mb-1">
@@ -352,7 +434,7 @@ export default function ProviderModal({
             </h3>
             <div>
               <label className="block text-sm font-medium text-on-surface mb-1">
-                {t('emailMarketing.providerModal.apiKey')}
+                {isSmtp ? t('emailMarketing.providerModal.smtpPassword') : t('emailMarketing.providerModal.apiKey')}
               </label>
               <div className="relative">
                 <input
@@ -363,7 +445,8 @@ export default function ProviderModal({
                   className={`w-full px-4 py-2 pr-12 border rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent ${
                     errors.apiKey ? 'border-red-500' : 'border-outline-variant/40'
                   }`}
-                  placeholder={t('emailMarketing.providerModal.apiKeyPlaceholder')}
+                  placeholder={isSmtp ? t('emailMarketing.providerModal.smtpPasswordPlaceholder') : t('emailMarketing.providerModal.apiKeyPlaceholder')}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -389,6 +472,11 @@ export default function ProviderModal({
                       ? t('emailMarketing.providerModal.usePostmarkToken')
                       : t('emailMarketing.providerModal.useFullAccessKey')}
                   </span>
+                </p>
+              ) : isSmtp ? (
+                <p className="mt-2 text-sm text-on-surface-variant flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1.5 mt-0.5 flex-shrink-0 text-on-surface-variant" />
+                  <span>{t('emailMarketing.providerModal.smtpTrackingHint')}</span>
                 </p>
               ) : (
                 <p className="mt-2 text-sm text-on-surface-variant flex items-start">

@@ -529,10 +529,8 @@ export interface Messages {
     tabs: {
       campaigns: string;
       templates: string;
-      segments: string;
       automations: string;
-      analytics: string;
-      providers: string;
+      settings: string;
     };
     automationsTab: {
       saveFailed: string;
@@ -659,30 +657,11 @@ export interface Messages {
       createCampaign: string;
     };
     analyticsTab: {
-      campaignTableHeading: string;
-      colCampaign: string;
-      colSent: string;
-      colOpens: string;
-      colClicks: string;
-      colBounces: string;
-      heading: string;
-      subtitle: string;
       totalSent: string;
       delivered: string;
-      uniqueOpens: string;
-      totalClicks: string;
       openRate: string;
-      opensFromSent: string;
       clickRate: string;
-      clicksFromOpens: string;
       bounceRate: string;
-      bouncesFromSent: string;
-      chartHeading: string;
-      chartPlaceholder: string;
-      topCampaigns: string;
-      noCampaigns: string;
-      openRateValue: string;
-      sentCount: string;
     };
     automationModal: {
       unitMinute: string;
@@ -921,6 +900,23 @@ export interface Messages {
       apiKeyRequired: string;
       fromEmailRequired: string;
       invalidEmail: string;
+      smtpLabel: string;
+      smtpHost: string;
+      smtpHostPlaceholder: string;
+      smtpHostRequired: string;
+      smtpHostInvalid: string;
+      smtpPort: string;
+      smtpPort587: string;
+      smtpPort465: string;
+      smtpPort2525: string;
+      smtpPort25: string;
+      smtpUser: string;
+      smtpUserPlaceholder: string;
+      smtpUserHint: string;
+      smtpPassword: string;
+      smtpPasswordPlaceholder: string;
+      smtpPasswordRequired: string;
+      smtpTrackingHint: string;
       testSuccess: string;
       testFailed: string;
       testFailedGeneric: string;
@@ -7017,10 +7013,8 @@ const en: Messages = {
     tabs: {
       campaigns: 'Campaigns',
       templates: 'Templates',
-      segments: 'Segments',
       automations: 'Automations',
-      analytics: 'Analytics',
-      providers: 'Providers',
+      settings: 'Settings',
     },
     automationsTab: {
       saveFailed: 'Failed to save automation',
@@ -7147,30 +7141,11 @@ const en: Messages = {
       createCampaign: 'Create campaign',
     },
     analyticsTab: {
-      campaignTableHeading: 'Campaign performance',
-      colCampaign: 'Campaign',
-      colSent: 'Sent',
-      colOpens: 'Opens',
-      colClicks: 'Clicks',
-      colBounces: 'Bounces',
-      heading: 'Analytics',
-      subtitle: 'See how your campaigns are performing across opens, clicks, and bounces.',
       totalSent: 'Total sent',
       delivered: 'Delivered',
-      uniqueOpens: 'Unique opens',
-      totalClicks: 'Total clicks',
       openRate: 'Open rate',
-      opensFromSent: '{opens} of {sent} sent',
       clickRate: 'Click rate',
-      clicksFromOpens: '{clicks} of {opens} opens',
       bounceRate: 'Bounce rate',
-      bouncesFromSent: '{bounces} of {sent} sent',
-      chartHeading: 'Performance over time',
-      chartPlaceholder: 'Chart data will appear here once you have campaign activity.',
-      topCampaigns: 'Top performing campaigns',
-      noCampaigns: 'No campaign data yet',
-      openRateValue: '{rate}% open rate',
-      sentCount: '{count} sent',
     },
     automationModal: {
       unitMinute: 'minute',
@@ -7409,6 +7384,23 @@ const en: Messages = {
       apiKeyRequired: 'API key is required',
       fromEmailRequired: 'From email is required',
       invalidEmail: 'Enter a valid email address',
+      smtpLabel: 'Your own mail server (SMTP)',
+      smtpHost: 'Server address',
+      smtpHostPlaceholder: 'smtp.example.com',
+      smtpHostRequired: 'Enter the SMTP server address.',
+      smtpHostInvalid: 'Enter the full server address, such as smtp.example.com.',
+      smtpPort: 'Port',
+      smtpPort587: '587 — STARTTLS (recommended)',
+      smtpPort465: '465 — SSL/TLS',
+      smtpPort2525: '2525 — STARTTLS',
+      smtpPort25: '25 — unencrypted relay',
+      smtpUser: 'Username',
+      smtpUserPlaceholder: 'Usually your full email address',
+      smtpUserHint: 'Leave empty if your server accepts mail without a login.',
+      smtpPassword: 'Password',
+      smtpPasswordPlaceholder: 'Mailbox or app password',
+      smtpPasswordRequired: 'Enter the mailbox password.',
+      smtpTrackingHint: 'An SMTP server reports nothing after it accepts a message, so a bounce is only recorded when the server rejects the address outright.',
       testSuccess: 'Test email sent successfully',
       testFailed: 'Test failed: {error}',
       testFailedGeneric: 'Test failed. Check your settings and try again.',

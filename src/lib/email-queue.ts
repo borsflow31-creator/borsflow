@@ -294,6 +294,25 @@ export class EmailQueueService {
               data: { sentCount: { increment: 1 } }
             }).catch(() => {})
           }
+        } else if (result.permanent) {
+          // The server rejected the address outright (an SMTP 5xx). Retrying it
+          // twice more would be rejected twice more, and for a provider with no
+          // webhook this is the only bounce signal there will ever be — so it is
+          // recorded here, through the same path a webhook event takes.
+          const { applyProviderEvent } = await import('./email/provider-webhooks')
+          await applyProviderEvent(email.workspaceId, result.provider, {
+            kind: 'bounce',
+            email: recipient.recipientEmail,
+            hard: true,
+            reason: result.error || 'Rejected by the receiving server',
+            raw: { source: 'send', error: result.error },
+          }).catch(() => {})
+          if (email.campaignId) {
+            await prisma.emailCampaign.update({
+              where: { id: email.campaignId },
+              data: { bouncedCount: { increment: 1 } }
+            }).catch(() => {})
+          }
         } else {
           allSucceeded = false
           lastError = result.error

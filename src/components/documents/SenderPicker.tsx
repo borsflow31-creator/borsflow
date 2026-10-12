@@ -11,10 +11,14 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useI18n } from '@/i18n/I18nProvider'
 import { cachedJson } from '@/lib/client-cache'
+import { SUPPORTED_PROVIDER_TYPES } from '@/lib/email/provider-types'
 
 export type DocumentSender = 'platform' | 'workspace'
 
-const SUPPORTED = new Set(['resend', 'sendgrid', 'ses', 'mailgun', 'postmark', 'brevo'])
+// Imported rather than listed again here: a second copy of this set went stale
+// the moment a provider type was added, and the picker then hid a sender that
+// could in fact send.
+const SUPPORTED = new Set<string>(SUPPORTED_PROVIDER_TYPES)
 const storageKey = (workspaceId: string) => `doc_sender_${workspaceId}`
 
 interface ConnectedSender {

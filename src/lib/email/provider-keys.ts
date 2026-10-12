@@ -9,12 +9,9 @@ import { encrypt, decrypt } from '@/lib/encryption'
  * encrypted with the same helper that protects Stripe keys and OAuth tokens.
  */
 
-/** Provider types the sender can actually deliver through. */
-export const SUPPORTED_PROVIDER_TYPES = ['resend', 'sendgrid', 'ses', 'mailgun', 'postmark', 'brevo'] as const
-
-export function isSupportedProviderType(type: unknown): boolean {
-  return typeof type === 'string' && (SUPPORTED_PROVIDER_TYPES as readonly string[]).includes(type)
-}
+// The list lives in provider-types.ts, which imports nothing, so the browser can
+// read it too; re-exported here because this is where callers expect it.
+export { SUPPORTED_PROVIDER_TYPES, isSupportedProviderType, type SupportedProviderType } from './provider-types'
 
 export function sealApiKey(plain: string): string {
   return encrypt(plain)

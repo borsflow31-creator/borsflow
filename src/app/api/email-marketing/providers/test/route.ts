@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
   let { type, apiKey, fromEmail, domain, region } = body
+  let { config } = body
   const { serverToken, providerId } = body
 
   // Testing a saved provider: the client only has the masked key, so fill in the
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     fromEmail = fromEmail || row.fromEmail
     region = region ?? row.region
     domain = domain || row.domain
+    config = config ?? row.config
   }
 
   if (!type || !apiKey || !fromEmail) {
@@ -104,6 +106,34 @@ export async function POST(request: NextRequest) {
       const { PostmarkProvider } = await import('@/lib/email/providers/postmark-provider')
       const provider = new PostmarkProvider({ id: 'test', type: 'postmark', apiKey, fromEmail, serverToken: serverToken || apiKey, isActive: true, isDefault: false, priority: 1, weight: 1, costPerEmail: 0 })
       const result = await provider.sendEmail({ to: fromEmail, subject: 'Postmark Configuration Test', html: '<p>This is a test email to validate your Postmark configuration.</p>' })
+      if (!result.success) return NextResponse.json({ success: false, error: result.error })
+      return NextResponse.json({ success: true })
+    }
+
+    if (type === 'smtp') {
+      // Two steps, because they fail for different reasons and the person
+      // configuring it needs to know which: the handshake and login first
+      // (verify), then a real message to the From address.
+      const { readSmtpSettings, verifySmtpConnection } = await import('@/lib/email/smtp')
+      const settings = readSmtpSettings(config, apiKey)
+      if (!settings) {
+        return NextResponse.json({ success: false, error: 'Enter the SMTP server address and port.' })
+      }
+      const connection = await verifySmtpConnection(settings)
+      if (!connection.success) return NextResponse.json({ success: false, error: connection.error })
+
+      const { SmtpProvider } = await import('@/lib/email/providers/smtp-provider')
+      const provider = new SmtpProvider({
+        id: 'test', type: 'smtp', apiKey, fromEmail,
+        smtpHost: settings.host, smtpPort: settings.port, smtpSecure: settings.secure, smtpUser: settings.user,
+        isActive: true, isDefault: false, priority: 1, weight: 1, costPerEmail: 0,
+      })
+      const result = await provider.sendEmail({
+        to: fromEmail,
+        subject: 'SMTP Configuration Test',
+        html: '<p>This is a test email to validate your SMTP configuration.</p>',
+        text: 'This is a test email to validate your SMTP configuration.',
+      })
       if (!result.success) return NextResponse.json({ success: false, error: result.error })
       return NextResponse.json({ success: true })
     }

@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/prisma'
 import { Resend } from 'resend'
 import { revealApiKey } from '@/lib/email/provider-keys'
+import { readSmtpSettings } from '@/lib/email/smtp'
 
 // Email data structure
 export interface EmailData {
@@ -29,6 +30,8 @@ export interface SendResult {
   success: boolean
   messageId?: string
   error?: string
+  /** The recipient was rejected outright, so a retry would fail the same way. */
+  permanent?: boolean
   provider: string
   timestamp: Date
 }
@@ -44,7 +47,10 @@ export interface BatchSendResult {
 // Provider configuration structure
 export interface EmailProviderConfig {
   id: string
-  type: 'sendgrid' | 'ses' | 'resend' | 'mailgun' | 'postmark' | 'nodemailer' | 'brevo'
+  // 'nodemailer' was listed here for years with nothing behind it; 'smtp' is
+  // the workspace's own mail server, and it does send.
+  type: 'sendgrid' | 'ses' | 'resend' | 'mailgun' | 'postmark' | 'brevo' | 'smtp'
+  /** The API key, or for `smtp` the mailbox password. */
   apiKey: string
   fromEmail: string
   fromName?: string
@@ -59,6 +65,11 @@ export interface EmailProviderConfig {
   region?: string
   domain?: string
   serverToken?: string
+  /** `smtp` only; read out of the row's `config` JSON. The password is `apiKey`. */
+  smtpHost?: string
+  smtpPort?: number
+  smtpSecure?: boolean
+  smtpUser?: string
   metadata?: Record<string, any>
 }
 
@@ -142,6 +153,9 @@ export class EmailMarketingService {
     }
 
     for (const providerData of providers) {
+      const parsedConfig = (() => {
+        try { return providerData.config ? JSON.parse(providerData.config) : undefined } catch { return undefined }
+      })()
       const config: EmailProviderConfig = {
         id: providerData.id,
         type: providerData.type as any,
@@ -160,7 +174,19 @@ export class EmailMarketingService {
         domain: (providerData as any).domain || undefined,
         serverToken: (providerData as any).serverToken || undefined,
         // One bad config row must not break sending for the whole workspace
-        metadata: (() => { try { return providerData.config ? JSON.parse(providerData.config) : undefined } catch { return undefined } })()
+        metadata: parsedConfig
+      }
+
+      // A workspace's own mail server keeps its address in `config` and its
+      // password in `apiKey`, which is the column the API masks.
+      if (providerData.type === 'smtp') {
+        const smtp = readSmtpSettings(parsedConfig, config.apiKey)
+        if (smtp) {
+          config.smtpHost = smtp.host
+          config.smtpPort = smtp.port
+          config.smtpSecure = smtp.secure
+          config.smtpUser = smtp.user
+        }
       }
 
       // Keep existing health across reloads: the queue cron reloads every minute,
@@ -271,8 +297,17 @@ export class EmailMarketingService {
             if (!result.success) throw new Error(result.error || 'SendGrid send failed')
             messageId = result.messageId || ''
           }
+          else if (config.type === 'smtp') {
+            const { SmtpProvider } = await import('./email/providers/smtp-provider')
+            const provider = new SmtpProvider(config)
+            const result = await provider.sendEmail(email)
+            // The recipient was rejected outright; say so, so the queue can
+            // suppress the address rather than retry it.
+            if (!result.success) throw Object.assign(new Error(result.error || 'SMTP send failed'), { permanent: result.permanent })
+            messageId = result.messageId || ''
+          }
           else {
-            // There is no sender for this type (e.g. the old "Custom SMTP" option).
+            // There is no sender for this type.
             // This used to invent a message id and report success, so every email
             // routed here was marked sent while nothing was delivered.
             throw new Error(`Email provider type "${config.type}" is not supported for sending`)
@@ -289,6 +324,7 @@ export class EmailMarketingService {
           return {
             success: false,
             error: error.message || 'Failed to send email',
+            permanent: error?.permanent === true,
             provider: config.type,
             timestamp: new Date()
           }

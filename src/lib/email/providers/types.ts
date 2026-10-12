@@ -28,6 +28,12 @@ export interface SendResult {
   success: boolean
   messageId?: string
   error?: string
+  /**
+   * The failure will never succeed on a retry: the recipient was rejected
+   * outright (an SMTP 5xx). The queue suppresses the address instead of backing
+   * off and trying twice more.
+   */
+  permanent?: boolean
   provider: string
   timestamp: Date
 }
@@ -51,7 +57,8 @@ export interface ProviderStats {
 
 export interface EmailProviderConfig {
   id: string
-  type: 'sendgrid' | 'ses' | 'resend' | 'mailgun' | 'postmark'
+  type: 'sendgrid' | 'ses' | 'resend' | 'mailgun' | 'postmark' | 'brevo' | 'smtp'
+  /** The API key, or for `smtp` the mailbox password. */
   apiKey: string
   fromEmail: string
   fromName?: string
@@ -66,6 +73,15 @@ export interface EmailProviderConfig {
   region?: string
   domain?: string
   serverToken?: string
+  /**
+   * `smtp` only, read out of the row's `config` JSON by loadProviders. The
+   * password is not here: it is `apiKey`, which the API masks, while `config`
+   * goes to the browser as it is.
+   */
+  smtpHost?: string
+  smtpPort?: number
+  smtpSecure?: boolean
+  smtpUser?: string
   metadata?: Record<string, any>
 }
 

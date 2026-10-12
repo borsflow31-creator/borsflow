@@ -5,6 +5,7 @@ import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/wo
 import { isSupportedProviderType, sealApiKey, SUPPORTED_PROVIDER_TYPES } from '@/lib/email/provider-keys'
 import { presentProvider } from '@/lib/email/present-provider'
 import { connectProviderWebhook, findMailgunDomain } from '@/lib/email/webhook-setup'
+import { validateSmtpConfigInput } from '@/lib/email/smtp'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -57,6 +58,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: access.error }, { status: access.status })
     }
 
+    // The workspace's own mail server: the host is checked before it is stored,
+    // and the stored JSON is rebuilt so no credential can ride along in it.
+    let smtpConfig: string | undefined
+    if (type === 'smtp') {
+      const checked = await validateSmtpConfigInput(config)
+      if ('error' in checked) return NextResponse.json({ error: checked.error }, { status: 400 })
+      smtpConfig = checked.config
+    }
+
     if (isDefault) {
       await prisma.emailProvider.updateMany({
         where: { workspaceId, isDefault: true },
@@ -86,7 +96,7 @@ export async function POST(request: NextRequest) {
         domain,
         dailyLimit: dailyLimit ? parseInt(String(dailyLimit)) : null,
         monthlyLimit: monthlyLimit ? parseInt(String(monthlyLimit)) : null,
-        config: config === undefined ? undefined : typeof config === 'string' ? config : JSON.stringify(config),
+        config: smtpConfig ?? (config === undefined ? undefined : typeof config === 'string' ? config : JSON.stringify(config)),
         createdById: access.session.user.id,
       }
     })

@@ -4,6 +4,7 @@ import { requireWorkspaceAccess, requireWorkspacePermission } from '@/lib/api/wo
 import { isSupportedProviderType, sealApiKey, SUPPORTED_PROVIDER_TYPES } from '@/lib/email/provider-keys'
 import { presentProvider } from '@/lib/email/present-provider'
 import { connectProviderWebhook, disconnectProviderWebhook, findMailgunDomain } from '@/lib/email/webhook-setup'
+import { validateSmtpConfigInput } from '@/lib/email/smtp'
 import { revealApiKey } from '@/lib/email/provider-keys'
 import { emailMarketingService } from '@/lib/email-marketing'
 
@@ -88,7 +89,17 @@ export async function PATCH(
     if (isActive !== undefined) data.isActive = isActive
     if (dailyLimit !== undefined) data.dailyLimit = dailyLimit ? parseInt(String(dailyLimit)) : null
     if (monthlyLimit !== undefined) data.monthlyLimit = monthlyLimit ? parseInt(String(monthlyLimit)) : null
-    if (config !== undefined) data.config = typeof config === 'string' ? config : JSON.stringify(config)
+    if (config !== undefined) {
+      // An SMTP row's config is the server address, so it is checked and
+      // rebuilt rather than stored as sent (see validateSmtpConfigInput).
+      if ((type ?? before.type) === 'smtp') {
+        const checked = await validateSmtpConfigInput(config)
+        if ('error' in checked) return NextResponse.json({ error: checked.error }, { status: 400 })
+        data.config = checked.config
+      } else {
+        data.config = typeof config === 'string' ? config : JSON.stringify(config)
+      }
+    }
     if (keyChanged) data.apiKey = sealApiKey(apiKey)
 
     // The webhook lives on the account the key belongs to (and, for Mailgun, on
