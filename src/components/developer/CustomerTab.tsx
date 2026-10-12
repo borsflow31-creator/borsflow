@@ -135,8 +135,10 @@ export default function CustomerTab({
                         [t('developerCrm.lead.owner'), personName(lead.owner)],
                         [t('developerCrm.lead.project'), lead.interestedProgram?.name ?? '–'],
                         [t('developerCrm.lead.typology'), lead.interestedTypology ?? '–'],
-                        [t('developerCrm.lead.budgetMin'), lead.budgetMin ? money(lead.budgetMin) : '–'],
-                        [t('developerCrm.lead.budgetMax'), lead.budgetMax ? money(lead.budgetMax) : '–'],
+                        // One budget row: a range reads better than two numbers.
+                        [t('developerCrm.lead.budget'), lead.budgetMin || lead.budgetMax
+                            ? `${lead.budgetMin ? money(lead.budgetMin) : '–'} – ${lead.budgetMax ? money(lead.budgetMax) : '–'}`
+                            : '–'],
                         [t('developerCrm.lead.location'), lead.preferredLocation ?? '–'],
                         [t('developerCrm.lead.source'), lead.source ? (isKnownSource(lead.source) ? t(`developerCrm.sources.${lead.source}` as MessageKey) : lead.source) : '–'],
                         [t('developerCrm.lead.campaign'), lead.campaign ?? '–'],

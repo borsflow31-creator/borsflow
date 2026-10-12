@@ -441,7 +441,6 @@ export interface Messages {
       tagPlaceholder: string;
       removeTagAria: string;
       leadListsLabel: string;
-      aiAssistantLabel: string;
       summarizeLeadButton: string;
       draftEmailButton: string;
       leadSummaryHeading: string;
@@ -3065,6 +3064,7 @@ export interface Messages {
       noProject: string;
       typology: string;
       typologyPlaceholder: string;
+      budget: string;
       budgetMin: string;
       budgetMax: string;
       location: string;
@@ -7815,37 +7815,36 @@ const en: Messages = {
       closeAria: 'Close',
       tabDetails: 'Details',
       tabMeetings: 'Meetings',
-      tabHistory: 'Purchase history',
-      personalInfoHeading: 'Personal information',
+      tabHistory: 'Purchases',
+      personalInfoHeading: 'Contact',
       firstNameLabel: 'First name',
       lastNameLabel: 'Last name',
       emailLabel: 'Email',
       phoneLabel: 'Phone',
-      companyInfoHeading: 'Company information',
+      companyInfoHeading: 'Company (optional)',
       companyLabel: 'Company',
       positionLabel: 'Position',
-      pipelineInfoHeading: 'Pipeline',
+      pipelineInfoHeading: 'Progress',
       statusLabel: 'Status',
       stageLabel: 'Stage',
       noPipelineSelected: 'Select a pipeline first',
       selectStagePlaceholder: 'Select a stage',
-      dealValueLabel: 'Deal value',
+      dealValueLabel: 'Amount',
       sourceLabel: 'Source',
-      sourcePlaceholder: 'e.g. Referral, website, trade show',
+      sourcePlaceholder: 'e.g. Referral, website',
       tagsLabel: 'Tags',
-      tagPlaceholder: 'Add a tag and press Enter',
+      tagPlaceholder: 'Tag, then Enter',
       removeTagAria: 'Remove tag {tag}',
-      leadListsLabel: 'Lead lists',
-      aiAssistantLabel: 'AI assistant',
-      summarizeLeadButton: 'Summarize lead',
-      draftEmailButton: 'Draft follow-up email',
-      leadSummaryHeading: 'Lead summary',
-      emailDraftHeading: 'Email draft',
-      copyToNotes: 'Copy to notes',
+      leadListsLabel: 'Lists',
+      summarizeLeadButton: 'Summary',
+      draftEmailButton: 'Follow-up email',
+      leadSummaryHeading: 'Summary',
+      emailDraftHeading: 'Draft email',
+      copyToNotes: 'Add to notes',
       notesLabel: 'Notes',
       notesPlaceholder: 'Add any notes about this lead…',
       notesCharCount: '{count}/2000 characters',
-      updateButton: 'Save changes',
+      updateButton: 'Save',
       createButton: 'Create lead',
     },
     pipelineModal: {
@@ -8142,18 +8141,19 @@ const en: Messages = {
       groupWorkspace: 'Workspace',
     },
     lead: {
-      brief: 'Buyer brief',
+      brief: 'Buyer',
       owner: 'Owner',
       unassigned: 'Unassigned',
       source: 'Source',
       campaign: 'Campaign',
-      project: 'Interested project',
+      project: 'Project',
       noProject: 'No project',
       typology: 'Unit type',
       typologyPlaceholder: 'e.g. T3',
-      budgetMin: 'Budget from',
-      budgetMax: 'Budget up to',
-      location: 'Preferred location',
+      budget: 'Budget',
+      budgetMin: 'From',
+      budgetMax: 'To',
+      location: 'Location',
       score: 'Score',
       scoreHint: 'Calculated from contact details, budget, project, source, stage and recent contact.',
       lastContact: 'Last contact',

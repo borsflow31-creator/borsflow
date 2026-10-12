@@ -1,4 +1,5 @@
 import { aiComplete, aiErrorMessage } from '@/lib/ai/client';
+import { promptInLocale } from '@/lib/ai/language';
 import { useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
@@ -99,7 +100,7 @@ interface ValidationErrors {
 }
 
 export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose, initialTab = 'details' }: LeadModalProps) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const { data: session } = useSession();
     // A developer's lead carries a buyer brief and a Customer tab; an agency's
     // form and payload are exactly what they were.
@@ -133,6 +134,9 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         preferredLocation: lead?.preferredLocation || '',
     });
 
+    // Company and position matter for a B2B lead and are noise for a buyer, so
+    // they stay folded away unless the lead already has them.
+    const [showCompany, setShowCompany] = useState(!!(lead?.company || lead?.position));
     const [newTag, setNewTag] = useState('');
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -168,15 +172,26 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
             name && `Name: ${name}`,
             formData.company && `Company: ${formData.company}`,
             formData.position && `Position: ${formData.position}`,
-            formData.stage && `Pipeline stage: ${formData.stage}`,
-            formData.value && `Deal value: $${formData.value}`,
+            formData.stage && `Pipeline stage: ${stageLabel(formData.stage, t)}`,
+            // No currency sign: the workspace's currency is not the dollar, and a
+            // wrong one in the summary reads as a wrong amount.
+            formData.value && `Deal value: ${formData.value}`,
             formData.source && `Source: ${formData.source}`,
+            // What a developer's buyer is looking for, which is most of the lead.
+            isDeveloper && brief.interestedTypology && `Unit type wanted: ${brief.interestedTypology}`,
+            isDeveloper && brief.preferredLocation && `Preferred location: ${brief.preferredLocation}`,
+            isDeveloper && (brief.budgetMin || brief.budgetMax) &&
+                `Budget: ${brief.budgetMin || '?'} – ${brief.budgetMax || '?'}`,
             formData.notes && `Notes: ${formData.notes}`,
         ].filter(Boolean).join('\n');
 
-        const prompt = type === 'summary'
-            ? 'Summarize this CRM lead and suggest the best next action.'
-            : 'Write a short, professional follow-up email to this lead. Return only the email body (no subject line).';
+        // The answer goes straight into the UI, so it has to be in the UI's language.
+        const prompt = promptInLocale(
+            type === 'summary'
+                ? 'Summarize this CRM lead in two or three sentences and suggest the best next action.'
+                : 'Write a short, professional follow-up email to this lead. Return only the email body (no subject line).',
+            locale,
+        );
 
         const billingWorkspaceId = workspaceId ?? pipeline?.workspaceId;
         if (!billingWorkspaceId) {
@@ -366,6 +381,18 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         }
     };
 
+    /**
+     * Put the assistant's text in the notes. It is added after whatever is
+     * already there rather than replacing it, because replacing threw away
+     * notes someone had typed.
+     */
+    const addResultToNotes = () => {
+        const existing = formData.notes.trim();
+        const merged = existing ? `${existing}\n\n${aiResult.trim()}` : aiResult.trim();
+        handleFieldChange('notes', merged.slice(0, 2000));
+        setAiPanel('none');
+    };
+
     const handleAddTag = () => {
         if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
             setFormData({
@@ -501,10 +528,10 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                     <div className="p-6">
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Personal Information */}
+                        {/* Contact */}
                         <div>
                             <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.personalInfoHeading')}</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
                                         {t('crm.leadModal.firstNameLabel')}
@@ -588,10 +615,20 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                             </div>
                         </div>
 
-                        {/* Company Information */}
+                        {/* Company, folded away until it is wanted */}
                         <div>
-                            <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.companyInfoHeading')}</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <button
+                                type="button"
+                                onClick={() => setShowCompany((open) => !open)}
+                                aria-expanded={showCompany}
+                                className="flex items-center gap-1 body-sm text-on-surface-variant hover:text-on-surface transition-colors"
+                            >
+                                <span className={`material-symbols-outlined text-base transition-transform ${showCompany ? 'rotate-90' : ''}`}>
+                                    chevron_right
+                                </span>
+                                {t('crm.leadModal.companyInfoHeading')}
+                            </button>
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 ${showCompany ? '' : 'hidden'}`}>
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
                                         {t('crm.leadModal.companyLabel')}
@@ -638,7 +675,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         {/* Pipeline Information */}
                         <div>
                             <h3 className="headline-sm text-on-surface mb-4">{t('crm.leadModal.pipelineInfoHeading')}</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <SelectRefined
                                         label={t('crm.leadModal.stageLabel')}
@@ -648,26 +685,24 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         disabled={!pipeline}
                                         placeholder={!pipeline ? t('crm.leadModal.noPipelineSelected') : t('crm.leadModal.selectStagePlaceholder')}
                                     />
+                                    {impliedStatus && (
+                                        // Set by the stage, so it is a note under the stage rather than a
+                                        // second field that looks editable and is not.
+                                        <p className="body-xs text-on-surface-variant mt-1.5" title={t('leadStatusSync.followsStage')}>
+                                            {t('crm.leadModal.statusLabel')}: {t(`crm.leadModal.status.${impliedStatus}` as MessageKey)}
+                                        </p>
+                                    )}
                                 </div>
-                                <div>
-                                    {impliedStatus ? (
-                                        // Set by the stage: shown, not edited, so it cannot contradict it.
-                                        <>
-                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.statusLabel')}</span>
-                                            <p className="px-3 py-2 body-md rounded-lg bg-surface-container-low border border-outline-variant/40 text-on-surface">
-                                                {t(`crm.leadModal.status.${impliedStatus}` as MessageKey)}
-                                                <span className="ms-2 body-sm text-on-surface-variant">· {t('leadStatusSync.followsStage')}</span>
-                                            </p>
-                                        </>
-                                    ) : (
+                                {!impliedStatus && (
+                                    <div>
                                         <SelectRefined
                                             label={t('crm.leadModal.statusLabel')}
                                             value={formData.status}
                                             options={statusOptions}
                                             onChange={(val) => handleFieldChange('status', val)}
                                         />
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block body-sm text-on-surface-variant mb-2">
                                         {t('crm.leadModal.dealValueLabel')}
@@ -689,27 +724,31 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         </p>
                                     )}
                                 </div>
-                                <div className={isDeveloper && workspaceId ? 'hidden' : undefined}>
-                                    <label className="block body-sm text-on-surface-variant mb-2">
-                                        {t('crm.leadModal.sourceLabel')}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.source}
-                                        onChange={(e) => handleFieldChange('source', e.target.value)}
-                                        onBlur={() => handleFieldBlur('source')}
-                                        className={getFieldClassName('source')}
-                                        maxLength={100}
-                                        placeholder={t('crm.leadModal.sourcePlaceholder')}
-                                        aria-invalid={!!getFieldError('source')}
-                                        aria-describedby={getFieldError('source') ? 'source-error' : undefined}
-                                    />
-                                    {getFieldError('source') && (
-                                        <p id="source-error" className="body-xs text-error mt-1">
-                                            {getFieldError('source')}
-                                        </p>
-                                    )}
-                                </div>
+                                {/* A developer edits the source in the buyer brief below, as a
+                                    select over the known channels, so it is not asked twice. */}
+                                {!(isDeveloper && workspaceId) && (
+                                    <div>
+                                        <label className="block body-sm text-on-surface-variant mb-2">
+                                            {t('crm.leadModal.sourceLabel')}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.source}
+                                            onChange={(e) => handleFieldChange('source', e.target.value)}
+                                            onBlur={() => handleFieldBlur('source')}
+                                            className={getFieldClassName('source')}
+                                            maxLength={100}
+                                            placeholder={t('crm.leadModal.sourcePlaceholder')}
+                                            aria-invalid={!!getFieldError('source')}
+                                            aria-describedby={getFieldError('source') ? 'source-error' : undefined}
+                                        />
+                                        {getFieldError('source') && (
+                                            <p id="source-error" className="body-xs text-error mt-1">
+                                                {getFieldError('source')}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -729,29 +768,98 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                             />
                         )}
 
+                        {/* Notes, with the assistant in their header: what it writes is
+                            what goes into the notes, so the two belong together. */}
+                        <div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <label htmlFor="lead-notes" className="body-sm text-on-surface-variant">
+                                    {t('crm.leadModal.notesLabel')}
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-secondary text-base" style={{ fontVariationSettings: 'FILL 1' }} aria-hidden="true">auto_awesome</span>
+                                    {([['summary', t('crm.leadModal.summarizeLeadButton')], ['emailDraft', t('crm.leadModal.draftEmailButton')]] as Array<['summary' | 'emailDraft', string]>).map(([kind, label]) => (
+                                        <button
+                                            key={kind}
+                                            type="button"
+                                            aria-pressed={aiPanel === kind}
+                                            onClick={() => aiPanel === kind ? setAiPanel('none') : runAI(kind)}
+                                            className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                                                aiPanel === kind
+                                                    ? 'bg-secondary/20 text-secondary'
+                                                    : 'bg-secondary/10 text-secondary hover:bg-secondary/20'
+                                            }`}
+                                        >
+                                            {isAiLoading && aiPanel === kind
+                                                ? <Loader2 className="h-3 w-3 animate-spin inline" />
+                                                : label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <textarea
+                                id="lead-notes"
+                                value={formData.notes}
+                                onChange={(e) => handleFieldChange('notes', e.target.value)}
+                                onBlur={() => handleFieldBlur('notes')}
+                                rows={4}
+                                className={getFieldClassName('notes')}
+                                placeholder={t('crm.leadModal.notesPlaceholder')}
+                                maxLength={2000}
+                                aria-invalid={!!getFieldError('notes')}
+                                aria-describedby={getFieldError('notes') ? 'notes-error' : undefined}
+                            />
+                            {getFieldError('notes') && (
+                                <p id="notes-error" className="body-xs text-error mt-1">
+                                    {getFieldError('notes')}
+                                </p>
+                            )}
+                            {/* The count is only news when the limit is close. */}
+                            {formData.notes.length > 1800 && (
+                                <p className="body-xs text-on-surface-variant mt-1">
+                                    {t('crm.leadModal.notesCharCount', { count: formData.notes.length })}
+                                </p>
+                            )}
+
+                            {aiPanel !== 'none' && (
+                                <div className="mt-2 rounded-lg border border-outline-variant/30 bg-surface-container-low p-3 space-y-2">
+                                    <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                                        {aiPanel === 'summary' ? t('crm.leadModal.leadSummaryHeading') : t('crm.leadModal.emailDraftHeading')}
+                                    </div>
+                                    <div className="min-h-[60px] text-sm text-on-surface whitespace-pre-wrap">
+                                        {isAiLoading && !aiResult ? (
+                                            <Loader2 className="h-4 w-4 animate-spin text-secondary" />
+                                        ) : aiResult || '…'}
+                                    </div>
+                                    {!isAiLoading && aiResult && (
+                                        <button
+                                            type="button"
+                                            onClick={addResultToNotes}
+                                            className="text-xs font-medium text-secondary hover:underline"
+                                        >
+                                            {t('crm.leadModal.copyToNotes')}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+
                         {/* Tags */}
                         <div>
                             <label className="block body-sm text-on-surface-variant mb-2">
                                 {t('crm.leadModal.tagsLabel')}
                             </label>
-                            <div className="flex gap-2 mb-2">
-                                <input
-                                    type="text"
-                                    value={newTag}
-                                    onChange={(e) => setNewTag(e.target.value)}
-                                    onKeyPress={handleKeyPress}
-                                    className="flex-1 px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface focus:bg-surface-container-highest focus:outline-none transition-colors"
-                                    placeholder={t('crm.leadModal.tagPlaceholder')}
-                                    maxLength={50}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={handleAddTag}
-                                    className="px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
-                                >
-                                    {t('common.add')}
-                                </button>
-                            </div>
+                            {/* Enter adds the tag; the placeholder says so, so no button. */}
+                            <input
+                                type="text"
+                                value={newTag}
+                                onChange={(e) => setNewTag(e.target.value)}
+                                onKeyDown={handleKeyPress}
+                                onBlur={handleAddTag}
+                                className="premium-input w-full px-4 py-2.5 text-sm transition-all mb-2"
+                                placeholder={t('crm.leadModal.tagPlaceholder')}
+                                maxLength={50}
+                            />
                             {formData.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
                                     {formData.tags.map((tag, index) => (
@@ -809,80 +917,6 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                             </div>
                         )}
-
-                        {/* AI Tools */}
-                        <div className="rounded-xl border border-outline-variant/30 bg-surface-container-low p-3 space-y-3">
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-secondary text-base" style={{ fontVariationSettings: 'FILL 1' }}>auto_awesome</span>
-                                <span className="body-sm font-semibold text-on-surface">{t('crm.leadModal.aiAssistantLabel')}</span>
-                                <div className="flex gap-2 ml-auto">
-                                    <button
-                                        type="button"
-                                        onClick={() => aiPanel === 'summary' ? setAiPanel('none') : runAI('summary')}
-                                        className="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
-                                    >
-                                        {isAiLoading && aiPanel === 'summary' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('crm.leadModal.summarizeLeadButton')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => aiPanel === 'emailDraft' ? setAiPanel('none') : runAI('emailDraft')}
-                                        className="px-3 py-1 text-xs font-medium rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
-                                    >
-                                        {isAiLoading && aiPanel === 'emailDraft' ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('crm.leadModal.draftEmailButton')}
-                                    </button>
-                                </div>
-                            </div>
-                            {aiPanel !== 'none' && (
-                                <div className="space-y-2">
-                                    <div className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                                        {aiPanel === 'summary' ? t('crm.leadModal.leadSummaryHeading') : t('crm.leadModal.emailDraftHeading')}
-                                    </div>
-                                    <div className="min-h-[80px] text-sm text-on-surface whitespace-pre-wrap bg-surface-container rounded-lg p-3 border border-outline-variant/20">
-                                        {isAiLoading && !aiResult ? (
-                                            <Loader2 className="h-4 w-4 animate-spin text-secondary" />
-                                        ) : aiResult || '…'}
-                                    </div>
-                                    {!isAiLoading && aiResult && aiPanel === 'emailDraft' && (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFormData(prev => ({ ...prev, notes: aiResult }));
-                                                setAiPanel('none');
-                                            }}
-                                            className="text-xs text-secondary hover:underline"
-                                        >
-                                            {t('crm.leadModal.copyToNotes')}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Notes */}
-                        <div>
-                            <label className="block body-sm text-on-surface-variant mb-2">
-                                {t('crm.leadModal.notesLabel')}
-                            </label>
-                            <textarea
-                                value={formData.notes}
-                                onChange={(e) => handleFieldChange('notes', e.target.value)}
-                                onBlur={() => handleFieldBlur('notes')}
-                                rows={4}
-                                className={getFieldClassName('notes')}
-                                placeholder={t('crm.leadModal.notesPlaceholder')}
-                                maxLength={2000}
-                                aria-invalid={!!getFieldError('notes')}
-                                aria-describedby={getFieldError('notes') ? 'notes-error' : undefined}
-                            />
-                            {getFieldError('notes') && (
-                                <p id="notes-error" className="body-xs text-error mt-1">
-                                    {getFieldError('notes')}
-                                </p>
-                            )}
-                            <p className="body-xs text-on-surface-variant mt-1">
-                                {t('crm.leadModal.notesCharCount', { count: formData.notes.length })}
-                            </p>
-                        </div>
 
                         {/* Actions */}
                         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">

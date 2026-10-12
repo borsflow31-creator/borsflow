@@ -66,7 +66,7 @@ export default function LeadBriefFields({
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label={t('developerCrm.lead.owner')}>
                     <select className={inputClass} value={values.ownerId} onChange={(e) => onChange('ownerId', e.target.value)}>
                         <option value="">{t('developerCrm.lead.unassigned')}</option>
@@ -103,12 +103,25 @@ export default function LeadBriefFields({
                     <input type="text" maxLength={200} className={inputClass} value={values.preferredLocation} onChange={(e) => onChange('preferredLocation', e.target.value)} />
                 </Field>
 
-                <Field label={t('developerCrm.lead.budgetMin')}>
-                    <input type="number" min={0} step={1000} className={inputClass} value={values.budgetMin} onChange={(e) => onChange('budgetMin', e.target.value)} />
-                </Field>
-
-                <Field label={t('developerCrm.lead.budgetMax')}>
-                    <input type="number" min={0} step={1000} className={inputClass} value={values.budgetMax} onChange={(e) => onChange('budgetMax', e.target.value)} />
+                {/* One budget, not two numbers to label separately. */}
+                <Field label={t('developerCrm.lead.budget')}>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number" min={0} step={1000} className={inputClass}
+                            value={values.budgetMin}
+                            onChange={(e) => onChange('budgetMin', e.target.value)}
+                            placeholder={t('developerCrm.lead.budgetMin')}
+                            aria-label={t('developerCrm.lead.budgetMin')}
+                        />
+                        <span className="text-on-surface-variant" aria-hidden="true">–</span>
+                        <input
+                            type="number" min={0} step={1000} className={inputClass}
+                            value={values.budgetMax}
+                            onChange={(e) => onChange('budgetMax', e.target.value)}
+                            placeholder={t('developerCrm.lead.budgetMax')}
+                            aria-label={t('developerCrm.lead.budgetMax')}
+                        />
+                    </div>
                 </Field>
             </div>
 
