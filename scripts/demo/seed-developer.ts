@@ -7,7 +7,15 @@
  *   npx tsx scripts/demo/seed-developer.ts --reset    delete the demo, then create
  *   npx tsx scripts/demo/seed-developer.ts --remove   delete the demo only
  *
- * Only ever touches the accounts in DEMO_USERS and the workspace they own. The
+ * Add `--email someone@example.com` to fill an account that already exists
+ * instead, so its owner sees the developer workflow on their own login. That
+ * mode switches the account to the developer experience and renames its first
+ * workspace to match, but it never deletes the account or the workspace: on
+ * --reset and --remove it clears only the records this seed writes, so whatever
+ * was already in there stays. Colleague logins are derived from the address,
+ * so clearing one person's demo cannot empty another's.
+ *
+ * By default it only touches the accounts in DEMO_USERS and the workspace they own. The
  * data goes through the real services (reserve, sign, certify, pay...) so every
  * side effect -- counters, commissions, calls for funds, tasks, stage moves --
  * is what the app itself would produce. Services stamp `now`, so the history is
@@ -96,25 +104,83 @@ async function main() {
 
   const demoEmails = DEMO_USERS.map((u) => u.email)
 
+  /*
+   * `--email <address>`: fill an account that already exists, so its owner can
+   * walk the developer workflow on their own login. Without it the seed builds
+   * its own isolated accounts, which stays the default because this database
+   * is shared with real workspaces.
+   *
+   * A targeted run never deletes the account or its workspace: it clears only
+   * the records this seed writes, so anything that was already there survives.
+   */
+  const argv = process.argv.slice(2)
+  const emailAt = argv.indexOf('--email')
+  const targetEmail =
+    emailAt > -1 && argv[emailAt + 1] && !argv[emailAt + 1].startsWith('--')
+      ? argv[emailAt + 1].trim().toLowerCase()
+      : null
+  if (emailAt > -1 && !targetEmail) throw new Error('--email needs an address, e.g. --email someone@example.com')
+  /** Colleague accounts belong to the target, so clearing one demo cannot empty another. */
+  const mateSuffix = targetEmail ? `.demo.${targetEmail.split('@')[0].replace(/[^a-z0-9]/g, '')}@example.com` : ''
+
+  /** Everything this seed writes into a workspace. The rest of the workspace is left alone. */
+  const wipeWorkspace = async (id: string) => {
+    // Programs cascade to their units, milestones and calls for funds; leads to
+    // their tasks and logged calls.
+    await prisma.program.deleteMany({ where: { workspaceId: id } })
+    await prisma.lead.deleteMany({ where: { pipeline: { workspaceId: id } } })
+    await prisma.meeting.deleteMany({ where: { workspaceId: id } })
+    await prisma.commission.deleteMany({ where: { workspaceId: id } })
+    await prisma.marketingSpend.deleteMany({ where: { workspaceId: id } })
+    await prisma.salesTemplate.deleteMany({ where: { workspaceId: id } })
+    await prisma.alertRule.deleteMany({ where: { workspaceId: id } })
+    await prisma.activity.deleteMany({ where: { workspaceId: id } })
+  }
+
   // ── Remove ────────────────────────────────────────────────────────────────
-  const existing = await prisma.user.findMany({ where: { email: { in: demoEmails } }, select: { id: true, email: true } })
-  if (existing.length > 0) {
-    if (!args.has('--reset') && !args.has('--remove')) {
-      console.log('The demo already exists. Run with --reset to recreate it, or --remove to delete it.')
+  if (targetEmail) {
+    const target = await prisma.user.findFirst({
+      where: { email: { equals: targetEmail, mode: 'insensitive' } },
+      select: { id: true },
+    })
+    if (!target) throw new Error(`No account for ${targetEmail}.`)
+    const ws = await prisma.workspace.findFirst({
+      where: { ownerId: target.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true },
+    })
+    if (!ws) throw new Error(`${targetEmail} owns no workspace to fill.`)
+    const already = await prisma.program.count({ where: { workspaceId: ws.id } })
+    if (already > 0 && !args.has('--reset') && !args.has('--remove')) {
+      console.log(`"${ws.name}" already holds ${already} projects. Use --reset to rebuild it, or --remove to clear it.`)
       return
     }
-    const ids = existing.map((u) => u.id)
-    const workspaces = await prisma.workspace.findMany({ where: { ownerId: { in: ids } }, select: { id: true, name: true } })
-    for (const ws of workspaces) {
-      await prisma.workspace.delete({ where: { id: ws.id } })
-      console.log(`Deleted demo workspace "${ws.name}"`)
+    if (args.has('--reset') || args.has('--remove')) {
+      await wipeWorkspace(ws.id)
+      await prisma.user.deleteMany({ where: { email: { endsWith: mateSuffix } } })
+      console.log(`Cleared the demo data from "${ws.name}" (the workspace and its owner are untouched)`)
+      if (args.has('--remove')) return
     }
-    await prisma.user.deleteMany({ where: { id: { in: ids }, email: { in: demoEmails } } })
-    console.log(`Deleted ${ids.length} demo users`)
-    if (args.has('--remove')) return
-  } else if (args.has('--remove')) {
-    console.log('No demo to remove.')
-    return
+  } else {
+    const existing = await prisma.user.findMany({ where: { email: { in: demoEmails } }, select: { id: true, email: true } })
+    if (existing.length > 0) {
+      if (!args.has('--reset') && !args.has('--remove')) {
+        console.log('The demo already exists. Run with --reset to recreate it, or --remove to delete it.')
+        return
+      }
+      const ids = existing.map((u) => u.id)
+      const workspaces = await prisma.workspace.findMany({ where: { ownerId: { in: ids } }, select: { id: true, name: true } })
+      for (const ws of workspaces) {
+        await prisma.workspace.delete({ where: { id: ws.id } })
+        console.log(`Deleted demo workspace "${ws.name}"`)
+      }
+      await prisma.user.deleteMany({ where: { id: { in: ids }, email: { in: demoEmails } } })
+      console.log(`Deleted ${ids.length} demo users`)
+      if (args.has('--remove')) return
+    } else if (args.has('--remove')) {
+      console.log('No demo to remove.')
+      return
+    }
   }
 
   const { ensureDefaultPipelines, ensureDeveloperPipeline } = await import('../../src/lib/services/pipelines')
@@ -136,37 +202,97 @@ async function main() {
 
   // ── Accounts and workspace ────────────────────────────────────────────────
   const password = await bcrypt.hash(demoPassword(), 12)
-  const users: Record<string, string> = {}
-  for (const u of DEMO_USERS) {
-    const user = await prisma.user.create({
+  const DESCRIPTION = 'Promoteur immobilier – Alger, Oran, Constantine (données de démonstration)'
+  let ownerId: string
+  let workspaceId: string
+  let agents: string[]
+
+  if (targetEmail) {
+    // The account keeps its own login (Google or password) and its id; only the
+    // fields the developer experience reads are changed.
+    const target = await prisma.user.findFirstOrThrow({
+      where: { email: { equals: targetEmail, mode: 'insensitive' } },
+      select: { id: true },
+    })
+    ownerId = target.id
+    await prisma.user.update({ where: { id: ownerId }, data: { businessType: 'DEVELOPER' } })
+
+    const ws = await prisma.workspace.findFirstOrThrow({
+      where: { ownerId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    })
+    workspaceId = ws.id
+    // Prices are in dinars, so the workspace currency has to match or every
+    // figure on every page reads as dollars.
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { name: 'Promotion Nour El Bina', description: DESCRIPTION, icon: '🏗️', currency: 'DZD' },
+    })
+
+    // Two colleagues, so assignment, the team page and the activity feed show
+    // more than one name. Their addresses are derived from the target, so
+    // clearing one person's demo never touches another's.
+    const mates = [
+      { email: `samira${mateSuffix}`, name: 'Samira Bouzid', role: 'admin' },
+      { email: `yacine${mateSuffix}`, name: 'Yacine Meziane', role: 'member' },
+    ]
+    const mateIds: string[] = []
+    for (const m of mates) {
+      const user = await prisma.user.upsert({
+        where: { email: m.email },
+        update: {},
+        create: {
+          email: m.email,
+          name: m.name,
+          password,
+          emailVerified: daysAgo(200),
+          businessType: 'DEVELOPER',
+          notificationsEmail: false,
+          createdAt: daysAgo(200),
+        },
+      })
+      await prisma.workspaceMember.upsert({
+        where: { workspaceId_userId: { workspaceId, userId: user.id } },
+        update: { role: m.role },
+        create: { workspaceId, userId: user.id, role: m.role },
+      })
+      mateIds.push(user.id)
+    }
+    agents = [ownerId, ...mateIds]
+  } else {
+    const users: Record<string, string> = {}
+    for (const u of DEMO_USERS) {
+      const user = await prisma.user.create({
+        data: {
+          email: u.email,
+          name: u.name,
+          password,
+          emailVerified: daysAgo(200),
+          businessType: 'DEVELOPER',
+          notificationsEmail: false,
+          createdAt: daysAgo(200),
+        },
+      })
+      users[u.key] = user.id
+    }
+    ownerId = users.owner
+    agents = [users.owner, users.samira, users.yacine]
+
+    const workspace = await prisma.workspace.create({
       data: {
-        email: u.email,
-        name: u.name,
-        password,
-        emailVerified: daysAgo(200),
-        businessType: 'DEVELOPER',
-        notificationsEmail: false,
+        name: DEMO_WORKSPACE_NAME,
+        description: DESCRIPTION,
+        icon: '🏗️',
+        currency: 'DZD',
+        ownerId,
         createdAt: daysAgo(200),
       },
     })
-    users[u.key] = user.id
-  }
-  const ownerId = users.owner
-  const agents = [users.owner, users.samira, users.yacine]
-
-  const workspace = await prisma.workspace.create({
-    data: {
-      name: DEMO_WORKSPACE_NAME,
-      description: 'Promoteur immobilier – Alger, Oran, Constantine (données de démonstration)',
-      icon: '🏗️',
-      currency: 'DZD',
-      ownerId,
-      createdAt: daysAgo(200),
-    },
-  })
-  const workspaceId = workspace.id
-  for (const u of DEMO_USERS.filter((u) => u.role !== 'owner')) {
-    await prisma.workspaceMember.create({ data: { workspaceId, userId: users[u.key], role: u.role } })
+    workspaceId = workspace.id
+    for (const u of DEMO_USERS.filter((u) => u.role !== 'owner')) {
+      await prisma.workspaceMember.create({ data: { workspaceId, userId: users[u.key], role: u.role } })
+    }
   }
   await ensureDefaultPipelines(workspaceId)
   await ensureDeveloperPipeline(workspaceId)
@@ -654,14 +780,21 @@ async function main() {
     prisma.commission.groupBy({ by: ['status'], where: { workspaceId }, _count: true }),
     prisma.tMARequest.count({ where: { workspaceId } }),
   ])
+  const workspaceName = (await prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { name: true } })).name
   console.log('\nDemo ready.')
-  console.log(`  Workspace: ${DEMO_WORKSPACE_NAME} (${workspaceId})`)
+  console.log(`  Workspace: ${workspaceName} (${workspaceId})`)
   console.log(`  Units by status: ${lots.map((l) => `${l.status} ${l._count}`).join(', ')}`)
   console.log(`  Buyers: ${leads} · open follow-ups: ${tasks} · site visits: ${visits} · modification requests: ${tmas}`)
   console.log(`  Calls for funds: ${calls.map((c) => `${c.status} ${c._count}`).join(', ')}`)
   console.log(`  Commissions: ${commissions.map((c) => `${c.status} ${c._count}`).join(', ')}`)
-  console.log(`\n  Log in: ${DEMO_USERS[0].email} / ${demoPassword()}`)
-  console.log(`  Salespeople: ${DEMO_USERS.slice(1).map((u) => u.email).join(', ')} (same password)`)
+  if (targetEmail) {
+    // The account signs in however it already did; only the colleagues are new.
+    console.log(`\n  Log in: ${targetEmail} (its own existing password or Google sign-in)`)
+    console.log(`  Colleagues: samira${mateSuffix}, yacine${mateSuffix} / ${demoPassword()}`)
+  } else {
+    console.log(`\n  Log in: ${DEMO_USERS[0].email} / ${demoPassword()}`)
+    console.log(`  Salespeople: ${DEMO_USERS.slice(1).map((u) => u.email).join(', ')} (same password)`)
+  }
 }
 
 main()
