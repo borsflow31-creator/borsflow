@@ -40,7 +40,7 @@ function personName(p?: { firstName: string; lastName: string } | null): string 
 
 function InventoryInner() {
     const { workspaceId, ready } = useWorkspaceParam();
-    const { t, formatNumber, formatDate } = useI18n();
+    const { t, formatNumber } = useI18n();
     /** A unit type in the reader's language ("apartment" -> "Appartement"); unknown types as stored. */
     const typeName = (type: string) => {
         const key = `developerProjectDialogs.type${type.charAt(0).toUpperCase()}${type.slice(1)}` as MessageKey;
@@ -126,6 +126,17 @@ function InventoryInner() {
     // reserved, a signed deed as sold), for the units the filters show.
     const totals = useMemo(() => summarizeUnits(lots), [lots]);
 
+    /** Projects with more than one building, the only ones where naming it tells you anything. */
+    const multiBuilding = useMemo(() => {
+        const byProject = new Map<string, Set<string>>();
+        for (const lot of lots) {
+            const seen = byProject.get(lot.programId) ?? new Set<string>();
+            if (lot.buildingId) seen.add(lot.buildingId);
+            byProject.set(lot.programId, seen);
+        }
+        return new Set([...byProject].filter(([, seen]) => seen.size > 1).map(([id]) => id));
+    }, [lots]);
+
     if (!ready) return <PageSkeleton />;
     if (!workspaceId) return <AppShell><NoWorkspace /></AppShell>;
 
@@ -139,6 +150,27 @@ function InventoryInner() {
                 {t('developer.paymentsPartial', { paid: moneyCompact(p.paid), total: moneyCompact(p.called) })}
             </span>
         );
+    };
+
+    /** Where the unit is: its project, and the building only when the project has several. */
+    const projectLine = (lot: any) => {
+        const project = lot.program?.name ?? '';
+        return multiBuilding.has(lot.programId) && lot.building?.name ? `${project} · ${lot.building.name}` : project;
+    };
+
+    /**
+     * What the unit is, in one line: typology (or its type, for a parking space or
+     * a shop, which have none), how big, and which floor. These were six columns
+     * that each held two or three characters and pushed the table off screen.
+     */
+    const describeUnit = (lot: any) => {
+        const floor =
+            lot.floor === 0 ? t('developerProjectPage.floorGround')
+            : typeof lot.floor === 'number' ? t('developerProjectPage.floorValue', { n: lot.floor })
+            : null;
+        return [lot.typology || typeName(lot.type), lot.surfaceArea ? `${lot.surfaceArea} m²` : null, floor]
+            .filter(Boolean)
+            .join(' · ');
     };
 
     const selectClass = `${inputClass} !py-2`;
@@ -226,20 +258,11 @@ function InventoryInner() {
                             <thead className="bg-surface-container-low">
                                 <tr>
                                     <th className={thClass}>{t('developer.colUnit')}</th>
-                                    <th className={thClass}>{t('developer.colBuilding')}</th>
-                                    <th className={thClass}>{t('developer.colFloor')}</th>
-                                    <th className={thClass}>{t('developer.colType')}</th>
-                                    <th className={thClass}>{t('developer.colBedrooms')}</th>
-                                    <th className={`${thClass} text-end`}>{t('developer.colArea')}</th>
-                                    <th className={thClass}>{t('developer.colOrientation')}</th>
-                                    <th className={`${thClass} text-end`}>{t('developer.colListPrice')}</th>
-                                    <th className={`${thClass} text-end`}>{t('developer.colDiscount')}</th>
-                                    <th className={`${thClass} text-end`}>{t('developer.colFinalPrice')}</th>
+                                    <th className={thClass}>{t('developer.colDetails')}</th>
+                                    <th className={`${thClass} text-end`}>{t('developer.colPrice')}</th>
                                     <th className={thClass}>{t('developer.colStatus')}</th>
                                     <th className={thClass}>{t('developer.colOwner')}</th>
                                     <th className={thClass}>{t('developer.colAgent')}</th>
-                                    <th className={thClass}>{t('developer.colReservedAt')}</th>
-                                    <th className={thClass}>{t('developer.colContractAt')}</th>
                                     <th className={thClass}>{t('developer.colPaymentStatus')}</th>
                                     <th className={thClass} />
                                 </tr>
@@ -254,22 +277,19 @@ function InventoryInner() {
                                         className="cursor-pointer hover:bg-surface-container-low/60 focus:bg-surface-container-low/60 focus:outline-none transition-colors"
                                     >
                                         <td className={tdClass}>
-                                            <span className="block font-semibold text-on-surface">{lot.lotNumber}</span>
-                                            <span className="block text-[11px] text-on-surface-variant">{lot.program?.name}</span>
+                                            <span className="block font-semibold text-on-surface whitespace-nowrap">{lot.lotNumber}</span>
+                                            <span className="block max-w-[15rem] truncate text-[11px] text-on-surface-variant" title={projectLine(lot)}>
+                                                {projectLine(lot)}
+                                            </span>
                                         </td>
-                                        <td className={tdClass}>{lot.building?.name ?? '–'}</td>
-                                        <td className={`${tdClass} tabular-nums`}>{lot.floor}</td>
-                                        <td className={tdClass}>
-                                            {typeName(lot.type)}{lot.typology ? ` · ${lot.typology}` : ''}
+                                        <td className={`${tdClass} whitespace-nowrap`}>{describeUnit(lot)}</td>
+                                        <td className={`${tdClass} text-end tabular-nums whitespace-nowrap`}>
+                                            <span className="font-semibold">{money(lot.totalPrice)}</span>
+                                            {lot.discount > 0 && (
+                                                // Only worth the second line when something was actually taken off.
+                                                <span className="block text-[11px] text-on-surface-variant line-through">{money(lot.basePrice)}</span>
+                                            )}
                                         </td>
-                                        <td className={`${tdClass} tabular-nums`}>{lot.bedrooms ?? '–'}</td>
-                                        <td className={`${tdClass} text-end tabular-nums`}>{lot.surfaceArea} m²</td>
-                                        <td className={tdClass}>{lot.orientation ?? '–'}</td>
-                                        <td className={`${tdClass} text-end tabular-nums`}>{money(lot.basePrice)}</td>
-                                        <td className={`${tdClass} text-end tabular-nums text-on-surface-variant`}>
-                                            {lot.discount > 0 ? `−${money(lot.discount)}` : '–'}
-                                        </td>
-                                        <td className={`${tdClass} text-end tabular-nums font-semibold`}>{money(lot.totalPrice)}</td>
                                         <td className={tdClass}>
                                             <Chip tone={LOT_STATUS_TONE[lot.status] ?? LOT_STATUS_TONE.delivered}>
                                                 {t(LOT_STATUS_LABEL[lot.status] ?? LOT_STATUS_LABEL.available)}
@@ -279,8 +299,6 @@ function InventoryInner() {
                                             {personName(lot.buyerLead ?? lot.optionHolderLead)}
                                         </td>
                                         <td className={tdClass}>{lot.salesAgent?.name ?? lot.salesAgent?.email ?? '–'}</td>
-                                        <td className={`${tdClass} whitespace-nowrap tabular-nums`}>{lot.reservedAt ? formatDate(lot.reservedAt) : '–'}</td>
-                                        <td className={`${tdClass} whitespace-nowrap tabular-nums`}>{lot.contractSignedAt ? formatDate(lot.contractSignedAt) : '–'}</td>
                                         <td className={tdClass}>{paymentCell(lot)}</td>
                                         <td className={`${tdClass} text-end`}>
                                             {CANCELLABLE.has(lot.status) && (

@@ -2966,6 +2966,8 @@ export interface Messages {
     filterMaxPrice: string;
     clearFilters: string;
     colUnit: string;
+    colDetails: string;
+    colPrice: string;
     colBuilding: string;
     colFloor: string;
     colType: string;
@@ -4938,6 +4940,8 @@ export interface Messages {
     callsEmpty: string;
     colCall: string;
     colUnit: string;
+    colDetails: string;
+    colPrice: string;
     colBuyer: string;
     colMilestone: string;
     colTranche: string;
@@ -8024,7 +8028,7 @@ const en: Messages = {
   },
   developer: {
     navProjects: 'Projects',
-    navInventory: 'Inventory',
+    navInventory: "Units",
     navBuyers: 'Buyers',
     navCollections: 'Collections',
     navModifications: 'Modifications',
@@ -8034,8 +8038,8 @@ const en: Messages = {
     statusContractSigned: 'Contracted',
     statusDeedSigned: 'Sold',
     statusDelivered: 'Delivered',
-    inventoryTitle: 'Unit inventory',
-    inventorySubtitle: 'Every unit across your developments.',
+    inventoryTitle: "All your units",
+    inventorySubtitle: "Every apartment, parking space and shop in your developments, with its price and status.",
     inventoryEmpty: 'No units match these filters.',
     inventoryTableView: 'Table',
     inventoryBuildingView: 'Building',
@@ -8047,7 +8051,9 @@ const en: Messages = {
     filterMinPrice: 'Min price',
     filterMaxPrice: 'Max price',
     clearFilters: 'Clear filters',
-    colUnit: 'Unit',
+    colUnit: "Unit",
+    colDetails: "Details",
+    colPrice: "Price",
     colBuilding: 'Building',
     colFloor: 'Floor',
     colType: 'Type',
@@ -8057,7 +8063,7 @@ const en: Messages = {
     colListPrice: 'List price',
     colDiscount: 'Discount',
     colFinalPrice: 'Final price',
-    colOwner: 'Owner',
+    colOwner: "Buyer",
     colAgent: 'Agent',
     colReservedAt: 'Reserved',
     colContractAt: 'Contract',
@@ -8431,7 +8437,7 @@ const en: Messages = {
       spendFailed: 'We could not save that.',
       tab_sales: 'Sales',
       tab_marketing: 'Marketing',
-      tab_inventory: 'Inventory',
+      tab_inventory: "Units",
       tab_financial: 'Financial',
       groupBy_source: 'By source',
       groupBy_campaign: 'By campaign',
@@ -8750,7 +8756,7 @@ const en: Messages = {
       title: 'Projects',
       subtitle: 'Developments and the units inside them.',
       stats: {
-        totalUnits: 'Total units',
+        totalUnits: "Total units",
         available: 'Available',
         reserved: 'Reserved',
         reservedHint: 'Held or reserved',
@@ -10020,6 +10026,8 @@ const en: Messages = {
     callsEmpty: "No calls for funds yet. Certify a construction milestone to send the first ones.",
     colCall: "Call",
     colUnit: "Unit",
+    colDetails: "Details",
+    colPrice: "Price",
     colBuyer: "Buyer",
     colMilestone: "Milestone",
     colTranche: "Share",
