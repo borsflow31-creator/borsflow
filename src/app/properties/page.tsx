@@ -15,6 +15,7 @@ import PropertyFormModal from '@/components/realestate/PropertyFormModal';
 import { inputClass, primaryButton, secondaryButton, useWorkspaceInfo, errorFrom } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { PROPERTY_STATUSES, PROPERTY_TYPES } from '@/lib/crm/lifecycle';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 
 interface Filters {
     q: string;
@@ -134,6 +135,9 @@ function PropertiesPageInner() {
                         <h1 className="display-md text-on-surface">{t('realEstate.properties.title')}</h1>
                         <p className="body-md text-on-surface-variant">{t('realEstate.properties.subtitle')}</p>
                     </div>
+                        <div className="mb-5">
+                            <StandaloneGuide id="properties" />
+                        </div>
                     <div className="flex items-center gap-2">
                         {ownerBoardId && (
                             <Link href={`/crm?workspace=${workspaceId}&pipeline=${ownerBoardId}`} className={secondaryButton}>

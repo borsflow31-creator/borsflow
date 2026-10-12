@@ -9,6 +9,7 @@ import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { ExpiryLabel, MandateActionDialog, type MandateRecord } from '@/components/realestate/MandatePanel';
 import { Badge, STATUS_TONE, contactName, errorFrom, primaryButton, secondaryButton, useWorkspaceInfo } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 
 const QUEUES = ['expiring', 'active', 'expired', 'all'] as const;
 type Queue = (typeof QUEUES)[number];
@@ -70,6 +71,9 @@ function MandatesPageInner() {
                 <div className="mb-6">
                     <h1 className="display-md text-on-surface">{t('realEstate.mandates.title')}</h1>
                     <p className="body-md text-on-surface-variant">{t('realEstate.mandates.subtitle')}</p>
+                </div>
+                <div className="mb-5">
+                    <StandaloneGuide id="mandates" />
                 </div>
 
                 <div className="mb-4 flex flex-wrap gap-2" role="tablist">

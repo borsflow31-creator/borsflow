@@ -4400,6 +4400,26 @@ export interface Messages {
         step2: string;
         step3: string;
       };
+      properties: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      viewings: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      mandates: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
+      offers: {
+        step1: string;
+        step2: string;
+        step3: string;
+      };
       alerts: {
         step1: string;
         step2: string;
@@ -9488,6 +9508,26 @@ const en: Messages = {
         step1: 'Choose a period and a project, or all projects.',
         step2: 'Read the tables: sales, marketing spend per lead, stock and money collected.',
         step3: 'Export any table to CSV to share it or open it in a spreadsheet.',
+      },
+      properties: {
+        step1: "Add a property with \"New property\": its address, type, price and the owner selling it.",
+        step2: "A property moves from prospect to valuation, then to a signed mandate and on to the market. The owner board shows that progress column by column.",
+        step3: "Open a property to see everything attached to it: its mandate, the buyers interested, the viewings booked and the offers received.",
+      },
+      viewings: {
+        step1: "Book a viewing with \"Book a viewing\": the property, the buyer, the date and how long it will take.",
+        step2: "The three tabs are upcoming visits, past ones, and the ones still waiting for feedback.",
+        step3: "Record what the buyer thought afterwards. That feedback reaches the property and the owner, and is what you report back to the vendor.",
+      },
+      mandates: {
+        step1: "A mandate is your authority to sell one property: record it with \"New mandate\", with its type, its fee and the date it runs out.",
+        step2: "Simple, semi-exclusive or exclusive decides whether another agency, or the owner, may sell it too.",
+        step3: "The tabs put what is expiring first. Renew before the end date, or the listing comes off the market.",
+      },
+      offers: {
+        step1: "Record an offer with \"Record an offer\": the buyer, the amount, the deposit, how they are financing it and until when it stands.",
+        step2: "Conditions — finance, survey, a chain — are part of the offer. The highest price is not always the safest one.",
+        step3: "Accepting one puts the property under offer and rejects the others, so take it to the vendor before you accept.",
       },
       alerts: {
         step1: 'Each card is one rule, such as "a new lead has had no answer for 30 minutes".',

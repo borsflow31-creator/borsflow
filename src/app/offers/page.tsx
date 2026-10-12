@@ -9,6 +9,7 @@ import OffersPanel from '@/components/realestate/OffersPanel';
 import { useWorkspaceInfo } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { OFFER_STATUSES } from '@/lib/crm/lifecycle';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 
 /** Every offer in the agency, filterable by status. Recording one happens on its property. */
 function OffersPageInner() {
@@ -36,6 +37,9 @@ function OffersPageInner() {
                 <div className="mb-6">
                     <h1 className="display-md text-on-surface">{t('realEstate.offers.title')}</h1>
                     <p className="body-md text-on-surface-variant">{t('realEstate.offers.subtitle')}</p>
+                </div>
+                <div className="mb-5">
+                    <StandaloneGuide id="offers" />
                 </div>
                 <div className="mb-4 flex flex-wrap gap-2" role="tablist">
                     {filters.map(f => (

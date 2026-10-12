@@ -1,7 +1,9 @@
 import type { ChatTool } from '@/lib/ai/provider'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { pagesFor, searchPages, type PageDoc } from '@/lib/ai/knowledge/pages'
+import { pagesFor, searchPages, searchWords, type PageDoc } from '@/lib/ai/knowledge/pages'
+import { searchConcepts } from '@/lib/ai/knowledge/concepts'
+import type { ServerTranslate } from '@/i18n/server'
 import { effectiveLeadStatus } from '@/lib/crm/lead-status'
 import { buildPageAccessWhere, getUserPageAccess, hasPermission, type Role } from '@/lib/workspace'
 import { createPage } from '@/lib/services/pages'
@@ -29,6 +31,8 @@ export interface ToolContext {
   timeZone?: string
   /** The screen the user has open, so "this page" can be answered without a guess. */
   currentPage?: PageDoc | null
+  /** Translator for the user's language, so screens are named as they see them. */
+  t?: ServerTranslate
 }
 
 export interface ToolOutcome {
@@ -134,20 +138,26 @@ const TOOLS: AgentTool[] = [
     async execute(ctx, args) {
       const query = str(args, 'query', 120)
       const isDeveloper = !!ctx.isDeveloper
-      const found = query ? searchPages(query, isDeveloper) : []
+      const found = query ? searchPages(query, isDeveloper, ctx.t) : []
+      // The rules behind the screens: what a status means, what signing a
+      // contract sets off. Most "how does X work" questions want one of these.
+      const concepts = query ? searchConcepts(query, isDeveloper, searchWords(query)) : []
+      if (found.length > 0 || concepts.length > 0) {
+        return { data: { matched: true, screens: found, howItWorks: concepts } }
+      }
       // "How does this page work?" asked with no name, or a name that matches
       // nothing: the screen in front of them is the one they mean.
-      if (found.length === 0 && ctx.currentPage) {
+      if (ctx.currentPage) {
         return { data: { matched: true, theScreenTheyAreOn: true, screens: [ctx.currentPage] } }
       }
       // Nothing matched, or nothing asked: the list of screens is a better answer
       // than silence, and lets the model point somewhere useful.
-      if (found.length === 0) {
+      {
         return {
           data: {
             matched: false,
             note: query ? 'No screen matches those words. These are all of them.' : undefined,
-            screens: pagesFor(isDeveloper).map(({ title, route, purpose }) => ({ title, route, purpose })),
+            screens: pagesFor(isDeveloper, ctx.t).map(({ title, route, purpose }) => ({ title, route, purpose })),
           },
         }
       }

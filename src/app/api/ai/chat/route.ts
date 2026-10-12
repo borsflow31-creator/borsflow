@@ -12,7 +12,7 @@ import { buildSystemPrompt, safeTimeZone } from '@/lib/ai/agent/prompt'
 import { MAX_OUTPUT_TOKENS, runAgent, type AgentEvent } from '@/lib/ai/agent/run'
 import { toolDefinitions } from '@/lib/ai/agent/tools'
 import { pageForRoute } from '@/lib/ai/knowledge/pages'
-import { parseLocale } from '@/i18n/server'
+import { parseLocale, serverTranslator } from '@/i18n/server'
 
 /**
  * The workspace assistant. Streams newline-delimited JSON events (see
@@ -123,8 +123,9 @@ export async function POST(req: NextRequest) {
     // what they chose for the account, then English.
     const locale = parseLocale(body.locale) ?? parseLocale(user?.locale) ?? 'en'
     // Which screen they have open, so "how does this page work?" has an answer.
+    const translate = await serverTranslator(locale)
     const currentPage = typeof body.path === 'string' && body.path.startsWith('/')
-        ? pageForRoute(body.path.slice(0, 200), isDeveloper)
+        ? pageForRoute(body.path.slice(0, 200), isDeveloper, translate)
         : null
     const systemPrompt = buildSystemPrompt({
         userName: user?.name ?? null,
@@ -136,6 +137,7 @@ export async function POST(req: NextRequest) {
         isDeveloper,
         locale,
         currentPage,
+        t: translate,
     })
     const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }, ...trimHistory(history)]
 
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
                 }
             }
             await runAgent({
-                ctx: { userId, workspaceId, role, isDeveloper, timeZone, currentPage },
+                ctx: { userId, workspaceId, role, isDeveloper, timeZone, currentPage, t: translate },
                 reservation: reserve.reservation,
                 messages,
                 send,

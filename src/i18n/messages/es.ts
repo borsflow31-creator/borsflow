@@ -4402,6 +4402,26 @@ const es: Messages = {
         step2: "Lee las tablas: ventas, gasto de marketing por lead, stock y cobros.",
         step3: "Exporta cualquier tabla a CSV para compartirla o abrirla en una hoja de cálculo.",
       },
+      properties: {
+        step1: "Añade un inmueble con «Nuevo inmueble»: su dirección, tipo, precio y el propietario que vende.",
+        step2: "Un inmueble pasa de prospecto a tasación, luego al mandato firmado y al mercado. El tablero de propietarios muestra ese avance columna a columna.",
+        step3: "Abre un inmueble para ver todo lo asociado: su mandato, los compradores interesados, las visitas programadas y las ofertas recibidas.",
+      },
+      viewings: {
+        step1: "Programa una visita con «Programar visita»: el inmueble, el comprador, la fecha y la duración.",
+        step2: "Las tres pestañas son las visitas próximas, las pasadas y las que aún esperan comentarios.",
+        step3: "Anota después la opinión del comprador. Ese comentario llega al inmueble y al propietario, y es lo que informas al vendedor.",
+      },
+      mandates: {
+        step1: "Un mandato es tu autorización para vender un inmueble: regístralo con «Nuevo mandato», con su tipo, sus honorarios y su fecha de fin.",
+        step2: "Simple, semiexclusivo o exclusivo determina si otra agencia, o el propietario, también puede venderlo.",
+        step3: "Las pestañas ponen primero lo que caduca. Renueva antes de la fecha de fin o el anuncio sale del mercado.",
+      },
+      offers: {
+        step1: "Registra una oferta con «Registrar oferta»: el comprador, el importe, el depósito, su financiación y hasta cuándo es válida.",
+        step2: "Las condiciones —financiación, tasación, cadena de ventas— forman parte de la oferta. El precio más alto no siempre es el más seguro.",
+        step3: "Aceptar una deja el inmueble con oferta aceptada y rechaza las demás: preséntala al vendedor antes de aceptar.",
+      },
       alerts: {
         step1: "Cada tarjeta es una regla, por ejemplo «un lead nuevo lleva 30 minutos sin respuesta».",
         step2: "Activa o desactiva una regla y ajusta su plazo o umbral.",

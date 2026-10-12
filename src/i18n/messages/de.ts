@@ -4402,6 +4402,26 @@ const de: Messages = {
         step2: "Lesen Sie die Tabellen: Verkäufe, Marketingkosten pro Lead, Bestand und Zahlungseingänge.",
         step3: "Exportieren Sie jede Tabelle als CSV, um sie zu teilen oder in einer Tabellenkalkulation zu öffnen.",
       },
+      properties: {
+        step1: "Legen Sie ein Objekt mit „Neues Objekt“ an: Adresse, Art, Preis und den verkaufenden Eigentümer.",
+        step2: "Ein Objekt geht vom Interessenten über die Bewertung zum unterschriebenen Auftrag und auf den Markt. Das Eigentümer-Board zeigt diesen Verlauf Spalte für Spalte.",
+        step3: "Öffnen Sie ein Objekt, um alles Zugehörige zu sehen: Auftrag, interessierte Käufer, geplante Besichtigungen und eingegangene Angebote.",
+      },
+      viewings: {
+        step1: "Planen Sie eine Besichtigung mit „Besichtigung buchen“: Objekt, Käufer, Termin und Dauer.",
+        step2: "Die drei Reiter sind kommende Besichtigungen, vergangene und solche, deren Rückmeldung noch fehlt.",
+        step3: "Halten Sie danach die Rückmeldung des Käufers fest. Sie erscheint beim Objekt und beim Eigentümer und ist das, was Sie dem Verkäufer berichten.",
+      },
+      mandates: {
+        step1: "Ein Auftrag ist Ihre Vollmacht, ein Objekt zu verkaufen: Erfassen Sie ihn mit „Neuer Auftrag“, mit Art, Honorar und Ablaufdatum.",
+        step2: "Einfach, halbexklusiv oder exklusiv entscheidet, ob auch eine andere Agentur oder der Eigentümer verkaufen darf.",
+        step3: "Die Reiter zeigen zuerst, was ausläuft. Verlängern Sie vor dem Enddatum, sonst wird das Inserat zurückgezogen.",
+      },
+      offers: {
+        step1: "Erfassen Sie ein Angebot mit „Angebot erfassen“: Käufer, Betrag, Anzahlung, Finanzierung und Gültigkeitsdauer.",
+        step2: "Bedingungen – Finanzierung, Gutachten, Verkaufskette – gehören zum Angebot. Der höchste Preis ist nicht immer der sicherste.",
+        step3: "Eine Annahme setzt das Objekt auf „Angebot liegt vor“ und lehnt die übrigen ab – legen Sie es vorher dem Verkäufer vor.",
+      },
       alerts: {
         step1: "Jede Karte ist eine Regel, etwa „ein neuer Lead ist seit 30 Minuten unbeantwortet“.",
         step2: "Schalten Sie eine Regel ein oder aus und passen Sie Frist oder Schwellenwert an.",

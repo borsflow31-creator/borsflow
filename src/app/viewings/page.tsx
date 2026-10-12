@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import ViewingsList, { ViewingFormModal } from '@/components/realestate/ViewingsPanel';
 import { useWorkspaceInfo } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
+import { StandaloneGuide } from '@/components/ui/PageHeader';
 
 const VIEWS = ['upcoming', 'needs_feedback', 'past'] as const;
 
@@ -38,6 +39,9 @@ function ViewingsPageInner() {
                 <div className="mb-6">
                     <h1 className="display-md text-on-surface">{t('realEstate.viewings.title')}</h1>
                     <p className="body-md text-on-surface-variant">{t('realEstate.viewings.subtitle')}</p>
+                </div>
+                <div className="mb-5">
+                    <StandaloneGuide id="viewings" />
                 </div>
                 <div className="mb-4 flex flex-wrap gap-2" role="tablist">
                     {VIEWS.map(v => (

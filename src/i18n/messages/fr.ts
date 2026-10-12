@@ -4402,6 +4402,26 @@ const fr: Messages = {
         step2: "Lisez les tableaux : ventes, dépenses marketing par lead, stock et encaissements.",
         step3: "Exportez n'importe quel tableau en CSV pour le partager ou l'ouvrir dans un tableur.",
       },
+      properties: {
+        step1: "Ajoutez un bien avec « Nouveau bien » : son adresse, son type, son prix et le propriétaire qui vend.",
+        step2: "Un bien passe de prospect à estimation, puis au mandat signé et à la mise sur le marché. Le tableau des propriétaires montre cette progression colonne par colonne.",
+        step3: "Ouvrez un bien pour voir tout ce qui s’y rattache : son mandat, les acquéreurs intéressés, les visites prévues et les offres reçues.",
+      },
+      viewings: {
+        step1: "Planifiez une visite avec « Planifier une visite » : le bien, l’acquéreur, la date et la durée.",
+        step2: "Les trois onglets sont les visites à venir, les visites passées et celles dont le retour manque encore.",
+        step3: "Notez ensuite l’avis de l’acquéreur. Ce retour remonte au bien et au propriétaire, et c’est ce que vous rapportez au vendeur.",
+      },
+      mandates: {
+        step1: "Un mandat est votre autorisation de vendre un bien : enregistrez-le avec « Nouveau mandat », avec son type, ses honoraires et sa date de fin.",
+        step2: "Simple, semi-exclusif ou exclusif détermine si une autre agence, ou le propriétaire, peut aussi le vendre.",
+        step3: "Les onglets placent en premier ce qui expire. Renouvelez avant la date de fin, sinon l’annonce est retirée du marché.",
+      },
+      offers: {
+        step1: "Enregistrez une offre avec « Enregistrer une offre » : l’acquéreur, le montant, le dépôt, son financement et sa date de validité.",
+        step2: "Les conditions — financement, expertise, chaîne de ventes — font partie de l’offre. Le prix le plus élevé n’est pas toujours le plus sûr.",
+        step3: "En accepter une place le bien sous offre et refuse les autres : présentez-la au vendeur avant d’accepter.",
+      },
       alerts: {
         step1: "Chaque carte est une règle, par exemple « un nouveau lead attend une réponse depuis 30 minutes ».",
         step2: "Activez ou désactivez une règle, et ajustez son délai ou son seuil.",

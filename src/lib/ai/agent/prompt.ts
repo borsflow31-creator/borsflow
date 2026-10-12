@@ -1,6 +1,8 @@
 import { hasPermission, type Role } from '@/lib/workspace'
 import type { Locale } from '@/i18n/I18nProvider'
+import type { ServerTranslate } from '@/i18n/server'
 import { pagesFor, type PageDoc } from '@/lib/ai/knowledge/pages'
+import { conceptsFor } from '@/lib/ai/knowledge/concepts'
 
 /** Named rather than coded, so the model is told a language and not a key. */
 const LANGUAGE_NAMES: Record<Locale, string> = {
@@ -26,6 +28,8 @@ export interface PromptContext {
   locale?: Locale
   /** The screen the user is looking at, so "this page" has a referent. */
   currentPage?: PageDoc | null
+  /** Translator for `locale`, so screens are named as that dashboard names them. */
+  t?: ServerTranslate
 }
 
 /** A browser-supplied IANA time zone, or UTC when missing/invalid. */
@@ -75,11 +79,16 @@ WRITE EVERY ANSWER IN ${LANGUAGE_NAMES[ctx.locale ?? 'en'].toUpperCase()}. That 
     }`,
 
     `## The screens of this app, and how each one works
-${pagesFor(!!ctx.isDeveloper)
+${pagesFor(!!ctx.isDeveloper, ctx.t)
       .map((p) => `- ${p.title} (${p.route}): ${p.purpose}${p.steps?.length ? ` How: ${p.steps.map((step, i) => `(${i + 1}) ${step}`).join(' ')}` : ''}`)
       .join('\n')}
 This list is the whole truth about what this app does. Answer "how do I…", "where do I…" and "what is this page for" from it alone: name the screen, link its route, and give its steps in order. Never invent a step, a screen or a button that is not written above; where something is not there, say so and point at the nearest screen that is.
-Link a screen as a relative Markdown link, exactly as its path is written above: [Units](/developer/inventory). Never write a host name, a full URL, or a path with a placeholder in it.`,
+Link a screen as a relative Markdown link, exactly as its path is written above: [Units](/developer/inventory). Never write a host name, a full URL, or a path with a placeholder in it.
+For what is on a screen -- which button, which filter, which column -- call explain_feature and use what it returns.`,
+
+    `## How the business works
+${conceptsFor(!!ctx.isDeveloper).map((c) => `### ${c.title}\n${c.body}`).join('\n')}
+These rules are what happens behind the screens. Answer "what does this status mean", "when is a commission created", "what happens if I cancel" from them, and never from your own assumptions about how such software usually behaves.`,
 
     `## Using tools
 - Answer questions about workspace data by calling tools. Never guess or invent records, numbers, names or dates.
