@@ -4213,6 +4213,9 @@ const es: Messages = {
       created: 'Consulta registrada como nuevo contacto.',
       existing: 'Consulta añadida al contacto existente.',
       suppressed: 'Esta dirección se dio de baja, así que no se le enviarán correos automáticos.',
+      contact: 'Contacto',
+      contactSearchPlaceholder: 'Buscar un contacto existente…',
+      orNewContact: 'O añadir un contacto nuevo',
       contactRequired: 'Hace falta un correo electrónico o un teléfono',
       errors: {
         save: 'No se pudo registrar la consulta',

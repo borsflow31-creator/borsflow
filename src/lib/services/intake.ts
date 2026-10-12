@@ -43,6 +43,14 @@ export interface EnquiryInput {
   propertyReference?: string | null
   /** The agent entering it, for the manual channel. Otherwise the workspace owner is credited. */
   actorId?: string | null
+  /**
+   * The contact this enquiry came from, when the agent picked one from the list
+   * rather than typing it. It is the identity, so no name or address is needed
+   * and nothing is matched: de-duplication by email cannot find a contact who
+   * only ever gave a phone number, and would file the enquiry under a second
+   * copy of them.
+   */
+  leadId?: string | null
 }
 
 export interface EnquiryResult {
@@ -63,10 +71,11 @@ const clip = (value: unknown, max: number): string | null => {
 }
 
 export async function receiveEnquiry(input: EnquiryInput): Promise<EnquiryResult> {
+  const chosenLeadId = clip(input.leadId, 100)
   const email = clip(input.email, 254)?.toLowerCase() ?? null
   const phone = clip(input.phone, 40)
   if (email && !EMAIL.test(email)) throw new ServiceError('Enter a valid email address')
-  if (!email && !phone) throw new ServiceError('An email address or a phone number is required')
+  if (!chosenLeadId && !email && !phone) throw new ServiceError('An email address or a phone number is required')
 
   let firstName = clip(input.firstName, 100)
   const lastName = clip(input.lastName, 100) ?? ''
@@ -93,13 +102,21 @@ export async function receiveEnquiry(input: EnquiryInput): Promise<EnquiryResult
       })
     : null
 
-  // De-duplicate by address within the workspace.
-  const existing = email
+  // A contact the agent picked is taken as given; otherwise de-duplicate by
+  // address within the workspace.
+  const existing = chosenLeadId
+    ? await prisma.lead.findFirst({
+        where: { id: chosenLeadId, pipeline: { workspaceId: workspace.id } },
+        select: { id: true },
+      })
+    : email
     ? await prisma.lead.findFirst({
         where: { pipeline: { workspaceId: workspace.id }, email: { equals: email, mode: 'insensitive' } },
         select: { id: true },
       })
     : null
+  // The picked contact is not this workspace's: a stale list or a tampered id.
+  if (chosenLeadId && !existing) throw new ServiceError('Contact not found', 404)
 
   const source = input.channel === 'website' ? 'website' : 'manual'
 

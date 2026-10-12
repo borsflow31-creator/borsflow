@@ -26,6 +26,8 @@ interface ModelPrice {
  */
 export const MODEL_PRICING: Record<string, ModelPrice> = {
   'google/gemini-2.5-flash-lite': { inputPerM: 0.1, outputPerM: 0.4 },
+  // A step up in instruction-following, and six times the price of lite.
+  'google/gemini-2.5-flash': { inputPerM: 0.3, outputPerM: 2.5 },
   'meta-llama/llama-3.1-8b-instruct': { inputPerM: 0.05, outputPerM: 0.08 },
   'meta-llama/llama-3.3-70b-instruct': { inputPerM: 0.22, outputPerM: 0.5 },
   'openai/gpt-oss-20b': { inputPerM: 0.018, outputPerM: 0.09 },

@@ -4211,6 +4211,9 @@ export interface Messages {
       created: string;
       existing: string;
       suppressed: string;
+      contact: string;
+      contactSearchPlaceholder: string;
+      orNewContact: string;
       contactRequired: string;
       errors: {
         save: string;
@@ -9297,6 +9300,9 @@ const en: Messages = {
       created: 'Enquiry recorded as a new contact.',
       existing: 'Enquiry added to the existing contact.',
       suppressed: 'This address has unsubscribed, so no automated emails will be sent to it.',
+      contact: 'Contact',
+      contactSearchPlaceholder: 'Search an existing contact…',
+      orNewContact: 'Or enter someone new',
       contactRequired: 'An email address or a phone number is required',
       errors: {
         save: 'Could not record the enquiry',

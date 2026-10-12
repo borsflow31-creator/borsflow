@@ -9,7 +9,11 @@ export interface PickedContact {
     firstName: string;
     lastName: string;
     email?: string | null;
+    phone?: string | null;
 }
+
+/** Whichever way of reaching them we hold, so a phone-only contact is not blank. */
+const contactDetail = (contact: PickedContact) => contact.email || contact.phone || null;
 
 /**
  * Search the workspace's contacts and pick one: a buyer for an interest or an
@@ -68,7 +72,7 @@ export default function ContactPicker({
             <div className={`${inputClass} flex items-center justify-between gap-2`}>
                 <span className="truncate">
                     {contactName(value)}
-                    {value.email ? <span className="text-on-surface-variant"> · {value.email}</span> : null}
+                    {contactDetail(value) ? <span className="text-on-surface-variant"> · {contactDetail(value)}</span> : null}
                 </span>
                 {allowClear && (
                     <button
@@ -116,7 +120,7 @@ export default function ContactPicker({
                             className="w-full text-left px-3 py-2 hover:bg-surface-container-high transition-colors"
                         >
                             <span className="body-md text-on-surface">{contactName(contact)}</span>
-                            {contact.email && <span className="block body-xs text-on-surface-variant">{contact.email}</span>}
+                            {contactDetail(contact) && <span className="block body-xs text-on-surface-variant">{contactDetail(contact)}</span>}
                         </button>
                     ))}
                 </div>

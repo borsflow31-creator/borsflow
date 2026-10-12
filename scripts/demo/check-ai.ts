@@ -4,16 +4,29 @@
  * the demo data.
  *
  *   npm run dev   (in another terminal)
- *   npx tsx scripts/demo/check-ai.ts [--base http://localhost:3000] ["a question" ...]
+ *   npx tsx scripts/demo/check-ai.ts [--base http://localhost:3000]
+ *                                    [--locale fr] [--path /developer/inventory]
+ *                                    [--as someone@example.com] ["a question" ...]
+ *
+ * --locale is the language the dashboard is in, which is the language the
+ * assistant must answer in; --path is the screen the user has open, so
+ * "how does this page work?" can be asked of it.
  */
 import { loadEnv, DEMO_USERS, demoPassword } from './env'
 
 loadEnv()
 
 const args = process.argv.slice(2)
-const baseAt = args.indexOf('--base')
-const BASE = baseAt > -1 ? args[baseAt + 1] : 'http://localhost:3000'
-const custom = args.filter((a, i) => a !== '--base' && i !== baseAt + 1)
+const flag = (name: string, fallback?: string) => {
+  const at = args.indexOf(name)
+  return at > -1 && args[at + 1] && !args[at + 1].startsWith('--') ? args[at + 1] : fallback
+}
+const BASE = flag('--base', 'http://localhost:3000')!
+const LOCALE = flag('--locale')
+const PATH = flag('--path')
+const AS = flag('--as')
+const FLAGS = ['--base', '--locale', '--path', '--as']
+const custom = args.filter((a, i) => !FLAGS.includes(a) && !FLAGS.includes(args[i - 1] ?? ''))
 
 const QUESTIONS = custom.length ? custom : [
   'Combien de lots sont encore disponibles dans le programme Les Terrasses de Bir El Djir ?',
@@ -40,7 +53,7 @@ async function main() {
     method: 'POST',
     redirect: 'manual',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: cookieHeader() },
-    body: new URLSearchParams({ csrfToken, email: DEMO_USERS[0].email, password: demoPassword(), json: 'true' }),
+    body: new URLSearchParams({ csrfToken, email: AS ?? DEMO_USERS[0].email, password: demoPassword(), json: 'true' }),
   })
   keep(login)
   const ws = await (await fetch(`${BASE}/api/workspaces`, { headers: { Cookie: cookieHeader() } })).json()
@@ -51,7 +64,13 @@ async function main() {
     const res = await fetch(`${BASE}/api/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Cookie: cookieHeader() },
-      body: JSON.stringify({ workspaceId, messages: [{ role: 'user', content: question }], timeZone: 'Africa/Algiers' }),
+      body: JSON.stringify({
+        workspaceId,
+        messages: [{ role: 'user', content: question }],
+        timeZone: 'Africa/Algiers',
+        ...(LOCALE ? { locale: LOCALE } : {}),
+        ...(PATH ? { path: PATH } : {}),
+      }),
     })
     console.log(`\n=== ${question}`)
     if (!res.ok) {

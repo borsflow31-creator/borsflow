@@ -11,6 +11,8 @@ import { AI_NOT_CONFIGURED, isAiConfigured, type ChatMessage as ProviderMessage 
 import { buildSystemPrompt, safeTimeZone } from '@/lib/ai/agent/prompt'
 import { MAX_OUTPUT_TOKENS, runAgent, type AgentEvent } from '@/lib/ai/agent/run'
 import { toolDefinitions } from '@/lib/ai/agent/tools'
+import { pageForRoute } from '@/lib/ai/knowledge/pages'
+import { parseLocale } from '@/i18n/server'
 
 /**
  * The workspace assistant. Streams newline-delimited JSON events (see
@@ -108,7 +110,7 @@ export async function POST(req: NextRequest) {
         getWorkspaceRole(workspaceId, userId),
         // The owner's business type decides the workspace's kind, as everywhere else.
         prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true, owner: { select: { businessType: true } } } }),
-        prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true, locale: true } }),
     ])
 
     const pageContext = typeof body.context === 'string' && body.context.trim()
@@ -117,6 +119,13 @@ export async function POST(req: NextRequest) {
 
     const isDeveloper = workspace?.owner?.businessType === 'DEVELOPER'
     const timeZone = safeTimeZone(body.timeZone)
+    // The dashboard the user is looking at decides the language, falling back to
+    // what they chose for the account, then English.
+    const locale = parseLocale(body.locale) ?? parseLocale(user?.locale) ?? 'en'
+    // Which screen they have open, so "how does this page work?" has an answer.
+    const currentPage = typeof body.path === 'string' && body.path.startsWith('/')
+        ? pageForRoute(body.path.slice(0, 200), isDeveloper)
+        : null
     const systemPrompt = buildSystemPrompt({
         userName: user?.name ?? null,
         workspaceName: workspace?.name ?? 'Workspace',
@@ -125,6 +134,8 @@ export async function POST(req: NextRequest) {
         now: new Date(),
         pageContext,
         isDeveloper,
+        locale,
+        currentPage,
     })
     const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }, ...trimHistory(history)]
 
@@ -159,7 +170,7 @@ export async function POST(req: NextRequest) {
                 }
             }
             await runAgent({
-                ctx: { userId, workspaceId, role, isDeveloper, timeZone },
+                ctx: { userId, workspaceId, role, isDeveloper, timeZone, currentPage },
                 reservation: reserve.reservation,
                 messages,
                 send,

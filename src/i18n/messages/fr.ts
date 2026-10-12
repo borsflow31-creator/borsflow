@@ -4213,6 +4213,9 @@ const fr: Messages = {
       created: 'Demande enregistrée comme nouveau contact.',
       existing: 'Demande ajoutée au contact existant.',
       suppressed: 'Cette adresse s\'est désabonnée : aucun e-mail automatique ne lui sera envoyé.',
+      contact: 'Contact',
+      contactSearchPlaceholder: 'Rechercher un contact existant…',
+      orNewContact: 'Ou saisir un nouveau contact',
       contactRequired: 'Une adresse e-mail ou un numéro de téléphone est obligatoire',
       errors: {
         save: 'Impossible d\'enregistrer la demande',

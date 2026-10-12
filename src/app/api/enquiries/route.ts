@@ -3,7 +3,10 @@ import { getWorkspaceAccess } from '@/lib/crm/access'
 import { receiveEnquiry } from '@/lib/services/intake'
 import { failure, readBody, INVALID_BODY } from '@/lib/api/respond'
 
-// POST /api/enquiries  { workspaceId, firstName, lastName, email?, phone?, message?, propertyId? }
+// POST /api/enquiries  { workspaceId, leadId?, firstName, lastName, email?, phone?, message?, propertyId? }
+//
+// `leadId` is an existing contact the agent picked from the list; without it the
+// name and address given are de-duplicated as a website enquiry would be.
 //
 // An agent logging an enquiry that came by phone or in person. It lands through the
 // same intake as the website form -- de-duplicated by
@@ -28,6 +31,7 @@ export async function POST(request: NextRequest) {
       email: body.email as string,
       phone: body.phone as string,
       message: body.message as string,
+      leadId: body.leadId as string,
       propertyId: body.propertyId as string,
       propertyReference: body.propertyReference as string,
     })

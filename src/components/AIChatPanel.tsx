@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import { X, Send, Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react'
@@ -38,7 +39,10 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState('')
     const [isStreaming, setIsStreaming] = useState(false)
-    const { t } = useI18n()
+    const { t, locale } = useI18n()
+    // The language on screen and the screen itself: the assistant answers in the
+    // one and can be asked about the other.
+    const pathname = usePathname()
     const abortRef = useRef<AbortController | null>(null)
     const bottomRef = useRef<HTMLDivElement>(null)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -104,6 +108,8 @@ export default function AIChatPanel({ isOpen, onClose, context, workspaceId }: A
                     context,
                     workspaceId,
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    locale,
+                    path: pathname,
                 }),
             })
 

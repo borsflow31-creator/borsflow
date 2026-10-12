@@ -1,6 +1,7 @@
 import type { ChatTool } from '@/lib/ai/provider'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { pagesFor, searchPages, type PageDoc } from '@/lib/ai/knowledge/pages'
 import { effectiveLeadStatus } from '@/lib/crm/lead-status'
 import { buildPageAccessWhere, getUserPageAccess, hasPermission, type Role } from '@/lib/workspace'
 import { createPage } from '@/lib/services/pages'
@@ -26,6 +27,8 @@ export interface ToolContext {
   isDeveloper?: boolean
   /** The user's IANA time zone, for "today". */
   timeZone?: string
+  /** The screen the user has open, so "this page" can be answered without a guess. */
+  currentPage?: PageDoc | null
 }
 
 export interface ToolOutcome {
@@ -112,6 +115,45 @@ function endOfDayIn(timeZone: string | undefined, now: Date): Date {
 // ─── Tools ───────────────────────────────────────────────────────────────────
 
 const TOOLS: AgentTool[] = [
+  {
+    name: 'explain_feature',
+    label: 'Checking how it works',
+    description:
+      'How this app works: what a screen is for, what you can do on it, where to find something, and the steps to follow. Use it for any "how do I…", "what is this page for", "where do I…", "what does X mean here" question, instead of guessing. Call it with no query to list every screen.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'What the user is asking about: a screen name, or words like "reserve a unit", "calls for funds", "add a buyer". Leave out to list every screen.',
+        },
+      },
+      required: [],
+    },
+    writes: false,
+    async execute(ctx, args) {
+      const query = str(args, 'query', 120)
+      const isDeveloper = !!ctx.isDeveloper
+      const found = query ? searchPages(query, isDeveloper) : []
+      // "How does this page work?" asked with no name, or a name that matches
+      // nothing: the screen in front of them is the one they mean.
+      if (found.length === 0 && ctx.currentPage) {
+        return { data: { matched: true, theScreenTheyAreOn: true, screens: [ctx.currentPage] } }
+      }
+      // Nothing matched, or nothing asked: the list of screens is a better answer
+      // than silence, and lets the model point somewhere useful.
+      if (found.length === 0) {
+        return {
+          data: {
+            matched: false,
+            note: query ? 'No screen matches those words. These are all of them.' : undefined,
+            screens: pagesFor(isDeveloper).map(({ title, route, purpose }) => ({ title, route, purpose })),
+          },
+        }
+      }
+      return { data: { matched: true, screens: found } }
+    },
+  },
   {
     name: 'search_pages',
     label: 'Searching pages',

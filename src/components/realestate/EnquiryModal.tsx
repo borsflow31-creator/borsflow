@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
+import ContactPicker, { type PickedContact } from './ContactPicker';
 import PropertyPicker, { type PickedProperty } from './PropertyPicker';
 import { Field, Modal, errorFrom, inputClass, primaryButton, secondaryButton } from './ui';
 
@@ -9,6 +10,11 @@ import { Field, Modal, errorFrom, inputClass, primaryButton, secondaryButton } f
  * Log an enquiry that came by phone or in person. It posts to the same intake the
  * website form uses, so it is de-duplicated by address, attached to
  * the property named, and starts any new-contact automation.
+ *
+ * Most callers are already in the book. Picking them from the contact list files
+ * the enquiry against that contact exactly, and spares the agent retyping a name
+ * and an address they would have to get character-perfect for the de-duplication
+ * by address to recognise them.
  */
 export default function EnquiryModal({
     workspaceId,
@@ -21,6 +27,7 @@ export default function EnquiryModal({
 }) {
     const { t } = useI18n();
     const [f, setF] = useState({ firstName: '', lastName: '', email: '', phone: '', message: '' });
+    const [contact, setContact] = useState<PickedContact | null>(null);
     const [property, setProperty] = useState<PickedProperty | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -28,14 +35,20 @@ export default function EnquiryModal({
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!f.email.trim() && !f.phone.trim()) return setError(t('realEstate.intake.contactRequired'));
+        if (!contact && !f.email.trim() && !f.phone.trim()) return setError(t('realEstate.intake.contactRequired'));
         setSaving(true);
         setError('');
         try {
             const res = await fetch('/api/enquiries', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ workspaceId, ...f, propertyId: property?.id }),
+                // A picked contact is the identity; the typed fields are then empty
+                // and would only give intake a second, blank name to match on.
+                body: JSON.stringify(
+                    contact
+                        ? { workspaceId, leadId: contact.id, message: f.message, propertyId: property?.id }
+                        : { workspaceId, ...f, propertyId: property?.id }
+                ),
             });
             if (!res.ok) return setError(await errorFrom(res, t('realEstate.intake.errors.save')));
             const outcome = await res.json();
@@ -55,12 +68,27 @@ export default function EnquiryModal({
         <Modal title={t('realEstate.intake.title')} onClose={onClose}>
             <form onSubmit={submit} className="space-y-4">
                 {error && <p className="body-sm text-error bg-error-container rounded px-3 py-2" role="alert">{error}</p>}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label={t('realEstate.intake.firstName')}><input value={f.firstName} onChange={e => set('firstName', e.target.value)} className={inputClass} /></Field>
-                    <Field label={t('realEstate.intake.lastName')}><input value={f.lastName} onChange={e => set('lastName', e.target.value)} className={inputClass} /></Field>
-                    <Field label={t('realEstate.intake.email')}><input type="email" value={f.email} onChange={e => set('email', e.target.value)} className={inputClass} /></Field>
-                    <Field label={t('realEstate.intake.phone')}><input type="tel" value={f.phone} onChange={e => set('phone', e.target.value)} className={inputClass} /></Field>
-                </div>
+                <Field label={t('realEstate.intake.contact')}>
+                    <ContactPicker
+                        workspaceId={workspaceId}
+                        value={contact}
+                        onChange={setContact}
+                        placeholder={t('realEstate.intake.contactSearchPlaceholder')}
+                    />
+                </Field>
+                {/* The form for someone who is not in the book yet, out of the way
+                    once a contact has been picked. */}
+                {!contact && (
+                    <fieldset>
+                        <legend className="body-sm text-on-surface-variant mb-2">{t('realEstate.intake.orNewContact')}</legend>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label={t('realEstate.intake.firstName')}><input value={f.firstName} onChange={e => set('firstName', e.target.value)} className={inputClass} /></Field>
+                            <Field label={t('realEstate.intake.lastName')}><input value={f.lastName} onChange={e => set('lastName', e.target.value)} className={inputClass} /></Field>
+                            <Field label={t('realEstate.intake.email')}><input type="email" value={f.email} onChange={e => set('email', e.target.value)} className={inputClass} /></Field>
+                            <Field label={t('realEstate.intake.phone')}><input type="tel" value={f.phone} onChange={e => set('phone', e.target.value)} className={inputClass} /></Field>
+                        </div>
+                    </fieldset>
+                )}
                 <Field label={t('realEstate.intake.property')}>
                     <PropertyPicker workspaceId={workspaceId} value={property} onChange={setProperty} placeholder={t('realEstate.properties.searchPlaceholder')} />
                 </Field>

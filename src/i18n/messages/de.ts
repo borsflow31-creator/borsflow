@@ -4213,6 +4213,9 @@ const de: Messages = {
       created: 'Anfrage als neuer Kontakt erfasst.',
       existing: 'Anfrage zum bestehenden Kontakt hinzugefügt.',
       suppressed: 'Diese Adresse hat sich abgemeldet, daher werden keine automatischen E-Mails gesendet.',
+      contact: 'Kontakt',
+      contactSearchPlaceholder: 'Vorhandenen Kontakt suchen…',
+      orNewContact: 'Oder neuen Kontakt anlegen',
       contactRequired: 'Eine E-Mail-Adresse oder eine Telefonnummer ist erforderlich',
       errors: {
         save: 'Anfrage konnte nicht erfasst werden',
