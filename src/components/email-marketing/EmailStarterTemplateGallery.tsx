@@ -1,9 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useI18n } from '@/i18n/I18nProvider'
 import { Check, Eye, FilePlus2, Loader2, Pencil, Search, Trash2, X } from 'lucide-react'
-import { EmailStarterTemplate, emailStarterTemplates, starterTemplateCategories } from '@/lib/email-starter-templates'
+import {
+  emailStarterTemplates,
+  isStarterLocale,
+  starterTemplateCategories,
+  STARTER_LOCALES,
+  type EmailStarterTemplate,
+} from '@/lib/email/starters'
 
 export interface WorkspaceEmailTemplate {
   id: string
@@ -41,9 +47,15 @@ export default function EmailStarterTemplateGallery({
   title,
   subtitle,
 }: EmailStarterTemplateGalleryProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState('All')
+  /**
+   * The starters are written in English and French. The app has five languages,
+   * so a Spanish, German or Arabic reader is shown the English set — and can
+   * switch, because an agency writing in one language often mails in another.
+   */
+  const [starterLocale, setStarterLocale] = useState(() => (isStarterLocale(locale) ? locale : 'en'))
   const [previewTemplate, setPreviewTemplate] = useState<EmailStarterTemplate | WorkspaceEmailTemplate | null>(null)
   const [cloningId, setCloningId] = useState<string | null>(null)
   const [clonedId, setClonedId] = useState<string | null>(null)
@@ -54,10 +66,17 @@ export default function EmailStarterTemplateGallery({
     [workspaceTemplates]
   )
 
+  const categories = useMemo(() => starterTemplateCategories(starterLocale), [starterLocale])
+
+  // A category chip from the other language has nothing to match once switched.
+  useEffect(() => {
+    if (!categories.includes(activeCategory)) setActiveCategory('All')
+  }, [categories, activeCategory])
+
   const starterTemplates = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
-    return emailStarterTemplates.filter((template) => {
+    return emailStarterTemplates(starterLocale).filter((template) => {
       const matchesCategory = activeCategory === 'All' || template.category === activeCategory
       const matchesQuery =
         !normalizedQuery ||
@@ -69,7 +88,7 @@ export default function EmailStarterTemplateGallery({
 
       return matchesCategory && matchesQuery
     })
-  }, [activeCategory, query])
+  }, [activeCategory, query, starterLocale])
 
   const resolvePreviewImage = (template: EmailStarterTemplate | WorkspaceEmailTemplate) =>
     'highlights' in template ? template.previewImage : null
@@ -224,8 +243,25 @@ export default function EmailStarterTemplateGallery({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {starterTemplateCategories.map((category) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-full border border-outline-variant/30 p-0.5">
+              {STARTER_LOCALES.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setStarterLocale(code)}
+                  aria-pressed={starterLocale === code}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium uppercase transition ${
+                    starterLocale === code
+                      ? 'bg-secondary text-on-secondary'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {code}
+                </button>
+              ))}
+            </div>
+            {categories.map((category) => (
               <button
                 key={category}
                 type="button"
@@ -278,19 +314,40 @@ export default function EmailStarterTemplateGallery({
                         <span className="px-4 pt-4" style={{ color: template.accent }}>{template.type}</span>
                       </div>
                       <div className="space-y-3 px-4 pb-4">
-                        <div
-                          className="relative h-48 overflow-hidden rounded-[20px] bg-surface-container-high"
-                          style={{
-                            backgroundImage: `linear-gradient(180deg, transparent, rgba(17,24,39,0.58)), url(${resolvePreviewImage(template)})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                          }}
-                        >
-                          <div className="absolute inset-x-0 bottom-0 p-4">
-                            <div className="text-xs uppercase tracking-[0.24em] text-on-secondary/75">{template.category}</div>
-                            <div className="mt-2 max-w-[15rem] text-lg font-semibold leading-5 text-on-secondary">{template.name}</div>
+                        {resolvePreviewImage(template) ? (
+                          <div
+                            className="relative h-48 overflow-hidden rounded-[20px] bg-surface-container-high"
+                            style={{
+                              backgroundImage: `linear-gradient(180deg, transparent, rgba(17,24,39,0.58)), url(${resolvePreviewImage(template)})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                            }}
+                          >
+                            <div className="absolute inset-x-0 bottom-0 p-4">
+                              <div className="text-xs uppercase tracking-[0.24em] text-on-secondary/75">{template.category}</div>
+                              <div className="mt-2 max-w-[15rem] text-lg font-semibold leading-5 text-on-secondary">{template.name}</div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          /* No photo: show the subject line, which is what the
+                             recipient actually sees of this template first. */
+                          <div
+                            className="relative flex h-48 flex-col justify-between overflow-hidden rounded-[20px] p-4"
+                            style={{ backgroundColor: `${template.accent}12`, borderLeft: `3px solid ${template.accent}` }}
+                          >
+                            <div className="text-[11px] uppercase tracking-[0.24em]" style={{ color: template.accent }}>
+                              {template.category}
+                            </div>
+                            <div>
+                              <div className="text-xs text-on-surface-variant">
+                                {t('emailMarketing.starterGallery.subjectLabel')}
+                              </div>
+                              <div className="mt-1 line-clamp-3 text-base font-semibold leading-6 text-on-surface">
+                                {template.subject}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                         <div className="grid grid-cols-3 gap-2">
                           {template.highlights.map((highlight) => (
                             <div key={highlight} className="rounded-2xl bg-surface-container-high p-3 text-[11px] leading-4 text-on-surface-variant">

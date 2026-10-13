@@ -2278,6 +2278,7 @@ const fr: Messages = {
       selectBlockHint: 'Sélectionnez un bloc pour modifier ses propriétés',
     },
     starterGallery: {
+      subjectLabel: 'Objet',
       workspaceRequiredEdit: 'Sélectionnez un espace de travail avant de modifier un modèle',
       editFailed: "Échec de l'ouverture du modèle pour modification",
       workspaceRequiredClone: 'Sélectionnez un espace de travail avant de dupliquer un modèle',

@@ -2278,6 +2278,7 @@ const es: Messages = {
       selectBlockHint: 'Selecciona un bloque para editar sus propiedades',
     },
     starterGallery: {
+      subjectLabel: 'Asunto',
       workspaceRequiredEdit: 'Selecciona un espacio de trabajo antes de editar una plantilla',
       editFailed: 'No se pudo abrir la plantilla para editarla',
       workspaceRequiredClone: 'Selecciona un espacio de trabajo antes de duplicar una plantilla',

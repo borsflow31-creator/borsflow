@@ -2278,6 +2278,7 @@ const ar: Messages = {
       selectBlockHint: 'اختر كتلة لتعديل خصائصها',
     },
     starterGallery: {
+      subjectLabel: 'الموضوع',
       workspaceRequiredEdit: 'اختر مساحة عمل قبل تعديل قالب',
       editFailed: 'فشل فتح القالب للتعديل',
       workspaceRequiredClone: 'اختر مساحة عمل قبل استنساخ قالب',

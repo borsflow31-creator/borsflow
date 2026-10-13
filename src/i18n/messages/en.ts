@@ -897,6 +897,7 @@ export interface Messages {
       selectBlockHint: string;
     };
     starterGallery: {
+      subjectLabel: string;
       workspaceRequiredEdit: string;
       editFailed: string;
       workspaceRequiredClone: string;
@@ -7416,6 +7417,7 @@ const en: Messages = {
       selectBlockHint: 'Select a block to edit its properties',
     },
     starterGallery: {
+      subjectLabel: 'Subject',
       workspaceRequiredEdit: 'Select a workspace before editing a template',
       editFailed: 'Failed to open template for editing',
       workspaceRequiredClone: 'Select a workspace before cloning a template',

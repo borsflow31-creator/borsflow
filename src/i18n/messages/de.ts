@@ -2278,6 +2278,7 @@ const de: Messages = {
       selectBlockHint: 'Wähle einen Block aus, um seine Eigenschaften zu bearbeiten',
     },
     starterGallery: {
+      subjectLabel: 'Betreff',
       workspaceRequiredEdit: 'Wähle einen Arbeitsbereich, bevor du eine Vorlage bearbeitest',
       editFailed: 'Vorlage konnte nicht zur Bearbeitung geöffnet werden',
       workspaceRequiredClone: 'Wähle einen Arbeitsbereich, bevor du eine Vorlage duplizierst',
