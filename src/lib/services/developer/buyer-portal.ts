@@ -4,6 +4,7 @@ import { consumeRateLimits, type RateLimitRule } from '@/lib/api/rate-limit'
 import { emailParagraph, renderEmail, sendTransactionalEmail } from '@/lib/email'
 import { escapeHtml } from '@/lib/html'
 import { ServiceError } from '../errors'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /**
  * The key that signs portal sessions and one-time codes.
@@ -139,7 +140,7 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
 
   const portalData: any = {
     isVerified,
-    currency: workspace?.currency || 'EUR',
+    currency: workspace?.currency || DEFAULT_CURRENCY,
     lot: {
       id: lot.id,
       lotNumber: lot.lotNumber,

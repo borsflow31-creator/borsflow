@@ -8,12 +8,13 @@ import { useAppStore } from '@/store/appStore'
 import Toast from '@/components/Toast'
 import { PlanUsageSettings } from '@/components/billing/PlanUsageSettings'
 import { BusinessTypeCard } from '@/components/settings/BusinessTypeCard'
+import { WorkspaceCurrencyCard } from '@/components/settings/WorkspaceCurrencyCard'
 import NotificationSettings from '@/components/settings/NotificationSettings'
 import { useI18n } from '@/i18n/I18nProvider'
 import {
     User, Bell, Shield, Palette, Check, X, Save,
     Loader2, CheckCircle,
-    Plug, Calendar, Video, CreditCard, RefreshCw, Trash2
+    Plug, Calendar, Video, CreditCard, RefreshCw, Trash2, Coins
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ function SettingsPageInner() {
     const { theme, setTheme, currentWorkspaceId } = useAppStore()
     const { t } = useI18n()
 
-    const validSections = ['profile', 'notifications', 'appearance', 'security', 'integrations', 'billing']
+    const validSections = ['profile', 'workspace', 'notifications', 'appearance', 'security', 'integrations', 'billing']
     const sectionParam = searchParams.get('section')
     const [activeSection, setActiveSection] = useState(
         sectionParam && validSections.includes(sectionParam) ? sectionParam : 'profile'
@@ -241,6 +242,7 @@ function SettingsPageInner() {
     // ── Sidebar sections ──────────────────────────────────────────────────────
     const settingsSections = [
         { id: 'profile', label: t('settings.nav.profile'), icon: User },
+        { id: 'workspace', label: t('settings.nav.workspace'), icon: Coins },
         { id: 'notifications', label: t('settings.nav.notifications'), icon: Bell },
         { id: 'appearance', label: t('settings.nav.appearance'), icon: Palette },
         { id: 'security', label: t('settings.nav.security'), icon: Shield },
@@ -291,6 +293,10 @@ function SettingsPageInner() {
 
                     {/* Content */}
                     <main className="flex-1 max-w-2xl">
+
+                        {activeSection === 'workspace' && (
+                            <WorkspaceCurrencyCard workspaceId={currentWorkspaceId} />
+                        )}
 
                         {activeSection === 'billing' && (
                             <>

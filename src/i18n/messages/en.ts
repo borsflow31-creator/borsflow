@@ -1941,12 +1941,6 @@ export interface Messages {
     };
   };
   products: {
-    currency: {
-      title: string;
-      hint: string;
-      changed: string;
-      saveFailed: string;
-    };
     customFields: {
       title: string;
       subtitle: string;
@@ -2339,6 +2333,7 @@ export interface Messages {
     };
     nav: {
       profile: string;
+      workspace: string;
       notifications: string;
       appearance: string;
       security: string;
@@ -4386,6 +4381,18 @@ export interface Messages {
     };
   };
   // </developerGuide:type>
+  workspaceCurrency: {
+    title: string;
+    hint: string;
+    changed: string;
+    saveFailed: string;
+  };
+  settingsWorkspace: {
+    heading: string;
+    currencyTitle: string;
+    currencyBody: string;
+    currencyNoConversion: string;
+  };
   settingsOffer: {
     heading: string;
     permanent: string;
@@ -5633,6 +5640,7 @@ const en: Messages = {
     },
     nav: {
       profile: 'Profile',
+      workspace: 'Workspace',
       notifications: 'Notifications',
       appearance: 'Appearance',
       security: 'Security',
@@ -5856,12 +5864,6 @@ const en: Messages = {
     },
   },
   products: {
-    currency: {
-      title: 'Workspace currency',
-      hint: 'Used for product prices and as the default for new quotes and invoices. Amounts are not converted.',
-      changed: 'Currency changed to {currency}',
-      saveFailed: 'Couldn’t change the currency.',
-    },
     customFields: {
       title: 'Custom fields',
       subtitle: 'Add your own product attributes, like units per box, brand or weight. They appear on every product and in the import mapping.',
@@ -9441,6 +9443,18 @@ const en: Messages = {
     },
   },
   // </developerGuide:value>
+  workspaceCurrency: {
+    title: 'Workspace currency',
+    hint: 'Used everywhere this workspace prints money, and as the default for new quotes and invoices. Amounts are not converted.',
+    changed: 'Currency changed to {currency}',
+    saveFailed: 'Couldn’t change the currency.',
+  },
+  settingsWorkspace: {
+    heading: 'Workspace',
+    currencyTitle: 'Currency',
+    currencyBody: 'What this workspace prices everything in: products, quotes, invoices, commissions and every amount on the dashboard.',
+    currencyNoConversion: 'Changing it relabels existing amounts rather than converting them. Quotes and invoices already sent keep the currency they were sent in.',
+  },
   settingsOffer: {
     heading: "Your offer",
     permanent: "Chosen when you signed up. It sets your dashboard and menus, and cannot be changed.",

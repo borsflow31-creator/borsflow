@@ -6,6 +6,7 @@ import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { calculateDocumentTotals, buildItemCreateData } from '@/lib/documents/calculations';
 import { createWithDocumentNumber } from '@/lib/documents/numbering';
 import { parsePagination, parseInvoiceSort, buildClientSearchFilter } from '@/lib/documents/query';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // GET /api/invoices - List invoices
 export async function GET(request: NextRequest) {
@@ -202,7 +203,8 @@ export async function POST(request: NextRequest) {
 
     if (!workspace) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    }
+
 
     // Membership is not enough to change content: viewers are read-only.
     if (!(await canEditContent(workspace.id, session.user.id))) {
@@ -266,7 +268,10 @@ export async function POST(request: NextRequest) {
           status: 'draft',
           issueDate: issueDate ? new Date(issueDate) : new Date(),
           dueDate: dueDate ? new Date(dueDate) : null,
-          currency: currency || 'USD',
+          // The workspace's currency, not the dollar: a workspace priced in
+          // dinars was issuing documents labelled USD unless the form said
+          // otherwise.
+          currency: currency || workspace.currency || DEFAULT_CURRENCY,
           subtotal: totals.subtotal,
           taxRate: taxRate || 0,
           taxAmount: totals.taxAmount,

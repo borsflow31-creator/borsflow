@@ -12,7 +12,7 @@ import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { primaryButton, secondaryButton, inputClass } from '@/components/realestate/ui';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { Kpi, KpiGrid, Meter } from '@/components/developer/kpi';
 import { PROJECT_STATUSES } from '@/lib/crm/projects';

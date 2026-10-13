@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
-import { useWorkspaceCurrency } from './useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 
 interface LotModalProps {
   workspaceId: string;

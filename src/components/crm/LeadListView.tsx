@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { sourceLabel, stageLabel, statusLabel } from '@/components/crm/labels';
 import { effectiveLeadStatus } from '@/lib/crm/lead-status';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { FollowUpChip, OwnerAvatar, ScoreBadge } from '@/components/developer/lead-meta';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import { matchesOwnerFilter, type OwnerFilterValue } from '@/components/developer/OwnerFilter';

@@ -12,7 +12,7 @@ import ProductCard from '@/components/products/ProductCard';
 import ProductTable from '@/components/products/ProductTable';
 import ProductImportModal from '@/components/products/ProductImportModal';
 import ProductCustomFieldsModal from '@/components/products/ProductCustomFieldsModal';
-import CurrencySelect from '@/components/products/CurrencySelect';
+import CurrencySelect from '@/components/workspace/CurrencySelect';
 import { useProductCustomFields } from '@/components/products/useProductCustomFields';
 import { useAppStore } from '@/store/appStore';
 import { useProductStore } from '@/store/productStore';
@@ -20,6 +20,7 @@ import { buildPageWindow, errorFrom } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { CSVImportResult, Product } from '@/types';
 import { cachedJson } from '@/lib/client-cache';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 const PAGE_SIZE = 24;
 
@@ -110,7 +111,7 @@ function ProductsPageInner() {
   const [total, setTotal] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [role, setRole] = useState<string | null>(null);
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   const [workspaceName, setWorkspaceName] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFieldsModal, setShowFieldsModal] = useState(false);
@@ -352,7 +353,7 @@ function ProductsPageInner() {
                 canChange={role === 'owner' || role === 'admin'}
                 onChanged={(code) => {
                   setCurrency(code);
-                  addToast(t('products.currency.changed', { currency: code }), 'success');
+                  addToast(t('workspaceCurrency.changed', { currency: code }), 'success');
                 }}
                 onError={(message) => addToast(message, 'error')}
               />

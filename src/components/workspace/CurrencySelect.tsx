@@ -51,12 +51,12 @@ export default function CurrencySelect({
         body: JSON.stringify({ currency: code }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || t('products.currency.saveFailed'));
+      if (!res.ok) throw new Error(data.error || t('workspaceCurrency.saveFailed'));
       invalidateCached(`/api/workspaces/${workspaceId}`);
       onChanged(code);
       setOpen(false);
     } catch (err) {
-      onError?.(err instanceof Error ? err.message : t('products.currency.saveFailed'));
+      onError?.(err instanceof Error ? err.message : t('workspaceCurrency.saveFailed'));
     } finally {
       setSaving(null);
     }
@@ -67,7 +67,7 @@ export default function CurrencySelect({
   if (!canChange) {
     return (
       <span
-        title={t('products.currency.title')}
+        title={t('workspaceCurrency.title')}
         className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant/20 bg-surface px-3 py-2.5 text-sm text-on-surface-variant"
       >
         <Coins className="h-4 w-4" strokeWidth={1.75} />
@@ -84,7 +84,7 @@ export default function CurrencySelect({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={t('products.currency.title')}
+        title={t('workspaceCurrency.title')}
         className="flex items-center gap-2 rounded-lg border border-outline-variant/20 bg-surface px-3 py-2.5 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
       >
         <Coins className="h-4 w-4" strokeWidth={1.75} />
@@ -95,8 +95,8 @@ export default function CurrencySelect({
 
       {open ? (
         <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-xl border border-outline-variant/15 bg-surface p-1.5 shadow-xl">
-          <p className="px-2.5 pb-2 pt-1.5 text-xs text-on-surface-variant">{t('products.currency.hint')}</p>
-          <ul role="listbox" aria-label={t('products.currency.title')} className="max-h-72 overflow-y-auto">
+          <p className="px-2.5 pb-2 pt-1.5 text-xs text-on-surface-variant">{t('workspaceCurrency.hint')}</p>
+          <ul role="listbox" aria-label={t('workspaceCurrency.title')} className="max-h-72 overflow-y-auto">
             {SUPPORTED_CURRENCIES.map((code) => (
               <li key={code} role="option" aria-selected={code === currency}>
                 <button

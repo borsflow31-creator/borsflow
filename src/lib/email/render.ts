@@ -11,6 +11,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { escapeHtml } from '@/lib/html'
 import type { EmailTokenName } from './tokens'
 import { effectiveLeadStatus } from '@/lib/crm/lead-status'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const UNSUBSCRIBE_SECRET = process.env.UNSUBSCRIBE_SECRET || 'default-secret'
@@ -105,7 +106,7 @@ function formatValue(value: number | null | undefined, currency?: string | null)
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency || 'USD',
+      currency: currency || DEFAULT_CURRENCY,
       maximumFractionDigits: 0,
     }).format(value)
   } catch {

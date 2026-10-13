@@ -8,6 +8,7 @@ import {
 import { bucketForLotStatus } from '@/lib/crm/projects'
 import { ServiceError } from '../errors'
 import type { DeveloperContext } from './programs'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /**
  * Reports for a developer's management: sales, marketing, inventory, finance.
@@ -125,7 +126,7 @@ export async function getReport(ctx: DeveloperContext, report: ReportName, optio
   if (to.getTime() - from.getTime() > 5 * 366 * DAY_MS) throw new ServiceError('Choose a range of five years or less')
 
   const workspace = await prisma.workspace.findUnique({ where: { id: ctx.workspaceId }, select: { currency: true } })
-  const currency = workspace?.currency || 'EUR'
+  const currency = workspace?.currency || DEFAULT_CURRENCY
   const base = { report, from: from.toISOString(), to: to.toISOString(), currency }
 
   switch (report) {

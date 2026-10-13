@@ -3,6 +3,7 @@ import { escapeHtml } from '@/lib/html'
 import { consumeUsage, releaseUsage } from '@/lib/billing/entitlements'
 import { emailFrame, queueDirectEmail } from '@/lib/email/direct'
 import { mintToken } from '@/lib/crm/public-links'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /**
  * Mail buyers about the properties that suit them, one digest per buyer.
@@ -70,7 +71,7 @@ export async function sendMatchDigests(): Promise<{ digests: number; matches: nu
       if (!usage.allowed) { await release(); skipped++; continue }
 
       const workspace = await prisma.workspace.findUnique({ where: { id: group.workspaceId }, select: { name: true, currency: true } })
-      const currency = workspace?.currency || 'USD'
+      const currency = workspace?.currency || DEFAULT_CURRENCY
       const money = (n: number, c?: string | null) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: c || currency, maximumFractionDigits: 0 }).format(n)
 

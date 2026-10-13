@@ -11,7 +11,7 @@ import CalculationsSummary, { DiscountType } from '@/components/documents/Calcul
 import { ArrowLeft, Save, Loader2, Search, User, X, Plus } from 'lucide-react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { cachedJson } from '@/lib/client-cache';
-import { SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
 
 interface Lead {
   id: string;
@@ -49,7 +49,7 @@ function NewInvoicePageInner() {
   const [clientAddress, setClientAddress] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   // New documents start in the workspace currency (set on the Products page)
   const [currencyTouched, setCurrencyTouched] = useState(false);
   useEffect(() => {

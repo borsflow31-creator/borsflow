@@ -580,6 +580,7 @@ const fr: Messages = {
     },
     nav: {
       profile: 'Profil',
+      workspace: 'Espace de travail',
       notifications: 'Notifications',
       appearance: 'Apparence',
       security: 'Sécurité',
@@ -803,12 +804,6 @@ const fr: Messages = {
     },
   },
   products: {
-    currency: {
-      title: 'Devise de l’espace',
-      hint: 'Utilisée pour les prix des produits et par défaut pour les nouveaux devis et factures. Les montants ne sont pas convertis.',
-      changed: 'Devise changée en {currency}',
-      saveFailed: 'Impossible de changer la devise.',
-    },
     customFields: {
       title: 'Champs personnalisés',
       subtitle: 'Ajoutez vos propres attributs produit, comme les unités par carton, la marque ou le poids. Ils apparaissent sur chaque produit et dans le mappage d’import.',
@@ -4388,6 +4383,18 @@ const fr: Messages = {
     },
   },
   // </developerGuide:value>
+  workspaceCurrency: {
+    title: 'Devise de l’espace',
+    hint: 'Utilisée partout où cet espace affiche des montants, et par défaut pour les nouveaux devis et factures. Les montants ne sont pas convertis.',
+    changed: 'Devise changée en {currency}',
+    saveFailed: 'Impossible de changer la devise.',
+  },
+  settingsWorkspace: {
+    heading: 'Espace de travail',
+    currencyTitle: 'Devise',
+    currencyBody: 'La devise de cet espace : produits, devis, factures, commissions et tous les montants du tableau de bord.',
+    currencyNoConversion: 'La changer réétiquette les montants existants, elle ne les convertit pas. Les devis et factures déjà envoyés gardent la devise dans laquelle ils sont partis.',
+  },
   settingsOffer: {
     heading: "Votre offre",
     permanent: "Choisie à l’inscription. Elle définit votre tableau de bord et vos menus, et ne peut pas être modifiée.",

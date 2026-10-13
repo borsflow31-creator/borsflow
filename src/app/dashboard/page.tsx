@@ -7,6 +7,7 @@ import Link from 'next/link'
 import AppShell from '@/components/AppShell'
 import DeveloperDashboard from '@/components/developer/DeveloperDashboard'
 import { useAppStore } from '@/store/appStore'
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency'
 import { useI18n } from '@/i18n/I18nProvider'
 import { TrendingUp, Clock, AlertCircle, FileText as FileTextIcon } from 'lucide-react'
 import { cachedJson } from '@/lib/client-cache'
@@ -49,6 +50,9 @@ export default function DashboardPage() {
     const router = useRouter()
     const { setWorkspace, currentWorkspaceId } = useAppStore()
     const { t, locale, formatNumber } = useI18n()
+    // These three figures were printed in dollars whatever the workspace priced
+    // in, so an agency billing in dinars read its own revenue as "$12.4M".
+    const currency = useWorkspaceCurrency(currentWorkspaceId || '')
 
     const [workspaces, setWorkspaces] = useState<Workspace[]>([])
     const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
@@ -309,19 +313,19 @@ export default function DashboardPage() {
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
                                         <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-success"/> {t('dashboard.revenue')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {formatNumber(billingAnalytics.totalRevenue, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
+                                            {formatNumber(billingAnalytics.totalRevenue, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
                                         <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-warning"/> {t('dashboard.pending')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {formatNumber(billingAnalytics.pendingAmount, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
+                                            {formatNumber(billingAnalytics.pendingAmount, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">
                                         <p className="text-xs text-on-surface-variant mb-1.5 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5 text-error"/> {t('dashboard.overdue')}</p>
                                         <p className="text-xl font-semibold text-on-surface">
-                                            {formatNumber(billingAnalytics.overdueAmount, { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 })}
+                                            {formatNumber(billingAnalytics.overdueAmount, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 })}
                                         </p>
                                     </div>
                                     <div className="p-4 bg-transparent hover:bg-surface-container-low/50 transition-colors">

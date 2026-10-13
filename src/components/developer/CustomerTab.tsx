@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CalendarPlus, CheckCircle2, Circle, ListPlus, Loader2, Phone } from 'lucide-react';
 import LeadTimeline from '@/components/crm/LeadTimeline';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { LogCallModal, SiteVisitModal, TaskModal } from '@/components/developer/lead-actions';
 import {
     Chip, LOT_STATUS_LABEL, LOT_STATUS_TONE, TMA_STATUS_LABEL, TMA_STATUS_TONE,

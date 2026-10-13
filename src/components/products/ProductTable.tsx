@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatMoney } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Product } from '@/types';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 interface ProductTableProps {
   products: Product[];
@@ -125,7 +126,7 @@ export default function ProductTable({
   onEdit,
   onDelete,
   canWrite = true,
-  currency = 'USD',
+  currency = DEFAULT_CURRENCY,
 }: ProductTableProps) {
   const { t } = useI18n();
   const baseHeaders = [

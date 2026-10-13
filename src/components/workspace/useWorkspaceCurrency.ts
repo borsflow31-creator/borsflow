@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { cachedJson, peekCached } from '@/lib/client-cache';
-
-const DEFAULT_CURRENCY = 'EUR';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 /**
- * The workspace's currency, for pages that print money. Reads the same cached
- * workspace request the app shell already makes, so it costs no extra round trip.
+ * The workspace's currency — the one set in Settings, which everything that
+ * prints money should use. Reads the same cached workspace request the app shell
+ * already makes, so it costs no extra round trip.
  *
- * Falls back to EUR (what the rest of the developer module prints) while the
- * request is in flight or if it fails, so a page never shows a bare number.
+ * While that request is in flight it returns the shared default rather than a
+ * module-local one: this used to fall back to EUR here and to USD elsewhere, so
+ * the same amount could be labelled two ways on two pages of the same app.
  */
 export function useWorkspaceCurrency(workspaceId: string): string {
     const url = workspaceId ? `/api/workspaces/${workspaceId}` : '';

@@ -14,6 +14,7 @@ import { ServiceError } from '@/lib/services/errors'
 import { blocksToText, pageContentToText, snippetAround, textToBlocks, truncate } from '@/lib/ai/page-text'
 import { summarizeUnits } from '@/lib/crm/projects'
 import { listSiteVisits } from '@/lib/services/developer/site-visits'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /**
  * The workspace assistant's tools. Every query is scoped to the caller's
@@ -600,7 +601,7 @@ const TOOLS: AgentTool[] = [
       ])
       return {
         data: {
-          currency: workspace?.currency ?? 'EUR',
+          currency: workspace?.currency ?? DEFAULT_CURRENCY,
           projects: programs.map(({ lots, ...program }) => {
             const totals = summarizeUnits(lots)
             return {
@@ -685,7 +686,7 @@ const TOOLS: AgentTool[] = [
       return {
         data: {
           matching: count,
-          currency: workspace?.currency ?? 'EUR',
+          currency: workspace?.currency ?? DEFAULT_CURRENCY,
           units: lots.map(({ program, building, buyerLead, ...lot }) => ({
             ...lot,
             project: program.commercialName || program.name,
@@ -814,7 +815,7 @@ const TOOLS: AgentTool[] = [
         data: {
           matching: total._count,
           totalAmount: total._sum.amount ?? 0,
-          currency: workspace?.currency ?? 'EUR',
+          currency: workspace?.currency ?? DEFAULT_CURRENCY,
           url: '/developer/collections',
           calls: calls.map(({ milestone, lot, ...call }) => ({
             ...call,

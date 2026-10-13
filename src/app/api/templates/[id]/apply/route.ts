@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { calculateDocumentTotals, buildItemCreateData } from '@/lib/documents/calculations'
 import { createWithDocumentNumber } from '@/lib/documents/numbering'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 // POST /api/templates/[id]/apply
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     else if (template.type === 'quote') {
       const items: any[] = content.items || []
       const taxRate = content.taxRate || 0
-      const currency = content.currency || 'USD'
+      const currency = content.currency || workspace.currency || DEFAULT_CURRENCY
 
       // Template items carry their own per-line discount and tax, which this route
       // used to drop on the floor with a third totals formula of its own.
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     else if (template.type === 'invoice') {
       const items: any[] = content.items || []
       const taxRate = content.taxRate || 0
-      const currency = content.currency || 'USD'
+      const currency = content.currency || workspace.currency || DEFAULT_CURRENCY
 
       const normalizedItems = items.map((item: any) => ({
         description: item.description || 'Item',

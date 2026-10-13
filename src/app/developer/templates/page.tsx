@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FileText, Loader2 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';

@@ -10,6 +10,7 @@ import { useParams } from 'next/navigation';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { VERDICT_DIMENSIONS } from '@/lib/crm/lifecycle';
 import type { VendorReport } from '@/lib/crm/vendor-report';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 export default function PublicVendorReportPage() {
     const { t, formatCurrency, formatDate } = useI18n();
@@ -34,7 +35,7 @@ export default function PublicVendorReportPage() {
         return <main className="min-h-screen flex items-center justify-center bg-background p-6"><p className="title-md text-on-surface">{error}</p></main>;
     }
 
-    const currency = report.property.currency || 'USD';
+    const currency = report.property.currency || DEFAULT_CURRENCY;
     const stat = (label: string, value: string | number) => (
         <div className="bg-surface-container rounded-lg p-4">
             <p className="body-sm text-on-surface-variant">{label}</p>

@@ -580,6 +580,7 @@ const es: Messages = {
     },
     nav: {
       profile: 'Perfil',
+      workspace: 'Espacio de trabajo',
       notifications: 'Notificaciones',
       appearance: 'Apariencia',
       security: 'Seguridad',
@@ -803,12 +804,6 @@ const es: Messages = {
     },
   },
   products: {
-    currency: {
-      title: 'Moneda del espacio',
-      hint: 'Se usa para los precios de productos y por defecto en nuevos presupuestos y facturas. Los importes no se convierten.',
-      changed: 'Moneda cambiada a {currency}',
-      saveFailed: 'No se pudo cambiar la moneda.',
-    },
     customFields: {
       title: 'Campos personalizados',
       subtitle: 'Añade tus propios atributos de producto, como unidades por caja, marca o peso. Aparecen en cada producto y en el mapeo de importación.',
@@ -4388,6 +4383,18 @@ const es: Messages = {
     },
   },
   // </developerGuide:value>
+  workspaceCurrency: {
+    title: 'Moneda del espacio',
+    hint: 'Se usa en todo lo que este espacio muestra en dinero, y por defecto en los nuevos presupuestos y facturas. Los importes no se convierten.',
+    changed: 'Moneda cambiada a {currency}',
+    saveFailed: 'No se pudo cambiar la moneda.',
+  },
+  settingsWorkspace: {
+    heading: 'Espacio de trabajo',
+    currencyTitle: 'Moneda',
+    currencyBody: 'La moneda de este espacio: productos, presupuestos, facturas, comisiones y todos los importes del panel.',
+    currencyNoConversion: 'Cambiarla reetiqueta los importes existentes, no los convierte. Los presupuestos y facturas ya enviados conservan su moneda.',
+  },
   settingsOffer: {
     heading: "Tu oferta",
     permanent: "Elegida al registrarte. Define tu panel y tus menús, y no se puede cambiar.",

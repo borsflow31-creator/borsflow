@@ -35,6 +35,7 @@ import {
   saleValues,
 } from '@/lib/services/developer/sales-documents'
 import { ensureLotPublicToken } from '@/lib/services/developer/lots'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 /** Calls this far past due are left alone: a month on, a reminder email is not the tool. */
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
         if (!lot) continue
 
         const token = await ensureLotPublicToken(call.lotId)
-        const currency = call.invoice?.currency || call.lot.workspace.currency || 'EUR'
+        const currency = call.invoice?.currency || call.lot.workspace.currency || DEFAULT_CURRENCY
         const template = await getEffectiveTemplate(call.workspaceId, call.lot.program.id, 'payment_reminder')
 
         const values = {

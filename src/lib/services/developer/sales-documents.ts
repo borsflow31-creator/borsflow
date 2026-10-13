@@ -22,6 +22,7 @@ import type { DeveloperContext } from './programs'
 import { ensureLotPublicToken, updateLot } from './lots'
 import { createTask } from './tasks'
 import { autoTaskTitle } from '@/lib/crm/task-titles'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 const KIND_PREFIX = { reservation: 'RES', contract: 'CON' } as const
 type DocumentKind = keyof typeof KIND_PREFIX
@@ -153,7 +154,7 @@ export function saleValues(
   lot: NonNullable<Awaited<ReturnType<typeof loadLotForValues>>>,
   documentNumber?: string
 ): Record<string, string> {
-  const currency = lot.workspace.currency || 'EUR'
+  const currency = lot.workspace.currency || DEFAULT_CURRENCY
   const buyer = lot.buyerLead
   return {
     document_number: documentNumber ?? '',

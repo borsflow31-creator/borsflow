@@ -580,6 +580,7 @@ const de: Messages = {
     },
     nav: {
       profile: 'Profil',
+      workspace: 'Arbeitsbereich',
       notifications: 'Benachrichtigungen',
       appearance: 'Darstellung',
       security: 'Sicherheit',
@@ -803,12 +804,6 @@ const de: Messages = {
     },
   },
   products: {
-    currency: {
-      title: 'Workspace-Währung',
-      hint: 'Gilt für Produktpreise und als Standard für neue Angebote und Rechnungen. Beträge werden nicht umgerechnet.',
-      changed: 'Währung auf {currency} geändert',
-      saveFailed: 'Währung konnte nicht geändert werden.',
-    },
     customFields: {
       title: 'Benutzerdefinierte Felder',
       subtitle: 'Fügen Sie eigene Produktattribute hinzu, z. B. Stück pro Karton, Marke oder Gewicht. Sie erscheinen bei jedem Produkt und in der Import-Zuordnung.',
@@ -4388,6 +4383,18 @@ const de: Messages = {
     },
   },
   // </developerGuide:value>
+  workspaceCurrency: {
+    title: 'Währung des Arbeitsbereichs',
+    hint: 'Überall verwendet, wo dieser Arbeitsbereich Beträge anzeigt, und als Vorgabe für neue Angebote und Rechnungen. Beträge werden nicht umgerechnet.',
+    changed: 'Währung auf {currency} geändert',
+    saveFailed: 'Die Währung konnte nicht geändert werden.',
+  },
+  settingsWorkspace: {
+    heading: 'Arbeitsbereich',
+    currencyTitle: 'Währung',
+    currencyBody: 'Die Währung dieses Arbeitsbereichs: Produkte, Angebote, Rechnungen, Provisionen und jeder Betrag im Dashboard.',
+    currencyNoConversion: 'Eine Änderung beschriftet bestehende Beträge neu, sie rechnet sie nicht um. Bereits versendete Angebote und Rechnungen behalten ihre Währung.',
+  },
   settingsOffer: {
     heading: "Ihr Angebot",
     permanent: "Bei der Registrierung gewählt. Es bestimmt Ihr Dashboard und Ihre Menüs und kann nicht geändert werden.",

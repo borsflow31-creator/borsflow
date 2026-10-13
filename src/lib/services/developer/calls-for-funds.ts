@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { isValidPaymentMethod, recalculateInvoicePayment } from '@/lib/documents/payments'
 import { ServiceError } from '../errors'
 import { DeveloperContext } from './programs'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /** The legal window a buyer has to pay a call for funds. */
 const PAYMENT_WINDOW_MS = 30 * 24 * 3600 * 1000
@@ -84,7 +85,7 @@ export async function generateCallsForFundsForMilestone(
     where: { id: ctx.workspaceId },
     select: { currency: true },
   })
-  const currency = workspace?.currency || 'EUR'
+  const currency = workspace?.currency || DEFAULT_CURRENCY
 
   for (const lot of eligibleLots) {
     // Idempotency: skip if already generated for this lot and milestone

@@ -9,7 +9,7 @@ import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
 import TMAReviewModal from '@/components/developer/TMAReviewModal';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import {
     Chip, TMA_STATUS_LABEL, TMA_STATUS_TONE, tableClass, tdClass, thClass,
 } from '@/components/developer/status';

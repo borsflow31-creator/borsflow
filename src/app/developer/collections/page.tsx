@@ -10,7 +10,7 @@ import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import {
     CALL_STATUS_LABEL, CALL_STATUS_TONE, Chip, tableClass, tdClass, thClass,
 } from '@/components/developer/status';

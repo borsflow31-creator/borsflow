@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import PortalDocuments from '@/components/developer/PortalDocuments';
 import { useI18n, type Locale, type MessageKey } from '@/i18n/I18nProvider';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 import {
   Building2,
   Calendar,
@@ -234,7 +235,7 @@ export default function BuyerPortalPage() {
     }
   };
 
-  const money = (amount: number) => formatCurrency(amount, data?.currency || 'EUR');
+  const money = (amount: number) => formatCurrency(amount, data?.currency || DEFAULT_CURRENCY);
   const callsForFunds = data?.callsForFunds;
   const pricing = data?.pricing;
   const program = data?.program;

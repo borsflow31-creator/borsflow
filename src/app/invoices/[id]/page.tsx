@@ -17,6 +17,7 @@ import type { Invoice, Payment } from '@/types';
 import { useI18n } from '@/i18n/I18nProvider';
 import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
 import SendHistory from '@/components/documents/SendHistory';
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from '@/lib/currencies';
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({
@@ -241,7 +242,7 @@ export default function InvoiceDetailPage() {
   const [status, setStatus] = useState<InvoiceStatus>('draft');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -658,12 +659,9 @@ export default function InvoiceDetailPage() {
                 <label className="block text-sm font-medium text-on-surface-variant mb-2">{t('invoices.fields.currency')}</label>
                 <select value={currency} onChange={(e) => { setCurrency(e.target.value); setHasChanges(true); }}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 text-sm">
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CAD">CAD</option>
-                  <option value="AUD">AUD</option>
-                  <option value="DZD">DZD</option>
+                  {SUPPORTED_CURRENCIES.map((code) => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
                 </select>
               </div>
             </div>

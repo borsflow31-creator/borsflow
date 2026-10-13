@@ -10,7 +10,7 @@ import Toast from '@/components/Toast';
 import LotModal from '@/components/developer/LotModal';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import {
     Chip, LOT_STATUS_LABEL, LOT_STATUS_TILE, LOT_STATUS_TONE, tableClass, tdClass, thClass,

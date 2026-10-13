@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
-import { useWorkspaceCurrency } from './useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface OptionModalProps {

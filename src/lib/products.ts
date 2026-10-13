@@ -7,6 +7,9 @@
  * whitelist of sort keys both sides agree on.
  */
 
+// currencies.ts is dependency-free too, so this keeps the promise above.
+import { DEFAULT_CURRENCY } from './currencies';
+
 /** Shape of a row selected from "Product" by the raw-SQL product routes. */
 export interface ProductRow {
   id: string;
@@ -110,7 +113,7 @@ export function escapeLikePattern(term: string) {
 }
 
 /** Single money formatter for the whole product surface. */
-export function formatMoney(amount: number, currency = 'USD', locale = 'en-US') {
+export function formatMoney(amount: number, currency: string = DEFAULT_CURRENCY, locale = 'en-US') {
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
 }
 

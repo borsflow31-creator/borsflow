@@ -30,7 +30,7 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import AppShell from '@/components/AppShell';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { StandaloneGuide } from '@/components/ui/PageHeader';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';

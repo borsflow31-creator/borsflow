@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, FileText, Loader2, Lock, Send } from 'lucide-react';
 import { Chip } from '@/components/developer/status';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { SALE_STAGES, saleStage } from '@/lib/crm/sale-stage';
 

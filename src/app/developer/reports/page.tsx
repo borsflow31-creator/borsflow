@@ -9,7 +9,7 @@ import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { Field, inputClass, primaryButton } from '@/components/realestate/ui';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { LOT_STATUS_LABEL, tableClass, tdClass, thClass } from '@/components/developer/status';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { toCsv, type CsvCell } from '@/lib/export/csv';

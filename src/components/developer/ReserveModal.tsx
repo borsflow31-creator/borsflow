@@ -5,7 +5,7 @@ import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/comp
 import ContactPicker, { type PickedContact } from '@/components/realestate/ContactPicker';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
-import { useWorkspaceCurrency } from './useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 
 interface ReserveModalProps {
   workspaceId: string;

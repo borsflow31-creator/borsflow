@@ -7,7 +7,7 @@ import { useAppStore } from '@/store/appStore';
 import { useDocumentStore } from '@/store/documentStore';
 import { useI18n } from '@/i18n/I18nProvider';
 import { cachedJson } from '@/lib/client-cache';
-import { SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
+import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES, currencyLabel, isSupportedCurrency } from '@/lib/currencies';
 import LineItemsTable, { LineItem } from '@/components/documents/LineItemsTable';
 import { calculateDocumentTotals } from '@/lib/documents/calculations';
 import CalculationsSummary, { DiscountType } from '@/components/documents/CalculationsSummary';
@@ -59,7 +59,7 @@ function NewQuotePageInner() {
   const [clientAddress, setClientAddress] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [validUntil, setValidUntil] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState<string>(DEFAULT_CURRENCY);
   // New documents start in the workspace currency (set on the Products page)
   const [currencyTouched, setCurrencyTouched] = useState(false);
   useEffect(() => {

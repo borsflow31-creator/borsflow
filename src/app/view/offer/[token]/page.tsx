@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 interface PublicOffer {
     amount: number;
@@ -83,7 +84,7 @@ export default function PublicOfferPage() {
         );
     }
 
-    const currency = offer.currency || offer.property.currency || 'USD';
+    const currency = offer.currency || offer.property.currency || DEFAULT_CURRENCY;
 
     return (
         <main className="min-h-screen bg-background p-4 sm:p-8">

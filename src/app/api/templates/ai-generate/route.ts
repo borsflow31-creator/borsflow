@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { requireWorkspacePermission } from '@/lib/api/workspace'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
+import { prisma } from '@/lib/prisma'
 import { reserveAiCredits } from '@/lib/billing/ai-credits'
 import { estimateMessageTokens } from '@/lib/billing/ai-pricing'
 import { completeBilled } from '@/lib/ai/billed-completion'
@@ -46,7 +48,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation — match
 {
   "notes": string,
   "terms": string,
-  "currency": "USD",
+  "currency": string (the code given below),
   "taxRate": number (0-25),
   "items": [
     { "description": string, "quantity": number, "unitPrice": number }
@@ -66,7 +68,7 @@ Return ONLY valid JSON — no markdown, no code fences, no explanation — match
 {
   "notes": string,
   "terms": string,
-  "currency": "USD",
+  "currency": string (the code given below),
   "taxRate": number (0-25),
   "items": [
     { "description": string, "quantity": number, "unitPrice": number }
@@ -153,7 +155,16 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const systemPrompt = SYSTEM_PROMPTS[type]
+    // The shape prompts leave the currency to this line, so a workspace that
+    // prices in dinars does not get a quote template priced in dollars.
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { currency: true },
+    })
+    const currency = workspace?.currency || DEFAULT_CURRENCY
+    const systemPrompt = `${SYSTEM_PROMPTS[type]}
+
+Use "${currency}" as the currency.`
     const trimmedPrompt = String(prompt).slice(0, MAX_INPUT_CHARS)
     const userMessage = context
       ? `${trimmedPrompt}\n\nAdditional context: ${String(context).slice(0, MAX_INPUT_CHARS)}`

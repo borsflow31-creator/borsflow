@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { cachedJson } from '@/lib/client-cache';
 import { useI18n } from '@/i18n/I18nProvider';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 /**
  * Small shared pieces for the real-estate screens, following the markup the
@@ -106,7 +107,7 @@ export interface WorkspaceInfo {
 
 /** The workspace's name, currency and agents, cached across navigations. */
 export function useWorkspaceInfo(workspaceId: string): WorkspaceInfo {
-    const [info, setInfo] = useState<WorkspaceInfo>({ name: '', currency: 'USD', agents: [] });
+    const [info, setInfo] = useState<WorkspaceInfo>({ name: '', currency: DEFAULT_CURRENCY, agents: [] });
 
     useEffect(() => {
         if (!workspaceId) return;
@@ -123,7 +124,7 @@ export function useWorkspaceInfo(workspaceId: string): WorkspaceInfo {
                 for (const m of w.members ?? []) add(m.user);
                 setInfo({
                     name: w.name ?? '',
-                    currency: w.currency || 'USD',
+                    currency: w.currency || DEFAULT_CURRENCY,
                     agents: Array.from(seen, ([id, name]) => ({ id, name })),
                 });
             })

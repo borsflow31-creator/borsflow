@@ -5,6 +5,7 @@ import { Loader2, Package, Search, X } from 'lucide-react';
 import { formatMoney } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { ProductPickResult } from '@/types';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 interface SearchProduct {
   id: string;
@@ -28,7 +29,7 @@ export default function ProductPicker({
   workspaceId,
   onSelect,
   onClose,
-  currency = 'USD',
+  currency = DEFAULT_CURRENCY,
 }: ProductPickerProps) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');

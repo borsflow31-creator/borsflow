@@ -3,6 +3,7 @@ import { escapeHtml } from '@/lib/html'
 import { VERDICT_DIMENSIONS, daysOnMarket } from '@/lib/crm/lifecycle'
 import { mintToken } from '@/lib/crm/public-links'
 import { emailFrame, queueDirectEmail } from '@/lib/email/direct'
+import { DEFAULT_CURRENCY } from '@/lib/currencies'
 
 /**
  * The vendor report: what an agency owes the person selling, on a schedule.
@@ -176,7 +177,7 @@ export async function sendDueVendorReports(now = new Date()): Promise<{ sent: nu
       if (!report) throw new Error('report could not be built')
       const { url } = await mintToken('mandate', m.id)
 
-      const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: report.property.currency || 'USD', maximumFractionDigits: 0 }).format(n)
+      const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: report.property.currency || DEFAULT_CURRENCY, maximumFractionDigits: 0 }).format(n)
       const line = (label: string, value: string | number) =>
         `<tr><td style="padding:6px 0;color:#52566b;">${escapeHtml(label)}</td><td style="padding:6px 0;text-align:right;"><strong>${escapeHtml(String(value))}</strong></td></tr>`
 

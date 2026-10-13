@@ -62,12 +62,15 @@ function SplitEditor({
     onSaved,
     onClose,
     isDeveloper,
+    workspaceCurrency,
 }: {
     isDeveloper: boolean;
     commission: CommissionRow;
     agents: { id: string; name: string }[];
     onSaved: () => void;
     onClose: () => void;
+    /** For a commission row that carries no currency of its own. */
+    workspaceCurrency: string;
 }) {
     const { t, formatCurrency } = useI18n();
     const [rows, setRows] = useState(commission.splits.map(s => ({ userId: s.userId ?? '', role: s.role, sharePercent: String(s.sharePercent), note: s.note ?? '' })));
@@ -78,7 +81,7 @@ function SplitEditor({
     const over = total > 100 + 1e-9;
     const roleOptions = SPLIT_ROLES.map(r => ({ value: r, label: t(`realEstate.commissions.roles.${r}` as MessageKey) }));
     const agentOptions = [{ value: '', label: t(isDeveloper ? 'developerCommissions.company' : 'realEstate.commissions.shares.agency') }, ...agents.map(a => ({ value: a.id, label: a.name }))];
-    const currency = commission.currency || 'USD';
+    const currency = commission.currency || workspaceCurrency;
 
     const save = async () => {
         if (over) return setError(t('realEstate.commissions.shares.over', { total: total.toFixed(1) }));
@@ -318,7 +321,7 @@ function CommissionsPageInner() {
                     </ul>
                 )}
 
-                {editing && <SplitEditor isDeveloper={isDeveloper} commission={editing} agents={info.agents} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+                {editing && <SplitEditor isDeveloper={isDeveloper} commission={editing} agents={info.agents} workspaceCurrency={currency} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
             </div>
         </AppShell>
     );

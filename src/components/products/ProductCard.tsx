@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/products';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { Product, ProductCustomField } from '@/types';
 import { formatCustomValue } from '@/lib/product-custom-fields';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 const MAX_CARD_CUSTOM_VALUES = 3;
 
@@ -25,7 +26,7 @@ export default function ProductCard({
   onEdit,
   onDelete,
   canWrite = true,
-  currency = 'USD',
+  currency = DEFAULT_CURRENCY,
   customFields = [],
 }: ProductCardProps) {
   const { t } = useI18n();

@@ -10,7 +10,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { stageLabel } from '@/components/crm/labels';
 import type { DashboardPeriod, DeveloperDashboard as DashboardData } from '@/lib/services/developer/dashboard';
 import ProgramFormModal from '@/components/developer/ProgramFormModal';
-import { useWorkspaceCurrency } from '@/components/developer/useWorkspaceCurrency';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import { groupTasks } from '@/components/developer/task-groups';
 import {
     ColumnChart, HBars, LineChart, SERIES, StackedBar, TargetBar,

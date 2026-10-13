@@ -22,6 +22,7 @@ import {
   PRODUCT_SORT_CLAUSES,
 } from '@/lib/products-server';
 import { sanitizeCustomFields } from '@/lib/product-custom-fields';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 export async function GET(request: NextRequest) {
   try {
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       products,
       role,
-      currency: workspaceRow?.currency ?? 'USD',
+      currency: workspaceRow?.currency ?? DEFAULT_CURRENCY,
       categories: categories
         .map((item) => item.category)
         .filter((value): value is string => Boolean(value)),

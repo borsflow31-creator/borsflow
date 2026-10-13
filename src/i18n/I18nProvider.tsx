@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import en, { type Messages } from './messages/en';
+import { DEFAULT_CURRENCY } from '@/lib/currencies';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,9 +197,12 @@ export function I18nProvider({
 
   /**
    * Format a currency amount using the given ISO currency code.
+   *
+   * Callers that print a workspace's money should pass its currency (see
+   * useWorkspaceCurrency); the default is only for amounts that have none.
    */
   const formatCurrency = useCallback(
-    (amount: number, currency: string = 'USD'): string => {
+    (amount: number, currency: string = DEFAULT_CURRENCY): string => {
       return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency,
