@@ -9,6 +9,7 @@
 
 import { createHmac, timingSafeEqual } from 'crypto'
 import { escapeHtml } from '@/lib/html'
+import type { EmailTokenName } from './tokens'
 import { effectiveLeadStatus } from '@/lib/crm/lead-status'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -120,7 +121,14 @@ function formatDay(value: Date | string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
 }
 
-function buildTokenMap(ctx: MergeContext): Record<string, string> {
+/**
+ * Every token the catalogue offers, filled in from this send's context.
+ *
+ * The return type comes from tokens.ts, so the two cannot drift: offering a
+ * token the editor can insert and then not filling it here is a type error, not
+ * a blank in someone's inbox.
+ */
+function buildTokenMap(ctx: MergeContext): Record<EmailTokenName, string> {
   const lead = ctx.lead ?? {}
   const first = (lead.firstName || '').trim()
   const last = (lead.lastName || '').trim()
@@ -181,12 +189,14 @@ export type MergeTarget = 'html' | 'text'
 export function renderMergeTags(content: string, ctx: MergeContext, target: MergeTarget = 'html'): string {
   if (!content) return content
 
-  const tokens = buildTokenMap(ctx)
+  // Looked up by a name that came out of the template, so by a plain string:
+  // the map's keys are the catalogue's names, which is checked where it is built.
+  const tokens: Record<string, string> = buildTokenMap(ctx)
 
   return content.replace(TOKEN_PATTERN, (_match, rawToken: string) => {
     const key = rawToken.toLowerCase()
-    if (!(key in tokens)) return ''
     const value = tokens[key]
+    if (value === undefined) return ''
     if (target === 'text' || key === 'unsubscribe_url') return value
     return escapeHtml(value)
   })

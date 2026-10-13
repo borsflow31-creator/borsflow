@@ -1,7 +1,10 @@
 /**
- * Which editor owns a template's HTML, and conversions for the Simple
- * (Gmail-style) editor. The owner is recorded as a <meta name="bf-editor">
- * tag so no schema change is needed; Gmail and other clients ignore it.
+ * Whether a template's HTML is the editor's own, and the conversions around it.
+ *
+ * The editor marks what it writes with <meta name="bf-editor" content="simple">,
+ * which needs no schema column and which mail clients ignore. Anything without
+ * that marker predates the single editor — the block designer's output, or HTML
+ * pasted in whole — and is offered the one-way import below.
  */
 
 export type EditorMode = 'simple' | 'blocks' | 'inline'
@@ -66,22 +69,10 @@ export function htmlToPlainText(html: string): string {
 }
 
 /**
- * Simple body → text usable in a block-editor text block. Text blocks render
- * inline HTML inside a <p>, so lists and paragraphs become line breaks.
+ * Any HTML → paragraphs for the editor. Used to bring a template built by the
+ * retired block designer, or pasted in whole, into the one editor there now is:
+ * the text, the links and the lists survive, the layout does not.
  */
-export function simpleBodyToBlockText(bodyHtml: string): string {
-  return bodyHtml
-    .replace(/<li[^>]*>/gi, '• ')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<\/?(ul|ol)[^>]*>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6])>/gi, '\n')
-    .replace(/<(p|div|h[1-6])[^>]*>/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-/** Any HTML → paragraphs for the Simple editor (used when switching from Designed). */
 export function htmlToSimpleBody(html: string): string {
   const text = htmlToPlainText(html.replace(/<tr><td style="padding:20px 28px;background:#f9fafb;[\s\S]*?<\/tr>/, ''))
   const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

@@ -9,9 +9,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { useI18n } from '@/i18n/I18nProvider'
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider'
 import { Bold, Italic, Underline, Link2, List, ListOrdered, RemoveFormatting, Braces } from 'lucide-react'
 import { htmlToSimple, simpleToHtml } from '@/lib/email-editor-mode'
+import { EMAIL_TOKEN_GROUPS } from '@/lib/email/tokens'
 
 interface SimpleEmailEditorProps {
   /** Saved HTML to start from; only read on mount */
@@ -23,7 +24,6 @@ interface SimpleEmailEditorProps {
   subjectError?: boolean
 }
 
-const BASE_FIELDS = ['first_name', 'last_name', 'company', 'company_name']
 
 export default function SimpleEmailEditor({
   initialHtml,
@@ -41,7 +41,24 @@ export default function SimpleEmailEditor({
   const [isEmpty, setIsEmpty] = useState(!initial.bodyHtml)
   const [fieldsOpen, setFieldsOpen] = useState(false)
 
-  const fields = Array.from(new Set([...BASE_FIELDS, ...variables]))
+  /**
+   * Every field the send path can actually fill in, grouped, plus any extra
+   * names this template declares. The list used to be four hardcoded tokens
+   * while the renderer resolved twenty-seven, so most of them could only be
+   * reached by typing the braces and a typo rendered as nothing.
+   */
+  const fieldGroups = [
+    ...EMAIL_TOKEN_GROUPS.map(group => ({
+      label: t(group.labelKey as MessageKey),
+      tokens: group.tokens.map(token => ({ name: token.name as string, label: t(token.labelKey as MessageKey) })),
+    })),
+    ...(variables.length
+      ? [{
+          label: t('emailMarketing.simpleEditor.templateFields'),
+          tokens: variables.map(name => ({ name, label: name })),
+        }]
+      : []),
+  ]
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.innerHTML = initial.bodyHtml
@@ -165,17 +182,25 @@ export default function SimpleEmailEditor({
               {t('emailMarketing.simpleEditor.insertField')}
             </button>
             {fieldsOpen && (
-              <div className="absolute left-0 top-full z-10 mt-1 min-w-48 overflow-hidden rounded-xl border border-outline-variant/30 bg-surface-container-lowest py-1 shadow-lg">
-                {fields.map((field) => (
-                  <button
-                    key={field}
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => insertField(field)}
-                    className="block w-full px-3 py-1.5 text-left font-mono text-xs text-on-surface transition hover:bg-surface-container-high"
-                  >
-                    {`{{${field}}}`}
-                  </button>
+              <div className="absolute left-0 top-full z-10 mt-1 max-h-80 w-72 overflow-y-auto rounded-xl border border-outline-variant/30 bg-surface-container-lowest py-1 shadow-lg">
+                {fieldGroups.map((group) => (
+                  <div key={group.label} className="border-b border-outline-variant/20 py-1 last:border-0">
+                    <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">
+                      {group.label}
+                    </div>
+                    {group.tokens.map((token) => (
+                      <button
+                        key={token.name}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => insertField(token.name)}
+                        className="flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left transition hover:bg-surface-container-high"
+                      >
+                        <span className="text-sm text-on-surface">{token.label}</span>
+                        <span className="shrink-0 font-mono text-[10px] text-on-surface-variant">{`{{${token.name}}}`}</span>
+                      </button>
+                    ))}
+                  </div>
                 ))}
               </div>
             )}

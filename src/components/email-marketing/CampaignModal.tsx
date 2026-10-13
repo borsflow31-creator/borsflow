@@ -86,6 +86,11 @@ export default function CampaignModal({
   const [selectedTemplateType, setSelectedTemplateType] = useState('promotional')
   const [isGeneratingTemplate, setIsGeneratingTemplate] = useState(false)
   const [generatedTemplate, setGeneratedTemplate] = useState('')
+  const [savingGenerated, setSavingGenerated] = useState(false)
+  // Templates saved while this modal is open; the page's list is only refetched
+  // once the campaign itself is saved.
+  const [savedTemplates, setSavedTemplates] = useState<any[]>([])
+  const allTemplates = [...templates, ...savedTemplates]
   const [templatePreviewMode, setTemplatePreviewMode] = useState<'html' | 'preview'>('preview')
 
   const generateSubjectLines = async () => {
@@ -132,6 +137,44 @@ export default function CampaignModal({
       setCampaignCopy(aiErrorMessage(error, t('emailMarketing.campaignModal.aiErrorFallback')))
     } finally {
       setIsLoadingCopy(false)
+    }
+  }
+
+  /**
+   * Keep the generated template: save it and select it for this campaign.
+   *
+   * Generating one used to end at "Copy HTML" — the campaign was built around a
+   * template the user then had to paste into the template editor by hand, and
+   * the generated HTML was attached to nothing.
+   */
+  const saveGeneratedTemplate = async () => {
+    setSavingGenerated(true)
+    try {
+      const name = formData.name.trim()
+        ? t('emailMarketing.campaignModal.generatedTemplateName', { campaign: formData.name.trim() })
+        : t('emailMarketing.campaignModal.generatedTemplateFallbackName')
+      const res = await fetch('/api/email-marketing/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspaceId,
+          name,
+          type: 'marketing',
+          subject: formData.subject || name,
+          htmlContent: generatedTemplate,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '')
+      const saved = data.template
+      setSavedTemplates(prev => [...prev, saved])
+      setFormData(prev => ({ ...prev, templateId: saved.id }))
+      setGeneratedTemplate('')
+      setShowTemplateGenerator(false)
+    } catch {
+      setGeneratedTemplate(prev => prev)
+    } finally {
+      setSavingGenerated(false)
     }
   }
 
@@ -646,8 +689,18 @@ export default function CampaignModal({
                           <div className="flex gap-3 px-4 py-2 border-t border-outline-variant/10 bg-surface-container-low">
                             <button
                               type="button"
+                              onClick={saveGeneratedTemplate}
+                              disabled={savingGenerated}
+                              className="text-xs font-medium text-secondary hover:underline disabled:opacity-50"
+                            >
+                              {savingGenerated
+                                ? t('common.saving')
+                                : t('emailMarketing.campaignModal.useAsTemplate')}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => navigator.clipboard.writeText(generatedTemplate)}
-                              className="text-xs text-secondary hover:underline"
+                              className="text-xs text-on-surface-variant hover:text-on-surface"
                             >
                               {t('emailMarketing.campaignModal.copyHtml')}
                             </button>
@@ -684,7 +737,7 @@ export default function CampaignModal({
                   className="w-full px-4 py-2 bg-transparent text-on-surface border border-outline-variant/40 rounded-lg focus:ring-2 focus:ring-secondary/50 focus:border-transparent"
                 >
                   <option value="">{t('emailMarketing.campaignModal.selectTemplate')}</option>
-                  {templates.map(template => (
+                  {allTemplates.map(template => (
                     <option key={template.id} value={template.id}>
                       {template.name}
                     </option>

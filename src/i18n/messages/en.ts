@@ -532,6 +532,41 @@ export interface Messages {
       automations: string;
       settings: string;
     };
+    tokenGroups: {
+      contact: string;
+      property: string;
+      deal: string;
+      sender: string;
+    };
+    tokens: {
+      first_name: string;
+      last_name: string;
+      full_name: string;
+      name: string;
+      email: string;
+      phone: string;
+      company: string;
+      position: string;
+      property_title: string;
+      property_reference: string;
+      property_city: string;
+      property_district: string;
+      property_type: string;
+      property_price: string;
+      property_bedrooms: string;
+      property_surface: string;
+      stage: string;
+      status: string;
+      source: string;
+      value: string;
+      pipeline_name: string;
+      interest_stage: string;
+      mandate_reference: string;
+      asking_price: string;
+      mandate_end_date: string;
+      company_name: string;
+      unsubscribe_url: string;
+    };
     automationsTab: {
       saveFailed: string;
       toggleFailed: string;
@@ -719,6 +754,9 @@ export interface Messages {
       createAutomationButton: string;
     };
     campaignModal: {
+      useAsTemplate: string;
+      generatedTemplateName: string;
+      generatedTemplateFallbackName: string;
       aiErrorFallback: string;
       nameRequired: string;
       subjectRequired: string;
@@ -1030,6 +1068,7 @@ export interface Messages {
       bulletList: string;
       numberedList: string;
       clearFormatting: string;
+      templateFields: string;
       insertField: string;
       unsubscribeToggle: string;
     };
@@ -1043,25 +1082,21 @@ export interface Messages {
       apply: string;
     };
     templateModal: {
+      testSend: string;
+      testSendHint: string;
+      testSent: string;
+      testFailed: string;
+      testNeedsContent: string;
+      legacyTitle: string;
+      legacyBody: string;
+      legacyImport: string;
+      legacyEditHtml: string;
+      legacyImportConfirm: string;
       tabWrite: string;
-      tabEdit: string;
-      modeSimple: string;
-      modeDesigned: string;
-      modeCustom: string;
-      startTitle: string;
-      startSubtitle: string;
-      startSimpleDesc: string;
-      startDesignedDesc: string;
-      startPasteHtml: string;
-      switchConfirm: string;
-      startOverConfirm: string;
       bodyRequired: string;
       saveFailed: string;
-      tabDesign: string;
       tabHtml: string;
       tabPreview: string;
-      editTitle: string;
-      newTitle: string;
       discard: string;
       settings: string;
       discardConfirm: string;
@@ -1089,7 +1124,7 @@ export interface Messages {
       requiredFieldsNotice: string;
       htmlVariablesLabel: string;
       htmlPlaceholder: string;
-      previewReadOnly: string;
+      previewSampleData: string;
       nothingToPreview: string;
     };
   };
@@ -7016,6 +7051,41 @@ const en: Messages = {
       automations: 'Automations',
       settings: 'Settings',
     },
+    tokenGroups: {
+      contact: 'Contact',
+      property: 'Property',
+      deal: 'Deal',
+      sender: 'Your agency',
+    },
+    tokens: {
+      first_name: 'First name',
+      last_name: 'Last name',
+      full_name: 'Full name',
+      name: 'Name',
+      email: 'Email address',
+      phone: 'Phone',
+      company: 'Company',
+      position: 'Job title',
+      property_title: 'Property title',
+      property_reference: 'Reference',
+      property_city: 'City',
+      property_district: 'District',
+      property_type: 'Property type',
+      property_price: 'Price',
+      property_bedrooms: 'Bedrooms',
+      property_surface: 'Surface area',
+      stage: 'Stage',
+      status: 'Status',
+      source: 'Source',
+      value: 'Deal amount',
+      pipeline_name: 'Pipeline',
+      interest_stage: 'Interest stage',
+      mandate_reference: 'Mandate reference',
+      asking_price: 'Asking price',
+      mandate_end_date: 'Mandate end date',
+      company_name: 'Agency name',
+      unsubscribe_url: 'Unsubscribe link',
+    },
     automationsTab: {
       saveFailed: 'Failed to save automation',
       toggleFailed: 'Failed to update automation status',
@@ -7203,6 +7273,9 @@ const en: Messages = {
       createAutomationButton: 'Create automation',
     },
     campaignModal: {
+      useAsTemplate: 'Save and use as template',
+      generatedTemplateName: '{campaign} — generated',
+      generatedTemplateFallbackName: 'Generated template',
       aiErrorFallback: 'Something went wrong generating content. Please try again.',
       nameRequired: 'Campaign name is required',
       subjectRequired: 'Subject line is required',
@@ -7514,6 +7587,7 @@ const en: Messages = {
       bulletList: 'Bulleted list',
       numberedList: 'Numbered list',
       clearFormatting: 'Clear formatting',
+      templateFields: 'This template',
       insertField: 'Insert field',
       unsubscribeToggle: 'Add an unsubscribe link at the bottom',
     },
@@ -7527,25 +7601,21 @@ const en: Messages = {
       apply: 'Apply',
     },
     templateModal: {
+      testSend: 'Send me a test',
+      testSendHint: 'Sends this draft to your own address, with sample details filled in.',
+      testSent: 'Test sent to {email}. It may take a minute to arrive.',
+      testFailed: 'The test email could not be sent.',
+      testNeedsContent: 'Add a subject and a body before sending a test.',
+      legacyTitle: 'Built with the old designer',
+      legacyBody: 'This template was made with the block designer, which has been replaced by a single editor. Bringing it across keeps the text, links and lists, and drops the block layout — or you can keep it exactly as it is and edit its HTML.',
+      legacyImport: 'Open in the editor',
+      legacyEditHtml: 'Edit the HTML',
+      legacyImportConfirm: 'This keeps the text, links and lists and simplifies the layout. Nothing is saved until you save, so you can close without keeping it. Continue?',
       tabWrite: 'Write',
-      tabEdit: 'Edit',
-      modeSimple: 'Simple email',
-      modeDesigned: 'Designed email',
-      modeCustom: 'Custom design',
-      startTitle: 'How do you want to write this email?',
-      startSubtitle: 'You can switch later from the top bar.',
-      startSimpleDesc: 'Write it like in Gmail: text, bold, links and lists, with personal touches like {{first_name}}.',
-      startDesignedDesc: 'Drag and drop blocks: headings, images, buttons and columns.',
-      startPasteHtml: 'Paste HTML code instead',
-      switchConfirm: 'Switching editors converts your content and some formatting may be lost. Continue?',
-      startOverConfirm: 'This replaces the current design with a new, empty email. Continue?',
       bodyRequired: 'Write something in the email before saving',
       saveFailed: 'Failed to save template',
-      tabDesign: 'Design',
       tabHtml: 'HTML',
       tabPreview: 'Preview',
-      editTitle: 'Edit template',
-      newTitle: 'New template',
       discard: 'Discard',
       settings: 'Settings',
       discardConfirm: 'You have unsaved changes. Discard them?',
@@ -7573,7 +7643,7 @@ const en: Messages = {
       requiredFieldsNotice: 'Fill in all required fields before saving.',
       htmlVariablesLabel: 'Available variables',
       htmlPlaceholder: 'Enter your HTML email markup...',
-      previewReadOnly: 'This preview is read-only',
+      previewSampleData: 'Preview with sample details',
       nothingToPreview: 'Nothing to preview yet',
     },
   },
