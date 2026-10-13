@@ -101,6 +101,7 @@ model User {
   ownedLeads                    Lead[]                  @relation("LeadOwner")
   assignedLeadTasks             LeadTask[]              @relation("LeadTaskAssignee")
   createdLeadTasks              LeadTask[]              @relation("LeadTaskCreator")
+  createdLotInterests           LeadLotInterest[]       @relation("LeadLotInterestCreator")
   lotCancellations              LotCancellation[]       @relation("LotCancellationAgent")
 }
 
@@ -201,6 +202,7 @@ model Workspace {
   handoverSnags           HandoverSnag[]
   lotCancellations        LotCancellation[]
   leadTasks               LeadTask[]
+  leadLotInterests        LeadLotInterest[]
   salesTemplates          SalesTemplate[]
   salesDocuments          SalesDocument[]
   marketingSpends         MarketingSpend[]
@@ -431,6 +433,12 @@ model Lead {
   lastContactedAt       DateTime?
   nextFollowUpAt        DateTime?
   tasks                 LeadTask[]
+  /// Units of a programme the buyer asked about. Interest only: an option or a
+  /// reservation is DevelopmentLot.optionHolderLead / buyerLead.
+  lotInterests          LeadLotInterest[]
+  /// Set by the form that created the lead, so a retried submit returns the
+  /// lead it already made instead of a second one.
+  clientRequestId       String?                @unique
   salesDocuments        SalesDocument[]
   commissions           Commission[]           @relation("LeadCommissions")
   notes                 String? // Additional notes
@@ -2631,6 +2639,24 @@ model Program {
   @@index([createdById])
 }
 
+/// A buyer's interest in one existing unit. Links the two; never copies the unit.
+model LeadLotInterest {
+  id          String         @id @default(cuid())
+  workspaceId String
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leadId      String
+  lead        Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lotId       String
+  lot         DevelopmentLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?          @relation("LeadLotInterestCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+
+  @@unique([leadId, lotId])
+  @@index([lotId])
+  @@index([workspaceId])
+}
+
 /// A building or construction phase within a program (Bâtiment / Tranche).
 model Building {
   id            String                  @id @default(cuid())
@@ -2703,6 +2729,7 @@ model DevelopmentLot {
   snags                 HandoverSnag[]
   cancellations         LotCancellation[]
   meetings              Meeting[]         @relation("LotMeetings")
+  interestedLeads       LeadLotInterest[]
   // Public Buyer Portal (Hybrid Token + OTP)
   publicToken           String?           @unique
   publicTokenCreatedAt  DateTime?

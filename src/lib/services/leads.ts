@@ -3,7 +3,11 @@ import { isWorkspaceMember } from '@/lib/crm/access'
 import { parseStages } from '@/lib/crm/lifecycle'
 import { scoreLead } from '@/lib/crm/lead-score'
 import { leadStatusForStage } from '@/lib/crm/lead-status'
+import { checkLotSelection, MAX_INTERESTED_LOTS, readLotIds } from '@/lib/crm/contact-match'
+import { CrmLogger } from '@/lib/crm/logger'
 import { assignOwnerForNewLead } from './developer/lead-assignment'
+import { syncLeadFollowUp } from './developer/lead-sync'
+import { readNewTaskFields, type TaskInput } from './developer/tasks'
 import { ServiceError } from './errors'
 
 type PipelineRecord = { id: string; workspaceId: string; stages: string }
@@ -31,6 +35,14 @@ export interface CreateLeadInput {
   budgetMin?: unknown
   budgetMax?: unknown
   preferredLocation?: string | null
+  /** Units of the programme the buyer asked about (developer CRM). */
+  interestedLotIds?: unknown
+  /** A follow-up to create with the lead, in the same transaction. */
+  firstTask?: TaskInput | null
+  /** Set by the form, once per form; a retry with the same key returns the same lead. */
+  clientRequestId?: string | null
+  /** Who is creating it: recorded on the lead and on what is created with it. */
+  createdById?: string | null
 }
 
 export interface DeveloperLeadFields {
@@ -108,6 +120,65 @@ export async function readDeveloperLeadFields(
   return out
 }
 
+const LOT_SELECTION_ERRORS = {
+  not_found: 'Unit not found in this workspace',
+  not_available: 'That unit is no longer available',
+  wrong_program: 'Every unit must belong to the chosen project',
+  mixed_programs: 'Units must all belong to one project',
+} as const
+
+/**
+ * Reads `interestedLotIds` from a request body and checks each unit against the
+ * database: in this workspace, still available, and in the lead's project. The
+ * client sends ids only; nothing about a unit (its price least of all) is taken
+ * from it. Absent means "leave the interests alone".
+ *
+ * `programId` is the project the lead will have after this save. Returns the
+ * project the units imply, so a lead given units but no project gets one.
+ * `keepIds` are units already on the lead, allowed even if since sold.
+ */
+export async function readLotInterests(
+  workspaceId: string,
+  input: Record<string, unknown>,
+  programId: string | null,
+  keepIds: readonly string[] = []
+): Promise<{ lotIds?: string[]; programId: string | null }> {
+  const lotIds = readLotIds(input.interestedLotIds)
+  if (lotIds === undefined) return { programId }
+  if (lotIds.length > MAX_INTERESTED_LOTS) {
+    throw new ServiceError(`At most ${MAX_INTERESTED_LOTS} units per lead`)
+  }
+  const found = lotIds.length
+    ? await prisma.developmentLot.findMany({
+        where: { id: { in: lotIds }, workspaceId },
+        select: { id: true, programId: true, status: true },
+      })
+    : []
+  const result = checkLotSelection(lotIds, found, programId, keepIds)
+  if (!result.ok) throw new ServiceError(LOT_SELECTION_ERRORS[result.error])
+  return { lotIds, programId: result.programId }
+}
+
+/**
+ * The lead a form already created with this request key, if any. A retried
+ * submit (double click, a dropped response) gets that lead back instead of
+ * making a second one. A key from another workspace is refused rather than
+ * answered, so it cannot be used to read someone else's lead.
+ */
+export async function findLeadByRequestId(workspaceId: string, clientRequestId: unknown) {
+  const key = readText(clientRequestId, 100)
+  if (!key) return null
+  const lead = await prisma.lead.findUnique({
+    where: { clientRequestId: key },
+    include: { pipeline: { select: { workspaceId: true } } },
+  })
+  if (!lead) return null
+  if (lead.pipeline.workspaceId !== workspaceId) throw new ServiceError('Invalid request key', 409)
+  const { pipeline: _pipeline, ...rest } = lead
+  void _pipeline
+  return rest
+}
+
 /**
  * Create a lead in `pipeline`. The caller must already have checked that the
  * user may create content in the pipeline's workspace.
@@ -147,11 +218,25 @@ export async function createLead(pipeline: PipelineRecord, input: CreateLeadInpu
     // keep the fallback
   }
 
-  const developer = await readDeveloperLeadFields(pipeline.workspaceId, input as unknown as Record<string, unknown>)
+  const body = input as unknown as Record<string, unknown>
+  const developer = await readDeveloperLeadFields(pipeline.workspaceId, body)
+  // Units are checked against the project chosen; with none chosen, they set it.
+  const lots = await readLotInterests(pipeline.workspaceId, body, developer.interestedProgramId ?? null)
+  if (lots.lotIds?.length) developer.interestedProgramId = lots.programId
+  const firstTask = input.firstTask ? readNewTaskFields(input.firstTask) : null
   // No owner given: a developer's workspace hands the lead to whoever is carrying
   // the fewest. An explicit null is respected as "unassigned".
   const ownerId =
     developer.ownerId !== undefined ? developer.ownerId : await assignOwnerForNewLead(pipeline.workspaceId)
+
+  // The follow-up goes to who it was given to, else the lead's owner, else whoever
+  // is creating it: an unassigned task is one nobody sees on their list.
+  const taskAssigneeId = firstTask
+    ? firstTask.assigneeId !== undefined ? firstTask.assigneeId : ownerId ?? input.createdById ?? null
+    : null
+  if (taskAssigneeId && taskAssigneeId !== ownerId && !(await isWorkspaceMember(pipeline.workspaceId, taskAssigneeId))) {
+    throw new ServiceError('Assignee must be a member of this workspace')
+  }
 
   const leadStage = stage || firstStage
   const { score } = scoreLead({
@@ -173,37 +258,101 @@ export async function createLead(pipeline: PipelineRecord, input: CreateLeadInpu
     select: { order: true },
   })
 
-  const lead = await prisma.lead.create({
-    data: {
-      firstName,
-      lastName,
-      email,
-      phone,
-      company,
-      position,
-      status: leadStatusForStage(leadStage) ?? (status || 'new'),
-      stage: leadStage,
-      value: parsedValue,
-      source,
-      ownerId,
-      campaign: developer.campaign,
-      interestedProgramId: developer.interestedProgramId,
-      interestedTypology: developer.interestedTypology,
-      budgetMin: developer.budgetMin,
-      budgetMax: developer.budgetMax,
-      preferredLocation: developer.preferredLocation,
-      score,
-      notes,
-      tags: Array.isArray(tags) && tags.length > 0 ? JSON.stringify(tags) : null,
-      pipelineId: pipeline.id,
-      order: (highestOrder?.order ?? 0) + 1,
-    },
-  })
+  const clientRequestId = readText(input.clientRequestId, 100)
+  const createdById = input.createdById ?? null
 
-  if (listIds.length > 0) {
-    await prisma.leadListLead.createMany({
-      data: listIds.map((leadListId) => ({ leadId: lead.id, leadListId })),
+  // The lead and what comes with it land together or not at all, so a failure
+  // never leaves a lead without the follow-up the form showed as scheduled.
+  let created
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          company,
+          position,
+          status: leadStatusForStage(leadStage) ?? (status || 'new'),
+          stage: leadStage,
+          value: parsedValue,
+          source,
+          ownerId,
+          campaign: developer.campaign,
+          interestedProgramId: developer.interestedProgramId,
+          interestedTypology: developer.interestedTypology,
+          budgetMin: developer.budgetMin,
+          budgetMax: developer.budgetMax,
+          preferredLocation: developer.preferredLocation,
+          score,
+          notes,
+          tags: Array.isArray(tags) && tags.length > 0 ? JSON.stringify(tags) : null,
+          pipelineId: pipeline.id,
+          order: (highestOrder?.order ?? 0) + 1,
+          clientRequestId,
+          ...(createdById && { createdById }),
+        },
+      })
+
+      if (listIds.length > 0) {
+        await tx.leadListLead.createMany({
+          data: listIds.map((leadListId) => ({ leadId: lead.id, leadListId })),
+        })
+      }
+
+      if (lots.lotIds?.length) {
+        await tx.leadLotInterest.createMany({
+          data: lots.lotIds.map((lotId) => ({
+            workspaceId: pipeline.workspaceId,
+            leadId: lead.id,
+            lotId,
+            createdById,
+          })),
+        })
+      }
+
+      const task = firstTask
+        ? await tx.leadTask.create({
+            data: {
+              workspaceId: pipeline.workspaceId,
+              leadId: lead.id,
+              type: firstTask.type,
+              title: firstTask.title,
+              notes: firstTask.notes,
+              dueAt: firstTask.dueAt,
+              assigneeId: taskAssigneeId,
+              createdById,
+            },
+          })
+        : null
+
+      return { lead, task }
     })
+  } catch (error) {
+    // Two submits raced past the replay check: the loser returns the winner's lead.
+    if (clientRequestId && (error as { code?: string }).code === 'P2002') {
+      const existing = await findLeadByRequestId(pipeline.workspaceId, clientRequestId)
+      if (existing) return existing
+    }
+    throw error
+  }
+
+  const { lead, task } = created
+  if (task) {
+    await syncLeadFollowUp(lead.id)
+    if (createdById) {
+      const buyer = `${lead.firstName} ${lead.lastName}`.trim()
+      await CrmLogger.logActivity(
+        pipeline.workspaceId,
+        createdById,
+        'task_created',
+        lead.id,
+        `Follow-up added for ${buyer}: ${task.title}`,
+        { taskId: task.id, type: task.type, dueAt: task.dueAt.toISOString(), buyer, title: task.title },
+        lead.id
+      )
+    }
   }
 
   return lead

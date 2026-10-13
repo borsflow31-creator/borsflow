@@ -241,7 +241,8 @@ function CRMPageInner() {
 
     // The board and list view render from their own fetched state, so these handlers
     // report success and let the child roll back; they no longer touch selectedPipeline.
-    const handleLeadCreate = async (leadData: Partial<Lead>): Promise<boolean> => {
+    /** keepOpen: "create and add another", so the form stays up, reset, for the next one. */
+    const handleLeadCreate = async (leadData: Partial<Lead>, options?: { keepOpen?: boolean }): Promise<boolean> => {
         if (!selectedPipeline) return false;
 
         try {
@@ -260,8 +261,9 @@ function CRMPageInner() {
                 return false;
             }
 
-            setShowLeadModal(false);
+            if (!options?.keepOpen) setShowLeadModal(false);
             setBoardRefreshKey(k => k + 1);
+            setToast({ message: t('crm.leadModal.created'), type: 'success' });
             return true;
         } catch (error) {
             console.error('Error creating lead:', error);
@@ -475,7 +477,7 @@ function CRMPageInner() {
             .then(res => (res.ok ? res.json() : null))
             .then(lead => {
                 if (cancelled || !lead?.id) return;
-                const tab = ['details', 'interests', 'meetings', 'files', 'history'].includes(deepLinkTab ?? '')
+                const tab = ['details', 'customer', 'interests', 'meetings', 'files', 'history'].includes(deepLinkTab ?? '')
                     ? (deepLinkTab as LeadModalTab)
                     : 'details';
                 setEditingLead(lead);
@@ -485,6 +487,23 @@ function CRMPageInner() {
             .catch(() => {});
         return () => { cancelled = true; };
     }, [deepLinkLeadId, deepLinkTab]);
+
+    /** The new-lead form found this person already on file: open their record instead. */
+    const openExistingLead = async (leadId: string) => {
+        try {
+            const res = await fetch(`/api/leads/${leadId}`);
+            const lead = res.ok ? await res.json() : null;
+            if (!lead?.id) {
+                showError(t('crm.page.errors.createLeadNetwork'));
+                return;
+            }
+            setEditingLead(lead);
+            setLeadModalTab('details');
+            setShowLeadModal(true);
+        } catch {
+            showError(t('crm.page.errors.createLeadNetwork'));
+        }
+    };
 
     const handleOpenPipelineModal = async (pipeline?: Pipeline) => {
         setEditingPipeline(pipeline || null);
@@ -722,12 +741,14 @@ function CRMPageInner() {
                 {/* Modals */}
                 {showLeadModal && (
                     <LeadModal
+                        key={editingLead?.id ?? 'new'}
                         lead={editingLead}
                         pipeline={selectedPipeline}
                         leadLists={leadLists}
                         workspaceId={effectiveWorkspaceId}
                         initialTab={leadModalTab}
                         onSave={editingLead ? (data) => handleLeadUpdate(editingLead.id, data) : handleLeadCreate}
+                        onOpenExisting={openExistingLead}
                         onClose={() => {
                             setShowLeadModal(false);
                             setEditingLead(null);

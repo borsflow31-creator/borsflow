@@ -9,7 +9,8 @@ import { reorderInColumn } from '@/lib/crm/reorder';
 import { onSubjectStageChanged } from '@/lib/crm/subject-events';
 import { parseStages } from '@/lib/crm/lifecycle';
 import { scoreLead } from '@/lib/crm/lead-score';
-import { readDeveloperLeadFields } from '@/lib/services/leads';
+import { readDeveloperLeadFields, readLotInterests } from '@/lib/services/leads';
+import { PICKER_LOT_SELECT } from '@/lib/services/developer/lot-picker';
 import { ServiceError } from '@/lib/services/errors';
 import { getSupabaseAdmin, CRM_BUCKET } from '@/lib/supabase-admin';
 
@@ -32,7 +33,8 @@ export async function GET(
                     include: {
                         leadList: true
                     }
-                }
+                },
+                lotInterests: { select: { lot: { select: PICKER_LOT_SELECT } }, orderBy: { createdAt: 'asc' } },
             },
         });
 
@@ -47,10 +49,12 @@ export async function GET(
         }
 
         // Parse tags JSON and format lead lists
+        const { lotInterests, ...rest } = lead;
         const leadWithParsedData = {
-            ...lead,
+            ...rest,
             tags: lead.tags ? JSON.parse(lead.tags) : [],
-            leadLists: lead.leadLists.map(l => l.leadList)
+            leadLists: lead.leadLists.map(l => l.leadList),
+            interestedLots: lotInterests.map(i => i.lot),
         };
 
         return NextResponse.json(leadWithParsedData);
@@ -122,6 +126,22 @@ export async function PUT(
         // them alone, so the agency form (which never sends them) is unaffected.
         const developer = await readDeveloperLeadFields(lead.pipeline.workspaceId, body, lead);
 
+        // Units of interest, sent as the full set. Ones already on the lead stay
+        // allowed after they sell, so an old lead can still be saved.
+        const currentLotIds = body.interestedLotIds === undefined
+            ? []
+            : (await prisma.leadLotInterest.findMany({ where: { leadId: params.id }, select: { lotId: true } }))
+                .map(i => i.lotId);
+        const lots = await readLotInterests(
+            lead.pipeline.workspaceId,
+            body,
+            developer.interestedProgramId !== undefined ? developer.interestedProgramId : lead.interestedProgramId,
+            currentLotIds
+        );
+        if (lots.lotIds?.length && lots.programId !== lead.interestedProgramId) {
+            developer.interestedProgramId = lots.programId;
+        }
+
         // The score follows whatever the lead will look like after this save.
         const { score } = scoreLead({
             email: email !== undefined ? email : lead.email,
@@ -185,6 +205,22 @@ export async function PUT(
             });
         } else {
             await prisma.lead.update({ where: { id: params.id }, data });
+        }
+
+        if (lots.lotIds) {
+            const lotIds = lots.lotIds;
+            await prisma.$transaction([
+                prisma.leadLotInterest.deleteMany({ where: { leadId: params.id, lotId: { notIn: lotIds } } }),
+                prisma.leadLotInterest.createMany({
+                    data: lotIds.map(lotId => ({
+                        workspaceId: lead.pipeline.workspaceId,
+                        leadId: params.id,
+                        lotId,
+                        createdById: session.user.id,
+                    })),
+                    skipDuplicates: true,
+                }),
+            ]);
         }
 
         // Update lead lists if provided

@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Field, inputClass } from '@/components/realestate/ui';
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
+import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
+import LotPicker from '@/components/developer/LotPicker';
+import type { AutoFilled, PickedLot } from '@/components/developer/lead-autofill';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { LEAD_SOURCES } from '@/lib/crm/lifecycle';
 
@@ -26,13 +29,24 @@ export interface LeadBriefValues {
  * "Facebook", "facebook" and "FB" are three rows in a report. A value an older
  * lead already carries (free text, an import) stays selectable so editing the
  * lead does not silently overwrite it.
+ *
+ * The project's available units can be picked by name; what they say (typology,
+ * city, price) then fills in the brief's empty fields, with a hint saying where
+ * a value came from. That logic is the caller's (lead-autofill.ts), so this
+ * component only shows it.
  */
 export default function LeadBriefFields({
     workspaceId, values, onChange, score, lastContactedAt, nextFollowUpAt,
+    lots, onLotsChange, autoFilled = {},
 }: {
     workspaceId: string;
     values: LeadBriefValues;
     onChange: (name: keyof LeadBriefValues, value: string) => void;
+    /** Units of interest; the picker is shown only when these are given. */
+    lots?: PickedLot[];
+    onLotsChange?: (lots: PickedLot[]) => void;
+    /** Fields whose value came from units, and from which. */
+    autoFilled?: AutoFilled;
     /** Read-only facts about an existing lead. */
     score?: number;
     lastContactedAt?: string | null;
@@ -40,7 +54,11 @@ export default function LeadBriefFields({
 }) {
     const { t, formatDate } = useI18n();
     const agents = useWorkspaceAgents(workspaceId);
-    const [programs, setPrograms] = useState<{ id: string; name: string }[]>([]);
+    const currency = useWorkspaceCurrency(workspaceId);
+    const [programs, setPrograms] = useState<{ id: string; name: string; city?: string | null }[]>([]);
+    const fromUnit = (field: keyof AutoFilled) =>
+        autoFilled[field] ? t('developerCrm.lead.fromUnit', { lot: autoFilled[field]! }) : undefined;
+    const budgetHint = fromUnit('budgetMax') ?? fromUnit('budgetMin');
 
     useEffect(() => {
         fetch(`/api/developer/programs?workspaceId=${workspaceId}`)
@@ -91,20 +109,34 @@ export default function LeadBriefFields({
                 <Field label={t('developerCrm.lead.project')}>
                     <select className={inputClass} value={values.interestedProgramId} onChange={(e) => onChange('interestedProgramId', e.target.value)}>
                         <option value="">{t('developerCrm.lead.noProject')}</option>
-                        {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {programs.map((p) => (
+                            <option key={p.id} value={p.id}>{p.city ? `${p.name} — ${p.city}` : p.name}</option>
+                        ))}
                     </select>
                 </Field>
 
-                <Field label={t('developerCrm.lead.typology')}>
+                {lots && onLotsChange && (
+                    <div className="sm:col-span-2">
+                        <LotPicker
+                            workspaceId={workspaceId}
+                            programId={values.interestedProgramId}
+                            selected={lots}
+                            onChange={onLotsChange}
+                            currency={currency}
+                        />
+                    </div>
+                )}
+
+                <Field label={t('developerCrm.lead.typology')} hint={fromUnit('interestedTypology')}>
                     <input type="text" maxLength={40} className={inputClass} value={values.interestedTypology} onChange={(e) => onChange('interestedTypology', e.target.value)} placeholder={t('developerCrm.lead.typologyPlaceholder')} />
                 </Field>
 
-                <Field label={t('developerCrm.lead.location')}>
+                <Field label={t('developerCrm.lead.location')} hint={fromUnit('preferredLocation')}>
                     <input type="text" maxLength={200} className={inputClass} value={values.preferredLocation} onChange={(e) => onChange('preferredLocation', e.target.value)} />
                 </Field>
 
                 {/* One budget, not two numbers to label separately. */}
-                <Field label={t('developerCrm.lead.budget')}>
+                <Field label={t('developerCrm.lead.budget')} hint={budgetHint}>
                     <div className="flex items-center gap-2">
                         <input
                             type="number" min={0} step={1000} className={inputClass}

@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
-import { createLead } from '@/lib/services/leads';
+import { createLead, findLeadByRequestId } from '@/lib/services/leads';
 import { ServiceError } from '@/lib/services/errors';
 import { CrmLogger } from '@/lib/crm/logger';
 import { onSubjectCreated } from '@/lib/crm/subject-events';
@@ -164,6 +164,9 @@ export async function POST(request: NextRequest) {
             budgetMin,
             budgetMax,
             preferredLocation,
+            interestedLotIds,
+            firstTask,
+            clientRequestId,
         } = body;
 
         if (!firstName || !lastName || !pipelineId) {
@@ -202,6 +205,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: READ_ONLY_ERROR }, { status: 403 });
         }
 
+        // A retried submit gets the lead it already made, not a second one (and
+        // not a second follow-up, automation run or "created" entry either).
+        const replayed = await findLeadByRequestId(workspace.id, clientRequestId);
+        if (replayed) {
+            return NextResponse.json(
+                { ...replayed, tags: replayed.tags ? JSON.parse(replayed.tags) : [], leadLists: [] },
+                { status: 200 }
+            );
+        }
+
         const full = await capacityError(workspace.id, 'contacts');
         if (full) return full;
 
@@ -226,6 +239,10 @@ export async function POST(request: NextRequest) {
             budgetMin,
             budgetMax,
             preferredLocation,
+            interestedLotIds,
+            firstTask,
+            clientRequestId,
+            createdById: session.user.id,
         });
 
         await CrmLogger.logCreated({

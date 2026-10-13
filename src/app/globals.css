@@ -544,6 +544,13 @@ body {
   line-height: 1.5;
 }
 
+/* Field hints, inline errors and notes under inputs. Used across the forms
+   long before it was defined, so those lines rendered at the body size. */
+.body-xs {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .label-sm {
   font-size: 0.6875rem;
   line-height: 1.2;

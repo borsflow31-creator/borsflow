@@ -1,6 +1,6 @@
 import { aiComplete, aiErrorMessage } from '@/lib/ai/client';
 import { promptInLocale } from '@/lib/ai/language';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
 import MeetingList from '@/components/scheduling/MeetingList';
@@ -13,6 +13,34 @@ import { leadStatusForStage } from '@/lib/crm/lead-status';
 import LeadInterests from '@/components/realestate/LeadInterests';
 import LeadBriefFields, { type LeadBriefValues } from '@/components/developer/LeadBriefFields';
 import CustomerTab from '@/components/developer/CustomerTab';
+import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
+import {
+    AUTO_FIELDS, applyLots, changeProgram, markEdited,
+    type AutoFilled, type PickedLot,
+} from '@/components/developer/lead-autofill';
+import { LEAD_TASK_TYPES, type LeadTaskType } from '@/lib/crm/lifecycle';
+import { normalizeEmail, normalizePhone } from '@/lib/crm/contact-match';
+
+/** A lead already on file with the same email or phone, as /api/leads/duplicates returns it. */
+interface DuplicateMatch {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    phone: string | null;
+    stage: string;
+    ownerName: string | null;
+    programName: string | null;
+    lastActivityAt: string | null;
+    matchedOn: Array<'email' | 'phone'>;
+}
+
+/** One key per form: a retried submit sends it again and gets the same lead back. */
+function newRequestKey(): string {
+    return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
 
 interface Lead {
     id: string;
@@ -77,8 +105,11 @@ interface LeadModalProps {
     pipeline?: Pipeline | null;
     leadLists?: LeadList[];
     workspaceId?: string;
-    onSave: (data: Partial<Lead>) => void;
+    /** Resolves false when the save failed (the form then keeps what was typed). */
+    onSave: (data: Partial<Lead>, options?: { keepOpen?: boolean }) => void | boolean | Promise<void | boolean>;
     onClose: () => void;
+    /** Opens a lead already on file, offered when the new one looks like a duplicate. */
+    onOpenExisting?: (leadId: string) => void;
     /** Open on this tab (deep links like ?lead=<id>&tab=files) */
     initialTab?: LeadModalTab;
 }
@@ -99,8 +130,8 @@ interface ValidationErrors {
     notes?: string;
 }
 
-export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose, initialTab = 'details' }: LeadModalProps) {
-    const { t, locale } = useI18n();
+export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId, onSave, onClose, onOpenExisting, initialTab = 'details' }: LeadModalProps) {
+    const { t, locale, formatDate } = useI18n();
     const { data: session } = useSession();
     // A developer's lead carries a buyer brief and a Customer tab; an agency's
     // form and payload are exactly what they were.
@@ -141,6 +172,44 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [touched, setTouched] = useState<Set<string>>(new Set());
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Anything typed since the form opened, so closing can ask before throwing it away.
+    const [dirty, setDirty] = useState(false);
+    // Said once a lead is saved and the form is cleared for the next one.
+    const [notice, setNotice] = useState('');
+    const requestKey = useRef(newRequestKey());
+    const firstNameRef = useRef<HTMLInputElement>(null);
+
+    // Developer: the units the buyer asked about, and which brief fields they filled.
+    // An existing lead's units load from the server; until they have, they are not
+    // sent, so a failed load cannot wipe them on save.
+    const [lots, setLots] = useState<PickedLot[]>([]);
+    const [lotsLoaded, setLotsLoaded] = useState(!lead);
+    const [autoFilled, setAutoFilled] = useState<AutoFilled>({});
+    useEffect(() => {
+        if (!lead?.id || !isDeveloper) return;
+        let cancelled = false;
+        fetch(`/api/leads/${lead.id}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (cancelled || !data) return;
+                setLots(data.interestedLots ?? []);
+                setLotsLoaded(true);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [lead?.id, isDeveloper]);
+
+    // Possible duplicates of the person being entered, by email or phone.
+    const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
+    const [duplicatesDismissed, setDuplicatesDismissed] = useState(false);
+    const lastDuplicateKey = useRef('');
+
+    // The first follow-up, created with the lead (developer, new lead only).
+    const agents = useWorkspaceAgents(isDeveloper && workspaceId ? workspaceId : '');
+    const emptyTask = { open: false, type: 'call' as LeadTaskType, title: '', dueAt: '', assigneeId: '' };
+    const [task, setTask] = useState(emptyTask);
+    const [taskError, setTaskError] = useState('');
+    const offersTask = !lead && isDeveloper && !!workspaceId;
 
     // AI state
     const [aiPanel, setAiPanel] = useState<'none' | 'summary' | 'emailDraft'>('none');
@@ -182,6 +251,15 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
             isDeveloper && brief.preferredLocation && `Preferred location: ${brief.preferredLocation}`,
             isDeveloper && (brief.budgetMin || brief.budgetMax) &&
                 `Budget: ${brief.budgetMin || '?'} – ${brief.budgetMax || '?'}`,
+            // The units themselves, from the database, so the summary and email
+            // name real units and real prices rather than a typed description.
+            isDeveloper && lots.length > 0 && `Project: ${lots[0].program.name}`,
+            isDeveloper && lots.length > 0 && `Units of interest: ${lots.map((l) => [
+                l.lotNumber,
+                l.typology,
+                l.surfaceArea > 0 ? `${l.surfaceArea} m²` : null,
+                l.totalPrice > 0 ? `price ${l.totalPrice}` : null,
+            ].filter(Boolean).join(', ')).join('; ')}`,
             formData.notes && `Notes: ${formData.notes}`,
         ].filter(Boolean).join('\n');
 
@@ -225,9 +303,11 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
 
     const validatePhone = (phone: string): string | null => {
         if (!phone) return null;
-        // Allow various phone formats: (123) 456-7890, 123-456-7890, 1234567890, +1 123 456 7890
-        const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
-        if (!phoneRegex.test(phone)) {
+        // Any national or international format: digits with spaces, dots, dashes,
+        // brackets, and a leading + or 00. The old fixed 3-3-4 pattern refused
+        // ordinary numbers such as "+213 697 67 90 51". At most 15 digits (E.164).
+        const normalized = normalizePhone(phone);
+        if (!normalized || normalized.replace(/\D/g, '').length > 15) {
             return t('crm.leadModal.errors.phoneInvalid');
         }
         return null;
@@ -314,6 +394,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         // A built-in stage decides the status, so the two can never disagree.
         const implied = name === 'stage' ? leadStatusForStage(value) : null;
         setFormData(prev => ({ ...prev, [name]: value, ...(implied && { status: implied }) }));
+        setDirty(true);
         
         // Validate field on change if it's been touched
         if (touched.has(name)) {
@@ -332,11 +413,123 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
             ...prev,
             [name]: error || undefined
         }));
+        if ((name === 'email' || name === 'phone') && !error) void checkDuplicates();
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    /**
+     * Looks for leads already on file with this email or phone. Runs when either
+     * field is left, and only when what would be searched has changed, so moving
+     * through the form does not fire a request per blur. Names are never matched:
+     * two buyers can share one.
+     */
+    const checkDuplicates = async () => {
+        if (lead || !workspaceId) return;
+        const email = normalizeEmail(formData.email) ?? '';
+        const phone = normalizePhone(formData.phone) ?? '';
+        const key = `${email}|${phone}`;
+        if (key === lastDuplicateKey.current) return;
+        lastDuplicateKey.current = key;
+        setDuplicatesDismissed(false);
+        if (!email && !phone) {
+            setDuplicates([]);
+            return;
+        }
+        try {
+            const params = new URLSearchParams({ workspaceId });
+            if (email) params.set('email', email);
+            if (phone) params.set('phone', phone);
+            const res = await fetch(`/api/leads/duplicates?${params}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            // A later check may have started while this one was in flight.
+            if (lastDuplicateKey.current === key) setDuplicates(data.matches ?? []);
+        } catch {
+            // Advisory only: a failed check never blocks entering the lead.
+        }
+    };
+
+    const autoFields = (b: typeof brief) => ({
+        interestedTypology: b.interestedTypology,
+        preferredLocation: b.preferredLocation,
+        budgetMin: b.budgetMin,
+        budgetMax: b.budgetMax,
+    });
+
+    /** A brief field changed. Typing in one a unit filled makes it the user's. */
+    const handleBriefChange = (name: keyof LeadBriefValues, value: string) => {
+        setDirty(true);
+        if (name === 'source') {
+            handleFieldChange('source', value);
+            return;
+        }
+        if (name === 'interestedProgramId') {
+            // Units from another project go, and what they filled goes with them.
+            const next = { ...brief, interestedProgramId: value };
+            const result = changeProgram(autoFields(next), autoFilled, lots, value);
+            setBrief({ ...next, ...result.brief });
+            setAutoFilled(result.autoFilled);
+            setLots(result.lots);
+            return;
+        }
+        setBrief((prev) => ({ ...prev, [name]: value }));
+        if ((AUTO_FIELDS as readonly string[]).includes(name)) setAutoFilled((prev) => markEdited(prev, name));
+    };
+
+    const handleLotsChange = (next: PickedLot[]) => {
+        setDirty(true);
+        const result = applyLots(autoFields(brief), autoFilled, next);
+        setBrief((prev) => ({ ...prev, ...result.brief }));
+        setAutoFilled(result.autoFilled);
+        setLots(next);
+    };
+
+    /** Ask before closing over unsaved input. */
+    const requestClose = () => {
+        if (isSubmitting) return;
+        if (dirty && !window.confirm(t('crm.leadModal.discardConfirm'))) return;
+        onClose();
+    };
+
+    /**
+     * After "create and add another": a blank form for the next buyer, keeping
+     * what a run of entries usually shares (stage, owner, source, campaign,
+     * project, lists). Only called once the server has confirmed the save.
+     */
+    const resetForNext = (savedName: string) => {
+        setFormData((prev) => ({
+            firstName: '', lastName: '', email: '', phone: '', company: '', position: '',
+            status: prev.status, stage: prev.stage, value: '', source: prev.source,
+            notes: '', tags: [], leadListIds: prev.leadListIds,
+        }));
+        setBrief((prev) => ({
+            ownerId: prev.ownerId, campaign: prev.campaign, interestedProgramId: prev.interestedProgramId,
+            interestedTypology: '', budgetMin: '', budgetMax: '', preferredLocation: '',
+        }));
+        setLots([]);
+        setAutoFilled({});
+        setTask(emptyTask);
+        setTaskError('');
+        setTouched(new Set());
+        setErrors({});
+        setDuplicates([]);
+        lastDuplicateKey.current = '';
+        setAiPanel('none');
+        setNewTag('');
+        setDirty(false);
+        requestKey.current = newRequestKey();
+        setNotice(t('crm.leadModal.createdAnother', { name: savedName }));
+        firstNameRef.current?.focus();
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
+        void submit(false);
+    };
+
+    const submit = async (keepOpen: boolean) => {
+        if (isSubmitting) return;
+        setNotice('');
+
         // Mark all fields as touched
         const fieldNames: (keyof ValidationErrors)[] = [
             'firstName', 'lastName', 'email', 'phone', 'company', 
@@ -347,6 +540,14 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
         if (!validateForm()) {
             return;
         }
+
+        // An opened "next action" needs a date; an empty one is simply not sent.
+        const sendTask = offersTask && task.open && (task.dueAt !== '' || task.title.trim() !== '');
+        if (sendTask && (!task.dueAt || Number.isNaN(new Date(task.dueAt).getTime()))) {
+            setTaskError(t('crm.leadModal.nextActionDueRequired'));
+            return;
+        }
+        setTaskError('');
 
         setIsSubmitting(true);
         try {
@@ -363,17 +564,39 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                     budgetMin: brief.budgetMin === '' ? null : Number(brief.budgetMin),
                     budgetMax: brief.budgetMax === '' ? null : Number(brief.budgetMax),
                     preferredLocation: brief.preferredLocation.trim() || null,
+                    // Ids only: the server reads each unit's facts from the database.
+                    ...(lotsLoaded && { interestedLotIds: lots.map((l) => l.id) }),
                 }
                 : {};
 
-            await onSave({
+            const createOnly = lead
+                ? {}
+                : {
+                    clientRequestId: requestKey.current,
+                    ...(sendTask && {
+                        firstTask: {
+                            type: task.type,
+                            title: task.title.trim() || t(`developerCrm.taskTypes.${task.type}` as MessageKey),
+                            dueAt: new Date(task.dueAt).toISOString(),
+                            ...(task.assigneeId && { assigneeId: task.assigneeId }),
+                        },
+                    }),
+                };
+
+            const result = await onSave({
                 ...formData,
                 value: formData.value === '' || formData.value === null
                     ? null
                     : parseFloat(String(formData.value)),
                 tags: formData.tags,
                 ...developerFields,
-            } as Partial<Lead>);
+                ...createOnly,
+            } as Partial<Lead>, keepOpen ? { keepOpen: true } : undefined);
+
+            // Nothing is cleared until the server has the lead.
+            if (result !== false && keepOpen && !lead) {
+                resetForNext(`${formData.firstName} ${formData.lastName}`.trim());
+            }
         } catch (error) {
             console.error('Error saving lead:', error);
         } finally {
@@ -394,16 +617,21 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
     };
 
     const handleAddTag = () => {
-        if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+        // Spaces collapsed, and "VIP" and "vip" counted as one tag.
+        const tag = newTag.trim().replace(/\s+/g, ' ');
+        if (!tag) return;
+        if (formData.tags.length < 20 && !formData.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
             setFormData({
                 ...formData,
-                tags: [...formData.tags, newTag.trim()],
+                tags: [...formData.tags, tag],
             });
-            setNewTag('');
+            setDirty(true);
         }
+        setNewTag('');
     };
 
     const handleRemoveTag = (tagToRemove: string) => {
+        setDirty(true);
         setFormData({
             ...formData,
             tags: formData.tags.filter(tag => tag !== tagToRemove),
@@ -443,7 +671,8 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                             {lead ? t('crm.leadModal.editTitle') : t('crm.leadModal.createTitle')}
                         </h2>
                         <button
-                            onClick={onClose}
+                            type="button"
+                            onClick={requestClose}
                             className="text-on-surface-variant hover:text-on-surface transition-colors"
                             aria-label={t('crm.leadModal.closeAria')}
                         >
@@ -537,6 +766,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                         {t('crm.leadModal.firstNameLabel')}
                                     </label>
                                     <input
+                                        ref={firstNameRef}
                                         type="text"
                                         value={formData.firstName}
                                         onChange={(e) => handleFieldChange('firstName', e.target.value)}
@@ -614,6 +844,66 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                 </div>
                             </div>
                         </div>
+
+                        {/* Someone with this email or phone is already on file. Shown,
+                            never merged: the user decides whether it is the same person. */}
+                        {!lead && duplicates.length > 0 && !duplicatesDismissed && (
+                            <div
+                                role="status"
+                                className="rounded-lg border border-secondary/40 bg-secondary/5 p-4 space-y-3"
+                            >
+                                <p className="body-sm font-medium text-on-surface flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-secondary text-base" aria-hidden="true">group</span>
+                                    {t('crm.leadModal.duplicateHeading')}
+                                </p>
+                                <ul className="space-y-2">
+                                    {duplicates.map((match) => (
+                                        <li key={match.id} className="flex flex-wrap items-start justify-between gap-3 body-sm">
+                                            <div className="min-w-0">
+                                                <p className="text-on-surface font-medium">
+                                                    {`${match.firstName} ${match.lastName}`.trim()}
+                                                    <span className="ml-2 text-xs font-normal text-secondary">
+                                                        {match.matchedOn
+                                                            .map((m) => t(m === 'email' ? 'crm.leadModal.duplicateMatchedEmail' : 'crm.leadModal.duplicateMatchedPhone'))
+                                                            .join(' · ')}
+                                                    </span>
+                                                </p>
+                                                <p className="text-on-surface-variant text-xs">
+                                                    {[match.email, match.phone].filter(Boolean).join(' · ')}
+                                                </p>
+                                                <p className="text-on-surface-variant text-xs">
+                                                    {[
+                                                        stageLabel(match.stage, t),
+                                                        match.ownerName,
+                                                        match.programName,
+                                                        match.lastActivityAt && `${t('crm.leadModal.duplicateLastActivity')} ${formatDate(match.lastActivityAt)}`,
+                                                    ].filter(Boolean).join(' · ')}
+                                                </p>
+                                            </div>
+                                            {onOpenExisting && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (dirty && !window.confirm(t('crm.leadModal.discardConfirm'))) return;
+                                                        onOpenExisting(match.id);
+                                                    }}
+                                                    className="shrink-0 px-3 py-1.5 text-xs font-medium rounded-full bg-secondary/10 text-secondary hover:bg-secondary/20 transition-colors"
+                                                >
+                                                    {t('crm.leadModal.duplicateOpen')}
+                                                </button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <button
+                                    type="button"
+                                    onClick={() => setDuplicatesDismissed(true)}
+                                    className="text-xs font-medium text-on-surface-variant hover:text-on-surface hover:underline"
+                                >
+                                    {t('crm.leadModal.duplicateContinue')}
+                                </button>
+                            </div>
+                        )}
 
                         {/* Company, folded away until it is wanted */}
                         <div>
@@ -757,15 +1047,83 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                             <LeadBriefFields
                                 workspaceId={workspaceId}
                                 values={{ ...brief, source: formData.source }}
-                                onChange={(name, value) =>
-                                    name === 'source'
-                                        ? handleFieldChange('source', value)
-                                        : setBrief((prev) => ({ ...prev, [name]: value }))
-                                }
+                                onChange={handleBriefChange}
                                 score={lead?.score}
                                 lastContactedAt={lead?.lastContactedAt}
                                 nextFollowUpAt={lead?.nextFollowUpAt}
+                                lots={lotsLoaded ? lots : undefined}
+                                onLotsChange={handleLotsChange}
+                                autoFilled={autoFilled}
                             />
+                        )}
+
+                        {/* The first follow-up, saved with the lead in one go. Folded
+                            away: not every lead has a next step yet, and no date is
+                            imposed on one that does not. */}
+                        {offersTask && (
+                            <div>
+                                <button
+                                    type="button"
+                                    onClick={() => setTask((prev) => ({ ...prev, open: !prev.open }))}
+                                    aria-expanded={task.open}
+                                    className="flex items-center gap-1 body-sm text-on-surface-variant hover:text-on-surface transition-colors"
+                                >
+                                    <span className={`material-symbols-outlined text-base transition-transform ${task.open ? 'rotate-90' : ''}`}>
+                                        chevron_right
+                                    </span>
+                                    {t('crm.leadModal.nextActionHeading')}
+                                </button>
+                                {task.open && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                        <label className="block">
+                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.nextActionType')}</span>
+                                            <select
+                                                className="premium-input w-full px-4 py-2.5 text-sm transition-all"
+                                                value={task.type}
+                                                onChange={(e) => { setDirty(true); setTask((prev) => ({ ...prev, type: e.target.value as LeadTaskType })); }}
+                                            >
+                                                {LEAD_TASK_TYPES.map((type) => (
+                                                    <option key={type} value={type}>{t(`developerCrm.taskTypes.${type}` as MessageKey)}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label className="block">
+                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.nextActionTitle')}</span>
+                                            <input
+                                                type="text"
+                                                maxLength={200}
+                                                className="premium-input w-full px-4 py-2.5 text-sm transition-all"
+                                                value={task.title}
+                                                placeholder={t(`developerCrm.taskTypes.${task.type}` as MessageKey)}
+                                                onChange={(e) => { setDirty(true); setTask((prev) => ({ ...prev, title: e.target.value })); }}
+                                            />
+                                        </label>
+                                        <label className="block">
+                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.nextActionDue')}</span>
+                                            <input
+                                                type="datetime-local"
+                                                className={`premium-input w-full px-4 py-2.5 text-sm transition-all${taskError ? ' border-error ring-error/20' : ''}`}
+                                                value={task.dueAt}
+                                                aria-invalid={!!taskError}
+                                                aria-describedby={taskError ? 'next-action-error' : undefined}
+                                                onChange={(e) => { setDirty(true); setTaskError(''); setTask((prev) => ({ ...prev, dueAt: e.target.value })); }}
+                                            />
+                                            {taskError && <span id="next-action-error" className="block body-xs text-error mt-1">{taskError}</span>}
+                                        </label>
+                                        <label className="block">
+                                            <span className="block body-sm text-on-surface-variant mb-2">{t('crm.leadModal.nextActionAssignee')}</span>
+                                            <select
+                                                className="premium-input w-full px-4 py-2.5 text-sm transition-all"
+                                                value={task.assigneeId}
+                                                onChange={(e) => { setDirty(true); setTask((prev) => ({ ...prev, assigneeId: e.target.value })); }}
+                                            >
+                                                <option value="">{t('crm.leadModal.nextActionAssigneeDefault')}</option>
+                                                {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                                            </select>
+                                        </label>
+                                    </div>
+                                )}
+                            </div>
                         )}
 
                         {/* Notes, with the assistant in their header: what it writes is
@@ -897,6 +1255,7 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                                                 type="checkbox"
                                                 checked={formData.leadListIds.includes(leadList.id)}
                                                 onChange={(e) => {
+                                                    setDirty(true);
                                                     if (e.target.checked) {
                                                         setFormData({
                                                             ...formData,
@@ -919,15 +1278,28 @@ export default function LeadModal({ lead, pipeline, leadLists = [], workspaceId,
                         )}
 
                         {/* Actions */}
-                        <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
+                        <p role="status" aria-live="polite" className={notice ? 'body-sm text-primary' : 'sr-only'}>
+                            {notice}
+                        </p>
+                        <div className="flex flex-wrap justify-end gap-3 pt-4 border-t border-surface-container-high">
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={requestClose}
                                 disabled={isSubmitting}
                                 className="px-6 py-2 text-sm text-on-surface hover:bg-surface-container-high rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {t('common.cancel')}
                             </button>
+                            {!lead && (
+                                <button
+                                    type="button"
+                                    onClick={() => void submit(true)}
+                                    disabled={isSubmitting}
+                                    className="px-6 py-2 text-sm text-primary border border-primary/40 rounded hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {t('crm.leadModal.createAndAddAnother')}
+                                </button>
+                            )}
                             <button
                                 type="submit"
                                 disabled={isSubmitting}

@@ -446,6 +446,23 @@ export interface Messages {
       leadSummaryHeading: string;
       emailDraftHeading: string;
       copyToNotes: string;
+      createAndAddAnother: string;
+      created: string;
+      createdAnother: string;
+      discardConfirm: string;
+      duplicateHeading: string;
+      duplicateMatchedEmail: string;
+      duplicateMatchedPhone: string;
+      duplicateOpen: string;
+      duplicateContinue: string;
+      duplicateLastActivity: string;
+      nextActionHeading: string;
+      nextActionType: string;
+      nextActionTitle: string;
+      nextActionDue: string;
+      nextActionAssignee: string;
+      nextActionAssigneeDefault: string;
+      nextActionDueRequired: string;
       notesLabel: string;
       notesPlaceholder: string;
       notesCharCount: string;
@@ -3024,6 +3041,19 @@ export interface Messages {
       scoreFactor_source: string;
       scoreFactor_stage: string;
       scoreFactor_recency: string;
+      units: string;
+      unitsPickProjectFirst: string;
+      unitsSearch: string;
+      unitsEmpty: string;
+      unitsNoMatch: string;
+      unitsError: string;
+      retry: string;
+      unitsMax: string;
+      removeUnitAria: string;
+      floorShort: string;
+      groundFloor: string;
+      fromUnit: string;
+      loading: string;
     };
     sources: {
       facebook: string;
@@ -7758,6 +7788,23 @@ const en: Messages = {
       leadSummaryHeading: 'Summary',
       emailDraftHeading: 'Draft email',
       copyToNotes: 'Add to notes',
+      createAndAddAnother: 'Create and add another',
+      created: 'Lead created',
+      createdAnother: '{name} created. Ready for the next one.',
+      discardConfirm: 'Discard the changes you have not saved?',
+      duplicateHeading: 'This contact may already be on file',
+      duplicateMatchedEmail: 'same email',
+      duplicateMatchedPhone: 'same phone',
+      duplicateOpen: 'Open record',
+      duplicateContinue: 'Continue anyway',
+      duplicateLastActivity: 'Last activity',
+      nextActionHeading: 'Next action (optional)',
+      nextActionType: 'Type',
+      nextActionTitle: 'Title',
+      nextActionDue: 'Date and time',
+      nextActionAssignee: 'Assigned to',
+      nextActionAssigneeDefault: 'The lead\'s owner',
+      nextActionDueRequired: 'Choose a date for the next action.',
       notesLabel: 'Notes',
       notesPlaceholder: 'Add any notes about this lead…',
       notesCharCount: '{count}/2000 characters',
@@ -8086,6 +8133,19 @@ const en: Messages = {
       scoreFactor_source: 'Source',
       scoreFactor_stage: 'Stage',
       scoreFactor_recency: 'Recent contact',
+      units: 'Units of interest',
+      unitsPickProjectFirst: 'Choose a project first',
+      unitsSearch: 'Search a unit (number, type, building)…',
+      unitsEmpty: 'No available units in this project',
+      unitsNoMatch: 'No unit matches',
+      unitsError: 'Could not load the units.',
+      retry: 'Retry',
+      unitsMax: 'At most {count} units',
+      removeUnitAria: 'Remove unit {lot}',
+      floorShort: 'Floor {floor}',
+      groundFloor: 'Ground floor',
+      fromUnit: 'From unit {lot}',
+      loading: 'Loading…',
     },
     sources: {
       facebook: 'Facebook',

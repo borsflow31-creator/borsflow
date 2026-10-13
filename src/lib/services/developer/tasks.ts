@@ -64,15 +64,27 @@ export async function listTasks(ctx: DeveloperContext, filters: TaskFilters = {}
   })
 }
 
-export async function createTask(ctx: DeveloperContext, input: TaskInput) {
+/**
+ * The fields of a new follow-up, checked. Shared by createTask and by the lead
+ * form, which creates a lead and its first follow-up in one go. The assignee is
+ * returned as sent (undefined = "default it"); checking membership is the
+ * caller's, since only it knows the default.
+ */
+export function readNewTaskFields(input: TaskInput) {
   const body = input as Record<string, unknown>
-  const leadId = readString(body, 'leadId', 'Lead', { required: true })!
   const title = readString(body, 'title', 'Title', { required: true, max: 200 })!
   const notes = readString(body, 'notes', 'Notes', { max: 2000 }) ?? null
   const dueAt = readDue(input.dueAt)
-
   const type = input.type ?? 'follow_up'
   if (!isLeadTaskType(type)) throw new ServiceError('Unknown task type')
+  const assigneeId = input.assigneeId === undefined ? undefined : input.assigneeId || null
+  return { type, title, notes, dueAt, assigneeId }
+}
+
+export async function createTask(ctx: DeveloperContext, input: TaskInput) {
+  const body = input as Record<string, unknown>
+  const leadId = readString(body, 'leadId', 'Lead', { required: true })!
+  const { type, title, notes, dueAt } = readNewTaskFields(input)
 
   const lead = await prisma.lead.findFirst({
     where: { id: leadId, pipeline: { workspaceId: ctx.workspaceId } },
