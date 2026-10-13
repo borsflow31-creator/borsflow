@@ -819,83 +819,6 @@ export interface Messages {
       updateCampaign: string;
       createCampaignButton: string;
     };
-    blockEditor: {
-      blockHeading: string;
-      blockText: string;
-      blockImage: string;
-      blockButton: string;
-      blockTwoColumn: string;
-      blockSocial: string;
-      blockVideo: string;
-      blockQuote: string;
-      blockDivider: string;
-      blockSpacer: string;
-      descHeading: string;
-      descText: string;
-      descImage: string;
-      descButton: string;
-      descTwoColumn: string;
-      descSocial: string;
-      descVideo: string;
-      descQuote: string;
-      descDivider: string;
-      descSpacer: string;
-      alignLeft: string;
-      alignCenter: string;
-      alignRight: string;
-      insertVariableLabel: string;
-      background: string;
-      paddingVLabel: string;
-      paddingHLabel: string;
-      headingTextLabel: string;
-      levelLabel: string;
-      h1Large: string;
-      h2Medium: string;
-      h3Small: string;
-      alignLabel: string;
-      textColorLabel: string;
-      bodyTextLabel: string;
-      fontSizeLabel: string;
-      imageUrlLabel: string;
-      altTextLabel: string;
-      widthLabel: string;
-      buttonLabelLabel: string;
-      urlVariableLabel: string;
-      buttonColorLabel: string;
-      lineColorLabel: string;
-      heightLabel: string;
-      leftColumnLabel: string;
-      rightColumnLabel: string;
-      socialHint: string;
-      thumbnailUrlLabel: string;
-      videoUrlLabel: string;
-      captionLabel: string;
-      playButtonColorLabel: string;
-      quoteTextLabel: string;
-      authorNameLabel: string;
-      authorTitleLabel: string;
-      avatarUrlLabel: string;
-      accentColorLabel: string;
-      duplicateTooltip: string;
-      moveUp: string;
-      moveDown: string;
-      deleteTooltip: string;
-      undoTooltip: string;
-      redoTooltip: string;
-      blockCountLabel: string;
-      closePreview: string;
-      previewLabel: string;
-      closeHtml: string;
-      viewHtmlLabel: string;
-      desktop: string;
-      mobile: string;
-      blocksPanelHeading: string;
-      addBlock: string;
-      dragHintLine1: string;
-      dragHintLine2: string;
-      propertiesPanelHeading: string;
-      selectBlockHint: string;
-    };
     starterGallery: {
       subjectLabel: string;
       workspaceRequiredEdit: string;
@@ -1072,15 +995,6 @@ export interface Messages {
       templateFields: string;
       insertField: string;
       unsubscribeToggle: string;
-    };
-    inlineEditor: {
-      hint: string;
-      editLink: string;
-      editImage: string;
-      linkUrl: string;
-      imageUrl: string;
-      imageAlt: string;
-      apply: string;
     };
     templateModal: {
       testSend: string;
@@ -7339,83 +7253,6 @@ const en: Messages = {
       updateCampaign: 'Update campaign',
       createCampaignButton: 'Create campaign',
     },
-    blockEditor: {
-      blockHeading: 'Heading',
-      blockText: 'Text',
-      blockImage: 'Image',
-      blockButton: 'Button',
-      blockTwoColumn: 'Two columns',
-      blockSocial: 'Social links',
-      blockVideo: 'Video',
-      blockQuote: 'Quote',
-      blockDivider: 'Divider',
-      blockSpacer: 'Spacer',
-      descHeading: 'A large headline for your email',
-      descText: 'A paragraph of body copy',
-      descImage: 'A single image with optional link',
-      descButton: 'A call-to-action button',
-      descTwoColumn: 'Two side-by-side content columns',
-      descSocial: 'Links to your social profiles',
-      descVideo: 'A video thumbnail that links out to play',
-      descQuote: 'A testimonial or pull quote',
-      descDivider: 'A horizontal line to separate sections',
-      descSpacer: 'Empty vertical space',
-      alignLeft: 'Left',
-      alignCenter: 'Center',
-      alignRight: 'Right',
-      insertVariableLabel: 'Insert variable',
-      background: 'Background',
-      paddingVLabel: 'Vertical padding',
-      paddingHLabel: 'Horizontal padding',
-      headingTextLabel: 'Heading text',
-      levelLabel: 'Size',
-      h1Large: 'Large (H1)',
-      h2Medium: 'Medium (H2)',
-      h3Small: 'Small (H3)',
-      alignLabel: 'Alignment',
-      textColorLabel: 'Text color',
-      bodyTextLabel: 'Body text',
-      fontSizeLabel: 'Font size',
-      imageUrlLabel: 'Image URL',
-      altTextLabel: 'Alt text',
-      widthLabel: 'Width',
-      buttonLabelLabel: 'Button label',
-      urlVariableLabel: 'Link URL',
-      buttonColorLabel: 'Button color',
-      lineColorLabel: 'Line color',
-      heightLabel: 'Height',
-      leftColumnLabel: 'Left column',
-      rightColumnLabel: 'Right column',
-      socialHint: 'Add links to the social platforms you want to show.',
-      thumbnailUrlLabel: 'Thumbnail URL',
-      videoUrlLabel: 'Video URL',
-      captionLabel: 'Caption',
-      playButtonColorLabel: 'Play button color',
-      quoteTextLabel: 'Quote text',
-      authorNameLabel: 'Author name',
-      authorTitleLabel: 'Author title',
-      avatarUrlLabel: 'Avatar URL',
-      accentColorLabel: 'Accent color',
-      duplicateTooltip: 'Duplicate block',
-      moveUp: 'Move up',
-      moveDown: 'Move down',
-      deleteTooltip: 'Delete block',
-      undoTooltip: 'Undo',
-      redoTooltip: 'Redo',
-      blockCountLabel: '{count} blocks',
-      closePreview: 'Close preview',
-      previewLabel: 'Preview',
-      closeHtml: 'Close HTML view',
-      viewHtmlLabel: 'View HTML',
-      desktop: 'Desktop',
-      mobile: 'Mobile',
-      blocksPanelHeading: 'Add blocks',
-      addBlock: 'Add block',
-      dragHintLine1: 'Drag blocks here',
-      dragHintLine2: 'or click to add them to your email',
-      propertiesPanelHeading: 'Properties',
-      selectBlockHint: 'Select a block to edit its properties',
-    },
     starterGallery: {
       subjectLabel: 'Subject',
       workspaceRequiredEdit: 'Select a workspace before editing a template',
@@ -7592,15 +7429,6 @@ const en: Messages = {
       templateFields: 'This template',
       insertField: 'Insert field',
       unsubscribeToggle: 'Add an unsubscribe link at the bottom',
-    },
-    inlineEditor: {
-      hint: 'Click any text to edit it. Click a button, link or image to change it.',
-      editLink: 'Edit link',
-      editImage: 'Edit image',
-      linkUrl: 'Link URL',
-      imageUrl: 'Image URL',
-      imageAlt: 'Image description (alt text)',
-      apply: 'Apply',
     },
     templateModal: {
       testSend: 'Send me a test',

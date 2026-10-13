@@ -1,290 +1,81 @@
-# Email Marketing Page
+# Email marketing
 
-A comprehensive email marketing management interface with full API integration and modern UI components.
+Campaigns, templates, drip automations and sending setup for one workspace.
 
-## Features
+## The page
 
-### 📧 Campaigns
-- **Campaign Management**: Create, edit, and manage email campaigns
-- **Multiple Campaign Types**: Broadcast, Drip, Triggered, Behavioral, and Transactional campaigns
-- **Campaign Statistics**: Real-time metrics including open rates, click rates, and delivery stats
-- **Campaign Scheduling**: Schedule campaigns for future delivery
-- **View Modes**: Switch between list and grid views for better organization
-- **Search & Filter**: Quickly find campaigns by name or subject
+`page.tsx` is the shell only: workspace resolution, one parallel fetch of every
+list, the modals, and tab routing. Each tab lives in
+`src/components/email-marketing/tabs/`:
 
-### 📝 Templates
-- **Template Management**: Create and manage reusable email templates
-- **Dynamic Variables**: Insert placeholders for personalization (e.g., `{{first_name}}`)
-- **HTML & Text Support**: Rich HTML content with plain text fallback
-- **Template Types**: Marketing, Transactional, and Automation templates
-- **Preview Mode**: Preview templates before sending
+| Tab | File | Holds |
+|---|---|---|
+| Campaigns | `CampaignsTab.tsx` | the list, with a totals strip that used to be an Analytics tab |
+| Templates | `TemplatesTab.tsx` | the starter gallery and the workspace's saved templates |
+| Automations | `AutomationsTab.tsx` | drip sequences, their triggers and schedules |
+| Settings | `SettingsTab.tsx` | two sections: audiences (segments) and sending (providers) |
 
-### 👥 Segments
-- **Dynamic Segmentation**: Create customer segments based on lead attributes
-- **Flexible Criteria**: Build complex rules with AND/OR logic
-- **Multiple Conditions**: Add multiple conditions per segment
-- **Segment Size Estimation**: See estimated number of leads in each segment
-- **Active/Inactive Toggle**: Enable or disable segments as needed
+The tab is in the URL (`?tab=`). Three names were retired — `segments`,
+`providers` and `analytics` — and `RETIRED_TABS` in `page.tsx` resolves them to
+the tab that absorbed them, so old links and bookmarks still land somewhere
+sensible. `?editTemplate=<id>` opens the editor on that template; `/templates`
+links to it.
 
-### 📊 Analytics
-- **Performance Metrics**: Comprehensive analytics dashboard
-- **Key Metrics**: 
-  - Total emails sent
-  - Delivery rates
-  - Open rates
-  - Click rates
-  - Bounce rates
-- **Top Campaigns**: View best performing campaigns
-- **Visual Charts**: Placeholder for performance over time charts
+Shared types are in `components/email-marketing/types.ts`, so a tab never has to
+import the page.
 
-### ⚙️ Providers
-- **Provider Management**: Configure multiple email service providers
-- **Supported Providers**:
-  - SendGrid
-  - AWS SES
-  - Resend
-  - Mailgun
-  - Postmark
-  - Custom SMTP
-- **Rate Limiting**: Set daily and monthly sending limits
-- **Default Provider**: Mark a provider as default
-- **Test Configuration**: Verify provider settings before saving
+## Writing an email
 
-## Components
+There is **one** editor: `SimpleEmailEditor`, a contentEditable compose window.
+There were three (a block designer and a click-to-edit mode for imported HTML);
+a new template had to choose between them, and switching was a lossy conversion
+behind a confirm dialog.
 
-### Main Page
-- **Location**: [`src/app/email-marketing/page.tsx`](src/app/email-marketing/page.tsx)
-- **Features**: Tabbed interface with full CRUD operations for all email marketing entities
+A template's HTML is the editor's own when it carries
+`<meta name="bf-editor" content="simple">`; `src/lib/email-editor-mode.ts` reads
+that, wraps and unwraps the body, and converts anything else. `TemplateModal`
+shows a template from the retired designer as it will send, with the choice to
+bring its text across (`htmlToSimpleBody`, lossy, confirmed) or to edit its HTML
+and leave it untouched. Raw HTML is offered **only** for such a template: for its
+own content the tab is a way to break the markup the editor relies on.
 
-### Modals
-- **CampaignModal**: [`src/components/email-marketing/CampaignModal.tsx`](src/components/email-marketing/CampaignModal.tsx)
-- **TemplateModal**: [`src/components/email-marketing/TemplateModal.tsx`](src/components/email-marketing/TemplateModal.tsx)
-- **SegmentModal**: [`src/components/email-marketing/SegmentModal.tsx`](src/components/email-marketing/SegmentModal.tsx)
-- **ProviderModal**: [`src/components/email-marketing/ProviderModal.tsx`](src/components/email-marketing/ProviderModal.tsx)
+`Send me a test` (`/api/email-marketing/templates/test`) mails the draft — not
+the saved version — to the signed-in user's own address, with sample values
+filled in, rate limited, counted against nothing.
 
-## API Integration
+## Fields
 
-### Campaigns API
-- **GET** `/api/email-marketing/campaigns?workspaceId={id}` - Fetch all campaigns
-- **POST** `/api/email-marketing/campaigns` - Create new campaign
+`src/lib/email/tokens.ts` is the one list of `{{tokens}}`: names, labels and
+sample values. `buildTokenMap` in `src/lib/email/render.ts` declares its return
+type from it, so a token the editor can insert that nothing fills in is a
+compile error rather than a blank in someone's inbox. Add a token in both places
+or in neither.
 
-### Templates API
-- **GET** `/api/email-marketing/templates?workspaceId={id}` - Fetch all templates
-- **POST** `/api/email-marketing/templates` - Create new template
+## Starter templates
 
-## Data Models
+`src/lib/email/starters/` — ten real-estate letters in English and French,
+authored as short bodies and built with `simpleToHtml`, which is what makes them
+editable in the editor. The gallery follows the UI language and falls back to
+English for the other three locales. `scripts/verify/19-email-starters.ts` holds
+the invariants: each one round-trips through the editor unchanged, every token in
+one is real, both languages offer the same set.
 
-### EmailCampaign
-```typescript
-interface EmailCampaign {
-  id: string
-  name: string
-  description?: string
-  type: 'broadcast' | 'drip' | 'triggered' | 'behavioral' | 'transactional'
-  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'paused' | 'cancelled'
-  subject: string
-  totalRecipients: number
-  sentCount: number
-  deliveredCount: number
-  openedCount: number
-  clickedCount: number
-  bouncedCount: number
-  scheduledAt?: string
-  createdAt: string
-}
-```
+## Sending
 
-### EmailTemplate
-```typescript
-interface EmailTemplate {
-  id: string
-  name: string
-  description?: string
-  type: 'marketing' | 'transactional' | 'automation'
-  subject: string
-  htmlContent: string
-  textContent?: string
-  variables?: string[]
-  isDefault: boolean
-  isActive: boolean
-  createdAt: string
-}
-```
+Providers are `EmailProvider` rows per workspace: Resend, SendGrid, SES, Mailgun,
+Postmark, Brevo, and the workspace's own mail server over SMTP.
 
-### SegmentationRule
-```typescript
-interface SegmentationRule {
-  id: string
-  name: string
-  description?: string
-  criteria: Condition[]
-  logicOperator: 'AND' | 'OR'
-  isActive: boolean
-  estimatedSize?: number
-  createdAt: string
-}
+SMTP has no schema of its own — the password is the encrypted `apiKey` (which the
+API masks), and host/port/secure/user live in the `config` JSON (which the API
+returns to the browser as it is, so no credential may ever go there).
+`src/lib/email/smtp.ts` holds the settings, the guard and the verify;
+`providers/smtp-provider.ts` sends. The guard matters: the host is typed in by a
+user and the server then opens a socket to it, so submission ports only and
+nothing on a private network — `scripts/verify/18-smtp-provider.ts` covers it.
 
-interface Condition {
-  field: string
-  operator: string
-  value: string
-}
-```
+SMTP gets no webhook, so a 5xx rejection at send time is the only bounce signal
+there will be; `email-queue.ts` records it as a hard bounce and suppresses the
+address instead of retrying it twice more.
 
-### EmailProvider
-```typescript
-interface EmailProvider {
-  id: string
-  name: string
-  type: 'sendgrid' | 'ses' | 'resend' | 'mailgun' | 'postmark' | 'custom'
-  apiKey: string
-  region?: string
-  fromEmail: string
-  fromName?: string
-  replyTo?: string
-  dailyLimit?: number
-  monthlyLimit?: number
-  isActive: boolean
-  isDefault: boolean
-}
-```
-
-## Usage
-
-### Basic Setup
-```typescript
-import EmailMarketingPage from '@/app/email-marketing/page'
-
-// The page automatically fetches workspace ID from localStorage
-// and loads campaigns and templates from the API
-```
-
-### Using Modals
-```typescript
-import { CampaignModal, TemplateModal, SegmentModal, ProviderModal } from '@/components/email-marketing'
-
-// Campaign Modal
-<CampaignModal
-  isOpen={showCampaignModal}
-  onClose={() => setShowCampaignModal(false)}
-  onSave={handleSaveCampaign}
-  workspaceId={workspaceId}
-  templates={templates}
-  segments={segments}
-/>
-
-// Template Modal
-<TemplateModal
-  isOpen={showTemplateModal}
-  onClose={() => setShowTemplateModal(false)}
-  onSave={handleSaveTemplate}
-  workspaceId={workspaceId}
-/>
-
-// Segment Modal
-<SegmentModal
-  isOpen={showSegmentModal}
-  onClose={() => setShowSegmentModal(false)}
-  onSave={handleSaveSegment}
-  workspaceId={workspaceId}
-/>
-
-// Provider Modal
-<ProviderModal
-  isOpen={showProviderModal}
-  onClose={() => setShowProviderModal(false)}
-  onSave={handleSaveProvider}
-  workspaceId={workspaceId}
-/>
-```
-
-## Features in Detail
-
-### Campaign Management
-1. **Create Campaign**: Click "Create Campaign" button to open the modal
-2. **Fill Details**: 
-   - Campaign name and description
-   - Campaign type (broadcast, drip, etc.)
-   - Subject line
-   - Select template (optional)
-   - Select segment (optional)
-   - Schedule (optional)
-   - Sender information
-   - Tags
-3. **Save**: Campaign is created and appears in the list
-4. **Actions**: View, Edit, Duplicate, or Delete campaigns
-
-### Template Management
-1. **Create Template**: Click "Create New Template" card
-2. **Fill Details**:
-   - Template name and type
-   - Subject line with variables
-   - Define dynamic variables
-   - HTML content
-   - Plain text content (optional)
-   - Tags
-3. **Save**: Template is created and available for campaigns
-4. **Preview**: Preview template before using
-
-### Segment Management
-1. **Create Segment**: Click "Create Segment" button
-2. **Define Criteria**:
-   - Segment name and description
-   - Add conditions (field, operator, value)
-   - Choose AND/OR logic
-   - Add tags
-3. **Save**: Segment is created and can be used in campaigns
-4. **Estimate**: See estimated number of leads in segment
-
-### Analytics Dashboard
-1. **Overview**: View key metrics at a glance
-2. **Performance**: Detailed statistics for sent, delivered, opened, clicked
-3. **Rates**: Open rate, click rate, bounce rate
-4. **Top Campaigns**: Best performing campaigns ranked by open rate
-
-### Provider Configuration
-1. **Add Provider**: Click "Add New Provider" card
-2. **Configure**:
-   - Provider name and type
-   - API key
-   - Email settings (from email, from name, reply to)
-   - Rate limits (daily, monthly)
-   - Set as default (optional)
-3. **Test**: Verify configuration before saving
-4. **Save**: Provider is added and ready to use
-
-## Styling
-
-The page uses Tailwind CSS for styling with a modern, clean design:
-- **Color Scheme**: Indigo primary color with gray neutrals
-- **Components**: Rounded corners, subtle shadows, hover effects
-- **Responsive**: Mobile-friendly layout with grid and list views
-- **Icons**: Lucide React icons for visual consistency
-
-## Future Enhancements
-
-- [ ] Real-time analytics with charts (Chart.js/Recharts)
-- [ ] A/B testing functionality
-- [ ] Email automation workflows
-- [ ] Advanced segmentation with custom fields
-- [ ] Email preview in multiple clients
-- [ ] Bulk operations on campaigns
-- [ ] Campaign cloning with customization
-- [ ] Email performance reports export
-- [ ] Integration with CRM for lead tracking
-- [ ] Webhook support for external integrations
-
-## Dependencies
-
-- **React**: UI framework
-- **Lucide React**: Icon library
-- **Tailwind CSS**: Styling
-- **Next.js**: Framework and routing
-
-## Notes
-
-- All API calls require authentication
-- Workspace ID is required for all operations
-- Data is automatically refreshed when switching tabs
-- Form validation ensures data integrity
-- Loading states provide visual feedback during operations
+Sends go through `email-campaign.ts` → `email-queue.ts`, drained by the
+Cloudflare Worker in `workers/cron/`.
