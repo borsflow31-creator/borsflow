@@ -1,4 +1,5 @@
 import { randomBytes } from 'crypto'
+import { CALL_INVOICE_MONEY_SELECT, sumCallAmounts } from './call-balance'
 import { prisma } from '@/lib/prisma'
 import { ServiceError } from '../errors'
 import { readString, readNumber } from '../parse'
@@ -9,6 +10,15 @@ import { fireLotEvent } from './alerts'
 import { accrueLotCommission, cancelLotCommission, realizeLotCommission } from '../commissions'
 import { DEVELOPER_STAGE_RESERVED, DEVELOPER_STAGE_WON } from '@/lib/crm/lifecycle'
 import { autoTaskTitle } from '@/lib/crm/task-titles'
+import {
+  ensureDepositInvoice,
+  parsePaymentInput,
+  recordDepositPayment,
+  refundDepositInTx,
+  type CollectionsContext,
+  type RecordPaymentInput,
+} from './collections'
+import { toCents } from '@/lib/documents/payment-rules'
 
 export function generatePortalToken(): string {
   return randomBytes(20).toString('hex')
@@ -157,7 +167,7 @@ export async function listInventory(ctx: DeveloperContext, filters: InventoryFil
       salesAgent: { select: { id: true, name: true, email: true } },
       buyerLead: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
       optionHolderLead: { select: { id: true, firstName: true, lastName: true } },
-      callsForFunds: { select: { amount: true, status: true, dueAt: true } },
+      callsForFunds: { select: { amount: true, status: true, dueAt: true, invoice: CALL_INVOICE_MONEY_SELECT } },
     },
     orderBy: [{ program: { name: 'asc' } }, { floor: 'desc' }, { lotNumber: 'asc' }],
   })
@@ -165,11 +175,10 @@ export async function listInventory(ctx: DeveloperContext, filters: InventoryFil
   const now = Date.now()
   return lots.map(({ callsForFunds, ...lot }) => {
     const called = callsForFunds.filter((c) => c.status !== 'draft')
-    const paid = called.filter((c) => c.status === 'paid').reduce((sum, c) => sum + c.amount, 0)
-    const calledTotal = called.reduce((sum, c) => sum + c.amount, 0)
-    const overdue = called.some(
-      (c) => c.status === 'overdue' || (c.status !== 'paid' && c.dueAt && c.dueAt.getTime() < now)
-    )
+    const owed = sumCallAmounts(called, now)
+    const paid = owed.collected
+    const calledTotal = owed.called
+    const overdue = owed.overdue > 0
     return {
       ...lot,
       payment: {
@@ -237,13 +246,6 @@ function readFee(value: unknown): number | null {
   const n = Number(value)
   if (!Number.isFinite(n) || n < 0) throw new ServiceError('The reservation fee must be zero or more', 400)
   return n
-}
-
-function readFeeDate(value: unknown): Date | null {
-  if (value === undefined || value === null || value === '') return null
-  const d = new Date(String(value))
-  if (Number.isNaN(d.getTime())) throw new ServiceError('The date the fee was received is not valid', 400)
-  return d
 }
 
 function readBedrooms(value: unknown): number | null {
@@ -347,8 +349,12 @@ export async function updateLot(ctx: DeveloperContext, id: string, input: Update
     if (input.salesAgentId) await assertAgentInWorkspace(ctx.workspaceId, input.salesAgentId)
     data.salesAgentId = input.salesAgentId || null
   }
-  if (input.reservationFee !== undefined) data.reservationFee = readFee(input.reservationFee)
-  if (input.reservationFeePaidAt !== undefined) data.reservationFeePaidAt = readFeeDate(input.reservationFeePaidAt)
+  // The deposit asked is billed on its own invoice; when it arrived is a payment
+  // recorded in Encaissements, never a date typed here.
+  if (input.reservationFeePaidAt !== undefined) {
+    throw new ServiceError('Record the deposit as a payment from Encaissements', 400)
+  }
+  const depositFee = input.reservationFee !== undefined ? readFee(input.reservationFee) : undefined
   if (input.surfaceArea !== undefined) data.surfaceArea = Number(input.surfaceArea)
   if (input.terraceArea !== undefined) data.terraceArea = Number(input.terraceArea)
   if (input.balconyArea !== undefined) data.balconyArea = Number(input.balconyArea)
@@ -396,9 +402,9 @@ export async function updateLot(ctx: DeveloperContext, id: string, input: Update
     }
   }
 
-  await prisma.developmentLot.update({
-    where: { id },
-    data,
+  await prisma.$transaction(async (tx) => {
+    await tx.developmentLot.update({ where: { id }, data })
+    if (depositFee !== undefined) await ensureDepositInvoice(tx, ctx, id, depositFee)
   })
 
   await syncProgramCounters(existing.programId)
@@ -496,8 +502,8 @@ export async function reserveLot(
     buyerLeadId: string
     salesAgentId?: string
     reservationFee?: number | string | null
-    /** When the deposit arrived; omit if it has not yet. */
-    reservationFeePaidAt?: string | Date | null
+    /** The deposit was received at the reservation: how, when and the request key. */
+    depositPayment?: Omit<RecordPaymentInput, 'amount'> | null
   }
 ) {
   const lot = await prisma.developmentLot.findFirst({
@@ -516,19 +522,29 @@ export async function reserveLot(
   // unit already has an agent from earlier in the sale.
   const salesAgentId = input.salesAgentId || lot.salesAgentId || ctx.userId
 
-  await prisma.developmentLot.update({
-    where: { id: lotId },
-    data: {
-      status: 'reserved',
-      buyerLeadId: input.buyerLeadId,
-      optionHolderLeadId: null,
-      optionExpiresAt: null,
-      reservedAt: new Date(),
-      salesAgentId,
-      ...(input.reservationFee !== undefined && { reservationFee: readFee(input.reservationFee) }),
-      ...(input.reservationFeePaidAt !== undefined && { reservationFeePaidAt: readFeeDate(input.reservationFeePaidAt) }),
-    },
+  const fee = input.reservationFee !== undefined ? readFee(input.reservationFee) : undefined
+  // A deposit received now is checked before anything is saved, so a missing
+  // cheque number cannot leave a reservation behind without its payment.
+  const depositPayment = input.depositPayment && fee
+    ? { ...input.depositPayment, amount: fee }
+    : null
+  if (depositPayment) parsePaymentInput(depositPayment)
+
+  await prisma.$transaction(async (tx) => {
+    await tx.developmentLot.update({
+      where: { id: lotId },
+      data: {
+        status: 'reserved',
+        buyerLeadId: input.buyerLeadId,
+        optionHolderLeadId: null,
+        optionExpiresAt: null,
+        reservedAt: new Date(),
+        salesAgentId,
+      },
+    })
+    if (fee !== undefined) await ensureDepositInvoice(tx, ctx, lotId, fee)
   })
+  if (depositPayment) await recordDepositPayment(ctx, lotId, depositPayment)
 
   await syncProgramCounters(lot.programId)
   await advanceBuyerLead(ctx, input.buyerLeadId, DEVELOPER_STAGE_RESERVED)
@@ -570,7 +586,7 @@ export async function reserveLot(
  * rather than a side effect of this button.
  */
 export async function cancelLotSale(
-  ctx: DeveloperContext,
+  ctx: CollectionsContext,
   lotId: string,
   input: { reason?: string; refundAmount?: number | string | null } = {}
 ) {
@@ -586,8 +602,19 @@ export async function cancelLotSale(
   const reason = typeof input.reason === 'string' ? input.reason.trim().slice(0, 500) : ''
   const refundAmount = readFee(input.refundAmount) ?? 0
 
-  await prisma.$transaction([
-    prisma.lotCancellation.create({
+  await prisma.$transaction(async (tx) => {
+    // Money given back is a refund on the deposit, capped at what was received.
+    if (toCents(refundAmount) > 0) {
+      if (!lot.depositInvoiceId) throw new ServiceError('No deposit was received for this unit, so there is nothing to refund', 409)
+      await refundDepositInTx(tx, ctx, lot.depositInvoiceId, refundAmount, reason || null)
+    }
+    // A deposit nothing was paid on is withdrawn with the sale; one that was paid
+    // stays as the record of that money.
+    if (lot.depositInvoiceId) {
+      const kept = await tx.payment.count({ where: { invoiceId: lot.depositInvoiceId, status: { in: ['confirmed', 'pending'] } } })
+      if (kept === 0) await tx.invoice.update({ where: { id: lot.depositInvoiceId }, data: { status: 'cancelled' } })
+    }
+    await tx.lotCancellation.create({
       data: {
         workspaceId: ctx.workspaceId,
         lotId: lot.id,
@@ -599,8 +626,8 @@ export async function cancelLotSale(
         amount: lot.totalPrice,
         salesAgentId: lot.salesAgentId,
       },
-    }),
-    prisma.developmentLot.update({
+    })
+    await tx.developmentLot.update({
       where: { id: lot.id },
       data: {
         status: 'available',
@@ -612,15 +639,17 @@ export async function cancelLotSale(
         salesAgentId: null,
         reservationFee: null,
         reservationFeePaidAt: null,
+        // The next buyer gets a deposit of their own; this one keeps its history.
+        depositInvoiceId: null,
       },
-    }),
+    })
     // A form or contract not yet accepted belongs to a sale that no longer
     // exists; leaving it open would let the buyer accept it into a dead deal.
-    prisma.salesDocument.updateMany({
+    await tx.salesDocument.updateMany({
       where: { lotId, status: { in: ['draft', 'sent'] } },
       data: { status: 'void' },
-    }),
-  ])
+    })
+  })
 
   await syncProgramCounters(lot.programId)
 

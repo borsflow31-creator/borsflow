@@ -93,7 +93,10 @@ export const PUBLIC_INVOICE_SELECT = {
   amountDue: true,
   notes: true,
   terms: true,
+  // What the client sees as paid: money received, not cheques still clearing or
+  // payments that were cancelled.
   payments: {
+    where: { status: 'confirmed', kind: 'payment' },
     orderBy: { paymentDate: 'desc' },
     select: {
       amount: true,

@@ -530,7 +530,8 @@ async function main() {
     await reserveLot(actx, lot.id, {
       buyerLeadId: buyerId, salesAgentId: agentId,
       reservationFee: roundTo(lot.totalPrice * 0.1, 10_000),
-      reservationFeePaidAt: daysAgo(sale.reservedDaysAgo),
+      // The deposit arrived by transfer on the day of the reservation, through the ledger.
+      depositPayment: { method: 'bank_transfer', paidAt: daysAgo(sale.reservedDaysAgo), clientRequestId: `seed-deposit-${lot.id}` },
     })
     if (sale.outcome === 'contract_signed' || sale.outcome === 'deed_signed') {
       await updateLot(actx, lot.id, { status: 'contract_signed' })
@@ -539,7 +540,7 @@ async function main() {
       await updateLot(actx, lot.id, { status: 'deed_signed' })
     }
     if (sale.outcome === 'cancelled') {
-      await cancelLotSale(ctx, lot.id, { reason: 'Refus du crédit immobilier par la banque', refundAmount: roundTo(lot.totalPrice * 0.1, 10_000) })
+      await cancelLotSale({ ...ctx, canModerate: true }, lot.id, { reason: 'Refus du crédit immobilier par la banque', refundAmount: roundTo(lot.totalPrice * 0.1, 10_000) })
     }
     // The dates the services stamped as "now", moved back to when it happened.
     await prisma.developmentLot.update({

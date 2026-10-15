@@ -42,7 +42,12 @@ export type CrmActivityType =
   | 'site_visit_booked'
   | 'site_visit_completed'
   | 'sales_document_sent'
-  | 'sales_document_accepted';
+  | 'sales_document_accepted'
+  | 'payment_recorded'
+  | 'payment_confirmed'
+  | 'payment_failed'
+  | 'payment_reversed'
+  | 'payment_refunded';
 
 /** What an Activity row is about. The default, for the original lead events, is 'lead'. */
 export type CrmEntityType = 'lead' | 'property' | 'interest' | 'mandate' | 'offer' | 'viewing';

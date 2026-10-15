@@ -242,9 +242,8 @@ export default function BuyerPortalPage() {
 
   const totalPaid = useMemo(() => {
     if (!callsForFunds) return 0;
-    return callsForFunds
-      .filter((c: any) => c.status === 'paid')
-      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+    // Confirmed money received, including part payments; the server leaves out cheques still clearing.
+    return callsForFunds.reduce((sum: number, c: any) => sum + (c.amountPaid || 0), 0);
   }, [callsForFunds]);
 
   const totalCalled = useMemo(() => {
@@ -254,7 +253,7 @@ export default function BuyerPortalPage() {
 
   const remainingBalance = useMemo(() => {
     if (!pricing?.totalPrice) return 0;
-    return Math.max(0, pricing.totalPrice - totalPaid);
+    return Math.max(0, pricing.totalPrice - (pricing.reservationFee || 0) - totalPaid);
   }, [pricing, totalPaid]);
 
   const certifiedMilestones = useMemo(() => {
@@ -812,13 +811,20 @@ export default function BuyerPortalPage() {
                             <td className="py-3 px-3 font-bold">{call.percentage}%</td>
                             <td className="py-3 px-3 font-mono font-bold text-slate-900">
                               {money(call.amount)}
+                              {call.status !== 'paid' && call.amountPaid > 0 && (
+                                <span className="block text-[11px] font-medium text-slate-500">
+                                  {t('buyerPortal.financial.paidSoFar', { amount: money(call.amountPaid) })}
+                                </span>
+                              )}
                             </td>
                             <td className="py-3 px-3">
                               <span
                                 className={`px-2 py-0.5 rounded text-[11px] font-semibold capitalize ${
                                   call.status === 'paid'
                                     ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-100 text-amber-800'
+                                    : call.status === 'overdue'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-800'
                                 }`}
                               >
                                 {labelOr(t, 'callStatus', call.status)}

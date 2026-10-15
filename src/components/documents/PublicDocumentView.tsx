@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { FileText, Download, CheckCircle2, XCircle, CreditCard, Loader2 } from 'lucide-react';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 export interface PublicLineItem {
   description: string;
@@ -258,7 +258,7 @@ export default function PublicDocumentView({
                 {doc.payments?.map((payment, index) => (
                   <li key={index} className="flex justify-between gap-4">
                     <span className="text-on-surface-variant">
-                      {day(payment.paymentDate)} · {payment.paymentMethod.replace(/_/g, ' ')}
+                      {day(payment.paymentDate)} · {payment.paymentMethod === 'paypal' ? 'PayPal' : t(`developerSales.collections.method_${payment.paymentMethod}` as MessageKey)}
                       {payment.referenceNumber ? ` · ${payment.referenceNumber}` : ''}
                     </span>
                     <span className="shrink-0 font-medium text-on-surface">

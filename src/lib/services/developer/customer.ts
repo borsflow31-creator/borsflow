@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { CALL_INVOICE_MONEY_SELECT, sumCallAmounts } from './call-balance'
 import { parseStages } from '@/lib/crm/lifecycle'
 import { scoreLead } from '@/lib/crm/lead-score'
 import { visibleDocumentsWhere } from '@/lib/crm/document-access'
@@ -47,7 +48,7 @@ export async function getCustomerOverview(
         contractSignedAt: true,
         buyerLeadId: true,
         program: { select: { id: true, name: true } },
-        callsForFunds: { select: { id: true, amount: true, status: true, dueAt: true } },
+        callsForFunds: { select: { id: true, amount: true, status: true, dueAt: true, invoice: CALL_INVOICE_MONEY_SELECT } },
         snags: { select: { id: true, room: true, trade: true, description: true, status: true, warrantyType: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -97,12 +98,10 @@ export async function getCustomerOverview(
 
   const now = Date.now()
   const units = lots.map(({ callsForFunds, snags, ...lot }) => {
-    const called = callsForFunds.filter((c) => c.status !== 'draft')
-    const paid = called.filter((c) => c.status === 'paid').reduce((t, c) => t + c.amount, 0)
-    const calledTotal = called.reduce((t, c) => t + c.amount, 0)
-    const overdue = called
-      .filter((c) => c.status !== 'paid' && (c.status === 'overdue' || (c.dueAt !== null && c.dueAt.getTime() < now)))
-      .reduce((t, c) => t + c.amount, 0)
+    const owed = sumCallAmounts(callsForFunds, now)
+    const paid = owed.collected
+    const calledTotal = owed.called
+    const overdue = owed.overdue
     return {
       ...lot,
       // The unit's status says whether they hold it (optioned) or bought it.

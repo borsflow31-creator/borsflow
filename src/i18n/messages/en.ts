@@ -2975,6 +2975,7 @@ export interface Messages {
     callStatusIssued: string;
     callStatusSentToBank: string;
     callStatusPaid: string;
+    callStatusPartiallyPaid: string;
     callStatusOverdue: string;
     modificationsTitle: string;
     modificationsSubtitle: string;
@@ -3276,6 +3277,139 @@ export interface Messages {
       method_credit_card: string;
       method_other: string;
     };
+    payments: {
+      collectDeposit: string;
+      ofAsked: string;
+      depositRow: string;
+      searchLabel: string;
+      searchPlaceholder: string;
+      searchNoMatch: string;
+      searchEmpty: string;
+      searchError: string;
+      retry: string;
+      loading: string;
+      outstandingShort: string;
+      overdueShort: string;
+      close: string;
+      panelAria: string;
+      contract: string;
+      deposit: string;
+      called: string;
+      collected: string;
+      pending: string;
+      outstanding: string;
+      overdue: string;
+      remainingOnContract: string;
+      contractNumber: string;
+      noContract: string;
+      schedule: string;
+      scheduleEmpty: string;
+      paidOf: string;
+      dueOn: string;
+      pendingOnCall: string;
+      readOnly: string;
+      formTitle: string;
+      formFor: string;
+      amount: string;
+      amountHint: string;
+      amountTooHigh: string;
+      amountInvalid: string;
+      chequeNumber: string;
+      transferReference: string;
+      reference: string;
+      notes: string;
+      recapBefore: string;
+      recapNow: string;
+      recapAfter: string;
+      recapPending: string;
+      submit: string;
+      submitCheque: string;
+      saving: string;
+      uncertain: string;
+      retrySubmit: string;
+      recorded: string;
+      recordedPending: string;
+      openReceiptNumber: string;
+      nothingDue: string;
+      history: string;
+      historyEmpty: string;
+      colDate: string;
+      colCall: string;
+      colReceipt: string;
+      colMethod: string;
+      colAmount: string;
+      colStatus: string;
+      colBy: string;
+      receipt: string;
+      confirm: string;
+      fail: string;
+      reverse: string;
+      refund: string;
+      status_pending: string;
+      status_confirmed: string;
+      status_failed: string;
+      status_reversed: string;
+      status_refund: string;
+      reasonLabel: string;
+      reasonRequired: string;
+      confirmTitle: string;
+      confirmBody: string;
+      confirmed: string;
+      failTitle: string;
+      failBody: string;
+      failed: string;
+      reverseTitle: string;
+      reverseBody: string;
+      reversed: string;
+      refundTitle: string;
+      refundBody: string;
+      refundAmount: string;
+      refunded: string;
+      apply: string;
+      actionFailed: string;
+      loadFailed: string;
+      tabSchedule: string;
+      tabJournal: string;
+      from: string;
+      to: string;
+      program: string;
+      search: string;
+      searchJournalPlaceholder: string;
+      allMethods: string;
+      allStatuses: string;
+      allPrograms: string;
+      today: string;
+      thisMonth: string;
+      totalConfirmed: string;
+      totalPending: string;
+      byMethod: string;
+      journalEmpty: string;
+      truncated: string;
+      searchCalls: string;
+      leftToPay: string;
+      collect: string;
+      viewPayments: string;
+    };
+    receipt: {
+      amountInWords: string;
+      title: string;
+      receivedFrom: string;
+      unit: string;
+      contract: string;
+      amountReceived: string;
+      paymentDate: string;
+      method: string;
+      reference: string;
+      call: string;
+      remainingOnCall: string;
+      remainingOnDeposit: string;
+      remainingOnContract: string;
+      recordedBy: string;
+      issuer: string;
+      issuedOn: string;
+      cancelled: string;
+      cancelledReason: string;
+    };
     project: {
       commission: string;
       commissionHint: string;
@@ -3360,6 +3494,7 @@ export interface Messages {
       sum_salesValue: string;
       sum_averagePrice: string;
       sum_discountsGiven: string;
+      sum_depositsReceived: string;
       sum_newLeads: string;
       sum_salesFromLeads: string;
       sum_revenue: string;
@@ -4650,10 +4785,12 @@ export interface Messages {
       };
       viewReceipt: string;
       soon: string;
+      paidSoFar: string;
       empty: string;
     };
     callStatus: {
       draft: string;
+      partially_paid: string;
       issued: string;
       sent: string;
       "sent_to_bank": string;
@@ -6479,7 +6616,7 @@ const en: Messages = {
     },
     team: {
       roleViewer: 'Viewer',
-      roleMember: 'Member',
+      roleMember: "Commercial",
       roleAdmin: 'Admin',
       roleOwner: 'Owner',
       capRead: 'View records and documents',
@@ -6700,9 +6837,9 @@ const en: Messages = {
       deleteConfirm: 'Delete invoice {number}? This cannot be undone.',
       failedToDeleteInvoice: 'Failed to delete the invoice.',
       failedToDelete: 'Failed to delete the invoice.',
-      deletePaymentConfirm: 'Remove this payment? This cannot be undone.',
+      deletePaymentConfirm: 'Cancel this payment? It stops counting and stays in the history, marked cancelled. Give the reason:',
       failedToDeletePayment: 'Failed to remove the payment.',
-      toastPaymentRemoved: 'Payment removed.',
+      toastPaymentRemoved: 'Payment cancelled.',
       goBack: 'Go back',
       toastPaymentRecorded: 'Payment recorded.',
       toastInvoiceSent: 'Invoice sent.',
@@ -6727,7 +6864,7 @@ const en: Messages = {
       colMethod: 'Method',
       colReference: 'Reference',
       colAmount: 'Amount',
-      removePaymentAria: 'Remove payment',
+      removePaymentAria: 'Cancel payment',
       details: 'Details',
       discardConfirm: 'Discard unsaved changes?',
       discard: 'Discard',
@@ -8130,6 +8267,7 @@ const en: Messages = {
       scoreFactor_contactable: 'Contact details',
       scoreFactor_budget: 'Budget',
       scoreFactor_project: 'Project and unit type',
+    callStatusPartiallyPaid: 'Part paid',
       scoreFactor_source: 'Source',
       scoreFactor_stage: 'Stage',
       scoreFactor_recency: 'Recent contact',
@@ -8431,6 +8569,139 @@ const en: Messages = {
       col_campaign: 'Campaign',
       col_leads: 'Leads',
       col_qualified: 'Qualified',
+    payments: {
+      collectDeposit: 'Collect the deposit',
+      ofAsked: 'of {amount} asked',
+      depositRow: 'Reservation deposit',
+      searchLabel: 'Buyer or unit',
+      searchPlaceholder: 'Search a buyer, unit or project…',
+      searchNoMatch: 'No sold unit matches.',
+      searchEmpty: 'No sold unit yet.',
+      searchError: 'The search failed.',
+      retry: 'Retry',
+      loading: 'Loading…',
+      outstandingShort: '{amount} due',
+      overdueShort: '{amount} overdue',
+      close: 'Close',
+      panelAria: 'Payments of {buyer}, unit {unit}',
+      contract: 'Price',
+      deposit: 'Deposit',
+      called: 'Called',
+      collected: 'Received',
+      pending: 'Pending cheques',
+      outstanding: 'Outstanding',
+      overdue: 'Overdue',
+      remainingOnContract: 'Left on the price',
+      contractNumber: 'Contract {number}',
+      noContract: 'No contract yet',
+      schedule: 'Payment schedule',
+      scheduleEmpty: 'No call for funds has been issued for this unit yet.',
+      paidOf: '{paid} of {amount}',
+      dueOn: 'Due {date}',
+      pendingOnCall: '{amount} in cheques waiting to clear',
+      readOnly: 'You can view these payments but not record them.',
+      formTitle: 'Record a payment',
+      formFor: 'For {call}',
+      amount: 'Amount received',
+      amountHint: 'Still due on this call: {amount}. Enter less for a part payment.',
+      amountTooHigh: 'That is more than the {amount} still due.',
+      amountInvalid: 'Enter an amount greater than zero.',
+      chequeNumber: 'Cheque number',
+      transferReference: 'Transfer reference',
+      reference: 'Reference',
+      notes: 'Notes',
+      recapBefore: 'Due before',
+      recapNow: 'Received now',
+      recapAfter: 'Left after',
+      recapPending: 'A cheque counts once it clears: it is saved as pending, with no receipt until then.',
+      submit: 'Record {amount}',
+      submitCheque: 'Record a cheque of {amount}',
+      saving: 'Saving…',
+      uncertain: 'We could not confirm the payment was saved. Retrying is safe: it will not be recorded twice.',
+      retrySubmit: 'Retry',
+      recorded: 'Payment recorded: receipt {number}.',
+      recordedPending: 'Cheque recorded as pending. Mark it cleared once the bank credits it.',
+      openReceiptNumber: 'Open receipt {number}',
+      nothingDue: 'Nothing is left to collect on this unit.',
+      history: 'Payments',
+      historyEmpty: 'No payment recorded yet.',
+      colDate: 'Date',
+      colCall: 'Receipt / call',
+      colReceipt: 'Receipt',
+      colMethod: 'Method',
+      colAmount: 'Amount',
+      colStatus: 'Status',
+      colBy: 'Recorded by',
+      receipt: 'Receipt',
+      confirm: 'Cleared',
+      fail: 'Bounced',
+      reverse: 'Cancel',
+      refund: 'Refund',
+      status_pending: 'Pending',
+      status_confirmed: 'Received',
+      status_failed: 'Failed',
+      status_reversed: 'Cancelled',
+      status_refund: 'Refund',
+      reasonLabel: 'Reason',
+      reasonRequired: 'Give a reason.',
+      confirmTitle: 'Mark the cheque as cleared',
+      confirmBody: '{amount} will count as received and a receipt will be issued.',
+      confirmed: 'Cheque cleared, receipt issued.',
+      failTitle: 'Cheque bounced or withdrawn',
+      failBody: '{amount} will not count, and can be collected again.',
+      failed: 'Cheque marked as failed.',
+      reverseTitle: 'Cancel a payment',
+      reverseBody: '{amount} ({number}) will stop counting. The record and its receipt are kept, marked cancelled.',
+      reversed: 'Payment cancelled.',
+      refundTitle: 'Refund the buyer',
+      refundBody: 'Money given back against {number}, up to {amount}.',
+      refundAmount: 'Amount refunded',
+      refunded: 'Refund recorded.',
+      apply: 'Confirm',
+      actionFailed: 'The change could not be saved.',
+      loadFailed: 'The unit could not be loaded.',
+      tabSchedule: 'Calls for funds',
+      tabJournal: 'Payment journal',
+      from: 'From',
+      to: 'To',
+      program: 'Project',
+      search: 'Search',
+      searchJournalPlaceholder: 'Buyer, unit, receipt, reference',
+      allMethods: 'All methods',
+      allStatuses: 'All statuses',
+      allPrograms: 'All projects',
+      today: 'Today',
+      thisMonth: 'This month',
+      totalConfirmed: 'Received',
+      totalPending: 'Cheques waiting to clear',
+      byMethod: 'Received, by method',
+      journalEmpty: 'No payment matches these filters.',
+      truncated: 'Showing the latest 500. Narrow the dates to see the rest.',
+      searchCalls: 'Search a call, unit or buyer',
+      leftToPay: '{amount} left',
+      collect: 'Collect',
+      viewPayments: 'Payments',
+    },
+    receipt: {
+      amountInWords: 'Received the sum of: {words}.',
+      title: 'Payment receipt',
+      receivedFrom: 'Received from',
+      unit: 'Unit',
+      contract: 'Contract',
+      amountReceived: 'Amount received',
+      paymentDate: 'Date received',
+      method: 'Method',
+      reference: 'Reference',
+      call: 'Call for funds',
+      remainingOnCall: 'Still due on this call, as of {date}',
+      remainingOnDeposit: 'Still due on the deposit, as of {date}',
+      remainingOnContract: 'Still due on the price, as of {date}',
+      recordedBy: 'Recorded by',
+      issuer: 'For the issuer',
+      issuedOn: 'Issued on',
+      cancelled: 'CANCELLED',
+      cancelledReason: 'Cancelled because',
+    },
       col_visits: 'Visits',
       col_reservations: 'Reservations',
       col_sales: 'Sales',
@@ -8515,6 +8786,7 @@ const en: Messages = {
     rule_low_inventory_title: 'Stock running low',
     rule_low_inventory_desc: 'Tells the admins when a project in sales has this share of its units or less still available. Raised at most once a month.',
     rule_high_cancellations_title: 'High cancellation rate',
+      sum_depositsReceived: 'Deposits received',
     rule_high_cancellations_desc: 'Tells the admins when cancellations are at least this share of the deals in the last 90 days, once there are enough deals to mean something. Raised at most once a month.',
     access: {
       who: 'Who can see this',
@@ -9441,7 +9713,7 @@ const en: Messages = {
       collections: {
         step1: 'Calls for funds are created when you certify a construction milestone on a project.',
         step2: 'Track each call: sent, due, overdue or paid. The ageing chart shows how late payments are.',
-        step3: 'Mark a call as paid when the money arrives.',
+        step3: "Find the buyer or unit, enter what was received, in full or in part, and print the receipt. A cheque counts once it clears.",
       },
       modifications: {
         step1: 'Buyers ask for changes to their unit (layout, finishes) from their buyer portal or through you.',
@@ -9805,10 +10077,12 @@ const en: Messages = {
       titleLabel: "What would you like? *",
       titlePlaceholder: "e.g. An extra socket on the kitchen island",
       details: "Details and location *",
+      paidSoFar: '{amount} paid',
       detailsPlaceholder: "Describe the change, the room and the dimensions…",
       reviewTitle: "Technical review",
       reviewBody: "Your request goes to the site manager and the supervising architect. Once it is confirmed feasible, a quote will appear here for your signature.",
       submitting: "Sending…",
+      partially_paid: 'Part paid',
       submit: "Send the request",
     },
     cancel: "Cancel",

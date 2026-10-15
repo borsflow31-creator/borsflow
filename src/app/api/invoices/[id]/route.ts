@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { calculateDocumentTotals, buildItemCreateData } from '@/lib/documents/calculations';
-import { derivePaymentState } from '@/lib/documents/payments';
+import { countedPayments, derivePaymentState, syncCallFromInvoice } from '@/lib/documents/payments';
 import { isValidInvoiceStatus, INVOICE_STATUSES } from '@/lib/documents/status';
 
 // GET /api/invoices/[id]
@@ -27,6 +27,8 @@ export async function GET(
         lead: { select: { id: true, firstName: true, lastName: true } },
         quote: { select: { id: true, quoteNumber: true } },
         workspace: { select: { id: true, name: true } },
+        // A call for funds' invoice is paid and corrected from Encaissements.
+        callForFunds: { select: { id: true, lotId: true } },
       },
     });
 
@@ -89,7 +91,8 @@ export async function PUT(
 
     if (!workspace) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    }
+
 
     // Membership is not enough to change content: viewers are read-only.
     if (!(await canEditContent(workspace.id, session.user.id))) {
@@ -143,10 +146,7 @@ export async function PUT(
     // Payment fields come from the shared reconciler against the new total, so
     // amountDue is clamped here exactly as it is on the payment routes rather than
     // being allowed to go negative on an overpaid invoice.
-    const payments = await prisma.payment.findMany({
-      where: { invoiceId: params.id },
-      select: { amount: true },
-    });
+    const payments = await countedPayments(prisma, params.id);
     const paymentState = derivePaymentState({
       total: totals.total,
       payments,
@@ -209,8 +209,12 @@ export async function PUT(
         items: { orderBy: { order: 'asc' } },
         payments: { orderBy: { paymentDate: 'desc' } },
         lead: { select: { id: true, firstName: true, lastName: true } },
+        callForFunds: { select: { id: true, lotId: true } },
       },
     });
+
+    // A new total can settle or reopen the call for funds this invoice bills.
+    await syncCallFromInvoice(prisma, params.id, paymentState);
 
     return NextResponse.json({ invoice });
   } catch (error) {
@@ -252,7 +256,8 @@ export async function DELETE(
 
     if (!workspace) {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
+    }
+
 
     // Membership is not enough to change content: viewers are read-only.
     if (!(await canEditContent(workspace.id, session.user.id))) {

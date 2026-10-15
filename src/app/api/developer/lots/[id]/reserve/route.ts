@@ -31,7 +31,9 @@ export async function POST(
       {
         buyerLeadId,
         reservationFee: body.reservationFee as number | string | null | undefined,
-        reservationFeePaidAt: body.reservationFeePaidAt as string | null | undefined,
+        depositPayment: body.depositPayment && typeof body.depositPayment === 'object'
+          ? (body.depositPayment as Record<string, unknown>)
+          : null,
         salesAgentId: typeof body.salesAgentId === 'string' && body.salesAgentId ? body.salesAgentId : undefined,
       }
     )

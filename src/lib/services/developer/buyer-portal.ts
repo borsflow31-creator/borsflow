@@ -1,4 +1,5 @@
 import { createHmac, randomInt, timingSafeEqual } from 'crypto'
+import { callAmounts, effectiveCallStatus } from './call-balance'
 import { prisma } from '@/lib/prisma'
 import { consumeRateLimits, type RateLimitRule } from '@/lib/api/rate-limit'
 import { emailParagraph, renderEmail, sendTransactionalEmail } from '@/lib/email'
@@ -108,6 +109,7 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
       building: true,
       buyerLead: true,
       optionHolderLead: true,
+      depositInvoice: { select: { amountPaid: true } },
       callsForFunds: {
         include: { milestone: true, invoice: true },
         orderBy: { milestone: { order: 'asc' } },
@@ -192,6 +194,9 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
       basePrice: lot.basePrice,
       taxRate: lot.taxRate,
       totalPrice: lot.totalPrice,
+      // The deposit counts toward the price once it has been received.
+      // What was received of the deposit, part payments included.
+      reservationFee: lot.depositInvoice?.amountPaid ?? (lot.reservationFeePaidAt ? lot.reservationFee ?? 0 : 0),
     }
     portalData.callsForFunds = lot.callsForFunds.map((call) => ({
       id: call.id,
@@ -199,7 +204,9 @@ export async function getBuyerPortalData(publicToken: string, sessionAuthToken?:
       milestoneTitle: call.milestone.title,
       percentage: call.percentage,
       amount: call.amount,
-      status: call.status,
+      // Confirmed money only: a cheque still clearing is not shown as paid.
+      amountPaid: callAmounts(call).collected,
+      status: effectiveCallStatus(call),
       issuedAt: call.issuedAt,
       dueAt: call.dueAt,
       paidAt: call.paidAt,

@@ -14,7 +14,8 @@ import {
   Trash2, Copy, DollarSign, Plus, Check, AlertCircle, Send, FileText,
 } from 'lucide-react';
 import type { Invoice, Payment } from '@/types';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { fromCents, signedAmount, toCents } from '@/lib/documents/payment-rules';
 import SenderPicker, { useDocumentSender } from '@/components/documents/SenderPicker';
 import SendHistory from '@/components/documents/SendHistory';
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from '@/lib/currencies';
@@ -319,7 +320,10 @@ export default function InvoiceDetailPage() {
     discountType,
     discountValue,
   });
-  const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+  // Confirmed money only, refunds taken off: the same rows the server counts.
+  const amountPaid = fromCents(payments
+    .filter((p) => (p.status ?? 'confirmed') === 'confirmed')
+    .reduce((sum, p) => sum + toCents(signedAmount(p)), 0));
   // Clamped to match what the server stores; an overpayment shows as a credit via amountPaid.
   const amountDue = Math.max(0, total - amountPaid);
   // A zero-total invoice would make this NaN%.
@@ -453,10 +457,16 @@ export default function InvoiceDetailPage() {
   };
 
   const handleDeletePayment = async (paymentId: string) => {
-    if (!confirm(t('invoices.detail.deletePaymentConfirm'))) return;
+    // A payment is cancelled, never deleted: it stays in the history with the reason.
+    const reason = window.prompt(t('invoices.detail.deletePaymentConfirm'));
+    if (reason === null) return;
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}/payments?paymentId=${paymentId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(t('invoices.detail.failedToDeletePayment'));
+      const params = new URLSearchParams({ paymentId, reason });
+      const res = await fetch(`/api/invoices/${invoiceId}/payments?${params}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || t('invoices.detail.failedToDeletePayment'));
+      }
       const data = await res.json();
       setCurrentInvoice(data.invoice);
       setPayments(data.invoice.payments || []);
@@ -763,20 +773,37 @@ export default function InvoiceDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {payments.map((payment) => (
+                        {payments.map((payment) => {
+                          const paymentStatus = payment.status ?? 'confirmed';
+                          const counts = paymentStatus === 'confirmed';
+                          const statusKey = payment.kind === 'refund' && counts ? 'refund' : paymentStatus;
+                          return (
                           <tr key={payment.id} className="border-b border-outline-variant/5 last:border-0">
                             <td className="px-3 py-3 text-sm text-on-surface">{formatDate(payment.paymentDate)}</td>
-                            <td className="px-3 py-3 text-sm text-on-surface capitalize">{String(payment.paymentMethod).replace('_', ' ')}</td>
-                            <td className="px-3 py-3 text-sm text-on-surface-variant">{payment.referenceNumber || '—'}</td>
-                            <td className="px-3 py-3 text-sm text-success font-semibold text-right">{formatCurrency(payment.amount, currency)}</td>
+                            <td className="px-3 py-3 text-sm text-on-surface">
+                              {payment.paymentMethod === 'paypal' ? 'PayPal' : t(`developerSales.collections.method_${payment.paymentMethod}` as MessageKey)}
+                              {statusKey !== 'confirmed' && (
+                                <span className="ml-2 text-[11px] text-on-surface-variant">· {t(`developerSales.payments.status_${statusKey}` as MessageKey)}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-sm text-on-surface-variant">
+                              {payment.referenceNumber || '—'}
+                              {payment.reversalReason && <span className="block text-[11px]">{payment.reversalReason}</span>}
+                            </td>
+                            <td className={`px-3 py-3 text-sm font-semibold text-right ${counts ? 'text-success' : 'text-on-surface-variant line-through'}`}>
+                              {payment.kind === 'refund' ? '−' : ''}{formatCurrency(payment.amount, currency)}
+                            </td>
                             <td className="px-3 py-3 text-right">
-                              <button onClick={() => handleDeletePayment(payment.id)}
-                                className="p-1 text-on-surface-variant hover:text-error transition-colors rounded" aria-label={t('invoices.detail.removePaymentAria')}>
-                                <X className="h-3.5 w-3.5" strokeWidth={2} />
-                              </button>
+                              {counts && payment.kind !== 'refund' && !currentInvoice?.callForFunds && (
+                                <button onClick={() => handleDeletePayment(payment.id)}
+                                  className="p-1 text-on-surface-variant hover:text-error transition-colors rounded" aria-label={t('invoices.detail.removePaymentAria')}>
+                                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                                </button>
+                              )}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

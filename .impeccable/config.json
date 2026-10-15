@@ -290,6 +290,12 @@
         ],
         "createdAt": "2026-10-08T21:42:17.609Z",
         "reason": "Claude: one-off onboarding video composition, not app UI; colours are tints of the brand indigo and radii are video framing"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "tajawal",
+        "createdAt": "2026-10-14T19:24:01.540Z",
+        "reason": "Approved plan (user): Tajawal is bundled only for Arabic PDF receipts, which Helvetica cannot render; not a UI font"
       }
     ]
   }

@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { CALL_INVOICE_MONEY_SELECT, sumCallAmounts } from './call-balance'
+import { signedAmount } from '@/lib/documents/payment-rules'
 import {
   DEVELOPER_QUALIFIED_FROM_INDEX,
   DEVELOPER_SALES_PIPELINE,
@@ -414,32 +416,51 @@ async function inventoryReport(ctx: DeveloperContext, now: Date): Promise<Body> 
 // ─── Financial ───────────────────────────────────────────────────────────────
 
 async function financialReport(ctx: DeveloperContext, from: Date, to: Date, now: Date): Promise<Body> {
-  const [sold, calls, commissions] = await Promise.all([
+  const [sold, calls, commissions, received, deposits] = await Promise.all([
     prisma.developmentLot.findMany({
       where: { workspaceId: ctx.workspaceId, status: { in: ['contract_signed', 'deed_signed', 'delivered'] } },
       select: { totalPrice: true, discount: true, contractSignedAt: true, reservedAt: true, updatedAt: true },
     }),
     prisma.callForFunds.findMany({
       where: { workspaceId: ctx.workspaceId, status: { not: 'draft' } },
-      select: { amount: true, status: true, dueAt: true, issuedAt: true, paidAt: true },
+      select: { amount: true, status: true, dueAt: true, issuedAt: true, paidAt: true, invoice: CALL_INVOICE_MONEY_SELECT },
     }),
     prisma.commission.findMany({
       where: { workspaceId: ctx.workspaceId, lotId: { not: null }, status: { not: 'cancelled' }, createdAt: { gte: from, lt: to } },
       select: { grossAmount: true, status: true },
     }),
+    // Money collected is what was confirmed received in the window, on the date it
+    // arrived: partial payments count, pending cheques and reversed rows do not,
+    // refunds count against.
+    prisma.payment.findMany({
+      where: {
+        status: 'confirmed',
+        paymentDate: { gte: from, lt: to },
+        invoice: { workspaceId: ctx.workspaceId, callForFunds: { isNot: null } },
+      },
+      select: { amount: true, kind: true, paymentDate: true },
+    }),
+    // Deposits are their own line: they are not called, so they stay out of
+    // "collected", which must keep adding up with "called" and "outstanding".
+    prisma.payment.findMany({
+      where: {
+        status: 'confirmed',
+        paymentDate: { gte: from, lt: to },
+        invoice: { workspaceId: ctx.workspaceId, depositForLotId: { not: null } },
+      },
+      select: { amount: true, kind: true },
+    }),
   ])
 
   const inRange = (d: Date | null) => !!d && d >= from && d < to
   const soldInRange = sold.filter((l) => inRange(l.contractSignedAt ?? l.reservedAt ?? l.updatedAt))
-  const unpaid = calls.filter((c) => c.status !== 'paid')
-  const overdue = unpaid.filter((c) => c.status === 'overdue' || (c.dueAt !== null && c.dueAt < now))
+  const owed = sumCallAmounts(calls, now.getTime())
 
   const calledInRange = calls.filter((c) => inRange(c.issuedAt))
-  const collectedInRange = calls.filter((c) => c.status === 'paid' && inRange(c.paidAt))
 
   const months = new Map(monthsBetween(from, to).map((m) => [m, { called: 0, collected: 0 }]))
   for (const c of calledInRange) { const m = months.get(monthKey(c.issuedAt!)); if (m) m.called += c.amount }
-  for (const c of collectedInRange) { const m = months.get(monthKey(c.paidAt!)); if (m) m.collected += c.amount }
+  for (const p of received) { const m = months.get(monthKey(p.paymentDate)); if (m) m.collected += signedAmount(p) }
 
   const commissionSum = (status: string) => round(sum(commissions.filter((c) => c.status === status).map((c) => c.grossAmount)))
 
@@ -447,10 +468,11 @@ async function financialReport(ctx: DeveloperContext, from: Date, to: Date, now:
     summary: [
       { key: 'salesValue', kind: 'money', value: round(sum(soldInRange.map((l) => l.totalPrice))) },
       { key: 'called', kind: 'money', value: round(sum(calledInRange.map((c) => c.amount))) },
-      { key: 'collected', kind: 'money', value: round(sum(collectedInRange.map((c) => c.amount))) },
+      { key: 'collected', kind: 'money', value: round(sum(received.map(signedAmount))) },
       // Right now, whatever the window: what is owed is a fact about today.
-      { key: 'outstanding', kind: 'money', value: round(sum(unpaid.map((c) => c.amount))) },
-      { key: 'overdue', kind: 'money', value: round(sum(overdue.map((c) => c.amount))) },
+      { key: 'outstanding', kind: 'money', value: round(owed.outstanding) },
+      { key: 'overdue', kind: 'money', value: round(owed.overdue) },
+      { key: 'depositsReceived', kind: 'money', value: round(sum(deposits.map(signedAmount))) },
       { key: 'discountsGiven', kind: 'money', value: round(sum(soldInRange.map((l) => l.discount))) },
     ],
     tables: [

@@ -65,6 +65,12 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // The receipt PDF reads its Arabic font from disk; ship the files with that function.
+    outputFileTracingIncludes: {
+      '/api/developer/payments/[id]/receipt': ['./src/lib/documents/fonts/**'],
+    },
+  },
 }
 
 module.exports = withPWA(nextConfig)

@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Wallet } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import PageHeader from '@/components/ui/PageHeader';
@@ -9,14 +10,16 @@ import NoWorkspace from '@/components/NoWorkspace';
 import PageSkeleton from '@/components/PageSkeleton';
 import Toast from '@/components/Toast';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
-import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
+import { inputClass } from '@/components/realestate/ui';
 import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
 import {
     CALL_STATUS_LABEL, CALL_STATUS_TONE, Chip, tableClass, tdClass, thClass,
 } from '@/components/developer/status';
+import CollectionTargetPicker from '@/components/developer/CollectionTargetPicker';
+import LotLedgerPanel from '@/components/developer/LotLedgerPanel';
+import PaymentJournal from '@/components/developer/PaymentJournal';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
-
-const PAYMENT_METHODS = ['bank_transfer', 'check', 'cash', 'credit_card', 'other'] as const;
+import { callAmounts, effectiveCallStatus } from '@/lib/services/developer/call-balance';
 
 const DAY_MS = 86_400_000;
 
@@ -35,22 +38,12 @@ interface CallRow {
     };
     milestone: { title: string; targetPercentage: number };
     reminders?: { step: string; sentAt: string }[];
+    invoice: { amountPaid: number } | null;
 }
 
-type Filter = 'all' | 'issued' | 'sent_to_bank' | 'overdue' | 'paid';
-const FILTERS: Filter[] = ['all', 'issued', 'sent_to_bank', 'overdue', 'paid'];
-
-/**
- * A call is overdue when it is unpaid and past its due date, whether or not
- * something has flipped its stored status yet. Nothing runs that flip on a
- * schedule, so trusting the stored status alone would hide late payments.
- */
-function effectiveStatus(call: CallRow, now: number): string {
-    if (call.status === 'paid' || call.status === 'draft') return call.status;
-    if (call.status === 'overdue') return 'overdue';
-    if (call.dueAt && new Date(call.dueAt).getTime() < now) return 'overdue';
-    return call.status;
-}
+type Filter = 'all' | 'issued' | 'sent_to_bank' | 'partially_paid' | 'overdue' | 'paid';
+const FILTERS: Filter[] = ['all', 'issued', 'sent_to_bank', 'partially_paid', 'overdue', 'paid'];
+type Tab = 'calls' | 'journal';
 
 function CollectionsInner() {
     const { workspaceId, ready } = useWorkspaceParam();
@@ -60,8 +53,33 @@ function CollectionsInner() {
     const [calls, setCalls] = useState<CallRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<Filter>('all');
-    const [paying, setPaying] = useState<CallRow | null>(null);
+    const [search, setSearch] = useState('');
+    const [programId, setProgramId] = useState('');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    // The open unit lives in the URL (?lot=…&call=…), so a contract's payments can
+    // be linked to from anywhere and are still open after a reload.
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const openLotId = searchParams.get('lot');
+    const openCallId = searchParams.get('call');
+    const tab: Tab = searchParams.get('tab') === 'journal' ? 'journal' : 'calls';
+
+    const setQuery = useCallback((changes: Record<string, string | null>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const [key, value] of Object.entries(changes)) {
+            if (value) params.set(key, value);
+            else params.delete(key);
+        }
+        if (workspaceId && !params.get('workspace')) params.set('workspace', workspaceId);
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }, [router, pathname, searchParams, workspaceId]);
+
+    const openLot = (lotId: string, callId?: string) => {
+        setQuery({ lot: lotId, call: callId ?? null });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const money = (n: number) => formatNumber(n, { style: 'currency', currency, maximumFractionDigits: 0 });
     const moneyCompact = (n: number) =>
@@ -92,47 +110,43 @@ function CollectionsInner() {
         let dueThisMonth = 0, collected = 0, outstanding = 0, overdue = 0;
         const aging = { a: 0, b: 0, c: 0 };
         for (const call of calls) {
-            const status = effectiveStatus(call, now);
-            if (status === 'draft') continue;
-            if (status === 'paid') { collected += call.amount; continue; }
-            outstanding += call.amount;
+            // Part payments count for what was received and what is left.
+            const owed = callAmounts(call, now);
+            collected += owed.collected;
+            if (owed.outstanding <= 0) continue;
+            outstanding += owed.outstanding;
             const due = call.dueAt ? new Date(call.dueAt).getTime() : null;
-            if (due !== null && due >= monthStart.getTime() && due < monthEnd.getTime()) dueThisMonth += call.amount;
-            if (status === 'overdue') {
-                overdue += call.amount;
+            if (due !== null && due >= monthStart.getTime() && due < monthEnd.getTime()) dueThisMonth += owed.outstanding;
+            if (owed.overdue > 0) {
+                overdue += owed.overdue;
                 const days = due === null ? 0 : Math.floor((now - due) / DAY_MS);
-                if (days <= 30) aging.a += call.amount;
-                else if (days <= 60) aging.b += call.amount;
-                else aging.c += call.amount;
+                if (days <= 30) aging.a += owed.overdue;
+                else if (days <= 60) aging.b += owed.overdue;
+                else aging.c += owed.overdue;
             }
         }
         return { dueThisMonth, collected, outstanding, overdue, aging };
     }, [calls, now]);
 
-    const visible = useMemo(
-        () => calls.filter((c) => filter === 'all' || effectiveStatus(c, now) === filter),
-        [calls, filter, now]
-    );
+    const programs = useMemo(() => {
+        const seen = new Map<string, string>();
+        for (const c of calls) seen.set(c.lot.program.id, c.lot.program.name);
+        return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    }, [calls]);
 
-    /** Record the payment with how and when it arrived, then refresh. Throws so the dialog can show why. */
-    const recordPayment = async (call: CallRow, payment: { paidAt: string; method: string; reference: string }) => {
-        const res = await fetch(`/api/developer/calls-for-funds/${call.id}/paid`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                workspaceId,
-                paidAt: payment.paidAt,
-                method: payment.method,
-                reference: payment.reference.trim() || undefined,
-            }),
+    const visible = useMemo(() => {
+        const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        return calls.filter((c) => {
+            if (filter !== 'all' && effectiveCallStatus(c, now) !== filter) return false;
+            if (programId && c.lot.program.id !== programId) return false;
+            if (words.length === 0) return true;
+            const haystack = [c.callNumber, c.lot.lotNumber, c.lot.program.name, c.lot.buyerLead?.firstName, c.lot.buyerLead?.lastName]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            return words.every((w) => haystack.includes(w));
         });
-        if (!res.ok) {
-            const data = await res.json().catch(() => ({}));
-            throw new Error(data.error || t('developer.markPaidFailed'));
-        }
-        setPaying(null);
-        await load();
-    };
+    }, [calls, filter, programId, search, now]);
 
     if (!ready) return <PageSkeleton />;
     if (!workspaceId) return <AppShell><NoWorkspace /></AppShell>;
@@ -153,6 +167,22 @@ function CollectionsInner() {
                     subtitle={t('developer.collectionsSubtitle')}
                     guide="collections"
                 />
+
+                <div className="max-w-xl">
+                    <CollectionTargetPicker workspaceId={workspaceId} currency={currency} onPick={(target) => openLot(target.id)} />
+                </div>
+
+                {openLotId && (
+                    <LotLedgerPanel
+                        workspaceId={workspaceId}
+                        lotId={openLotId}
+                        initialCallId={openCallId}
+                        currency={currency}
+                        onClose={() => setQuery({ lot: null, call: null })}
+                        onChanged={load}
+                        notify={(message, type) => setToast({ message, type })}
+                    />
+                )}
 
                 {/* Summary */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-outline-variant/20 border border-outline-variant/20 rounded-xl overflow-hidden">
@@ -189,186 +219,164 @@ function CollectionsInner() {
                     </section>
                 )}
 
-                {/* Filters */}
-                <div role="tablist" className="flex flex-wrap gap-1.5">
-                    {FILTERS.map((f) => (
+                <div role="tablist" aria-label={t('developer.collectionsTitle')} className="flex gap-6 border-b border-outline-variant/30">
+                    {(['calls', 'journal'] as Tab[]).map((key) => (
                         <button
-                            key={f}
+                            key={key}
                             role="tab"
-                            aria-selected={filter === f}
-                            onClick={() => setFilter(f)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                filter === f ? 'bg-secondary text-on-secondary' : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface'
+                            aria-selected={tab === key}
+                            onClick={() => setQuery({ tab: key === 'calls' ? null : key })}
+                            className={`-mb-px pb-2.5 text-sm font-medium border-b-2 transition-colors ${
+                                tab === key ? 'border-secondary text-on-surface' : 'border-transparent text-on-surface-variant hover:text-on-surface'
                             }`}
                         >
-                            {f === 'all' ? t('developer.filterAllStatuses') : t(CALL_STATUS_LABEL[f])}
+                            {t(key === 'calls' ? 'developerSales.payments.tabSchedule' : 'developerSales.payments.tabJournal')}
                         </button>
                     ))}
                 </div>
 
-                {/* Table */}
-                {loading && calls.length === 0 ? (
-                    <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" /></div>
-                ) : visible.length === 0 ? (
-                    <div className="p-12 text-center border border-dashed border-outline-variant/40 rounded-xl">
-                        <Wallet className="w-10 h-10 text-on-surface-variant/40 mx-auto mb-3" />
-                        <p className="text-sm text-on-surface-variant max-w-md mx-auto">{t('developer.collectionsEmpty')}</p>
-                    </div>
+                {tab === 'journal' ? (
+                    <PaymentJournal workspaceId={workspaceId} currency={currency} programs={programs} onOpenLot={(lotId) => openLot(lotId)} />
                 ) : (
-                    <div className="overflow-x-auto border border-outline-variant/20 rounded-xl">
-                        <table className={tableClass}>
-                            <thead className="bg-surface-container-low">
-                                <tr>
-                                    <th className={thClass}>{t('developer.colCallNumber')}</th>
-                                    <th className={thClass}>{t('developer.colProjectUnit')}</th>
-                                    <th className={thClass}>{t('developer.colBuyer')}</th>
-                                    <th className={thClass}>{t('developer.colMilestone')}</th>
-                                    <th className={`${thClass} text-end`}>{t('developer.colAmount')}</th>
-                                    <th className={thClass}>{t('developer.colDueDate')}</th>
-                                    <th className={thClass}>{t('developer.colStatus')}</th>
-                                    <th className={thClass}>{t('developerSales.collections.reminders')}</th>
-                                    <th className={thClass} />
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-outline-variant/15">
-                                {visible.map((call) => {
-                                    const status = effectiveStatus(call, now);
-                                    const daysLate = status === 'overdue' && call.dueAt
-                                        ? Math.floor((now - new Date(call.dueAt).getTime()) / DAY_MS)
-                                        : 0;
-                                    const buyer = call.lot.buyerLead
-                                        ? `${call.lot.buyerLead.firstName} ${call.lot.buyerLead.lastName}`.trim()
-                                        : '–';
-                                    return (
-                                        <tr key={call.id} className="hover:bg-surface-container-low/60 transition-colors">
-                                            <td className={`${tdClass} font-mono text-xs`}>{call.callNumber}</td>
-                                            <td className={tdClass}>
-                                                <Link
-                                                    href={`/developer/programs/${call.lot.program.id}?workspace=${workspaceId}`}
-                                                    className="text-on-surface hover:text-secondary transition-colors"
-                                                >
-                                                    {call.lot.program.name} · {call.lot.lotNumber}
-                                                </Link>
-                                            </td>
-                                            <td className={tdClass}>{buyer}</td>
-                                            <td className={`${tdClass} text-on-surface-variant`}>
-                                                {call.milestone.title} ({call.milestone.targetPercentage}%)
-                                            </td>
-                                            <td className={`${tdClass} text-end font-semibold tabular-nums`}>{money(call.amount)}</td>
-                                            <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
-                                                {call.dueAt ? formatDate(call.dueAt) : '–'}
-                                                {daysLate > 0 && (
-                                                    <span className="block text-[11px] text-error">{t('developerDashboard.daysOverdue', { days: daysLate })}</span>
-                                                )}
-                                            </td>
-                                            <td className={tdClass}>
-                                                <Chip tone={CALL_STATUS_TONE[status] ?? CALL_STATUS_TONE.draft}>
-                                                    {t(CALL_STATUS_LABEL[status] ?? CALL_STATUS_LABEL.draft)}
-                                                </Chip>
-                                            </td>
-                                            <td className={`${tdClass} text-xs text-on-surface-variant whitespace-nowrap`}>
-                                                {call.reminders && call.reminders.length > 0 ? (
-                                                    <>
-                                                        {t(`developerSales.collections.step_${call.reminders[call.reminders.length - 1].step}` as MessageKey)}
-                                                        <span className="block tabular-nums">{formatDate(call.reminders[call.reminders.length - 1].sentAt)}</span>
-                                                    </>
-                                                ) : (
-                                                    '–'
-                                                )}
-                                            </td>
-                                            <td className={`${tdClass} text-end`}>
-                                                {status !== 'paid' && status !== 'draft' && (
-                                                    <button
-                                                        onClick={() => setPaying(call)}
-                                                        className="text-xs font-medium text-secondary hover:underline"
-                                                    >
-                                                        {t('developer.markPaid')}
-                                                    </button>
-                                                )}
-                                            </td>
+                    <>
+                        {/* Filters */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <input
+                                type="search"
+                                className={`${inputClass} !py-2 max-w-xs`}
+                                value={search}
+                                maxLength={60}
+                                placeholder={t('developerSales.payments.searchCalls')}
+                                aria-label={t('developerSales.payments.searchCalls')}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                            {programs.length > 1 && (
+                                <select
+                                    className={`${inputClass} !py-2 max-w-xs`}
+                                    value={programId}
+                                    aria-label={t('developerSales.payments.program')}
+                                    onChange={(e) => setProgramId(e.target.value)}
+                                >
+                                    <option value="">{t('developerSales.payments.allPrograms')}</option>
+                                    {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            )}
+                            <div role="group" aria-label={t('developer.colStatus')} className="flex flex-wrap gap-1.5">
+                                {FILTERS.map((f) => (
+                                    <button
+                                        key={f}
+                                        aria-pressed={filter === f}
+                                        onClick={() => setFilter(f)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                            filter === f ? 'bg-secondary text-on-secondary' : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface'
+                                        }`}
+                                    >
+                                        {f === 'all' ? t('developer.filterAllStatuses') : t(CALL_STATUS_LABEL[f])}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        {loading && calls.length === 0 ? (
+                            <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" /></div>
+                        ) : visible.length === 0 ? (
+                            <div className="p-12 text-center border border-dashed border-outline-variant/40 rounded-xl">
+                                <Wallet className="w-10 h-10 text-on-surface-variant/40 mx-auto mb-3" />
+                                <p className="text-sm text-on-surface-variant max-w-md mx-auto">{t('developer.collectionsEmpty')}</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto border border-outline-variant/20 rounded-xl">
+                                <table className={tableClass}>
+                                    <thead className="bg-surface-container-low">
+                                        <tr>
+                                            <th className={thClass}>{t('developer.colCallNumber')}</th>
+                                            <th className={thClass}>{t('developer.colProjectUnit')}</th>
+                                            <th className={thClass}>{t('developer.colBuyer')}</th>
+                                            <th className={thClass}>{t('developer.colMilestone')}</th>
+                                            <th className={`${thClass} text-end`}>{t('developer.colAmount')}</th>
+                                            <th className={thClass}>{t('developer.colDueDate')}</th>
+                                            <th className={thClass}>{t('developer.colStatus')}</th>
+                                            <th className={thClass}>{t('developerSales.collections.reminders')}</th>
+                                            <th className={thClass} />
                                         </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                    </thead>
+                                    <tbody className="divide-y divide-outline-variant/15">
+                                        {visible.map((call) => {
+                                            const status = effectiveCallStatus(call, now);
+                                            const owed = callAmounts(call, now);
+                                            const daysLate = status === 'overdue' && call.dueAt
+                                                ? Math.floor((now - new Date(call.dueAt).getTime()) / DAY_MS)
+                                                : 0;
+                                            const buyer = call.lot.buyerLead
+                                                ? `${call.lot.buyerLead.firstName} ${call.lot.buyerLead.lastName}`.trim()
+                                                : '–';
+                                            return (
+                                                <tr key={call.id} className="hover:bg-surface-container-low/60 transition-colors">
+                                                    <td className={`${tdClass} font-mono text-xs`}>{call.callNumber}</td>
+                                                    <td className={tdClass}>
+                                                        <Link
+                                                            href={`/developer/programs/${call.lot.program.id}?workspace=${workspaceId}`}
+                                                            className="text-on-surface hover:text-secondary transition-colors"
+                                                        >
+                                                            {call.lot.program.name} · {call.lot.lotNumber}
+                                                        </Link>
+                                                    </td>
+                                                    <td className={tdClass}>{buyer}</td>
+                                                    <td className={`${tdClass} text-on-surface-variant`}>
+                                                        {call.milestone.title} ({call.milestone.targetPercentage}%)
+                                                    </td>
+                                                    <td className={`${tdClass} text-end font-semibold tabular-nums`}>
+                                                        {money(call.amount)}
+                                                        {owed.collected > 0 && owed.outstanding > 0 && (
+                                                            <span className="block text-[11px] font-normal text-on-surface-variant">
+                                                                {t('developerSales.payments.leftToPay', { amount: money(owed.outstanding) })}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`${tdClass} whitespace-nowrap tabular-nums`}>
+                                                        {call.dueAt ? formatDate(call.dueAt) : '–'}
+                                                        {daysLate > 0 && (
+                                                            <span className="block text-[11px] text-error">{t('developerDashboard.daysOverdue', { days: daysLate })}</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={tdClass}>
+                                                        <Chip tone={CALL_STATUS_TONE[status] ?? CALL_STATUS_TONE.draft}>
+                                                            {t(CALL_STATUS_LABEL[status] ?? CALL_STATUS_LABEL.draft)}
+                                                        </Chip>
+                                                    </td>
+                                                    <td className={`${tdClass} text-xs text-on-surface-variant whitespace-nowrap`}>
+                                                        {call.reminders && call.reminders.length > 0 ? (
+                                                            <>
+                                                                {t(`developerSales.collections.step_${call.reminders[call.reminders.length - 1].step}` as MessageKey)}
+                                                                <span className="block tabular-nums">{formatDate(call.reminders[call.reminders.length - 1].sentAt)}</span>
+                                                            </>
+                                                        ) : (
+                                                            '–'
+                                                        )}
+                                                    </td>
+                                                    <td className={`${tdClass} text-end`}>
+                                                        {status !== 'draft' && (
+                                                            <button
+                                                                onClick={() => openLot(call.lot.id, owed.outstanding > 0 ? call.id : undefined)}
+                                                                className="text-xs font-medium text-secondary hover:underline"
+                                                            >
+                                                                {owed.outstanding > 0 ? t('developerSales.payments.collect') : t('developerSales.payments.viewPayments')}
+                                                            </button>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
-            {paying && (
-                <PaymentDialog
-                    call={paying}
-                    amountLabel={money(paying.amount)}
-                    onClose={() => setPaying(null)}
-                    onSubmit={(payment) => recordPayment(paying, payment)}
-                />
-            )}
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </AppShell>
-    );
-}
-
-/** How and when the money arrived: it becomes a payment on the call's invoice. */
-function PaymentDialog({
-    call, amountLabel, onClose, onSubmit,
-}: {
-    call: CallRow;
-    amountLabel: string;
-    onClose: () => void;
-    onSubmit: (payment: { paidAt: string; method: string; reference: string }) => Promise<void>;
-}) {
-    const { t } = useI18n();
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const [paidAt, setPaidAt] = useState(today);
-    const [method, setMethod] = useState<string>('bank_transfer');
-    const [reference, setReference] = useState('');
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const submit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        setError(null);
-        try {
-            await onSubmit({ paidAt, method, reference });
-        } catch (err: any) {
-            setError(err.message || t('developer.markPaidFailed'));
-            setSaving(false);
-        }
-    };
-
-    return (
-        <Modal title={t('developerSales.collections.paymentTitle')} onClose={onClose}>
-            <form onSubmit={submit} className="space-y-4">
-                {error && <p role="alert" className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">{error}</p>}
-                <p className="text-sm text-on-surface-variant">
-                    {call.callNumber} · <strong className="text-on-surface tabular-nums">{amountLabel}</strong>
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label={t('developerSales.collections.paymentDate')}>
-                        <input type="date" required max={today} className={inputClass} value={paidAt} onChange={(e) => setPaidAt(e.target.value)} />
-                    </Field>
-                    <Field label={t('developerSales.collections.paymentMethod')}>
-                        <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value)}>
-                            {PAYMENT_METHODS.map((m) => (
-                                <option key={m} value={m}>{t(`developerSales.collections.method_${m}` as MessageKey)}</option>
-                            ))}
-                        </select>
-                    </Field>
-                </div>
-                <Field label={t('developerSales.collections.paymentReference')}>
-                    <input type="text" maxLength={100} className={inputClass} value={reference} onChange={(e) => setReference(e.target.value)} />
-                </Field>
-                <div className="flex justify-end gap-3 pt-2">
-                    <button type="button" onClick={onClose} className={secondaryButton} disabled={saving}>{t('common.cancel')}</button>
-                    <button type="submit" className={`${primaryButton} inline-flex items-center gap-2`} disabled={saving}>
-                        {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {t('developerSales.collections.recordPayment')}
-                    </button>
-                </div>
-            </form>
-        </Modal>
     );
 }
 

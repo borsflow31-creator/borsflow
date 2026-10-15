@@ -40,6 +40,7 @@ export const CALL_STATUS_LABEL: Record<string, MessageKey> = {
     draft: 'developer.callStatusDraft',
     issued: 'developer.callStatusIssued',
     sent_to_bank: 'developer.callStatusSentToBank',
+    partially_paid: 'developer.callStatusPartiallyPaid',
     paid: 'developer.callStatusPaid',
     overdue: 'developer.callStatusOverdue',
 };
@@ -48,6 +49,7 @@ export const CALL_STATUS_TONE: Record<string, string> = {
     draft: 'bg-surface-container-high text-on-surface-variant',
     issued: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
     sent_to_bank: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
+    partially_paid: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
     paid: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     overdue: 'bg-red-500/10 text-red-700 dark:text-red-400',
 };

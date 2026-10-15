@@ -177,6 +177,17 @@ export default function CustomerTab({
                                     {money(u.totalPrice)}
                                     {u.payments.called > 0 && ` · ${money(u.payments.paid)} / ${money(u.payments.called)}`}
                                     {u.payments.overdue > 0 && <span className="text-error"> · {t('developerCrm.customer.unitOverdueNote', { amount: money(u.payments.overdue) })}</span>}
+                                    {u.relation === 'buyer' && u.payments.called > 0 && (
+                                        <>
+                                            {' · '}
+                                            <a
+                                                href={`/developer/collections?workspace=${encodeURIComponent(workspaceId)}&lot=${u.id}`}
+                                                className="font-medium text-secondary hover:underline"
+                                            >
+                                                {t(u.payments.due > 0 ? 'developerSales.payments.collect' : 'developerSales.payments.viewPayments')}
+                                            </a>
+                                        </>
+                                    )}
                                 </p>
                                 {u.snags.length > 0 && (
                                     <div className="mt-2 pt-2 border-t border-outline-variant/15">

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { CALL_INVOICE_MONEY_SELECT, callAmounts, sumCallAmounts } from './call-balance'
 import {
   DEVELOPER_OPEN_STAGES,
   DEVELOPER_QUALIFIED_FROM_INDEX,
@@ -187,6 +188,7 @@ export async function getDeveloperDashboard(
           status: true,
           dueAt: true,
           lotId: true,
+          invoice: CALL_INVOICE_MONEY_SELECT,
           lot: {
             select: {
               lotNumber: true,
@@ -271,15 +273,13 @@ export async function getDeveloperDashboard(
   })
 
   // ── Collections ────────────────────────────────────────────────────────────
-  const isPaid = (c: (typeof calls)[number]) => c.status === 'paid'
-  const isOverdue = (c: (typeof calls)[number]) =>
-    !isPaid(c) && (c.status === 'overdue' || (c.dueAt !== null && c.dueAt < now))
-
-  const collected = calls.filter(isPaid).reduce((t, c) => t + c.amount, 0)
-  const called = calls.reduce((t, c) => t + c.amount, 0)
-  const outstanding = called - collected
-  const overdueRows = calls.filter(isOverdue)
-  const overdueAmount = overdueRows.reduce((t, c) => t + c.amount, 0)
+  // Amounts come from confirmed payments, so a partly paid call counts for what
+  // was received and what is still owed, not all or nothing.
+  const nowMs = now.getTime()
+  const owed = (c: (typeof calls)[number]) => callAmounts(c, nowMs)
+  const isPaid = (c: (typeof calls)[number]) => owed(c).outstanding <= 0
+  const { collected, called, outstanding, overdue: overdueAmount } = sumCallAmounts(calls, nowMs)
+  const overdueRows = calls.filter((c) => owed(c).overdue > 0)
 
   // The next six months, starting with this one.
   const forecastMonths = Array.from({ length: 6 }, (_, i) =>
@@ -291,7 +291,7 @@ export async function getDeveloperDashboard(
     // Overdue money is still expected: it lands in this month's bar rather than
     // disappearing from a forward-looking chart.
     const key = call.dueAt < now ? forecastMonths[0] : monthKey(call.dueAt)
-    if (dueByMonth.has(key)) dueByMonth.set(key, (dueByMonth.get(key) ?? 0) + call.amount)
+    if (dueByMonth.has(key)) dueByMonth.set(key, (dueByMonth.get(key) ?? 0) + owed(call).outstanding)
   }
   const uncalledBalance = Math.max(0, unitTotals.soldValue - called)
 
@@ -366,7 +366,7 @@ export async function getDeveloperDashboard(
       programId: c.lot.programId,
       programName: c.lot.program.name,
       buyer: fullName(c.lot.buyerLead),
-      amount: c.amount,
+      amount: owed(c).overdue,
       dueAt: c.dueAt ? c.dueAt.toISOString() : null,
       daysOverdue: c.dueAt ? Math.max(0, Math.floor((now.getTime() - c.dueAt.getTime()) / DAY_MS)) : 0,
     }))

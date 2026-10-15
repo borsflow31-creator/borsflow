@@ -48,6 +48,8 @@ import ProjectMedia from '@/components/developer/ProjectMedia';
 import { summarizeUnits } from '@/lib/crm/projects';
 import { Kpi, KpiGrid } from '@/components/developer/kpi';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { CALL_STATUS_LABEL, CALL_STATUS_TONE, Chip } from '@/components/developer/status';
+import { effectiveCallStatus } from '@/lib/services/developer/call-balance';
 
 /** Colours per unit status; the names come from developerProjectPage.unitStatus. */
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -755,25 +757,29 @@ function ProgramDetailPageInner() {
                             {call.amount.toLocaleString(undefined, { style: 'currency', currency })}
                           </td>
                           <td className="py-2.5 px-3">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
-                                call.status === 'paid'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {named('callStatus', call.status)}
-                            </span>
+                            <Chip tone={CALL_STATUS_TONE[effectiveCallStatus(call)] ?? CALL_STATUS_TONE.draft}>
+                              {t(CALL_STATUS_LABEL[effectiveCallStatus(call)] ?? CALL_STATUS_LABEL.draft)}
+                            </Chip>
                           </td>
                           <td className="py-2.5 px-3 text-right">
-                            {call.invoiceId && (
-                              <Link
-                                href={`/invoices?workspace=${workspaceId}&id=${call.invoiceId}`}
-                                className="text-primary hover:underline font-medium"
-                              >
-                                {tp('viewInvoice')}
-                              </Link>
-                            )}
+                            <span className="inline-flex gap-3">
+                              {call.status !== 'draft' && (
+                                <Link
+                                  href={`/developer/collections?workspace=${workspaceId}&lot=${call.lotId}&call=${call.id}`}
+                                  className="text-primary hover:underline font-medium"
+                                >
+                                  {t('developerSales.payments.collect')}
+                                </Link>
+                              )}
+                              {call.invoiceId && (
+                                <Link
+                                  href={`/invoices/${call.invoiceId}?workspace=${workspaceId}`}
+                                  className="text-on-surface-variant hover:underline font-medium"
+                                >
+                                  {tp('viewInvoice')}
+                                </Link>
+                              )}
+                            </span>
                           </td>
                         </tr>
                       ))}
@@ -1124,9 +1130,19 @@ function ProgramDetailPageInner() {
                 {/* The sale: where it stands, the deposit, and its reservation form and contract */}
                 {['reserved', 'contract_signed', 'deed_signed', 'delivered'].includes(selectedLot.status) && (
                   <div className="space-y-3 pt-2 border-t border-surface-container-high">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-                      {tp('saleDocs')}
-                    </h4>
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                        {tp('saleDocs')}
+                      </h4>
+                      {selectedLot.buyerLeadId && (
+                        <Link
+                          href={`/developer/collections?workspace=${workspaceId}&lot=${selectedLot.id}`}
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          {t('developerSales.payments.collect')}
+                        </Link>
+                      )}
+                    </div>
                     <UnitDocuments
                       workspaceId={workspaceId}
                       lot={{

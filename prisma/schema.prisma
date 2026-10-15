@@ -879,36 +879,36 @@ model QuoteNote {
 }
 
 model Invoice {
-  id                   String        @id @default(cuid())
+  id                   String          @id @default(cuid())
   invoiceNumber        String
   // Unguessable token for the public client view at /view/invoice/[token]. Null
   // until the invoice is shared; rotating it revokes the old link.
-  publicToken          String?       @unique
+  publicToken          String?         @unique
   publicTokenCreatedAt DateTime?
   workspaceId          String
   leadId               String?
-  lead                 Lead?         @relation(fields: [leadId], references: [id])
+  lead                 Lead?           @relation(fields: [leadId], references: [id])
   quoteId              String?
-  quote                Quote?        @relation(fields: [quoteId], references: [id])
+  quote                Quote?          @relation(fields: [quoteId], references: [id])
   clientName           String
   clientEmail          String?
   clientPhone          String?
   clientCompany        String?
   clientAddress        String? // JSON object with address fields
-  status               String        @default("draft") // 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'
-  issueDate            DateTime      @default(now())
+  status               String          @default("draft") // 'draft', 'sent', 'viewed', 'paid', 'overdue', 'cancelled'
+  issueDate            DateTime        @default(now())
   dueDate              DateTime?
   paidDate             DateTime?
-  currency             String        @default("USD")
-  subtotal             Float         @default(0)
-  taxRate              Float         @default(0)
-  taxAmount            Float         @default(0)
+  currency             String          @default("USD")
+  subtotal             Float           @default(0)
+  taxRate              Float           @default(0)
+  taxAmount            Float           @default(0)
   discountType         String? // 'percentage', 'fixed'
-  discountValue        Float         @default(0)
-  discountAmount       Float         @default(0)
-  total                Float         @default(0)
-  amountPaid           Float         @default(0)
-  amountDue            Float         @default(0)
+  discountValue        Float           @default(0)
+  discountAmount       Float           @default(0)
+  total                Float           @default(0)
+  amountPaid           Float           @default(0)
+  amountDue            Float           @default(0)
   paymentMethod        String? // For manual payment tracking
   paymentReference     String? // Reference number for payments
   notes                String?
@@ -922,10 +922,16 @@ model Invoice {
   invoiceNotes         InvoiceNote[]
   payments             Payment[]
   callForFunds         CallForFunds?
-  workspace            Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy            User?         @relation("InvoiceCreator", fields: [createdById], references: [id])
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  /// Set when the invoice bills a unit's reservation deposit.
+  depositLot           DevelopmentLot? @relation("LotDeposit")
+  /// The unit whose deposit this invoice bills. Kept after a cancellation, when
+  /// the unit no longer points here, so the deposit's payments stay findable.
+  depositForLotId      String?
+  depositForLot        DevelopmentLot? @relation("LotDepositHistory", fields: [depositForLotId], references: [id], onDelete: SetNull)
+  workspace            Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy            User?           @relation("InvoiceCreator", fields: [createdById], references: [id])
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   @@unique([workspaceId, invoiceNumber])
   @@index([workspaceId])
@@ -934,6 +940,7 @@ model Invoice {
   @@index([status])
   @@index([invoiceNumber])
   @@index([dueDate])
+  @@index([depositForLotId])
   @@index([createdById])
 }
 
@@ -970,22 +977,58 @@ model InvoiceNote {
 }
 
 model Payment {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   invoiceId       String
-  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   amount          Float
-  paymentDate     DateTime @default(now())
+  paymentDate     DateTime  @default(now())
   paymentMethod   String // 'cash', 'bank_transfer', 'check', 'credit_card', 'other'
   referenceNumber String?
   notes           String?
+  /// 'pending' (a cheque not yet cleared) | 'confirmed' | 'failed' (bounced or
+  /// cancelled before clearing) | 'reversed' (recorded in error). Only confirmed
+  /// rows count toward the invoice's paid amount. Rows are never deleted.
+  status          String    @default("confirmed")
+  /// 'payment' | 'refund'. A refund is money given back, counted negatively.
+  kind            String    @default("payment")
+  refundOfId      String?
+  refundOf        Payment?  @relation("PaymentRefunds", fields: [refundOfId], references: [id])
+  refunds         Payment[] @relation("PaymentRefunds")
+  /// Copied from the invoice so receipts can be numbered per workspace and the
+  /// journal can be filtered without a join. Null only for rows the backfill missed.
+  workspaceId     String?
+  /// REC-YYYY-NNNN, assigned once the money is confirmed and never reused.
+  receiptNumber   String?
+  /// Sent by the form, so a retried submission returns the row it already made.
+  clientRequestId String?   @unique
+  confirmedAt     DateTime?
+  confirmedById   String?
+  reversedAt      DateTime?
+  reversedById    String?
+  reversalReason  String?
   createdById     String?
-  createdBy       User?    @relation("PaymentCreator", fields: [createdById], references: [id])
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdBy       User?     @relation("PaymentCreator", fields: [createdById], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
+  @@unique([workspaceId, receiptNumber])
   @@index([invoiceId])
   @@index([paymentDate])
   @@index([createdById])
+  @@index([workspaceId, paymentDate])
+  @@index([workspaceId, status])
+  @@index([refundOfId])
+}
+
+/// A per-workspace, per-year sequence, incremented with a single upsert so a
+/// number can be taken inside the same transaction as the row that uses it.
+model DocumentCounter {
+  workspaceId String
+  kind        String
+  year        Int
+  last        Int    @default(0)
+
+  @@id([workspaceId, kind, year])
 }
 
 model EmailCampaign {
@@ -2716,6 +2759,12 @@ model DevelopmentLot {
   /// Deposit taken when the unit was reserved, and when it arrived.
   reservationFee        Float?
   reservationFeePaidAt  DateTime?
+  /// The invoice the deposit is billed and paid on. reservationFee and
+  /// reservationFeePaidAt are a cache of it, kept in step by the payment ledger.
+  depositInvoiceId      String?           @unique
+  depositInvoice        Invoice?          @relation("LotDeposit", fields: [depositInvoiceId], references: [id], onDelete: SetNull)
+  /// Every deposit invoice this unit has had, the current one included.
+  depositInvoices       Invoice[]         @relation("LotDepositHistory")
   salesDocuments        SalesDocument[]
   commissions           Commission[]      @relation("LotCommissions")
   notaryDeedScheduledAt DateTime?
@@ -2828,6 +2877,8 @@ model CallForFunds {
   updatedAt         DateTime              @updatedAt
 
   @@unique([workspaceId, callNumber])
+  /// One call per unit per milestone, so a concurrent generation cannot bill twice.
+  @@unique([lotId, milestoneId])
   @@index([workspaceId, status])
   @@index([lotId])
   @@index([milestoneId])

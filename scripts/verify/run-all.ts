@@ -31,7 +31,7 @@ import emailStarters from './19-email-starters'
 import workspaceCurrency from './20-workspace-currency'
 import leadIntake from './21-lead-intake'
 
-const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17', '18', '19', '20', '21'])
+const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17', '18', '19', '20', '21', '24'])
 
 async function main() {
   const scenarios: { id: string; run: () => Promise<ScenarioResult> }[] = [

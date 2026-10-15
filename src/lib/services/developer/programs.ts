@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { CALL_INVOICE_MONEY_SELECT, callAmounts } from './call-balance'
 import { ServiceError } from '../errors'
 import { readString } from '../parse'
 import { bucketForLotStatus, isProjectType } from '@/lib/crm/projects'
@@ -192,7 +193,7 @@ export async function programSalesFigures(
     }),
     prisma.callForFunds.findMany({
       where: { workspaceId, lot: { programId: { in: programIds } }, status: { not: 'draft' } },
-      select: { amount: true, status: true, lot: { select: { programId: true } } },
+      select: { amount: true, status: true, dueAt: true, invoice: CALL_INVOICE_MONEY_SELECT, lot: { select: { programId: true } } },
     }),
   ])
 
@@ -205,8 +206,9 @@ export async function programSalesFigures(
 
   for (const call of calls) {
     const s = entry(call.lot.programId)
-    if (call.status === 'paid') s.collected += call.amount
-    else s.outstanding += call.amount
+    const owed = callAmounts(call)
+    s.collected += owed.collected
+    s.outstanding += owed.outstanding
   }
 
   return result

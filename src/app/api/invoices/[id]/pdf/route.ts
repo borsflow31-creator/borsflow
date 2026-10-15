@@ -22,7 +22,8 @@ export async function GET(
       where: { id: params.id },
       include: {
         items: { orderBy: { order: 'asc' } },
-        payments: { orderBy: { paymentDate: 'desc' } },
+        // Money received only: not cheques still clearing, not cancelled payments.
+        payments: { where: { status: 'confirmed', kind: 'payment' }, orderBy: { paymentDate: 'desc' } },
         workspace: { select: { id: true, name: true } },
       },
     });

@@ -24,7 +24,7 @@ export async function POST(
     const { access } = result
 
     const outcome = await cancelLotSale(
-      { workspaceId, userId: access.userId },
+      { workspaceId, userId: access.userId, canModerate: access.canModerate },
       lotId,
       {
         reason: typeof body.reason === 'string' ? body.reason : undefined,

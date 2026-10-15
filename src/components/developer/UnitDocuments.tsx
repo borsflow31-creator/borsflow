@@ -50,7 +50,6 @@ export default function UnitDocuments({
     // Owners and admins see managers-only documents and can change who sees each.
     const [canManage, setCanManage] = useState(false);
     const [fee, setFee] = useState(lot.reservationFee ? String(lot.reservationFee) : '');
-    const [paidOn, setPaidOn] = useState(lot.reservationFeePaidAt ? String(lot.reservationFeePaidAt).slice(0, 10) : '');
 
     const money = (n: number) => formatNumber(n, { style: 'currency', currency, maximumFractionDigits: 0 });
 
@@ -131,10 +130,10 @@ export default function UnitDocuments({
             const res = await fetch(`/api/developer/lots/${lot.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
+                // Only the amount asked: receiving it is a payment, recorded in Encaissements.
                 body: JSON.stringify({
                     workspaceId,
                     reservationFee: fee.trim() === '' ? null : Number(fee),
-                    reservationFeePaidAt: paidOn || null,
                 }),
             });
             if (!res.ok) {
@@ -144,6 +143,8 @@ export default function UnitDocuments({
             }
             setDepositOpen(false);
             onChanged();
+        } catch {
+            setNotice({ tone: 'error', text: t('developerSales.docs.failed') });
         } finally {
             setBusy(null);
         }
@@ -195,18 +196,24 @@ export default function UnitDocuments({
                     </span>
                 </div>
                 {!depositOpen ? (
-                    <button type="button" onClick={() => setDepositOpen(true)} className="mt-1 text-xs font-medium text-secondary hover:underline">
-                        {t('developerSales.docs.editDeposit')}
-                    </button>
+                    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <button type="button" onClick={() => setDepositOpen(true)} className="text-xs font-medium text-secondary hover:underline">
+                            {t('developerSales.docs.editDeposit')}
+                        </button>
+                        {lot.reservationFee && !lot.reservationFeePaidAt ? (
+                            <a
+                                href={`/developer/collections?workspace=${encodeURIComponent(workspaceId)}&lot=${lot.id}`}
+                                className="text-xs font-medium text-secondary hover:underline"
+                            >
+                                {t('developerSales.payments.collectDeposit')}
+                            </a>
+                        ) : null}
+                    </div>
                 ) : (
                     <div className="mt-2 flex flex-wrap items-end gap-2">
                         <label className="text-xs text-on-surface-variant">
                             {t('developerSales.reserve.fee')}
                             <input type="number" min={0} step={100} value={fee} onChange={(e) => setFee(e.target.value)} className="premium-input mt-1 block w-32 px-2 py-1.5 text-sm" />
-                        </label>
-                        <label className="text-xs text-on-surface-variant">
-                            {t('developerSales.reserve.feeReceivedOn')}
-                            <input type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} className="premium-input mt-1 block px-2 py-1.5 text-sm" />
                         </label>
                         <button type="button" onClick={saveDeposit} disabled={busy === 'deposit'} className="px-3 py-1.5 rounded bg-primary text-on-primary text-xs disabled:opacity-50">
                             {busy === 'deposit' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('developerCrm.tasks.save')}

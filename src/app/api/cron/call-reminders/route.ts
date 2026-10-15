@@ -20,6 +20,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { callAmounts } from '@/lib/services/developer/call-balance'
 import { prisma } from '@/lib/prisma'
 import { isAuthorizedCron } from '@/lib/api/cron'
 import { emailParagraph, renderEmail } from '@/lib/email'
@@ -42,7 +43,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const STOP_AFTER_DAYS = 30
 const BATCH = 500
 
-const OPEN_STATUSES = ['issued', 'sent_to_bank', 'overdue']
+const OPEN_STATUSES = ['issued', 'sent_to_bank', 'partially_paid', 'overdue']
 
 export async function POST(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     const now = new Date()
 
     const flipped = await prisma.callForFunds.updateMany({
-      where: { status: { in: ['issued', 'sent_to_bank'] }, dueAt: { lt: now } },
+      where: { status: { in: ['issued', 'sent_to_bank', 'partially_paid'] }, dueAt: { lt: now } },
       data: { status: 'overdue' },
     })
 
@@ -72,7 +73,8 @@ export async function POST(request: NextRequest) {
         lotId: true,
         workspaceId: true,
         milestone: { select: { title: true } },
-        invoice: { select: { currency: true } },
+        status: true,
+        invoice: { select: { currency: true, amountPaid: true } },
         reminders: { select: { step: true } },
         lot: {
           select: {
@@ -98,6 +100,10 @@ export async function POST(request: NextRequest) {
       const email = call.lot.buyerLead?.email
       if (!email) continue
 
+      // Remind of what is still owed: a part payment lowers the amount asked.
+      const owed = callAmounts(call, now.getTime()).outstanding
+      if (owed <= 0) continue
+
       try {
         const lot = await loadLotForValues(call.workspaceId, call.lotId)
         if (!lot) continue
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
 
         const values = {
           ...saleValues(lot),
-          amount_due: new Intl.NumberFormat('en', { style: 'currency', currency }).format(call.amount),
+          amount_due: new Intl.NumberFormat('en', { style: 'currency', currency }).format(owed),
           milestone: call.milestone.title,
           due_date: call.dueAt.toISOString().slice(0, 10),
           portal_link: buyerPortalUrl(token),

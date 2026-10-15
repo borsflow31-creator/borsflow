@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { ServiceError } from '../errors'
 import { DeveloperContext } from './programs'
-import { generateCallsForFundsForMilestone } from './calls-for-funds'
+import { generateCallsForFundsForMilestone, type GenerateCallsResult } from './calls-for-funds'
 
 export interface CertifyMilestoneInput {
   architectCertificateDoc?: string
@@ -41,20 +41,35 @@ export async function certifyMilestone(
     throw new ServiceError('This milestone is already certified', 400)
   }
 
-  const updatedMilestone = await prisma.constructionMilestone.update({
-    where: { id: milestoneId },
-    data: {
-      isCertified: true,
-      certifiedAt: new Date(),
-      architectCertificateDoc: input.architectCertificateDoc?.trim() || null,
-    },
-  })
+  // Certification and billing are one step: if any call or invoice cannot be
+  // created, the milestone is not certified either, and the user can try again.
+  let result: { updatedMilestone: Awaited<ReturnType<typeof prisma.constructionMilestone.findUniqueOrThrow>>; billingResult: GenerateCallsResult | null }
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      // Conditional, so two simultaneous certifications cannot both bill.
+      const claimed = await tx.constructionMilestone.updateMany({
+        where: { id: milestoneId, isCertified: false },
+        data: {
+          isCertified: true,
+          certifiedAt: new Date(),
+          architectCertificateDoc: input.architectCertificateDoc?.trim() || null,
+        },
+      })
+      if (claimed.count === 0) throw new ServiceError('This milestone is already certified', 400)
+      const updatedMilestone = await tx.constructionMilestone.findUniqueOrThrow({ where: { id: milestoneId } })
 
-  // Optionally auto-generate calls for funds for all active buyers
-  let billingResult = null
-  if (input.autoGenerateCalls !== false) {
-    billingResult = await generateCallsForFundsForMilestone(ctx, milestoneId)
+      const billingResult = input.autoGenerateCalls !== false
+        ? await generateCallsForFundsForMilestone(ctx, milestoneId, tx)
+        : null
+      return { updatedMilestone, billingResult }
+    }, { timeout: 60_000, maxWait: 10_000 })
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === 'P2002') {
+      throw new ServiceError('Calls for this milestone were generated at the same time by someone else; nothing was changed', 409)
+    }
+    throw error
   }
+  const { updatedMilestone, billingResult } = result
 
   return {
     milestone: updatedMilestone,

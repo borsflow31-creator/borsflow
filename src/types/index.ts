@@ -220,6 +220,8 @@ export interface QuoteNote {
 
 export interface Invoice {
     id: string
+    /** Set when the invoice bills a call for funds. */
+    callForFunds?: { id: string; lotId: string } | null
     invoiceNumber: string
     workspaceId: string
     leadId: string | null
@@ -300,6 +302,12 @@ export interface Payment {
     paymentMethod: PaymentMethod
     referenceNumber: string | null
     notes: string | null
+    /** 'pending' | 'confirmed' | 'failed' | 'reversed'. Only confirmed counts. */
+    status?: string
+    /** 'payment' | 'refund'. A refund counts negatively. */
+    kind?: string
+    receiptNumber?: string | null
+    reversalReason?: string | null
     createdBy: string
     createdAt: Date
     updatedAt: Date
@@ -310,6 +318,7 @@ export type PaymentMethod =
     | 'bank_transfer'
     | 'check'
     | 'credit_card'
+    | 'paypal'
     | 'other'
 
 export type DiscountType = 'percentage' | 'fixed'

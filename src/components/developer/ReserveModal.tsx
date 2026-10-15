@@ -6,6 +6,8 @@ import ContactPicker, { type PickedContact } from '@/components/realestate/Conta
 import { useWorkspaceAgents } from '@/components/developer/useWorkspaceAgents';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrency';
+import { COLLECTION_METHODS } from '@/components/developer/LotLedgerPanel';
+import { METHOD_RULES, type PaymentMethod } from '@/lib/documents/payment-rules';
 
 interface ReserveModalProps {
   workspaceId: string;
@@ -39,12 +41,20 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
   const [fee, setFee] = useState(lot.reservationFee ? String(lot.reservationFee) : '');
   const [received, setReceived] = useState(false);
   const [receivedOn, setReceivedOn] = useState(today());
+  const [method, setMethod] = useState<PaymentMethod>('bank_transfer');
+  const [reference, setReference] = useState('');
+  // One key for this reservation's deposit, so a retried submit cannot record it twice.
+  const [requestKey] = useState(() => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`));
   const [agentId, setAgentId] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!buyer) {
       setError(td('resPickBuyer'));
+      return;
+    }
+    if (received && METHOD_RULES[method].reference === 'required' && !reference.trim()) {
+      setError(t('developerSales.payments.chequeNumber'));
       return;
     }
 
@@ -60,8 +70,11 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
           buyerLeadId: buyer.id,
           salesAgentId: agentId || undefined,
           reservationFee: fee.trim() === '' ? null : Number(fee),
-          // A fee that has not arrived has no date; the deposit can be marked received later.
-          reservationFeePaidAt: fee.trim() !== '' && received ? receivedOn : null,
+          // A deposit received now is recorded as a payment, with its receipt; one
+          // that has not arrived is collected later from Encaissements.
+          depositPayment: fee.trim() !== '' && received
+            ? { paidAt: receivedOn, method, reference: reference.trim() || undefined, clientRequestId: requestKey }
+            : null,
         }),
       });
 
@@ -141,6 +154,26 @@ export default function ReserveModal({ workspaceId, lot, onClose, onSuccess }: R
                 onChange={(e) => setReceivedOn(e.target.value)}
                 aria-label={t('developerSales.reserve.feeReceivedOn')}
               />
+            )}
+          </div>
+        )}
+
+        {fee.trim() !== '' && received && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label={t('developerSales.collections.paymentMethod')}>
+              <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
+                {COLLECTION_METHODS.map((m) => (
+                  <option key={m} value={m}>{t(`developerSales.collections.method_${m}` as MessageKey)}</option>
+                ))}
+              </select>
+            </Field>
+            {METHOD_RULES[method].reference !== 'none' && (
+              <Field
+                label={`${method === 'check' ? t('developerSales.payments.chequeNumber') : t('developerSales.payments.reference')}${METHOD_RULES[method].reference === 'required' ? ' *' : ''}`}
+                hint={METHOD_RULES[method].startsPending ? t('developerSales.payments.recapPending') : undefined}
+              >
+                <input type="text" maxLength={100} className={inputClass} value={reference} onChange={(e) => setReference(e.target.value)} />
+              </Field>
             )}
           </div>
         )}
