@@ -24,8 +24,16 @@ export interface PropertyCardData {
 }
 
 /** A listing in the grid: cover, status, price, the numbers a buyer scans first. */
+/** A property price: whole units, no cents. */
+function usePrice() {
+    const { formatNumber } = useI18n();
+    return (amount: number, currency: string) =>
+        formatNumber(amount, { style: 'currency', currency, maximumFractionDigits: 0 });
+}
+
 export function PropertyCard({ property, workspaceId, currency }: { property: PropertyCardData; workspaceId: string; currency: string }) {
-    const { t, formatCurrency } = useI18n();
+    const { t } = useI18n();
+    const formatCurrency = usePrice();
     const days = daysOnMarket(property.listedAt);
 
     return (
@@ -76,7 +84,8 @@ export interface InterestCardData {
 
 /** A buyer's journey on one property, as a card on the buyer board. */
 export function InterestBoardCard({ interest, currency }: { interest: InterestCardData; currency: string }) {
-    const { t, formatCurrency } = useI18n();
+    const { t } = useI18n();
+    const formatCurrency = usePrice();
     const offers = interest.offers ?? [];
     const best = offers.reduce<number | null>((max, o) => (max === null || o.amount > max ? o.amount : max), null);
 
@@ -112,7 +121,8 @@ export interface PropertyBoardData extends PropertyCardData {
 
 /** A property on the owner board: the vendor is who the agent is working. */
 export function PropertyBoardCard({ property, currency }: { property: PropertyBoardData; currency: string }) {
-    const { t, formatCurrency } = useI18n();
+    const { t } = useI18n();
+    const formatCurrency = usePrice();
     const days = daysOnMarket(property.listedAt);
 
     return (

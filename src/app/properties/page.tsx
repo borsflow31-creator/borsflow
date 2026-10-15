@@ -12,7 +12,7 @@ import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { PropertyCard, type PropertyCardData } from '@/components/realestate/cards';
 import PropertyFormModal from '@/components/realestate/PropertyFormModal';
-import { inputClass, primaryButton, secondaryButton, useWorkspaceInfo, errorFrom } from '@/components/realestate/ui';
+import { primaryButton, secondaryButton, useWorkspaceInfo, errorFrom } from '@/components/realestate/ui';
 import { useWorkspaceParam } from '@/components/realestate/useWorkspaceParam';
 import { PROPERTY_STATUSES, PROPERTY_TYPES } from '@/lib/crm/lifecycle';
 import { StandaloneGuide } from '@/components/ui/PageHeader';
@@ -28,6 +28,20 @@ interface Filters {
 }
 
 const NO_FILTERS: Filters = { q: '', status: '', type: '', city: '', minPrice: '', maxPrice: '', minBedrooms: '' };
+
+/** The same tonal field as the `filled` selects beside it, so the filter row reads as one. */
+const filterInputClass =
+    'w-full px-3 py-2 body-md rounded-lg bg-surface-container-high border border-transparent text-on-surface placeholder:text-on-surface-variant/70 hover:bg-surface-container-highest focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50 transition-colors';
+
+/** A labelled text or number filter, laid out like SelectRefined's label above its field. */
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <label className="block min-w-0">
+            <span className="block body-sm text-on-surface-variant mb-2">{label}</span>
+            {children}
+        </label>
+    );
+}
 
 function PropertiesPageInner() {
     const { t } = useI18n();
@@ -131,14 +145,11 @@ function PropertiesPageInner() {
         >
             <div className="p-4 sm:p-6">
                 <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="display-md text-on-surface">{t('realEstate.properties.title')}</h1>
                         <p className="body-md text-on-surface-variant">{t('realEstate.properties.subtitle')}</p>
                     </div>
-                        <div className="mb-5">
-                            <StandaloneGuide id="properties" />
-                        </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
                         {ownerBoardId && (
                             <Link href={`/crm?workspace=${workspaceId}&pipeline=${ownerBoardId}`} className={secondaryButton}>
                                 {t('realEstate.properties.viewBoard')}
@@ -152,29 +163,44 @@ function PropertiesPageInner() {
                     </div>
                 </div>
 
-                <div className="mb-6 grid grid-cols-2 lg:grid-cols-7 gap-3 items-end">
-                    <div className="col-span-2 lg:col-span-2">
-                        <input
-                            type="search"
-                            value={filters.q}
-                            onChange={e => setFilter('q', e.target.value)}
-                            placeholder={t('realEstate.properties.searchPlaceholder')}
-                            className={inputClass}
-                            aria-label={t('realEstate.properties.searchPlaceholder')}
-                        />
+                {/* The guide sits under the header, full width, like on the other pages. */}
+                <div className="mb-6">
+                    <StandaloneGuide id="properties" />
+                </div>
+
+                {/* Every filter has its label above the same field, so the row lines up. */}
+                <div className="mb-6 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-8 gap-3 items-end">
+                    <div className="col-span-2 md:col-span-3 xl:col-span-2">
+                        <FilterField label={t('common.search')}>
+                            <input
+                                type="search"
+                                value={filters.q}
+                                onChange={e => setFilter('q', e.target.value)}
+                                placeholder={t('realEstate.properties.searchPlaceholder')}
+                                className={filterInputClass}
+                            />
+                        </FilterField>
                     </div>
                     <SelectRefined value={filters.status} options={statusOptions} onChange={v => setFilter('status', v)} label={t('realEstate.properties.filters.status')} variant="filled" />
                     <SelectRefined value={filters.type} options={typeOptions} onChange={v => setFilter('type', v)} label={t('realEstate.properties.filters.type')} variant="filled" />
                     <SelectRefined value={filters.city} options={cityOptions} onChange={v => setFilter('city', v)} label={t('realEstate.properties.filters.city')} variant="filled" />
-                    <input type="number" min={0} value={filters.minPrice} onChange={e => setFilter('minPrice', e.target.value)} placeholder={t('realEstate.properties.filters.minPrice')} className={inputClass} aria-label={t('realEstate.properties.filters.minPrice')} />
-                    <input type="number" min={0} value={filters.maxPrice} onChange={e => setFilter('maxPrice', e.target.value)} placeholder={t('realEstate.properties.filters.maxPrice')} className={inputClass} aria-label={t('realEstate.properties.filters.maxPrice')} />
-                    <input type="number" min={0} value={filters.minBedrooms} onChange={e => setFilter('minBedrooms', e.target.value)} placeholder={t('realEstate.properties.filters.minBedrooms')} className={inputClass} aria-label={t('realEstate.properties.filters.minBedrooms')} />
-                    {filtered && (
-                        <button onClick={() => { setFilters(NO_FILTERS); setPage(1); }} className="body-sm text-primary text-left">
+                    <FilterField label={t('realEstate.properties.filters.minPrice')}>
+                        <input type="number" min={0} inputMode="numeric" value={filters.minPrice} onChange={e => setFilter('minPrice', e.target.value)} placeholder="0" className={`${filterInputClass} tabular-nums`} />
+                    </FilterField>
+                    <FilterField label={t('realEstate.properties.filters.maxPrice')}>
+                        <input type="number" min={0} inputMode="numeric" value={filters.maxPrice} onChange={e => setFilter('maxPrice', e.target.value)} placeholder="–" className={`${filterInputClass} tabular-nums`} />
+                    </FilterField>
+                    <FilterField label={t('realEstate.properties.filters.minBedrooms')}>
+                        <input type="number" min={0} inputMode="numeric" value={filters.minBedrooms} onChange={e => setFilter('minBedrooms', e.target.value)} placeholder="0" className={`${filterInputClass} tabular-nums`} />
+                    </FilterField>
+                </div>
+                {filtered && (
+                    <div className="-mt-3 mb-6 flex justify-end">
+                        <button onClick={() => { setFilters(NO_FILTERS); setPage(1); }} className="body-sm text-primary hover:underline">
                             {t('realEstate.properties.filters.clear')}
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
