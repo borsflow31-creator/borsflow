@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton } from '@/components/realestate/ui';
 import SelectRefined from '@/components/ui/SelectRefined';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { PROJECT_TYPES } from '@/lib/crm/projects';
+import { cachedJson } from '@/lib/client-cache';
 
 interface ProgramFormModalProps {
   workspaceId: string;
@@ -14,6 +15,8 @@ interface ProgramFormModalProps {
 
 export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: ProgramFormModalProps) {
   const { t } = useI18n();
+  /** This form's own messages. */
+  const tl = useCallback((key: string) => t(`developerProjectList.${key}` as MessageKey), [t]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,10 +38,25 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
   const [revenueTarget, setRevenueTarget] = useState('');
   const [commissionPercent, setCommissionPercent] = useState('');
 
+  // The developer is usually the account itself, so start from the workspace's
+  // name; it stays editable for a co-development. Reads the request the app
+  // shell has already cached, and never overwrites what the user typed.
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    cachedJson<{ workspace?: { name?: string } }>(`/api/workspaces/${workspaceId}`)
+      .then((data) => {
+        const workspaceName = data.workspace?.name;
+        if (!cancelled && workspaceName) setDeveloperName((current) => current || workspaceName);
+      })
+      .catch(() => { /* leave the field empty */ });
+    return () => { cancelled = true; };
+  }, [workspaceId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !reference.trim() || !city.trim()) {
-      setError('Name, reference, and city are required.');
+      setError(tl('formRequired'));
       return;
     }
 
@@ -74,19 +92,19 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to create program');
+        throw new Error(data.error || tl('formFailed'));
       }
 
       onSuccess(data.program);
     } catch (err: any) {
-      setError(err.message || 'Error creating program');
+      setError(err.message || tl('formFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal title="Create Development Program" onClose={onClose} wide>
+    <Modal title={tl('formTitle')} onClose={onClose} wide>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-sm rounded">
@@ -95,7 +113,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Program Reference *" hint="e.g. PRG-PARC-2026">
+          <Field label={tl('formReference')} hint={tl('formReferenceHint')}>
             <input
               type="text"
               className={inputClass}
@@ -106,30 +124,30 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
             />
           </Field>
 
-          <Field label="Legal Program Name *">
+          <Field label={tl('formLegalName')}>
             <input
               type="text"
               className={inputClass}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. SCCV Les Jardins du Parc"
+              placeholder={tl('formLegalNamePlaceholder')}
               required
             />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Commercial / Marketing Name">
+          <Field label={tl('formCommercialName')}>
             <input
               type="text"
               className={inputClass}
               value={commercialName}
               onChange={(e) => setCommercialName(e.target.value)}
-              placeholder="e.g. Résidence Les Jardins du Parc"
+              placeholder={tl('formCommercialNamePlaceholder')}
             />
           </Field>
 
-          <Field label="Target Delivery Quarter / Date">
+          <Field label={tl('formDelivery')}>
             <input
               type="date"
               className={inputClass}
@@ -190,7 +208,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="Project Type">
+          <Field label={tl('formType')}>
             <SelectRefined
               value={projectType}
               options={PROJECT_TYPES.map((v) => ({
@@ -202,17 +220,16 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
             />
           </Field>
 
-          <Field label="Developer / Promoter">
+          <Field label={tl('formDeveloper')}>
             <input
               type="text"
               className={inputClass}
               value={developerName}
               onChange={(e) => setDeveloperName(e.target.value)}
-              placeholder="e.g. Nexity"
             />
           </Field>
 
-          <Field label="Project Website">
+          <Field label={tl('formWebsite')}>
             <input
               type="url"
               className={inputClass}
@@ -224,18 +241,18 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="City *">
+          <Field label={tl('formCity')}>
             <input
               type="text"
               className={inputClass}
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder="e.g. Bordeaux"
+              placeholder={tl('formCityPlaceholder')}
               required
             />
           </Field>
 
-          <Field label="Postal Code">
+          <Field label={tl('formPostalCode')}>
             <input
               type="text"
               className={inputClass}
@@ -245,7 +262,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
             />
           </Field>
 
-          <Field label="Street Address">
+          <Field label={tl('formAddress')}>
             <input
               type="text"
               className={inputClass}
@@ -257,7 +274,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-surface-container-high">
-          <Field label="Building Permit #">
+          <Field label={tl('formPermit')}>
             <input
               type="text"
               className={inputClass}
@@ -267,7 +284,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
             />
           </Field>
 
-          <Field label="Architect / Project Manager">
+          <Field label={tl('formArchitect')}>
             <input
               type="text"
               className={inputClass}
@@ -277,7 +294,7 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
             />
           </Field>
 
-          <Field label="GFA Bank Guarantee">
+          <Field label={tl('formGuarantee')}>
             <input
               type="text"
               className={inputClass}
@@ -290,10 +307,10 @@ export default function ProgramFormModal({ workspaceId, onClose, onSuccess }: Pr
 
         <div className="flex justify-end gap-3 pt-4 border-t border-surface-container-high">
           <button type="button" onClick={onClose} className={secondaryButton} disabled={loading}>
-            Cancel
+            {tl('formCancel')}
           </button>
           <button type="submit" className={primaryButton} disabled={loading}>
-            {loading ? 'Creating...' : 'Create Program'}
+            {loading ? tl('formSubmitting') : tl('formSubmit')}
           </button>
         </div>
       </form>

@@ -49,10 +49,10 @@ function ProgramsPageInner() {
       })
       .catch((err) => {
         console.error('Error fetching programs:', err);
-        setToast({ message: 'Failed to load projects', type: 'error' });
+        setToast({ message: t('developerProjectList.loadFailed'), type: 'error' });
       })
       .finally(() => setLoading(false));
-  }, [workspaceId, search, statusFilter]);
+  }, [workspaceId, search, statusFilter, t]);
 
   useEffect(() => {
     if (ready && workspaceId) {

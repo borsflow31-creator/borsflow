@@ -286,6 +286,10 @@ export interface Messages {
       selectPipelinePlaceholder: string;
       addPipelineAria: string;
       manageListsFull: string;
+      moreActions: string;
+      editBoard: string;
+      newBoard: string;
+      prospectsCount: string;
       manageListsShort: string;
       importButton: string;
       addLeadButton: string;
@@ -378,6 +382,14 @@ export interface Messages {
       emptyFiltered: string;
       emptyState: string;
       actionsAria: string;
+      allStages: string;
+      fieldProspect: string;
+      fieldBudget: string;
+      fieldOwner: string;
+      fieldFollowUp: string;
+      callAria: string;
+      emailAria: string;
+      stageFilterAria: string;
     };
     leadModal: {
       purchaseHistory: {
@@ -3389,6 +3401,25 @@ export interface Messages {
       leftToPay: string;
       collect: string;
       viewPayments: string;
+      clientSearchLabel: string;
+      clientSearchPlaceholder: string;
+      clientNoMatch: string;
+      clientEmpty: string;
+      unitsCount: string;
+      leftToPayShort: string;
+      upToDate: string;
+      clientUnits: string;
+      ofWhichOverdue: string;
+      depositLine: string;
+      paidLabel: string;
+      moreOptions: string;
+      afterThisPayment: string;
+      recordedTitle: string;
+      recordedPendingTitle: string;
+      receiptNumber: string;
+      printReceipt: string;
+      newPayment: string;
+      actions: string;
     };
     receipt: {
       amountInWords: string;
@@ -4915,6 +4946,30 @@ export interface Messages {
     buildings: string;
     open: string;
     created: string;
+    formTitle: string;
+    formReference: string;
+    formReferenceHint: string;
+    formLegalName: string;
+    formLegalNamePlaceholder: string;
+    formCommercialName: string;
+    formCommercialNamePlaceholder: string;
+    formDelivery: string;
+    formType: string;
+    formDeveloper: string;
+    formWebsite: string;
+    formCity: string;
+    formCityPlaceholder: string;
+    formPostalCode: string;
+    formAddress: string;
+    formPermit: string;
+    formArchitect: string;
+    formGuarantee: string;
+    formRequired: string;
+    formFailed: string;
+    formCancel: string;
+    formSubmit: string;
+    formSubmitting: string;
+    loadFailed: string;
   };
   developerProjectDialogs: {
     saving: string;
@@ -5289,6 +5344,35 @@ export interface Messages {
     price: string;
     updated: string;
     empty: string;
+  };
+  documentPdf: {
+    invoice: string;
+    quote: string;
+    billedTo: string;
+    details: string;
+    issued: string;
+    due: string;
+    validUntil: string;
+    currency: string;
+    description: string;
+    qty: string;
+    unitPrice: string;
+    discTax: string;
+    amount: string;
+    subtotal: string;
+    discount: string;
+    tax: string;
+    total: string;
+    amountPaid: string;
+    amountDue: string;
+    paidInFull: string;
+    paymentHistory: string;
+    notes: string;
+    terms: string;
+    page: string;
+    status_paid: string;
+    status_partially_paid: string;
+    status_cancelled: string;
   };
 }
 const en: Messages = {
@@ -7828,6 +7912,10 @@ const en: Messages = {
       selectPipelinePlaceholder: 'Select a pipeline',
       addPipelineAria: 'Add pipeline',
       manageListsFull: 'Manage lead lists',
+      moreActions: "More actions",
+      editBoard: "Edit this board",
+      newBoard: "New board",
+      prospectsCount: "{count} prospects",
       manageListsShort: 'Lists',
       importButton: 'Import',
       addLeadButton: 'Add lead',
@@ -7920,6 +8008,14 @@ const en: Messages = {
       emptyFiltered: 'No leads match your filters.',
       emptyState: 'No leads yet. Add your first lead to get started.',
       actionsAria: 'Lead actions',
+      allStages: "All",
+      fieldProspect: "Prospect",
+      fieldBudget: "Budget",
+      fieldOwner: "Owner",
+      fieldFollowUp: "Follow-up",
+      callAria: "Call {name}",
+      emailAria: "Email {name}",
+      stageFilterAria: "Filter by stage",
     },
     leadModal: {
       purchaseHistory: {
@@ -8681,6 +8777,25 @@ const en: Messages = {
       leftToPay: '{amount} left',
       collect: 'Collect',
       viewPayments: 'Payments',
+      clientSearchLabel: "Find a client",
+      clientSearchPlaceholder: "Name, phone, email or unit…",
+      clientNoMatch: "No client matches.",
+      clientEmpty: "No buyer with a sold unit yet.",
+      unitsCount: "{count} unit(s)",
+      leftToPayShort: "{amount} due now",
+      upToDate: "Up to date",
+      clientUnits: "Units bought",
+      ofWhichOverdue: "Including {amount} overdue.",
+      depositLine: "Deposit received: {paid} of {asked}.",
+      paidLabel: "Paid",
+      moreOptions: "Date and notes",
+      afterThisPayment: "Left after this payment: {amount}",
+      recordedTitle: "Payment of {amount} recorded",
+      recordedPendingTitle: "Cheque of {amount} recorded, waiting to clear",
+      receiptNumber: "Receipt {number}",
+      printReceipt: "Print the receipt",
+      newPayment: "Record another payment",
+      actions: "Actions",
     },
     receipt: {
       amountInWords: 'Received the sum of: {words}.',
@@ -10207,6 +10322,30 @@ const en: Messages = {
     buildings: "{count} building(s)",
     open: "Open project",
     created: "Project created.",
+    formTitle: "New project",
+    formReference: "Project reference *",
+    formReferenceHint: "e.g. PRG-PARC-2026",
+    formLegalName: "Legal name *",
+    formLegalNamePlaceholder: "e.g. SCCV Les Jardins du Parc",
+    formCommercialName: "Commercial name",
+    formCommercialNamePlaceholder: "e.g. Résidence Les Jardins du Parc",
+    formDelivery: "Target delivery date",
+    formType: "Project type",
+    formDeveloper: "Developer",
+    formWebsite: "Project website",
+    formCity: "City *",
+    formCityPlaceholder: "e.g. Bordeaux",
+    formPostalCode: "Postal code",
+    formAddress: "Street address",
+    formPermit: "Building permit no.",
+    formArchitect: "Architect / project manager",
+    formGuarantee: "Completion guarantee bank (GFA)",
+    formRequired: "Name, reference and city are required.",
+    formFailed: "We could not create this project.",
+    formCancel: "Cancel",
+    formSubmit: "Create project",
+    formSubmitting: "Creating…",
+    loadFailed: "We could not load your projects.",
   },
   developerProjectDialogs: {
     saving: "Saving…",
@@ -10581,6 +10720,35 @@ const en: Messages = {
       memberLeft: "Left the workspace",
       signedIn: "Signed in",
     },
+  },
+  documentPdf: {
+    invoice: "Invoice",
+    quote: "Quote",
+    billedTo: "Billed to",
+    details: "Details",
+    issued: "Issued on {date}",
+    due: "Due on {date}",
+    validUntil: "Valid until {date}",
+    currency: "Currency {currency}",
+    description: "Description",
+    qty: "Qty",
+    unitPrice: "Unit price",
+    discTax: "Disc. / Tax",
+    amount: "Amount",
+    subtotal: "Subtotal",
+    discount: "Discount",
+    tax: "Tax",
+    total: "Total",
+    amountPaid: "Amount paid",
+    amountDue: "Amount due",
+    paidInFull: "Paid in full",
+    paymentHistory: "Payments received",
+    notes: "Notes",
+    terms: "Terms",
+    page: "Page {page} of {total}",
+    status_paid: "Paid",
+    status_partially_paid: "Partially paid",
+    status_cancelled: "Cancelled",
   },
 };
 
