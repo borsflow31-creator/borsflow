@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import AppShell from '@/components/AppShell';
@@ -27,6 +27,58 @@ import { useWorkspaceInfo } from '@/components/realestate/ui';
 import { SUBJECT_ENDPOINTS, type SubjectType } from '@/lib/crm/subjects';
 import EnquiryModal from '@/components/realestate/EnquiryModal';
 import OwnerFilter, { type OwnerFilterValue } from '@/components/developer/OwnerFilter';
+import { Inbox, ListChecks, MoreHorizontal, Plus, Settings2, Upload, type LucideIcon } from 'lucide-react';
+
+const primaryAction = 'inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors';
+const secondaryAction = 'inline-flex items-center gap-1.5 px-3 py-2 bg-surface-container-high rounded-lg text-sm text-on-surface hover:bg-surface-container-highest transition-colors';
+
+/** The actions used now and then (import, lists, boards), kept out of the way behind one button. */
+function HeaderMenu({ label, items }: { label: string; items: { label: string; icon: LucideIcon; run: () => void }[] }) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+    }, [open]);
+
+    return (
+        <div ref={rootRef} className="relative">
+            <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label={label}
+                title={label}
+                onClick={() => setOpen((v) => !v)}
+                className="p-2 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors"
+            >
+                <MoreHorizontal className="w-5 h-5" />
+            </button>
+            {open && (
+                <ul role="menu" className="absolute end-0 z-30 mt-1 min-w-[15rem] rounded-lg border border-outline-variant/30 bg-surface py-1 shadow-lg">
+                    {items.map((item) => (
+                        <li key={item.label} role="none">
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setOpen(false); item.run(); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-start text-sm text-on-surface hover:bg-surface-container-high"
+                            >
+                                <item.icon className="w-4 h-4 text-on-surface-variant" />
+                                {item.label}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
 
 const VIEW_MODE_KEY = 'crm-view-mode-v2';
 
@@ -564,101 +616,74 @@ function CRMPageInner() {
             ]}
         >
             <div className="p-4 sm:p-6 h-full">
-                {/* Header */}
-                <div className="mb-6 flex flex-col sm:flex-row flex-wrap gap-4 items-start sm:items-center justify-between">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                        <h1 className="display-md text-on-surface">
-                            {boardSubject === 'Property' ? t('realEstate.nav.properties') : t('realEstate.nav.buyers')}
-                        </h1>
+                {/* Header: what this is and the one thing to do, then the rarer actions behind "more" */}
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h1 className="text-2xl sm:text-3xl font-semibold text-on-surface">
+                        {boardSubject === 'Property' ? t('realEstate.nav.properties') : t('realEstate.nav.buyers')}
+                    </h1>
 
-                        {/* Pipeline Selector */}
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                            <SelectRefined
-                                value={selectedPipeline?.id || ''}
-                                options={pipelines.map(p => ({ value: p.id, label: pipelineLabel(p.name, t) }))}
-                                onChange={(val) => {
-                                    const pipeline = pipelines.find(p => p.id === val);
-                                    if (pipeline) handlePipelineSelect(pipeline);
-                                }}
-                                className="flex-1 sm:w-64"
-                                placeholder={t('crm.page.selectPipelinePlaceholder')}
-                            />
-                            <button
-                                onClick={() => handleOpenPipelineModal()}
-                                className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded transition-colors"
-                                title={t('crm.page.addPipelineAria')}
-                                aria-label={t('crm.page.addPipelineAria')}
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* View Toggle */}
-                        {selectedPipeline && (
-                            <ViewToggle
-                                viewMode={viewMode}
-                                onViewModeChange={handleViewModeChange}
-                            />
-                        )}
-
-                        {/* A developer's own pile, or someone else's */}
-                        {selectedPipeline && boardSubject === 'Lead' && isDeveloper && effectiveWorkspaceId && (
-                            <OwnerFilter workspaceId={effectiveWorkspaceId} value={ownerFilter} onChange={setOwnerFilter} />
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="flex items-center gap-2">
                         {boardSubject === 'Interest' && (
-                            <button
-                                onClick={() => setShowInterestModal(true)}
-                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
-                            >
+                            <button onClick={() => setShowInterestModal(true)} className={primaryAction}>
+                                <Plus className="w-4 h-4" />
                                 {t('realEstate.interests.new')}
                             </button>
                         )}
                         {boardSubject === 'Property' && (
-                            <button
-                                onClick={() => setShowPropertyModal(true)}
-                                className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
-                            >
+                            <button onClick={() => setShowPropertyModal(true)} className={primaryAction}>
+                                <Plus className="w-4 h-4" />
                                 {t('realEstate.properties.new')}
                             </button>
                         )}
                         {boardSubject === 'Lead' && (<>
-                        <button
-                            onClick={() => setShowEnquiryModal(true)}
-                            className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
-                        >
-                            {t('realEstate.intake.button')}
-                        </button>
-                        <button
-                            onClick={() => handleOpenLeadListModal()}
-                            className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors"
-                        >
-                            <span className="hidden sm:inline">{t('crm.page.manageListsFull')}</span>
-                            <span className="sm:hidden">{t('crm.page.manageListsShort')}</span>
-                        </button>
-                        {selectedPipeline && (
-                            <button
-                                onClick={() => setShowImportModal(true)}
-                                className="flex-1 sm:flex-none px-4 py-2 bg-surface-container-high rounded text-sm text-on-surface hover:bg-surface-container-highest transition-colors flex items-center gap-1.5"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                </svg>
-                                <span className="hidden sm:inline">{t('crm.page.importButton')}</span>
+                            <button onClick={() => setShowEnquiryModal(true)} className={secondaryAction}>
+                                <Inbox className="w-4 h-4" />
+                                <span className="hidden sm:inline">{t('realEstate.intake.button')}</span>
                             </button>
-                        )}
-                        <button
-                            onClick={() => handleOpenLeadModal()}
-                            className="flex-1 sm:flex-none px-4 py-2 bg-primary text-on-primary rounded text-sm hover:bg-primary-container transition-colors"
-                        >
-                            {t('crm.page.addLeadButton')}
-                        </button>
+                            <button onClick={() => handleOpenLeadModal()} className={primaryAction}>
+                                <Plus className="w-4 h-4" />
+                                {t('crm.page.addLeadButton')}
+                            </button>
                         </>)}
+                        <HeaderMenu
+                            label={t('crm.page.moreActions')}
+                            items={[
+                                ...(boardSubject === 'Lead' && selectedPipeline
+                                    ? [{ label: t('crm.page.importButton'), icon: Upload, run: () => setShowImportModal(true) }]
+                                    : []),
+                                ...(boardSubject === 'Lead'
+                                    ? [{ label: t('crm.page.manageListsFull'), icon: ListChecks, run: () => handleOpenLeadListModal() }]
+                                    : []),
+                                ...(selectedPipeline
+                                    ? [{ label: t('crm.page.editBoard'), icon: Settings2, run: () => handleOpenPipelineModal(selectedPipeline) }]
+                                    : []),
+                                { label: t('crm.page.newBoard'), icon: Plus, run: () => handleOpenPipelineModal() },
+                            ]}
+                        />
                     </div>
+                </div>
+
+                {/* Toolbar: which board, how to see it, whose prospects */}
+                <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <SelectRefined
+                        value={selectedPipeline?.id || ''}
+                        options={pipelines.map(p => ({ value: p.id, label: pipelineLabel(p.name, t) }))}
+                        onChange={(val) => {
+                            const pipeline = pipelines.find(p => p.id === val);
+                            if (pipeline) handlePipelineSelect(pipeline);
+                        }}
+                        className="w-full sm:w-64"
+                        placeholder={t('crm.page.selectPipelinePlaceholder')}
+                    />
+                    {selectedPipeline && (
+                        <ViewToggle
+                            viewMode={viewMode}
+                            onViewModeChange={handleViewModeChange}
+                        />
+                    )}
+                    {selectedPipeline && boardSubject === 'Lead' && isDeveloper && effectiveWorkspaceId && (
+                        <OwnerFilter workspaceId={effectiveWorkspaceId} value={ownerFilter} onChange={setOwnerFilter} />
+                    )}
                 </div>
 
                 {isDeveloper && boardSubject === 'Lead' && (
