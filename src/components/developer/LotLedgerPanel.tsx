@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { FileText, Loader2, X } from 'lucide-react';
+import { ChevronDown, FileText, Loader2, MoreHorizontal, Printer, X } from 'lucide-react';
 import { Modal, Field, inputClass, primaryButton, secondaryButton, dangerButton } from '@/components/realestate/ui';
-import { CALL_STATUS_LABEL, CALL_STATUS_TONE, Chip, tableClass, tdClass, thClass } from '@/components/developer/status';
+import { Chip, tableClass, tdClass, thClass } from '@/components/developer/status';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import { METHOD_RULES, fromCents, toCents, type PaymentMethod } from '@/lib/documents/payment-rules';
 
@@ -96,12 +96,16 @@ function newRequestKey(): string {
 /** How long to wait before treating a payment request as of unknown outcome. */
 const SUBMIT_TIMEOUT_MS = 20_000;
 
+/**
+ * Payment statuses read as plain text: only what went wrong (a bounced cheque, a
+ * cancelled payment) stands out, and a cheque still clearing is set on a grey wash.
+ */
 export const PAYMENT_STATUS_TONE: Record<string, string> = {
-    pending: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-    confirmed: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-    failed: 'bg-red-500/10 text-red-700 dark:text-red-400',
-    reversed: 'bg-surface-container-high text-on-surface-variant',
-    refund: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
+    pending: 'bg-surface-container-high text-on-surface',
+    confirmed: '!px-0 text-on-surface-variant',
+    failed: '!px-0 text-error',
+    reversed: '!px-0 text-error',
+    refund: '!px-0 text-on-surface-variant',
 };
 
 export function paymentStatusKey(p: { kind: string; status: string }): string {
@@ -113,25 +117,29 @@ export function receiptUrl(workspaceId: string, paymentId: string): string {
     return `/api/developer/payments/${paymentId}/receipt?workspaceId=${encodeURIComponent(workspaceId)}`;
 }
 
-/** How far the last summary tile spans on the four-column grid, by how many tiles the last row holds. */
-const LAST_TILE_SPAN: Record<number, string> = { 0: '', 1: 'sm:col-span-4', 2: 'sm:col-span-3', 3: 'sm:col-span-2' };
-
 type Action =
     | { kind: 'confirm' | 'fail' | 'reverse'; payment: LedgerPayment }
     | { kind: 'refund'; payment: LedgerPayment; refundable: number };
 
+/** What was just recorded, shown in place of the form until the next payment. */
+type Recorded = { id: string; receiptNumber: string | null; amount: number };
+
 /**
- * Everything about collecting from one sold unit, on one screen: who owes what,
- * the schedule, a payment form prefilled from the selected call, a live recap of
- * the effect, and every payment with its receipt and the actions it allows.
+ * Collecting from one sold unit, on one screen: three figures for where the buyer
+ * stands, the schedule with a Collect button on what is still due, a short payment
+ * form beside it, the receipt to print once it is saved, and the payments so far.
  */
 export default function LotLedgerPanel({
-    workspaceId, lotId, initialCallId, currency, onClose, onChanged, notify,
+    workspaceId, lotId, initialCallId, currency, hideBuyer, onBuyer, onClose, onChanged, notify,
 }: {
     workspaceId: string;
     lotId: string;
     initialCallId?: string | null;
     currency: string;
+    /** The buyer is already shown above (the client panel): name only the unit. */
+    hideBuyer?: boolean;
+    /** Told who the buyer is once the unit is loaded, so the page can open them. */
+    onBuyer?: (buyerId: string) => void;
     onClose: () => void;
     /** Something was recorded: the caller refreshes its own lists. */
     onChanged: () => void;
@@ -150,7 +158,7 @@ export default function LotLedgerPanel({
     const [loadError, setLoadError] = useState(false);
     const [callId, setCallId] = useState<string | null>(initialCallId ?? null);
     const [action, setAction] = useState<Action | null>(null);
-    const [lastReceipt, setLastReceipt] = useState<{ id: string; number: string } | null>(null);
+    const [recorded, setRecorded] = useState<Recorded | null>(null);
 
     const load = useCallback(async () => {
         setLoadError(false);
@@ -165,7 +173,16 @@ export default function LotLedgerPanel({
         }
     }, [lotId, workspaceId]);
 
-    useEffect(() => { setLedger(null); setLastReceipt(null); load(); }, [load]);
+    useEffect(() => { setLedger(null); setRecorded(null); load(); }, [load]);
+
+    // Reported once per buyer: the caller passes a fresh function on every render.
+    const buyerId = ledger?.buyer?.id;
+    const reportedBuyer = useRef<string | null>(null);
+    useEffect(() => {
+        if (!buyerId || !onBuyer || reportedBuyer.current === buyerId) return;
+        reportedBuyer.current = buyerId;
+        onBuyer(buyerId);
+    }, [buyerId, onBuyer]);
 
     // The selected call: the one asked for, else the oldest overdue or next due.
     useEffect(() => {
@@ -183,7 +200,7 @@ export default function LotLedgerPanel({
 
     if (loadError) {
         return (
-            <section className="border border-outline-variant/30 rounded-xl p-6 flex items-center justify-between gap-4" role="alert">
+            <section className="p-6 flex items-center justify-between gap-4" role="alert">
                 <p className="text-sm text-error">{t('developerSales.payments.loadFailed')}</p>
                 <div className="flex gap-2">
                     <button type="button" onClick={load} className={secondaryButton}>{t('developerSales.payments.retry')}</button>
@@ -195,7 +212,7 @@ export default function LotLedgerPanel({
 
     if (!ledger) {
         return (
-            <section className="border border-outline-variant/30 rounded-xl p-10 flex justify-center" role="status" aria-label={t('developerSales.payments.loading')}>
+            <section className="p-10 flex justify-center" role="status" aria-label={t('developerSales.payments.loading')}>
                 <Loader2 className="h-6 w-6 animate-spin text-on-surface-variant" />
             </section>
         );
@@ -209,120 +226,125 @@ export default function LotLedgerPanel({
             .filter((p) => p.kind === 'refund' && p.status === 'confirmed' && p.refundOfId === paymentId)
             .reduce((sum, p) => sum + toCents(p.amount), 0);
 
-    const summary: { key: string; label: string; value: number; tone?: string; sub?: string }[] = [
-        { key: 'contract', label: t('developerSales.payments.contract'), value: totals.contract },
-        ...(totals.depositAsked > 0
-            ? [{
-                key: 'deposit',
-                label: t('developerSales.payments.deposit'),
-                value: totals.deposit,
-                sub: totals.deposit < totals.depositAsked ? t('developerSales.payments.ofAsked', { amount: money(totals.depositAsked) }) : undefined,
-            }]
-            : []),
-        { key: 'called', label: t('developerSales.payments.called'), value: totals.called },
-        { key: 'collected', label: t('developerSales.payments.collected'), value: totals.collected, tone: 'text-emerald-700 dark:text-emerald-400' },
-        ...(totals.pending > 0 ? [{ key: 'pending', label: t('developerSales.payments.pending'), value: totals.pending, tone: 'text-amber-700 dark:text-amber-400' }] : []),
-        { key: 'outstanding', label: t('developerSales.payments.outstanding'), value: totals.outstanding },
-        { key: 'overdue', label: t('developerSales.payments.overdue'), value: totals.overdue, tone: totals.overdue > 0 ? 'text-error' : undefined },
-        { key: 'remaining', label: t('developerSales.payments.remainingOnContract'), value: totals.remainingOnContract },
-    ];
+    const unitLine = (
+        <>
+            <Link href={`/developer/programs/${ledger.lot.program.id}?workspace=${workspaceId}`} className="hover:underline">
+                {ledger.lot.program.name}
+            </Link>
+            {' · '}{ledger.lot.lotNumber}
+            {ledger.lot.building ? ` · ${ledger.lot.building}` : ''}
+            {' · '}
+            {ledger.lot.contractNumber
+                ? t('developerSales.payments.contractNumber', { number: ledger.lot.contractNumber })
+                : t('developerSales.payments.noContract')}
+        </>
+    );
+
+    // What else the buyer should know, in one sentence each, only when it applies.
+    const notes = [
+        totals.overdue > 0 && { text: t('developerSales.payments.ofWhichOverdue', { amount: money(totals.overdue) }), late: true },
+        totals.depositAsked > 0 && totals.deposit < totals.depositAsked && {
+            text: t('developerSales.payments.depositLine', { paid: money(totals.deposit), asked: money(totals.depositAsked) }),
+            late: false,
+        },
+        totals.pending > 0 && { text: t('developerSales.payments.pendingOnCall', { amount: money(totals.pending) }), late: false },
+    ].filter(Boolean) as { text: string; late: boolean }[];
+
+    const canCollect = (call: LedgerCall) => call.payable > 0 && rights.canWrite;
 
     return (
-        <section className="border border-outline-variant/30 rounded-xl overflow-hidden" aria-label={t('developerSales.payments.panelAria', { buyer: buyerName, unit: ledger.lot.lotNumber })}>
+        <section aria-label={t('developerSales.payments.panelAria', { buyer: buyerName, unit: ledger.lot.lotNumber })}>
             {/* Who and what */}
-            <header className="flex flex-wrap items-start justify-between gap-4 p-5 bg-surface-container-low">
-                <div className="min-w-0">
-                    <h2 className="text-lg font-semibold text-on-surface">{buyerName}</h2>
-                    <p className="text-sm text-on-surface-variant">
-                        <Link href={`/developer/programs/${ledger.lot.program.id}?workspace=${workspaceId}`} className="hover:text-secondary">
-                            {ledger.lot.program.name}
-                        </Link>
-                        {' · '}{ledger.lot.lotNumber}
-                        {ledger.lot.building ? ` · ${ledger.lot.building}` : ''}
-                        {' · '}
-                        {ledger.lot.contractNumber
-                            ? t('developerSales.payments.contractNumber', { number: ledger.lot.contractNumber })
-                            : t('developerSales.payments.noContract')}
-                    </p>
-                    {(ledger.buyer?.phone || ledger.buyer?.email) && (
-                        <p className="text-xs text-on-surface-variant mt-1">
-                            {[ledger.buyer?.phone, ledger.buyer?.email].filter(Boolean).join(' · ')}
-                        </p>
-                    )}
-                </div>
-                <button type="button" onClick={onClose} className="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high" aria-label={t('developerSales.payments.close')}>
-                    <X className="h-5 w-5" />
-                </button>
-            </header>
-
-            {/* Totals */}
-            <dl className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-outline-variant/20 border-y border-outline-variant/20">
-                {summary.map((s, i) => (
-                    // The last tile widens to close the row, so no empty cell shows through.
-                    <div key={s.key} className={`px-4 py-3 bg-surface-container-lowest ${i === summary.length - 1 ? LAST_TILE_SPAN[summary.length % 4] : ''} ${i === summary.length - 1 && summary.length % 2 === 1 ? 'col-span-2' : ''}`}>
-                        <dt className="text-xs text-on-surface-variant mb-1">{s.label}</dt>
-                        <dd className={`text-base font-semibold tabular-nums ${s.tone ?? 'text-on-surface'}`}>
-                            {money(s.value)}
-                            {s.sub && <span className="block text-xs font-normal text-on-surface-variant">{s.sub}</span>}
-                        </dd>
+            {hideBuyer ? (
+                <p className="px-5 pt-4 text-sm text-on-surface-variant">{unitLine}</p>
+            ) : (
+                <header className="flex flex-wrap items-start justify-between gap-4 px-5 pt-5">
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-semibold text-on-surface">{buyerName}</h2>
+                        <p className="text-sm text-on-surface-variant">{unitLine}</p>
                     </div>
-                ))}
-            </dl>
+                    <button type="button" onClick={onClose} className="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high" aria-label={t('developerSales.payments.close')}>
+                        <X className="h-5 w-5" />
+                    </button>
+                </header>
+            )}
 
-            <div className="grid lg:grid-cols-5 gap-0 lg:divide-x divide-outline-variant/20">
+            {/* Where the buyer stands, in three figures */}
+            <div className="px-5 pt-4 pb-5">
+                {/* What is owed now leads; the rest of the price is not called yet. */}
+                <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                        { key: 'contract', label: t('developerSales.payments.contract'), value: totals.contract },
+                        { key: 'collected', label: t('developerSales.payments.collected'), value: totals.collected },
+                        { key: 'due', label: t('developerSales.payments.outstanding'), value: totals.outstanding },
+                        { key: 'remaining', label: t('developerSales.payments.remainingOnContract'), value: totals.remainingOnContract },
+                    ].map((s) => (
+                        <div key={s.key}>
+                            <dt className={`text-xs ${s.key === 'due' ? 'text-on-surface font-medium' : 'text-on-surface-variant'}`}>{s.label}</dt>
+                            <dd className={`tabular-nums ${s.key === 'due' ? 'text-xl font-semibold text-on-surface' : 'text-lg text-on-surface-variant'}`}>{money(s.value)}</dd>
+                        </div>
+                    ))}
+                </dl>
+                {notes.length > 0 && (
+                    <p className="mt-2 text-sm">
+                        {notes.map((n, i) => (
+                            <span key={i} className={n.late ? 'text-error' : 'text-on-surface-variant'}>{i > 0 ? ' ' : ''}{n.text}</span>
+                        ))}
+                    </p>
+                )}
+            </div>
+
+            <div className="grid lg:grid-cols-5 border-t border-outline-variant/20 lg:divide-x divide-outline-variant/20">
                 {/* Schedule */}
-                <div className="lg:col-span-3 p-5 space-y-3">
-                    <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">{t('developerSales.payments.schedule')}</h3>
+                <div className="lg:col-span-3 p-5">
+                    <h3 className="text-sm font-semibold text-on-surface mb-2">{t('developerSales.payments.schedule')}</h3>
                     {ledger.calls.length === 0 ? (
                         <p className="text-sm text-on-surface-variant py-6 text-center">{t('developerSales.payments.scheduleEmpty')}</p>
                     ) : (
-                        <ul className="space-y-2" role="radiogroup" aria-label={t('developerSales.payments.schedule')}>
+                        <ul className="divide-y divide-outline-variant/20">
                             {ledger.calls.map((call) => {
-                                const isSelected = call.id === callId;
-                                const selectable = call.payable > 0 && rights.canWrite;
-                                const share = call.amount > 0 ? Math.min(100, (call.collected / call.amount) * 100) : 0;
+                                const isSelected = call.id === callId && canCollect(call) && !recorded;
+                                const paid = call.payable <= 0 && call.pending <= 0;
                                 return (
-                                    <li key={call.id}>
-                                        <button
-                                            type="button"
-                                            role="radio"
-                                            aria-checked={isSelected}
-                                            disabled={!selectable}
-                                            onClick={() => setCallId(call.id)}
-                                            className={`w-full text-start rounded-lg border px-3 py-2.5 transition-colors ${
-                                                isSelected
-                                                    ? 'border-secondary bg-secondary/5'
-                                                    : 'border-outline-variant/30 hover:border-outline-variant disabled:hover:border-outline-variant/30'
-                                            } disabled:cursor-default`}
-                                        >
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="min-w-0 text-sm">
-                                                    <span className="font-medium text-on-surface">{rowTitle(call)}</span>
-                                                    <span className="text-on-surface-variant"> · {call.percentage !== null ? `${call.percentage}% · ` : ''}</span>
-                                                    <span className="font-mono text-xs text-on-surface-variant">{call.callNumber}</span>
+                                    <li
+                                        key={call.id}
+                                        className={`flex items-center justify-between gap-3 py-3 ps-3 -ms-3 border-s-2 ${isSelected ? 'border-on-surface' : 'border-transparent'}`}
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="text-sm text-on-surface">
+                                                <span className="font-medium">{rowTitle(call)}</span>
+                                                {call.percentage !== null && <span className="text-on-surface-variant"> · {call.percentage}%</span>}
+                                            </p>
+                                            <p className="text-xs text-on-surface-variant tabular-nums">
+                                                {call.dueAt ? t('developerSales.payments.dueOn', { date: formatDate(call.dueAt) }) : call.callNumber}
+                                                {call.daysLate > 0 && call.payable > 0 && (
+                                                    <span className="text-error"> · {t('developerDashboard.daysOverdue', { days: call.daysLate })}</span>
+                                                )}
+                                                {call.pending > 0 && <span> · {t('developerSales.payments.pendingOnCall', { amount: money(call.pending) })}</span>}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4 shrink-0">
+                                            <span className="text-end text-sm tabular-nums">
+                                                <span className="block text-on-surface">{money(call.amount)}</span>
+                                                <span className="block text-xs text-on-surface-variant">
+                                                    {paid
+                                                        ? t('developerSales.payments.paidLabel')
+                                                        : t('developerSales.payments.paidOf', { paid: money(call.collected), amount: money(call.amount) })}
                                                 </span>
-                                                <Chip tone={CALL_STATUS_TONE[call.status] ?? CALL_STATUS_TONE.draft}>
-                                                    {t(CALL_STATUS_LABEL[call.status] ?? CALL_STATUS_LABEL.draft)}
-                                                </Chip>
-                                            </div>
-                                            <div className="mt-2 h-1.5 rounded-full bg-surface-container-high overflow-hidden" aria-hidden="true">
-                                                <div className="h-full bg-emerald-500" style={{ width: `${share}%` }} />
-                                            </div>
-                                            <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-3 text-xs text-on-surface-variant tabular-nums">
-                                                <span>{t('developerSales.payments.paidOf', { paid: money(call.collected), amount: money(call.amount) })}</span>
-                                                <span>
-                                                    {call.dueAt ? t('developerSales.payments.dueOn', { date: formatDate(call.dueAt) }) : ''}
-                                                    {call.daysLate > 0 && (
-                                                        <span className="text-error"> · {t('developerDashboard.daysOverdue', { days: call.daysLate })}</span>
-                                                    )}
-                                                </span>
-                                            </div>
-                                            {call.pending > 0 && (
-                                                <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                                                    {t('developerSales.payments.pendingOnCall', { amount: money(call.pending) })}
-                                                </p>
+                                            </span>
+                                            {canCollect(call) ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setCallId(call.id); setRecorded(null); }}
+                                                    aria-pressed={isSelected}
+                                                    className={`${isSelected ? primaryButton : secondaryButton} !px-3 !py-1.5 text-xs w-24`}
+                                                >
+                                                    {t('developerSales.payments.collect')}
+                                                </button>
+                                            ) : (
+                                                <span className="w-24" aria-hidden="true" />
                                             )}
-                                        </button>
+                                        </div>
                                     </li>
                                 );
                             })}
@@ -330,9 +352,36 @@ export default function LotLedgerPanel({
                     )}
                 </div>
 
-                {/* Payment form */}
+                {/* Payment form, or the receipt of the payment just recorded */}
                 <div className="lg:col-span-2 p-5 border-t lg:border-t-0 border-outline-variant/20">
-                    {!rights.canWrite ? (
+                    {recorded ? (
+                        <div className="space-y-4" role="status">
+                            <div>
+                                <p className="text-base font-semibold text-on-surface">
+                                    {t(recorded.receiptNumber ? 'developerSales.payments.recordedTitle' : 'developerSales.payments.recordedPendingTitle', { amount: money(recorded.amount) })}
+                                </p>
+                                {recorded.receiptNumber
+                                    ? <p className="text-sm text-on-surface-variant">{t('developerSales.payments.receiptNumber', { number: recorded.receiptNumber })}</p>
+                                    : <p className="text-sm text-on-surface-variant">{t('developerSales.payments.recordedPending')}</p>}
+                            </div>
+                            {recorded.receiptNumber && (
+                                <a
+                                    href={receiptUrl(workspaceId, recorded.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`${primaryButton} w-full inline-flex items-center justify-center gap-2 !py-3`}
+                                >
+                                    <Printer className="h-4 w-4" aria-hidden="true" />
+                                    {t('developerSales.payments.printReceipt')}
+                                </a>
+                            )}
+                            {ledger.calls.some(canCollect) && (
+                                <button type="button" onClick={() => setRecorded(null)} className={`${secondaryButton} w-full`}>
+                                    {t('developerSales.payments.newPayment')}
+                                </button>
+                            )}
+                        </div>
+                    ) : !rights.canWrite ? (
                         <p className="text-sm text-on-surface-variant">{t('developerSales.payments.readOnly')}</p>
                     ) : selected && selected.payable > 0 ? (
                         <PaymentForm
@@ -343,15 +392,15 @@ export default function LotLedgerPanel({
                             title={rowTitle(selected)}
                             call={selected}
                             money={money}
-                            onRecorded={(next, payment) => {
+                            onRecorded={(next, payment, amount) => {
                                 applyLedger(next);
-                                if (payment.receiptNumber) {
-                                    setLastReceipt({ id: payment.id, number: payment.receiptNumber });
-                                    notify(t('developerSales.payments.recorded', { number: payment.receiptNumber }), 'success');
-                                } else {
-                                    setLastReceipt(null);
-                                    notify(t('developerSales.payments.recordedPending'), 'success');
-                                }
+                                setRecorded({ id: payment.id, receiptNumber: payment.receiptNumber, amount });
+                                notify(
+                                    payment.receiptNumber
+                                        ? t('developerSales.payments.recorded', { number: payment.receiptNumber })
+                                        : t('developerSales.payments.recordedPending'),
+                                    'success'
+                                );
                             }}
                         />
                     ) : (
@@ -359,23 +408,12 @@ export default function LotLedgerPanel({
                             {ledger.calls.length === 0 ? t('developerSales.payments.scheduleEmpty') : t('developerSales.payments.nothingDue')}
                         </p>
                     )}
-                    {lastReceipt && (
-                        <a
-                            href={receiptUrl(workspaceId, lastReceipt.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-secondary hover:underline"
-                        >
-                            <FileText className="h-4 w-4" aria-hidden="true" />
-                            {t('developerSales.payments.openReceiptNumber', { number: lastReceipt.number })}
-                        </a>
-                    )}
                 </div>
             </div>
 
             {/* History */}
             <div className="p-5 border-t border-outline-variant/20">
-                <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-3">{t('developerSales.payments.history')}</h3>
+                <h3 className="text-sm font-semibold text-on-surface mb-2">{t('developerSales.payments.history')}</h3>
                 {ledger.payments.length === 0 ? (
                     <p className="text-sm text-on-surface-variant">{t('developerSales.payments.historyEmpty')}</p>
                 ) : (
@@ -389,7 +427,7 @@ export default function LotLedgerPanel({
                                     <th className={`${thClass} text-end`}>{t('developerSales.payments.colAmount')}</th>
                                     <th className={thClass}>{t('developerSales.payments.colStatus')}</th>
                                     <th className={thClass}>{t('developerSales.payments.colBy')}</th>
-                                    <th className={thClass} />
+                                    <th className={thClass}><span className="sr-only">{t('developerSales.payments.actions')}</span></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-outline-variant/15">
@@ -397,6 +435,20 @@ export default function LotLedgerPanel({
                                     const statusKey = paymentStatusKey(p);
                                     const dimmed = p.status === 'reversed' || p.status === 'failed';
                                     const refundable = fromCents(toCents(p.amount) - refundedOf(p.id));
+                                    const menu: { label: string; danger?: boolean; run: () => void }[] = [
+                                        ...(rights.canWrite && p.status === 'pending'
+                                            ? [
+                                                { label: t('developerSales.payments.confirm'), run: () => setAction({ kind: 'confirm', payment: p }) },
+                                                { label: t('developerSales.payments.fail'), danger: true, run: () => setAction({ kind: 'fail', payment: p }) },
+                                            ]
+                                            : []),
+                                        ...(rights.canModerate && p.status === 'confirmed' && p.kind === 'payment'
+                                            ? [
+                                                ...(refundable > 0 ? [{ label: t('developerSales.payments.refund'), run: () => setAction({ kind: 'refund', payment: p, refundable }) }] : []),
+                                                { label: t('developerSales.payments.reverse'), danger: true, run: () => setAction({ kind: 'reverse', payment: p }) },
+                                            ]
+                                            : []),
+                                    ];
                                     return (
                                         <tr key={p.id}>
                                             <td className={`${tdClass} whitespace-nowrap tabular-nums`}>{formatDate(p.paymentDate)}</td>
@@ -418,34 +470,19 @@ export default function LotLedgerPanel({
                                             </td>
                                             <td className={`${tdClass} text-xs text-on-surface-variant`}>{p.createdBy?.name ?? '–'}</td>
                                             <td className={`${tdClass} text-end whitespace-nowrap`}>
-                                                <div className="inline-flex flex-wrap justify-end gap-x-3 gap-y-1 text-xs font-medium">
+                                                <div className="inline-flex items-center justify-end gap-2">
                                                     {p.receiptNumber && p.kind === 'payment' && (
-                                                        <a href={receiptUrl(workspaceId, p.id)} target="_blank" rel="noopener noreferrer" className="text-secondary hover:underline">
+                                                        <a
+                                                            href={receiptUrl(workspaceId, p.id)}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="inline-flex items-center gap-1 text-xs font-medium text-on-surface hover:underline"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                                                             {t('developerSales.payments.receipt')}
                                                         </a>
                                                     )}
-                                                    {rights.canWrite && p.status === 'pending' && (
-                                                        <>
-                                                            <button type="button" className="text-secondary hover:underline" onClick={() => setAction({ kind: 'confirm', payment: p })}>
-                                                                {t('developerSales.payments.confirm')}
-                                                            </button>
-                                                            <button type="button" className="text-error hover:underline" onClick={() => setAction({ kind: 'fail', payment: p })}>
-                                                                {t('developerSales.payments.fail')}
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                    {rights.canModerate && p.status === 'confirmed' && p.kind === 'payment' && (
-                                                        <>
-                                                            {refundable > 0 && (
-                                                                <button type="button" className="text-on-surface-variant hover:text-on-surface hover:underline" onClick={() => setAction({ kind: 'refund', payment: p, refundable })}>
-                                                                    {t('developerSales.payments.refund')}
-                                                                </button>
-                                                            )}
-                                                            <button type="button" className="text-error hover:underline" onClick={() => setAction({ kind: 'reverse', payment: p })}>
-                                                                {t('developerSales.payments.reverse')}
-                                                            </button>
-                                                        </>
-                                                    )}
+                                                    {menu.length > 0 && <RowMenu label={t('developerSales.payments.actions')} items={menu} />}
                                                 </div>
                                             </td>
                                         </tr>
@@ -474,6 +511,54 @@ export default function LotLedgerPanel({
     );
 }
 
+/** The rare actions on a payment (cleared, bounced, refund, cancel), out of the way behind one button. */
+function RowMenu({ label, items }: { label: string; items: { label: string; danger?: boolean; run: () => void }[] }) {
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const id = useId();
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e: MouseEvent) => { if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+        document.addEventListener('mousedown', onDown);
+        document.addEventListener('keydown', onKey);
+        return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+    }, [open]);
+
+    return (
+        <div ref={rootRef} className="relative">
+            <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-controls={`${id}-menu`}
+                aria-label={label}
+                onClick={() => setOpen((v) => !v)}
+                className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+            >
+                <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {open && (
+                <ul id={`${id}-menu`} role="menu" className="absolute end-0 z-20 mt-1 min-w-[10rem] rounded-lg border border-outline-variant bg-surface-container py-1 shadow-lg text-start">
+                    {items.map((item) => (
+                        <li key={item.label} role="none">
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => { setOpen(false); item.run(); }}
+                                className={`w-full px-3 py-2 text-start text-sm hover:bg-surface-container-high ${item.danger ? 'text-error' : 'text-on-surface'}`}
+                            >
+                                {item.label}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
 // ---------------------------------------------------------------------------
 
 type Submit = { state: 'idle' } | { state: 'saving' } | { state: 'error'; message: string } | { state: 'uncertain' };
@@ -487,7 +572,7 @@ function PaymentForm({
     title: string;
     call: LedgerCall;
     money: (n: number) => string;
-    onRecorded: (ledger: Ledger, payment: { id: string; receiptNumber: string | null }) => void;
+    onRecorded: (ledger: Ledger, payment: { id: string; receiptNumber: string | null }, amount: number) => void;
 }) {
     const { t, formatDate } = useI18n();
     const id = useId();
@@ -498,6 +583,7 @@ function PaymentForm({
     const [method, setMethod] = useState<PaymentMethod>('bank_transfer');
     const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
+    const [moreOpen, setMoreOpen] = useState(false);
     const [submit, setSubmit] = useState<Submit>({ state: 'idle' });
     // One key per payment being entered: every retry of it sends the same key, so
     // the server can tell a retry from a second payment.
@@ -513,6 +599,7 @@ function PaymentForm({
     const referenceMissing = rule.reference === 'required' && !reference.trim();
     const canSubmit = !amountError && !referenceMissing && submit.state !== 'saving';
     const afterCents = payableCents - (amountCents ?? 0);
+    const saving = submit.state === 'saving';
 
     const referenceLabel = method === 'check'
         ? t('developerSales.payments.chequeNumber')
@@ -556,7 +643,7 @@ function PaymentForm({
             }
             setSubmit({ state: 'idle' });
             requestKey.current = newRequestKey();
-            onRecorded(data.ledger, data.payment);
+            onRecorded(data.ledger, data.payment, fromCents(amountCents));
         } catch {
             setSubmit({ state: 'uncertain' });
         } finally {
@@ -568,7 +655,7 @@ function PaymentForm({
         <form
             onSubmit={(e) => { e.preventDefault(); send(); }}
             className="space-y-4"
-            aria-describedby={`${id}-recap`}
+            aria-describedby={`${id}-after`}
             noValidate
         >
             <div>
@@ -580,7 +667,7 @@ function PaymentForm({
                 <p role="alert" className="p-3 bg-error-container text-error text-sm rounded">{submit.message}</p>
             )}
             {submit.state === 'uncertain' && (
-                <div role="alert" className="p-3 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-sm rounded space-y-2">
+                <div role="alert" className="p-3 border border-outline-variant text-on-surface text-sm rounded space-y-2">
                     <p>{t('developerSales.payments.uncertain')}</p>
                     <button type="button" onClick={send} className="font-medium underline">{t('developerSales.payments.retrySubmit')}</button>
                 </div>
@@ -593,30 +680,39 @@ function PaymentForm({
                     type="text"
                     inputMode="decimal"
                     autoComplete="off"
-                    className={`${inputClass} tabular-nums`}
+                    className={`${inputClass} tabular-nums !text-lg !py-2.5 font-semibold`}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     aria-invalid={Boolean(amountError)}
                     aria-describedby={`${id}-amount-hint`}
-                    disabled={submit.state === 'saving'}
+                    disabled={saving}
                 />
                 <p id={`${id}-amount-hint`} className={`body-xs mt-1 ${amountError && amount ? 'text-error' : 'text-on-surface-variant'}`}>
                     {amountError && amount ? amountError : t('developerSales.payments.amountHint', { amount: money(call.payable) })}
                 </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <Field label={t('developerSales.collections.paymentDate')}>
-                    <input type="date" required max={today} className={inputClass} value={paidAt} onChange={(e) => setPaidAt(e.target.value)} disabled={submit.state === 'saving'} />
-                </Field>
-                <Field label={t('developerSales.collections.paymentMethod')}>
-                    <select className={inputClass} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)} disabled={submit.state === 'saving'}>
-                        {COLLECTION_METHODS.map((m) => (
-                            <option key={m} value={m}>{t(`developerSales.collections.method_${m}` as MessageKey)}</option>
-                        ))}
-                    </select>
-                </Field>
-            </div>
+            <fieldset>
+                <legend className="block body-sm text-on-surface-variant mb-2">{t('developerSales.collections.paymentMethod')}</legend>
+                <div className="flex flex-wrap gap-1.5">
+                    {COLLECTION_METHODS.map((m) => (
+                        <button
+                            key={m}
+                            type="button"
+                            aria-pressed={method === m}
+                            onClick={() => setMethod(m)}
+                            disabled={saving}
+                            className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+                                method === m
+                                    ? 'border-on-surface bg-on-surface text-surface'
+                                    : 'border-outline-variant/50 text-on-surface hover:border-outline-variant'
+                            }`}
+                        >
+                            {t(`developerSales.collections.method_${m}` as MessageKey)}
+                        </button>
+                    ))}
+                </div>
+            </fieldset>
 
             {rule.reference !== 'none' && (
                 <div>
@@ -632,37 +728,51 @@ function PaymentForm({
                         onChange={(e) => setReference(e.target.value)}
                         aria-required={rule.reference === 'required'}
                         aria-invalid={referenceMissing && reference !== ''}
-                        disabled={submit.state === 'saving'}
+                        disabled={saving}
                     />
                 </div>
             )}
 
-            <Field label={t('developerSales.payments.notes')}>
-                <input type="text" maxLength={500} className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={submit.state === 'saving'} />
-            </Field>
-
-            {/* The review step, in place: the effect of this payment, updated as it is typed. */}
-            <dl id={`${id}-recap`} className="rounded-lg bg-surface-container-low p-3 text-sm space-y-1 tabular-nums" aria-live="polite">
-                <div className="flex justify-between gap-3"><dt className="text-on-surface-variant">{t('developerSales.payments.recapBefore')}</dt><dd>{money(call.payable)}</dd></div>
-                <div className="flex justify-between gap-3"><dt className="text-on-surface-variant">{t('developerSales.payments.recapNow')}</dt><dd className="font-semibold">{amountCents && !amountError ? money(fromCents(amountCents)) : '–'}</dd></div>
-                <div className="flex justify-between gap-3 border-t border-outline-variant/30 pt-1"><dt className="text-on-surface-variant">{t('developerSales.payments.recapAfter')}</dt><dd className="font-semibold">{!amountError ? money(fromCents(afterCents)) : '–'}</dd></div>
-                <div className="flex justify-between gap-3 text-xs text-on-surface-variant pt-1">
-                    <dt className="sr-only">{t('developerSales.collections.paymentMethod')}</dt>
-                    <dd>{t(`developerSales.collections.method_${method}` as MessageKey)} · {paidAt ? formatDate(paidAt) : '–'}</dd>
-                </div>
-                {rule.startsPending && (
-                    <p className="text-xs text-amber-700 dark:text-amber-400 pt-1">{t('developerSales.payments.recapPending')}</p>
+            <div>
+                <button
+                    type="button"
+                    onClick={() => setMoreOpen((v) => !v)}
+                    aria-expanded={moreOpen}
+                    aria-controls={`${id}-more`}
+                    className="inline-flex items-center gap-1 text-sm text-on-surface-variant hover:text-on-surface"
+                >
+                    <ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                    {t('developerSales.payments.moreOptions')}
+                    {!moreOpen && paidAt !== today && <span className="tabular-nums"> · {formatDate(paidAt)}</span>}
+                </button>
+                {moreOpen && (
+                    <div id={`${id}-more`} className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <Field label={t('developerSales.collections.paymentDate')}>
+                            <input type="date" required max={today} className={inputClass} value={paidAt} onChange={(e) => setPaidAt(e.target.value)} disabled={saving} />
+                        </Field>
+                        <Field label={t('developerSales.payments.notes')}>
+                            <input type="text" maxLength={500} className={inputClass} value={notes} onChange={(e) => setNotes(e.target.value)} disabled={saving} />
+                        </Field>
+                    </div>
                 )}
-            </dl>
+            </div>
 
-            <button type="submit" className={`${primaryButton} w-full inline-flex items-center justify-center gap-2`} disabled={!canSubmit}>
-                {submit.state === 'saving' && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-                {submit.state === 'saving'
-                    ? t('developerSales.payments.saving')
-                    : amountCents && !amountError
-                        ? t(rule.startsPending ? 'developerSales.payments.submitCheque' : 'developerSales.payments.submit', { amount: money(fromCents(amountCents)) })
-                        : t('developerSales.collections.recordPayment')}
-            </button>
+            <div className="space-y-2 pt-1">
+                <p id={`${id}-after`} className="text-sm text-on-surface-variant tabular-nums" aria-live="polite">
+                    {t('developerSales.payments.afterThisPayment', { amount: !amountError ? money(fromCents(afterCents)) : '–' })}
+                </p>
+                {rule.startsPending && (
+                    <p className="text-xs text-on-surface-variant">{t('developerSales.payments.recapPending')}</p>
+                )}
+                <button type="submit" className={`${primaryButton} w-full inline-flex items-center justify-center gap-2 !py-3`} disabled={!canSubmit}>
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    {saving
+                        ? t('developerSales.payments.saving')
+                        : amountCents && !amountError
+                            ? t(rule.startsPending ? 'developerSales.payments.submitCheque' : 'developerSales.payments.submit', { amount: money(fromCents(amountCents)) })
+                            : t('developerSales.collections.recordPayment')}
+                </button>
+            </div>
         </form>
     );
 }

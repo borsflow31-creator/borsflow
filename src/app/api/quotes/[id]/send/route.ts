@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { canEditContent, READ_ONLY_ERROR } from '@/lib/api/workspace';
 import { escapeHtml, escapeHtmlMultiline } from '@/lib/html';
 import { renderDocumentPdf, pdfFilename } from '@/lib/documents/pdf';
+import { pdfLanguageFor } from '@/lib/documents/pdf-language';
 import { shareDocument } from '@/lib/documents/share';
 import { sendDocumentEmail, DocumentEmailError } from '@/lib/documents/send-email';
 
@@ -180,7 +181,7 @@ export async function POST(
       total: quote.total,
       notes: quote.notes,
       terms: quote.terms,
-    });
+    }, await pdfLanguageFor(session.user.id));
 
     await sendDocumentEmail({
       sendFrom,

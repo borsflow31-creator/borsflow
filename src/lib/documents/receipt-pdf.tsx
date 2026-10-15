@@ -9,16 +9,15 @@
  * Labels arrive translated from the caller (the server translator, in the
  * requesting user's language), because react-pdf renders outside I18nProvider.
  *
- * Arabic receipts are set in Tajawal (bundled, SIL Open Font License), which
- * covers both Arabic and Latin so names, emails and references still print, and
- * are laid out right to left. Every other language keeps the built-in Helvetica.
+ * Black and white only (see pdf-theme). Arabic receipts are set in Tajawal and
+ * laid out right to left; every other language keeps the built-in Helvetica.
  */
 
 import React from 'react';
-import path from 'path';
-import { Document, Font, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, renderToBuffer } from '@react-pdf/renderer';
 import type { ServerTranslate } from '@/i18n/server';
 import { amountInWords, wordsLanguage } from './amount-in-words';
+import { ARABIC, INK, pdfDay, pdfFaces, pdfMoney, registerArabicFont } from './pdf-theme';
 
 export interface ReceiptPdfData {
   receiptNumber: string;
@@ -51,59 +50,41 @@ export interface ReceiptPdfData {
   reversalReason?: string | null;
 }
 
-const FONT_DIR = path.join(process.cwd(), 'src', 'lib', 'documents', 'fonts');
-let fontsRegistered = false;
-
-function registerArabicFont() {
-  if (fontsRegistered) return;
-  Font.register({
-    family: 'Tajawal',
-    fonts: [
-      { src: path.join(FONT_DIR, 'Tajawal-Regular.ttf'), fontWeight: 'normal' },
-      { src: path.join(FONT_DIR, 'Tajawal-Bold.ttf'), fontWeight: 'bold' },
-    ],
-  });
-  // Arabic words must not be split at arbitrary points.
-  Font.registerHyphenationCallback((word) => [word]);
-  fontsRegistered = true;
-}
-
-const COLORS = { ink: '#1a1a1a', muted: '#6b7280', faint: '#9ca3af', rule: '#e5e7eb', accent: '#1e40af', void: '#b91c1c' };
-
 function makeStyles(rtl: boolean) {
-  const regular = rtl ? { fontFamily: 'Tajawal', fontWeight: 'normal' as const } : { fontFamily: 'Helvetica' };
-  const bold = rtl ? { fontFamily: 'Tajawal', fontWeight: 'bold' as const } : { fontFamily: 'Helvetica-Bold' };
+  const { regular, bold } = pdfFaces(rtl);
   const row = rtl ? 'row-reverse' as const : 'row' as const;
   const start = rtl ? 'right' as const : 'left' as const;
   const end = rtl ? 'left' as const : 'right' as const;
   const text = rtl ? { direction: 'rtl' as const, textAlign: start } : { textAlign: start };
+  const endText = rtl ? { direction: 'rtl' as const, textAlign: end } : { textAlign: end };
   return StyleSheet.create({
-    page: { paddingTop: 44, paddingBottom: 56, paddingHorizontal: 44, fontSize: 10, color: COLORS.ink, ...regular },
+    page: { paddingTop: 48, paddingBottom: 60, paddingHorizontal: 52, fontSize: 10, color: INK.text, ...regular },
     text,
-    header: { flexDirection: row, justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-    title: { fontSize: 20, ...bold, ...text },
-    number: { fontSize: 11, color: COLORS.muted, marginTop: 4, ...text },
-    workspace: { fontSize: 11, ...bold, textAlign: end, ...(rtl ? { direction: 'rtl' as const } : {}) },
+    // The issuer on one side, what the document is on the other, over a heavy rule.
+    header: { flexDirection: row, justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 14, borderBottomWidth: 1.5, borderBottomColor: INK.text, marginBottom: 26 },
+    issuer: { fontSize: 13, ...bold, ...text },
+    docBlock: { alignItems: rtl ? 'flex-start' as const : 'flex-end' as const },
     // Letter spacing and capitals break Arabic joining, so they are Latin-only.
-    label: { fontSize: 8, color: COLORS.faint, marginBottom: 4, ...(rtl ? {} : { textTransform: 'uppercase' as const, letterSpacing: 0.6 }), ...text },
-    block: { marginBottom: 18 },
+    title: { fontSize: 12, ...bold, ...(rtl ? {} : { textTransform: 'uppercase' as const, letterSpacing: 1.2 }), ...endText },
+    number: { fontSize: 10, color: INK.muted, marginTop: 4, ...endText },
+    columns: { flexDirection: row, justifyContent: 'space-between', marginBottom: 24 },
+    column: { width: '48%' },
+    label: { fontSize: 8, color: INK.faint, marginBottom: 5, ...(rtl ? {} : { textTransform: 'uppercase' as const, letterSpacing: 0.8 }), ...text },
     strong: { fontSize: 11, ...bold, marginBottom: 2, ...text },
     line: { fontSize: 10, marginBottom: 2, ...text },
-    amountBox: { borderWidth: 1, borderColor: COLORS.ink, padding: 14, marginTop: 18, marginBottom: 6 },
-    amount: { fontSize: 22, ...bold, color: COLORS.accent, ...text },
-    words: { fontSize: 9, color: COLORS.muted, marginBottom: 18, lineHeight: 1.4, ...text },
-    row: { flexDirection: row, justifyContent: 'space-between', borderBottomWidth: 0.5, borderBottomColor: COLORS.rule, paddingVertical: 6 },
-    rowLabel: { color: COLORS.muted, ...text },
+    amountBox: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: INK.text, paddingVertical: 14, marginBottom: 8, flexDirection: row, justifyContent: 'space-between', alignItems: 'center' },
+    amountLabel: { fontSize: 10, color: INK.muted, ...text },
+    amount: { fontSize: 22, ...bold, ...endText },
+    words: { fontSize: 9, color: INK.muted, marginBottom: 22, lineHeight: 1.4, ...text },
+    row: { flexDirection: row, justifyContent: 'space-between', borderBottomWidth: 0.5, borderBottomColor: INK.rule, paddingVertical: 7 },
+    rowLabel: { color: INK.muted, ...text },
     rowValue: { textAlign: end, maxWidth: '60%', ...(rtl ? { direction: 'rtl' as const } : {}) },
-    void: { position: 'absolute', top: 300, left: 60, right: 60, textAlign: 'center', fontSize: 64, ...bold, color: COLORS.void, opacity: 0.25, transform: 'rotate(-20deg)' },
-    signature: { marginTop: 40, flexDirection: row, justifyContent: 'flex-end' },
-    signatureBox: { width: '45%', borderTopWidth: 0.5, borderTopColor: COLORS.muted, paddingTop: 6 },
-    footer: { position: 'absolute', bottom: 26, left: 44, right: 44, textAlign: 'center', fontSize: 8, color: COLORS.faint, ...(rtl ? { direction: 'rtl' as const } : {}) },
+    void: { position: 'absolute', top: 300, left: 60, right: 60, textAlign: 'center', fontSize: 64, ...bold, color: INK.faint, opacity: 0.35, transform: 'rotate(-20deg)' },
+    signature: { marginTop: 48, flexDirection: row, justifyContent: 'flex-end' },
+    signatureBox: { width: '45%', borderTopWidth: 0.5, borderTopColor: INK.muted, paddingTop: 6, minHeight: 60 },
+    footer: { position: 'absolute', bottom: 28, left: 52, right: 52, textAlign: 'center', fontSize: 8, color: INK.faint, ...(rtl ? { direction: 'rtl' as const } : {}) },
   });
 }
-
-/** Any Arabic letter: such text runs right to left; everything else keeps its own order. */
-const ARABIC = /[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 function ReceiptPdf({ data, t }: { data: ReceiptPdfData; t: ServerTranslate }) {
   const rtl = Boolean(data.rtl);
@@ -111,17 +92,14 @@ function ReceiptPdf({ data, t }: { data: ReceiptPdfData; t: ServerTranslate }) {
   // On an Arabic receipt, a phone number, an email or a reference is laid out left
   // to right (still aligned right), or the bidi algorithm reverses its groups.
   const own = (text: string) => (rtl && !ARABIC.test(text) ? { direction: 'ltr' as const } : {});
-  // The built-in PDF fonts have no narrow or non-breaking space, which French and
-  // other locales use to group thousands; a plain space prints the same.
-  const money = (n: number) =>
-    new Intl.NumberFormat(data.locale, { style: 'currency', currency: data.currency }).format(n ?? 0).replace(/[  ]/g, ' ');
-  const day = (d: Date | string | null | undefined) =>
-    d ? new Date(d).toLocaleDateString(data.locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+  const money = (n: number) => pdfMoney(data.locale, data.currency, n);
+  const day = (d: Date | string | null | undefined) => pdfDay(data.locale, d);
   const reversed = data.status === 'reversed';
   const unit = [data.programName, data.programReference ? `(${data.programReference})` : null, `· ${data.lotNumber}`]
     .filter(Boolean)
     .join(' ');
   const words = amountInWords(data.amount, data.currency, wordsLanguage(data.locale));
+  const issuedOn = day(data.confirmedAt ?? data.paymentDate);
 
   const rows: [string, string][] = [
     [t('developerSales.receipt.paymentDate'), day(data.paymentDate)],
@@ -143,31 +121,34 @@ function ReceiptPdf({ data, t }: { data: ReceiptPdfData; t: ServerTranslate }) {
     <Document title={`${t('developerSales.receipt.title')} ${data.receiptNumber}`} author={data.workspaceName} language={rtl ? 'ar' : undefined}>
       <Page size="A4" style={styles.page}>
         {reversed ? <Text style={styles.void}>{t('developerSales.receipt.cancelled')}</Text> : null}
+
         <View style={styles.header}>
-          <View>
+          <Text style={[styles.issuer, own(data.workspaceName)]}>{data.workspaceName}</Text>
+          <View style={styles.docBlock}>
             <Text style={styles.title}>{t('developerSales.receipt.title')}</Text>
             <Text style={[styles.number, own(data.receiptNumber)]}>{data.receiptNumber}</Text>
+            <Text style={styles.number}>{t('developerSales.receipt.issuedOn')} {issuedOn}</Text>
           </View>
-          <Text style={[styles.workspace, own(data.workspaceName)]}>{data.workspaceName}</Text>
         </View>
 
-        <View style={styles.block}>
-          <Text style={styles.label}>{t('developerSales.receipt.receivedFrom')}</Text>
-          <Text style={[styles.strong, own(data.buyer.name)]}>{data.buyer.name}</Text>
-          {data.buyer.email ? <Text style={[styles.line, own(data.buyer.email)]}>{data.buyer.email}</Text> : null}
-          {data.buyer.phone ? <Text style={[styles.line, own(data.buyer.phone)]}>{data.buyer.phone}</Text> : null}
-        </View>
-
-        <View style={styles.block}>
-          <Text style={styles.label}>{t('developerSales.receipt.unit')}</Text>
-          <Text style={[styles.line, own(unit)]}>{unit}</Text>
-          {data.contractNumber ? (
-            <Text style={styles.line}>{t('developerSales.receipt.contract')} {data.contractNumber}</Text>
-          ) : null}
+        <View style={styles.columns}>
+          <View style={styles.column}>
+            <Text style={styles.label}>{t('developerSales.receipt.receivedFrom')}</Text>
+            <Text style={[styles.strong, own(data.buyer.name)]}>{data.buyer.name}</Text>
+            {data.buyer.phone ? <Text style={[styles.line, own(data.buyer.phone)]}>{data.buyer.phone}</Text> : null}
+            {data.buyer.email ? <Text style={[styles.line, own(data.buyer.email)]}>{data.buyer.email}</Text> : null}
+          </View>
+          <View style={styles.column}>
+            <Text style={styles.label}>{t('developerSales.receipt.unit')}</Text>
+            <Text style={[styles.strong, own(unit)]}>{unit}</Text>
+            {data.contractNumber ? (
+              <Text style={styles.line}>{t('developerSales.receipt.contract')} {data.contractNumber}</Text>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.amountBox}>
-          <Text style={styles.label}>{t('developerSales.receipt.amountReceived')}</Text>
+          <Text style={styles.amountLabel}>{t('developerSales.receipt.amountReceived')}</Text>
           <Text style={styles.amount}>{money(data.amount)}</Text>
         </View>
         <Text style={styles.words}>{t('developerSales.receipt.amountInWords', { words })}</Text>
@@ -180,8 +161,8 @@ function ReceiptPdf({ data, t }: { data: ReceiptPdfData; t: ServerTranslate }) {
         ))}
 
         {reversed && data.reversalReason ? (
-          <View style={[styles.block, { marginTop: 18 }]}>
-            <Text style={[styles.label, { color: COLORS.void }]}>{t('developerSales.receipt.cancelledReason')}</Text>
+          <View style={{ marginTop: 18 }}>
+            <Text style={styles.label}>{t('developerSales.receipt.cancelledReason')}</Text>
             <Text style={styles.line}>{data.reversalReason}</Text>
           </View>
         ) : null}
@@ -189,12 +170,12 @@ function ReceiptPdf({ data, t }: { data: ReceiptPdfData; t: ServerTranslate }) {
         <View style={styles.signature}>
           <View style={styles.signatureBox}>
             <Text style={styles.rowLabel}>{t('developerSales.receipt.issuer')}</Text>
-            <Text style={styles.line}>{data.workspaceName}</Text>
+            <Text style={[styles.line, own(data.workspaceName)]}>{data.workspaceName}</Text>
           </View>
         </View>
 
         <Text style={styles.footer} fixed>
-          {`${data.workspaceName} · ${data.receiptNumber} · ${t('developerSales.receipt.issuedOn')} ${day(data.confirmedAt ?? data.paymentDate)}`}
+          {`${data.workspaceName} · ${data.receiptNumber} · ${t('developerSales.receipt.issuedOn')} ${issuedOn}`}
         </Text>
       </Page>
     </Document>

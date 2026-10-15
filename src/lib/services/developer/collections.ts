@@ -714,13 +714,27 @@ const SEARCH_LIMIT = 20
  * number or the programme. Only units with a buyer: there is nothing to collect
  * on the others.
  */
-export async function searchCollectionTargets(ctx: DeveloperContext, query: string) {
+export async function searchCollectionTargets(ctx: DeveloperContext, query: string, { buyerLeadId }: { buyerLeadId?: string | null } = {}) {
   const q = query.trim().slice(0, 60)
   const words = q.split(/\s+/).filter(Boolean).slice(0, 4)
+  // Phones are stored as typed ("+213 662 54 36 54"), so a run of digits is also
+  // matched against each buyer's phone with everything but its digits removed.
+  const phoneBuyers = new Map<string, string[]>()
+  for (const word of words) {
+    const digits = word.replace(/\D/g, '')
+    if (digits.length < 3 || phoneBuyers.has(word)) continue
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT DISTINCT l."buyerLeadId" AS id
+      FROM "DevelopmentLot" l JOIN "Lead" b ON b."id" = l."buyerLeadId"
+      WHERE l."workspaceId" = ${ctx.workspaceId}
+        AND regexp_replace(coalesce(b."phone", ''), '\\D', '', 'g') LIKE ${`%${digits}%`}
+      LIMIT 200`
+    phoneBuyers.set(word, rows.map((r) => r.id))
+  }
   const lots = await prisma.developmentLot.findMany({
     where: {
       workspaceId: ctx.workspaceId,
-      buyerLeadId: { not: null },
+      buyerLeadId: buyerLeadId || { not: null },
       ...(words.length > 0 && {
         AND: words.map((word) => ({
           OR: [
@@ -731,6 +745,7 @@ export async function searchCollectionTargets(ctx: DeveloperContext, query: stri
             { buyerLead: { lastName: { contains: word, mode: 'insensitive' as const } } },
             { buyerLead: { email: { contains: word, mode: 'insensitive' as const } } },
             { buyerLead: { phone: { contains: word } } },
+            ...(phoneBuyers.get(word)?.length ? [{ buyerLeadId: { in: phoneBuyers.get(word) } }] : []),
           ],
         })),
       }),
@@ -740,12 +755,13 @@ export async function searchCollectionTargets(ctx: DeveloperContext, query: stri
       lotNumber: true,
       status: true,
       program: { select: { id: true, name: true } },
-      buyerLead: { select: { id: true, firstName: true, lastName: true } },
+      buyerLead: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
       depositInvoice: { select: { total: true, amountPaid: true } },
       callsForFunds: { select: { amount: true, status: true, dueAt: true, invoice: { select: { amountPaid: true } } } },
     },
     orderBy: [{ program: { name: 'asc' } }, { lotNumber: 'asc' }],
-    take: SEARCH_LIMIT,
+    // One buyer's units are all listed; a search is capped.
+    take: buyerLeadId ? 100 : SEARCH_LIMIT,
   })
   const now = Date.now()
   return lots.map(({ callsForFunds, depositInvoice, ...lot }) => {
@@ -758,6 +774,27 @@ export async function searchCollectionTargets(ctx: DeveloperContext, query: stri
     }
     return { ...lot, outstanding: fromCents(outstanding), overdue: fromCents(overdue) }
   })
+}
+
+/**
+ * The same search, one entry per buyer: a buyer with three units is one client
+ * to collect from, not three. Clients with money overdue come first, then by what
+ * they still owe.
+ */
+export async function searchCollectionClients(ctx: DeveloperContext, query: string, options: { buyerLeadId?: string | null } = {}) {
+  const units = await searchCollectionTargets(ctx, query, options)
+  const clients = new Map<string, { buyer: NonNullable<(typeof units)[number]['buyerLead']>; units: typeof units; outstanding: number; overdue: number }>()
+  for (const unit of units) {
+    if (!unit.buyerLead) continue
+    const client = clients.get(unit.buyerLead.id) ?? { buyer: unit.buyerLead, units: [], outstanding: 0, overdue: 0 }
+    client.units.push(unit)
+    client.outstanding = fromCents(toCents(client.outstanding) + toCents(unit.outstanding))
+    client.overdue = fromCents(toCents(client.overdue) + toCents(unit.overdue))
+    clients.set(unit.buyerLead.id, client)
+  }
+  return [...clients.values()].sort(
+    (a, b) => Number(b.overdue > 0) - Number(a.overdue > 0) || b.outstanding - a.outstanding
+  )
 }
 
 export interface JournalFilters {

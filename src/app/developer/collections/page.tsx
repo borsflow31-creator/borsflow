@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Wallet } from 'lucide-react';
+import { Loader2, Wallet, X } from 'lucide-react';
 import AppShell from '@/components/AppShell';
 import PageHeader from '@/components/ui/PageHeader';
 import NoWorkspace from '@/components/NoWorkspace';
@@ -15,7 +15,7 @@ import { useWorkspaceCurrency } from '@/components/workspace/useWorkspaceCurrenc
 import {
     CALL_STATUS_LABEL, CALL_STATUS_TONE, Chip, tableClass, tdClass, thClass,
 } from '@/components/developer/status';
-import CollectionTargetPicker from '@/components/developer/CollectionTargetPicker';
+import CollectionTargetPicker, { clientName, type CollectionClient } from '@/components/developer/CollectionTargetPicker';
 import LotLedgerPanel from '@/components/developer/LotLedgerPanel';
 import PaymentJournal from '@/components/developer/PaymentJournal';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
@@ -34,7 +34,7 @@ interface CallRow {
         id: string;
         lotNumber: string;
         program: { id: string; name: string };
-        buyerLead: { firstName: string; lastName: string } | null;
+        buyerLead: { id: string; firstName: string; lastName: string } | null;
     };
     milestone: { title: string; targetPercentage: number };
     reminders?: { step: string; sentAt: string }[];
@@ -62,6 +62,7 @@ function CollectionsInner() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const openClientId = searchParams.get('client');
     const openLotId = searchParams.get('lot');
     const openCallId = searchParams.get('call');
     const tab: Tab = searchParams.get('tab') === 'journal' ? 'journal' : 'calls';
@@ -76,10 +77,18 @@ function CollectionsInner() {
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }, [router, pathname, searchParams, workspaceId]);
 
-    const openLot = (lotId: string, callId?: string) => {
-        setQuery({ lot: lotId, call: callId ?? null });
+    // A unit opens with its buyer: the client is resolved from the unit's ledger
+    // when the link did not say (the table, the journal, a project page).
+    const openLot = useCallback((lotId: string, callId?: string, buyerId?: string | null) => {
+        setQuery({ lot: lotId, call: callId ?? null, ...(buyerId !== undefined && { client: buyerId }) });
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [setQuery]);
+    const openClient = (client: CollectionClient) => {
+        setQuery({ client: client.buyer.id, lot: mostUrgentUnit(client.units)?.id ?? null, call: null });
     };
+    const closeClient = () => setQuery({ client: null, lot: null, call: null });
+    // Bumped after a payment, so the client's units show what they now owe.
+    const [clientRefresh, setClientRefresh] = useState(0);
 
     const money = (n: number) => formatNumber(n, { style: 'currency', currency, maximumFractionDigits: 0 });
     const moneyCompact = (n: number) =>
@@ -168,16 +177,38 @@ function CollectionsInner() {
                     guide="collections"
                 />
 
-                <div className="max-w-xl">
-                    <CollectionTargetPicker workspaceId={workspaceId} currency={currency} onPick={(target) => openLot(target.id)} />
-                </div>
+                <CollectionTargetPicker workspaceId={workspaceId} currency={currency} onPick={openClient} />
 
-                {openLotId && (
+                {openClientId ? (
+                    <ClientPanel
+                        workspaceId={workspaceId}
+                        clientId={openClientId}
+                        lotId={openLotId}
+                        currency={currency}
+                        refresh={clientRefresh}
+                        onSelectLot={openLot}
+                        onClose={closeClient}
+                    >
+                        {openLotId && (
+                            <LotLedgerPanel
+                                workspaceId={workspaceId}
+                                lotId={openLotId}
+                                initialCallId={openCallId}
+                                currency={currency}
+                                hideBuyer
+                                onClose={closeClient}
+                                onChanged={() => { load(); setClientRefresh((n) => n + 1); }}
+                                notify={(message, type) => setToast({ message, type })}
+                            />
+                        )}
+                    </ClientPanel>
+                ) : openLotId && (
                     <LotLedgerPanel
                         workspaceId={workspaceId}
                         lotId={openLotId}
                         initialCallId={openCallId}
                         currency={currency}
+                        onBuyer={(buyerId) => setQuery({ client: buyerId })}
                         onClose={() => setQuery({ lot: null, call: null })}
                         onChanged={load}
                         notify={(message, type) => setToast({ message, type })}
@@ -236,7 +267,7 @@ function CollectionsInner() {
                 </div>
 
                 {tab === 'journal' ? (
-                    <PaymentJournal workspaceId={workspaceId} currency={currency} programs={programs} onOpenLot={(lotId) => openLot(lotId)} />
+                    <PaymentJournal workspaceId={workspaceId} currency={currency} programs={programs} onOpenLot={(lotId) => openLot(lotId, undefined, null)} />
                 ) : (
                     <>
                         {/* Filters */}
@@ -358,7 +389,7 @@ function CollectionsInner() {
                                                     <td className={`${tdClass} text-end`}>
                                                         {status !== 'draft' && (
                                                             <button
-                                                                onClick={() => openLot(call.lot.id, owed.outstanding > 0 ? call.id : undefined)}
+                                                                onClick={() => openLot(call.lot.id, owed.outstanding > 0 ? call.id : undefined, call.lot.buyerLead?.id ?? null)}
                                                                 className="text-xs font-medium text-secondary hover:underline"
                                                             >
                                                                 {owed.outstanding > 0 ? t('developerSales.payments.collect') : t('developerSales.payments.viewPayments')}
@@ -377,6 +408,104 @@ function CollectionsInner() {
             </div>
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </AppShell>
+    );
+}
+
+/** The unit to open first: the most overdue, else the most still owed. */
+function mostUrgentUnit(units: CollectionClient['units']) {
+    return [...units].sort((a, b) => b.overdue - a.overdue || b.outstanding - a.outstanding)[0];
+}
+
+/**
+ * The client being collected from: who they are, how to reach them, and one
+ * button per unit they bought when there is more than one. The open unit's
+ * payments sit inside.
+ */
+function ClientPanel({
+    workspaceId, clientId, lotId, currency, refresh, onSelectLot, onClose, children,
+}: {
+    workspaceId: string;
+    clientId: string;
+    lotId: string | null;
+    currency: string;
+    refresh: number;
+    onSelectLot: (lotId: string) => void;
+    onClose: () => void;
+    children: React.ReactNode;
+}) {
+    const { t, formatCurrency } = useI18n();
+    const [client, setClient] = useState<CollectionClient | null>(null);
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setFailed(false);
+        const params = new URLSearchParams({ workspaceId, client: clientId });
+        fetch(`/api/developer/collections/search?${params}`, { signal: controller.signal })
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+            .then((d: { clients?: CollectionClient[] }) => setClient(d.clients?.[0] ?? null))
+            .catch((e: unknown) => { if ((e as { name?: string }).name !== 'AbortError') setFailed(true); });
+        return () => controller.abort();
+    }, [workspaceId, clientId, refresh]);
+
+    // Opened without a unit (a link to the client alone): open the most urgent one.
+    useEffect(() => {
+        if (client && client.buyer.id === clientId && !lotId && client.units.length > 0) onSelectLot(mostUrgentUnit(client.units).id);
+    }, [client, clientId, lotId, onSelectLot]);
+
+    const contact = client ? [client.buyer.phone, client.buyer.email].filter(Boolean).join(' · ') : '';
+
+    return (
+        <section className="border border-outline-variant/30 rounded-xl overflow-hidden" aria-label={client ? clientName(client.buyer) : undefined}>
+            <header className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+                <div className="min-w-0">
+                    {client ? (
+                        <>
+                            <h2 className="text-xl font-semibold text-on-surface">{clientName(client.buyer)}</h2>
+                            {contact && <p className="text-sm text-on-surface-variant mt-0.5">{contact}</p>}
+                        </>
+                    ) : failed ? (
+                        <p className="text-sm text-error" role="alert">{t('developerSales.payments.loadFailed')}</p>
+                    ) : (
+                        <Loader2 className="h-5 w-5 animate-spin text-on-surface-variant" aria-label={t('developerSales.payments.loading')} />
+                    )}
+                </div>
+                <button type="button" onClick={onClose} className="p-1.5 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high" aria-label={t('developerSales.payments.close')}>
+                    <X className="h-5 w-5" />
+                </button>
+            </header>
+
+            {client && client.units.length > 1 && (
+                <div className="px-5 pb-4">
+                    <p className="text-xs text-on-surface-variant mb-2">{t('developerSales.payments.clientUnits')}</p>
+                    <div className="flex flex-wrap gap-2">
+                        {client.units.map((unit) => {
+                            const selected = unit.id === lotId;
+                            return (
+                                <button
+                                    key={unit.id}
+                                    type="button"
+                                    aria-pressed={selected}
+                                    onClick={() => onSelectLot(unit.id)}
+                                    className={`rounded-lg border px-3 py-2 text-start transition-colors ${
+                                        selected ? 'border-on-surface bg-surface-container-high' : 'border-outline-variant/40 hover:border-outline-variant'
+                                    }`}
+                                >
+                                    <span className="block text-sm font-medium text-on-surface">{unit.program.name} · {unit.lotNumber}</span>
+                                    <span className={`block text-xs tabular-nums ${unit.overdue > 0 ? 'text-error' : 'text-on-surface-variant'}`}>
+                                        {unit.outstanding > 0
+                                            ? t('developerSales.payments.leftToPayShort', { amount: formatCurrency(unit.outstanding, currency) })
+                                            : t('developerSales.payments.upToDate')}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            <div className="border-t border-outline-variant/20">{children}</div>
+        </section>
     );
 }
 

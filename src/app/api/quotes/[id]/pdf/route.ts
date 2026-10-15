@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { renderDocumentPdf, pdfFilename } from '@/lib/documents/pdf';
+import { pdfLanguageFor } from '@/lib/documents/pdf-language';
 
 // React-PDF needs Node APIs, not the edge runtime.
 export const runtime = 'nodejs';
@@ -65,7 +66,7 @@ export async function GET(
       total: quote.total,
       notes: quote.notes,
       terms: quote.terms,
-    });
+    }, await pdfLanguageFor(session.user.id));
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {

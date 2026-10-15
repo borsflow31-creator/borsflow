@@ -3,8 +3,7 @@ import { getDeveloperAccess } from '@/lib/crm/access'
 import { failure } from '@/lib/api/respond'
 import { getReceiptData } from '@/lib/services/developer/collections'
 import { renderReceiptPdf } from '@/lib/documents/receipt-pdf'
-import { prisma } from '@/lib/prisma'
-import { parseLocale, serverTranslator } from '@/i18n/server'
+import { pdfLanguageFor } from '@/lib/documents/pdf-language'
 
 // React-PDF needs Node APIs, not the edge runtime.
 export const runtime = 'nodejs'
@@ -28,12 +27,8 @@ export async function GET(
     const { access } = result
 
     const data = await getReceiptData({ workspaceId, userId: access.userId }, id)
-    const user = await prisma.user.findUnique({ where: { id: access.userId }, select: { locale: true } })
-    const lang = parseLocale(user?.locale) ?? 'fr'
-    // Arabic prints right to left in the bundled Arabic font, with Latin digits as used in the Maghreb.
-    const rtl = lang === 'ar'
-    const locale = rtl ? 'ar-u-nu-latn' : lang
-    const t = await serverTranslator(lang)
+    // The reader's language; Arabic prints right to left in the bundled Arabic font.
+    const { t, locale, rtl } = await pdfLanguageFor(access.userId)
 
     const { payment, call } = data
     const buyer = call.lot.buyerLead

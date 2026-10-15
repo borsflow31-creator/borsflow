@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { renderDocumentPdf, pdfFilename } from '@/lib/documents/pdf';
+import { pdfLanguageFor } from '@/lib/documents/pdf-language';
 
 // React-PDF needs Node APIs, not the edge runtime.
 export const runtime = 'nodejs';
@@ -70,7 +71,7 @@ export async function GET(
       payments: invoice.payments,
       notes: invoice.notes,
       terms: invoice.terms,
-    });
+    }, await pdfLanguageFor(session.user.id));
 
     // `inline` so clicking the action opens the PDF in the browser's viewer, from
     // which the client can still save it under the filename below.
