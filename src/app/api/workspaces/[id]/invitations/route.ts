@@ -17,6 +17,7 @@ import {
 import { isSendableTransactional } from '@/lib/email/suppression'
 import { deliverInvitationEmail } from '@/lib/invitation-delivery'
 import { memberCapacityError } from '@/lib/billing/entitlements'
+import { TeamLogger } from '@/lib/team/logger'
 
 /**
  * POST /api/workspaces/[id]/invitations
@@ -194,6 +195,15 @@ export async function POST(
           },
         },
       },
+    })
+
+    void TeamLogger.log({
+      workspaceId,
+      userId: session.user.id,
+      type: 'member_invited',
+      entityId: invitation.id,
+      description: `Invited ${invitation.email} as ${role}`,
+      metadata: { email: invitation.email, role },
     })
 
     // Send invitation email. The invitation is kept even when delivery fails or

@@ -6,6 +6,7 @@ import { isInvitationExpired } from '@/lib/workspace'
 import { getMemberUsage, planLimitResponse } from '@/lib/billing/entitlements'
 import { notify } from '@/lib/notifications/notify'
 import { workspaceAdminIds } from '@/lib/notifications/recipients'
+import { TeamLogger } from '@/lib/team/logger'
 
 /**
  * POST /api/invitations/[id]/accept
@@ -164,6 +165,17 @@ export async function POST(
         },
       }),
     ])
+
+    if (!alreadyMember) {
+      void TeamLogger.log({
+        workspaceId: invitation.workspaceId,
+        userId: session.user.id,
+        type: 'member_joined',
+        entityId: session.user.id,
+        description: `${user.name || user.email} joined as ${invitation.role}`,
+        metadata: { role: invitation.role, invitedBy: invitation.senderId },
+      })
+    }
 
     // Fire-and-forget: let the inviter and the workspace's admins know someone joined.
     const admins = await workspaceAdminIds(invitation.workspaceId)

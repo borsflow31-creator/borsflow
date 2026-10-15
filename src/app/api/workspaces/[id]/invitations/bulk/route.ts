@@ -18,6 +18,7 @@ import { normalizeEmail } from '@/lib/email/normalize'
 import { filterSendableTransactional } from '@/lib/email/suppression'
 import { deliverInvitationEmail } from '@/lib/invitation-delivery'
 import { getMemberUsage, memberCapacityError } from '@/lib/billing/entitlements'
+import { TeamLogger } from '@/lib/team/logger'
 
 // Every accepted row can fire an outbound email, and they are sent one at a time.
 export const maxDuration = 60
@@ -261,6 +262,15 @@ export async function POST(
         })
         result.created++
         seatsLeft--
+
+        void TeamLogger.log({
+          workspaceId,
+          userId: session.user.id,
+          type: 'member_invited',
+          entityId: invitation.id,
+          description: `Invited ${email} as ${role}`,
+          metadata: { email, role },
+        })
 
         const delivery = await deliverInvitationEmail(invitation, sendable.has(email))
         if (delivery.emailSent) {

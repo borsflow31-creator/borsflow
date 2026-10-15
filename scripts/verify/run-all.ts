@@ -30,6 +30,9 @@ import smtpProvider from './18-smtp-provider'
 import emailStarters from './19-email-starters'
 import workspaceCurrency from './20-workspace-currency'
 import leadIntake from './21-lead-intake'
+import collectionsLedger from './22-collections-ledger'
+import teamRolesLog from './23-team-roles-log'
+import amountInWords from './24-amount-in-words'
 
 const NO_DATABASE_NEEDED = new Set(['01', '14', '15', '16', '17', '18', '19', '20', '21', '24'])
 
@@ -56,6 +59,9 @@ async function main() {
     { id: '19', run: emailStarters },
     { id: '20', run: workspaceCurrency },
     { id: '21', run: leadIntake },
+    { id: '22', run: collectionsLedger },
+    { id: '23', run: teamRolesLog },
+    { id: '24', run: amountInWords },
   ]
 
   const hasDatabase = Boolean(process.env.VERIFY_DATABASE_URL)

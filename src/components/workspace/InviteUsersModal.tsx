@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2, Plus, History, Clock, Trash2 } from 'lucide-react';
 import { Role, getValidInvitationRoles } from '@/lib/workspace';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import InvitationsList from './InvitationsList';
 
 interface InviteUsersModalProps {
@@ -427,8 +427,8 @@ export default function InviteUsersModal({
                                                         disabled={isSending}
                                                     >
                                                         {validRoles.map((r) => (
-                                                            <option key={r} value={r}>
-                                                                {r.charAt(0).toUpperCase() + r.slice(1)}
+                                                            <option key={r} value={r} title={t(`team.roleHints.${r}` as MessageKey)}>
+                                                                {t(`team.roles.${r}` as MessageKey)}
                                                             </option>
                                                         ))}
                                                     </select>

@@ -14,6 +14,7 @@ import {
   invitationLimitTargets,
   rateLimitedResponse,
 } from '@/lib/api/rate-limit'
+import { TeamLogger } from '@/lib/team/logger'
 
 /**
  * DELETE /api/workspaces/[id]/invitations/[invitationId]
@@ -71,6 +72,17 @@ export async function DELETE(
     await prisma.invitation.delete({
       where: { id: invitationId },
     })
+
+    if (invitation.status === 'pending') {
+      void TeamLogger.log({
+        workspaceId,
+        userId: session.user.id,
+        type: 'invitation_revoked',
+        entityId: invitation.id,
+        description: `Cancelled the invitation to ${invitation.email}`,
+        metadata: { email: invitation.email, role: invitation.role },
+      })
+    }
 
     return NextResponse.json(
       { message: 'Invitation cancelled successfully' },

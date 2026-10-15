@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getWorkspaceMembership } from '@/lib/workspace'
+import { TeamLogger } from '@/lib/team/logger'
 
 /**
  * POST /api/workspaces/[id]/leave
@@ -45,6 +46,15 @@ export async function POST(
     // Remove membership
     await prisma.workspaceMember.delete({
       where: { id: membership.id },
+    })
+
+    void TeamLogger.log({
+      workspaceId,
+      userId: session.user.id,
+      type: 'member_left',
+      entityId: session.user.id,
+      description: `${session.user.name || session.user.email} left the workspace`,
+      metadata: { role: membership.role },
     })
 
     return NextResponse.json(

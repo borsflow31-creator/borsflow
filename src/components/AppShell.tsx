@@ -11,7 +11,7 @@ import {
     Mail, ChevronRight, PanelLeftClose, PanelLeftOpen,
     UserPlus, CalendarDays, MessageSquare, Moon, Sun, LogOut, Package,
     Building, Building2, FileSignature, HandCoins, Percent, Eye,
-    LayoutGrid, Wallet, ClipboardList, ListChecks, CalendarCheck, Activity, BarChart3, BellRing,
+    LayoutGrid, Wallet, ClipboardList, ListChecks, CalendarCheck, Activity, BarChart3, BellRing, UserCog,
 } from 'lucide-react';
 import { useAppStore } from '@/store/appStore';
 import { useSession, signOut } from 'next-auth/react';
@@ -67,6 +67,8 @@ const EMAIL       = item('nav.emailMarketing',         'emailMarketing', '/email
 const QUOTES      = item('nav.quotes',                 'quotes',         '__quotes__',       QuoteIcon,     '/quotes');
 const INVOICES    = item('nav.invoices',               'invoices',       '__invoices__',     DollarSign,    '/invoices');
 const COMMISSIONS = item('realEstate.nav.commissions', 'commissions',    '__commissions__',  Percent,       '/commissions');
+/** Members, roles and the activity log. Hidden from viewers, who can change none of it. */
+const TEAM        = item('team.nav',                   'members',        '__members__',      UserCog,       '/team');
 
 const GENERAL_GROUP: NavGroup = {
     labelKey: 'nav.groupGeneral',
@@ -115,6 +117,7 @@ const DEVELOPER_GROUPS: NavGroup[] = [
         items: [
             item('developerCrm.nav.teamActivity', 'team',    '__team__',    Activity,  '/developer/team'),
             item('developerSales.nav.reports',    'reports', '__reports__', BarChart3, '/developer/reports'),
+            TEAM,
         ],
     },
     {
@@ -140,6 +143,7 @@ const AGENCY_GROUPS: NavGroup[] = [
             item('realEstate.nav.services',   'services',   '__products__',   Package,       '/products'),
             QUOTES,
             INVOICES,
+            TEAM,
         ],
     },
 ];
@@ -196,6 +200,7 @@ const WORKSPACE_ROUTES: Record<string, string> = {
     __followups__:     '/developer/tasks',
     __sitevisits__:    '/developer/site-visits',
     __team__:          '/developer/team',
+    __members__:       '/team',
     __reports__:       '/developer/reports',
     __templates__:     '/developer/templates',
     __alerts__:        '/developer/alerts',
@@ -699,7 +704,7 @@ export default function AppShell({
                             )}
                             {showItems && (
                             <div id={groupId} className="space-y-0.5">
-                                {group.items.map((item) => {
+                                {group.items.filter((it) => it !== TEAM || userRole !== 'viewer').map((item) => {
                                     const href      = resolveHref(item.href, effectiveWorkspace ?? null, firstPageId, currentWorkspaceId);
                                     const active    = isActive(item.basePath);
                                     const Icon      = item.icon;

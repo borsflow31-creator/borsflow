@@ -7,6 +7,7 @@ import { findUserByEmail } from './api/user'
 import { normalizeEmail } from './email/normalize'
 import { createStarterWorkspace } from './onboarding'
 import { checkRateLimit, consumeRateLimits, type RateLimitRule } from './api/rate-limit'
+import { TeamLogger } from './team/logger'
 
 /** Failed password attempts allowed per address before sign-in is paused. */
 const LOGIN_FAILURE_LIMIT: RateLimitRule = {
@@ -175,6 +176,18 @@ export const authOptions: NextAuthOptions = {
                 session.user.businessType = token.businessType ?? null
             }
             return session
+        },
+    },
+    events: {
+        // Goes in each workspace's activity log, so admins can see when their team
+        // was last in. Resolved by email: a Google sign-in's `user.id` is the
+        // provider's, not ours.
+        async signIn({ user, account }) {
+            const method = account?.provider ?? 'credentials'
+            const id = user.email
+                ? (await findUserByEmail(user.email, { select: { id: true } }))?.id
+                : user.id
+            if (id) void TeamLogger.logSignIn(id, method)
         },
     },
     secret: process.env.NEXTAUTH_SECRET,

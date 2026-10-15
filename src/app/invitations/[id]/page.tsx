@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { CheckCircle, AlertCircle, Loader2, Mail, LogIn } from 'lucide-react';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface InvitationPreview {
     id: string;
@@ -215,7 +215,7 @@ function InvitationContent() {
                     {t('public.invitation.youreInvitedTo', { workspace: invitation.workspace.name })}
                 </h1>
                 <p className="text-on-surface-variant mb-2">
-                    {t('public.invitation.invitedAs', { inviter, role: invitation.role })}
+                    {t('public.invitation.invitedAs', { inviter, role: t(`team.roles.${invitation.role}` as MessageKey) })}
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant mb-8">
                     <Mail className="h-4 w-4" />
@@ -255,7 +255,7 @@ function InvitationContent() {
                 {t('public.invitation.joinWorkspace', { workspace: invitation.workspace.name })}
             </h1>
             <p className="text-on-surface-variant mb-2">
-                {t('public.invitation.invitedAs', { inviter, role: invitation.role })}
+                {t('public.invitation.invitedAs', { inviter, role: t(`team.roles.${invitation.role}` as MessageKey) })}
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-on-surface-variant mb-8">
                 <Mail className="h-4 w-4" />

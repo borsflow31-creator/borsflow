@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { checkWorkspacePermission, getWorkspaceMembership } from '@/lib/workspace'
+import { checkWorkspacePermission } from '@/lib/workspace'
+import { getWorkspaceRole } from '@/lib/api/workspace'
+import { TeamLogger } from '@/lib/team/logger'
 
 /**
  * PATCH /api/workspaces/[id]/members/[memberId]
@@ -86,17 +88,11 @@ export async function PATCH(
       )
     }
 
-    // Get current user's membership
-    const currentUserMembership = await getWorkspaceMembership(
-      workspaceId,
-      session.user.id
-    )
+    // The owner has no member row, so resolve the caller's role from both.
+    const actorRole = await getWorkspaceRole(workspaceId, session.user.id)
 
     // Admins cannot change other admins' roles
-    if (
-      currentUserMembership?.role === 'admin' &&
-      member.role === 'admin'
-    ) {
+    if (actorRole === 'admin' && member.role === 'admin') {
       return NextResponse.json(
         { error: "Admins cannot change other admins' roles" },
         { status: 403 }
@@ -117,6 +113,17 @@ export async function PATCH(
         },
       },
     })
+
+    if (member.role !== role) {
+      void TeamLogger.log({
+        workspaceId,
+        userId: session.user.id,
+        type: 'member_role_changed',
+        entityId: member.userId,
+        description: `${member.user.name || member.user.email} changed from ${member.role} to ${role}`,
+        metadata: { from: member.role, to: role, name: member.user.name || member.user.email, email: member.user.email },
+      })
+    }
 
     return NextResponse.json(
       {
@@ -155,6 +162,7 @@ export async function DELETE(
     // Find the member to remove
     const member = await prisma.workspaceMember.findUnique({
       where: { id: memberId },
+      include: { user: { select: { name: true, email: true } } },
     })
 
     if (!member) {
@@ -194,17 +202,10 @@ export async function DELETE(
       )
     }
 
-    // Get current user's membership
-    const currentUserMembership = await getWorkspaceMembership(
-      workspaceId,
-      session.user.id
-    )
+    const actorRole = await getWorkspaceRole(workspaceId, session.user.id)
 
     // Admins cannot remove other admins
-    if (
-      currentUserMembership?.role === 'admin' &&
-      member.role === 'admin'
-    ) {
+    if (actorRole === 'admin' && member.role === 'admin') {
       return NextResponse.json(
         { error: 'Admins cannot remove other admins' },
         { status: 403 }
@@ -214,6 +215,15 @@ export async function DELETE(
     // Remove member
     await prisma.workspaceMember.delete({
       where: { id: memberId },
+    })
+
+    void TeamLogger.log({
+      workspaceId,
+      userId: session.user.id,
+      type: 'member_removed',
+      entityId: member.userId,
+      description: `${member.user.name || member.user.email} was removed`,
+      metadata: { role: member.role, name: member.user.name || member.user.email, email: member.user.email },
     })
 
     return NextResponse.json(

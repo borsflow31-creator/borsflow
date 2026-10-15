@@ -4413,6 +4413,7 @@ export interface Messages {
     };
     desc: {
       home: string;
+      members: string;
       alerts: string;
       projects: string;
       inventory: string;
@@ -4784,13 +4785,13 @@ export interface Messages {
         document: string;
       };
       viewReceipt: string;
-      soon: string;
       paidSoFar: string;
+      soon: string;
       empty: string;
     };
     callStatus: {
-      draft: string;
       partially_paid: string;
+      draft: string;
       issued: string;
       sent: string;
       "sent_to_bank": string;
@@ -5216,6 +5217,68 @@ export interface Messages {
     callBack: string;
     visitFollowUp: string;
     visitRebook: string;
+  };
+  team: {
+    nav: string;
+    title: string;
+    subtitle: string;
+    tabMembers: string;
+    tabLog: string;
+    invite: string;
+    colPerson: string;
+    colRole: string;
+    colJoined: string;
+    colLastSeen: string;
+    never: string;
+    you: string;
+    remove: string;
+    removeConfirm: string;
+    changeFailed: string;
+    removeFailed: string;
+    loadFailed: string;
+    retry: string;
+    filterPerson: string;
+    allPeople: string;
+    filterType: string;
+    allEvents: string;
+    from: string;
+    to: string;
+    exportCsv: string;
+    loadMore: string;
+    emptyLog: string;
+    logFailed: string;
+    open: string;
+    logNote: string;
+    readOnlyNote: string;
+    roles: {
+      owner: string;
+      admin: string;
+      member: string;
+      viewer: string;
+    };
+    roleHints: {
+      admin: string;
+      member: string;
+      viewer: string;
+    };
+    groups: {
+      prospects: string;
+      properties: string;
+      sales: string;
+      payments: string;
+      meetings: string;
+      team: string;
+      signins: string;
+    };
+    events: {
+      memberInvited: string;
+      invitationRevoked: string;
+      memberJoined: string;
+      memberRoleChanged: string;
+      memberRemoved: string;
+      memberLeft: string;
+      signedIn: string;
+    };
   };
   crmList: {
     buyer: string;
@@ -8204,6 +8267,7 @@ const en: Messages = {
     callStatusIssued: 'Issued',
     callStatusSentToBank: 'Sent to bank',
     callStatusPaid: 'Paid',
+    callStatusPartiallyPaid: 'Part paid',
     callStatusOverdue: 'Overdue',
     modificationsTitle: 'Buyer modifications',
     modificationsSubtitle: 'Change requests from your buyers.',
@@ -8267,7 +8331,6 @@ const en: Messages = {
       scoreFactor_contactable: 'Contact details',
       scoreFactor_budget: 'Budget',
       scoreFactor_project: 'Project and unit type',
-    callStatusPartiallyPaid: 'Part paid',
       scoreFactor_source: 'Source',
       scoreFactor_stage: 'Stage',
       scoreFactor_recency: 'Recent contact',
@@ -8506,69 +8569,6 @@ const en: Messages = {
       method_credit_card: 'Card',
       method_other: 'Other',
     },
-    project: {
-      commission: 'Sales commission (%)',
-      commissionHint: 'Taken on the price excluding VAT when a contract is signed.',
-    },
-    templates: {
-      title: 'Document templates',
-      subtitle: 'The wording of your reservation forms, contracts and payment reminders. Details in double braces are filled in for each sale.',
-      kind_reservation: 'Reservation form',
-      kind_contract: 'Sales contract',
-      kind_payment_reminder: 'Payment reminder',
-      scope: 'Applies to',
-      scopeWorkspace: 'All projects',
-      source_own: 'Saved for this selection',
-      source_workspace: 'Using the all-projects wording',
-      source_builtin: 'Using the built-in draft. Save your own to replace it.',
-      name: 'Name',
-      subject: 'Email subject',
-      wording: 'Wording',
-      placeholders: 'Insert a detail',
-      unknown: 'These placeholders do not exist: {fields}',
-      save: 'Save template',
-      saved: 'Template saved',
-      saveFailed: 'We could not save the template.',
-      restore: 'Remove and use the default',
-      restored: 'Template removed',
-      preview: 'Preview with sample details',
-      previewNote: 'Sample details only. Real documents use the sale’s own figures.',
-      loadFailed: 'We could not load the templates.',
-    },
-    reports: {
-      title: 'Reports',
-      subtitle: 'Sales, marketing, stock and money, for any period.',
-      exportCsv: 'Export CSV',
-      from: 'From',
-      to: 'To',
-      loadFailed: 'We could not build this report.',
-      empty: 'Nothing in this period.',
-      unknownSource: 'Unknown',
-      marketingNote: 'Follows the leads created in the period to wherever they have got to. Spend is entered by hand below.',
-      spendTitle: 'Marketing spend',
-      spendHint: 'Enter what you spent on a channel each month to see cost per lead and return.',
-      spendMonth: 'Month',
-      spendAmount: 'Amount spent',
-      spendFailed: 'We could not save that.',
-      tab_sales: 'Sales',
-      tab_marketing: 'Marketing',
-      tab_inventory: "Units",
-      tab_financial: 'Financial',
-      groupBy_source: 'By source',
-      groupBy_campaign: 'By campaign',
-      commissionStatus_accrued: 'Accrued',
-      commissionStatus_realized: 'Earned',
-      commissionStatus_paid: 'Paid',
-      col_name: 'Name',
-      col_units: 'Units',
-      col_value: 'Value',
-      col_averagePrice: 'Average price',
-      col_share: 'Share',
-      col_month: 'Month',
-      col_source: 'Source',
-      col_campaign: 'Campaign',
-      col_leads: 'Leads',
-      col_qualified: 'Qualified',
     payments: {
       collectDeposit: 'Collect the deposit',
       ofAsked: 'of {amount} asked',
@@ -8702,6 +8702,69 @@ const en: Messages = {
       cancelled: 'CANCELLED',
       cancelledReason: 'Cancelled because',
     },
+    project: {
+      commission: 'Sales commission (%)',
+      commissionHint: 'Taken on the price excluding VAT when a contract is signed.',
+    },
+    templates: {
+      title: 'Document templates',
+      subtitle: 'The wording of your reservation forms, contracts and payment reminders. Details in double braces are filled in for each sale.',
+      kind_reservation: 'Reservation form',
+      kind_contract: 'Sales contract',
+      kind_payment_reminder: 'Payment reminder',
+      scope: 'Applies to',
+      scopeWorkspace: 'All projects',
+      source_own: 'Saved for this selection',
+      source_workspace: 'Using the all-projects wording',
+      source_builtin: 'Using the built-in draft. Save your own to replace it.',
+      name: 'Name',
+      subject: 'Email subject',
+      wording: 'Wording',
+      placeholders: 'Insert a detail',
+      unknown: 'These placeholders do not exist: {fields}',
+      save: 'Save template',
+      saved: 'Template saved',
+      saveFailed: 'We could not save the template.',
+      restore: 'Remove and use the default',
+      restored: 'Template removed',
+      preview: 'Preview with sample details',
+      previewNote: 'Sample details only. Real documents use the sale’s own figures.',
+      loadFailed: 'We could not load the templates.',
+    },
+    reports: {
+      title: 'Reports',
+      subtitle: 'Sales, marketing, stock and money, for any period.',
+      exportCsv: 'Export CSV',
+      from: 'From',
+      to: 'To',
+      loadFailed: 'We could not build this report.',
+      empty: 'Nothing in this period.',
+      unknownSource: 'Unknown',
+      marketingNote: 'Follows the leads created in the period to wherever they have got to. Spend is entered by hand below.',
+      spendTitle: 'Marketing spend',
+      spendHint: 'Enter what you spent on a channel each month to see cost per lead and return.',
+      spendMonth: 'Month',
+      spendAmount: 'Amount spent',
+      spendFailed: 'We could not save that.',
+      tab_sales: 'Sales',
+      tab_marketing: 'Marketing',
+      tab_inventory: "Units",
+      tab_financial: 'Financial',
+      groupBy_source: 'By source',
+      groupBy_campaign: 'By campaign',
+      commissionStatus_accrued: 'Accrued',
+      commissionStatus_realized: 'Earned',
+      commissionStatus_paid: 'Paid',
+      col_name: 'Name',
+      col_units: 'Units',
+      col_value: 'Value',
+      col_averagePrice: 'Average price',
+      col_share: 'Share',
+      col_month: 'Month',
+      col_source: 'Source',
+      col_campaign: 'Campaign',
+      col_leads: 'Leads',
+      col_qualified: 'Qualified',
       col_visits: 'Visits',
       col_reservations: 'Reservations',
       col_sales: 'Sales',
@@ -8723,6 +8786,7 @@ const en: Messages = {
       sum_salesValue: 'Sales value',
       sum_averagePrice: 'Average price',
       sum_discountsGiven: 'Discounts given',
+      sum_depositsReceived: 'Deposits received',
       sum_newLeads: 'New leads',
       sum_salesFromLeads: 'Sales from these leads',
       sum_revenue: 'Revenue',
@@ -8786,7 +8850,6 @@ const en: Messages = {
     rule_low_inventory_title: 'Stock running low',
     rule_low_inventory_desc: 'Tells the admins when a project in sales has this share of its units or less still available. Raised at most once a month.',
     rule_high_cancellations_title: 'High cancellation rate',
-      sum_depositsReceived: 'Deposits received',
     rule_high_cancellations_desc: 'Tells the admins when cancellations are at least this share of the deals in the last 90 days, once there are enough deals to mean something. Raised at most once a month.',
     access: {
       who: 'Who can see this',
@@ -9642,6 +9705,7 @@ const en: Messages = {
     },
     desc: {
       home: 'Your summary: sales, money in and what needs attention today.',
+      members: "Invite people, set what each can do, and see everything your team did.",
       alerts: 'Automatic warnings when a buyer is waiting or a project is off track.',
       projects: 'Your developments: create a project, set targets, add photos and plans.',
       inventory: 'Every unit across your projects, with status and price.',
@@ -10013,10 +10077,12 @@ const en: Messages = {
         document: "Document",
       },
       viewReceipt: "View receipt",
+      paidSoFar: '{amount} paid',
       soon: "Available soon",
       empty: "No calls for funds issued yet.",
     },
     callStatus: {
+      partially_paid: 'Part paid',
       draft: "Draft",
       issued: "To pay",
       sent: "To pay",
@@ -10077,12 +10143,10 @@ const en: Messages = {
       titleLabel: "What would you like? *",
       titlePlaceholder: "e.g. An extra socket on the kitchen island",
       details: "Details and location *",
-      paidSoFar: '{amount} paid',
       detailsPlaceholder: "Describe the change, the room and the dimensions…",
       reviewTitle: "Technical review",
       reviewBody: "Your request goes to the site manager and the supervising architect. Once it is confirmed feasible, a quote will appear here for your signature.",
       submitting: "Sending…",
-      partially_paid: 'Part paid',
       submit: "Send the request",
     },
     cancel: "Cancel",
@@ -10455,6 +10519,68 @@ const en: Messages = {
     price: "Price",
     updated: "Last activity",
     empty: "Nothing in this pipeline yet.",
+  },
+  team: {
+    nav: "Team & log",
+    title: "Team",
+    subtitle: "Who works in this workspace, what each person may do, and what they did.",
+    tabMembers: "Members",
+    tabLog: "Activity log",
+    invite: "Invite people",
+    colPerson: "Person",
+    colRole: "Role",
+    colJoined: "Joined",
+    colLastSeen: "Last sign-in",
+    never: "Never",
+    you: "You",
+    remove: "Remove",
+    removeConfirm: "Remove {name} from this workspace? They lose access straight away.",
+    changeFailed: "The role could not be changed.",
+    removeFailed: "This person could not be removed.",
+    loadFailed: "The team could not be loaded.",
+    retry: "Retry",
+    filterPerson: "Person",
+    allPeople: "Everyone",
+    filterType: "Events",
+    allEvents: "All events",
+    from: "From",
+    to: "To",
+    exportCsv: "Export CSV",
+    loadMore: "Load more",
+    emptyLog: "Nothing was recorded for these filters.",
+    logFailed: "The activity log could not be loaded.",
+    open: "Open",
+    logNote: "Every action taken in the app is recorded with who took it. Emails sent from your own mailbox and WhatsApp messages are not.",
+    readOnlyNote: "Only admins can change roles or see the activity log.",
+    roles: {
+      owner: "Owner",
+      admin: "Admin",
+      member: "Commercial",
+      viewer: "Viewer",
+    },
+    roleHints: {
+      admin: "Manages the team and sees everyone's activity",
+      member: "Works the CRM; can edit only their own records",
+      viewer: "Read only",
+    },
+    groups: {
+      prospects: "Prospects",
+      properties: "Properties & visits",
+      sales: "Sales",
+      payments: "Payments",
+      meetings: "Meetings",
+      team: "Team",
+      signins: "Sign-ins",
+    },
+    events: {
+      memberInvited: "Invited {email} as {role}",
+      invitationRevoked: "Cancelled the invitation to {email}",
+      memberJoined: "Joined as {role}",
+      memberRoleChanged: "Changed {person} from {from} to {to}",
+      memberRemoved: "Removed {person}",
+      memberLeft: "Left the workspace",
+      signedIn: "Signed in",
+    },
   },
 };
 

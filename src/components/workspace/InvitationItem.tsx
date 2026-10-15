@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Mail, Calendar, User, Loader2, RefreshCw, X, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Role } from '@/lib/workspace';
-import { useI18n } from '@/i18n/I18nProvider';
+import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 
 interface InvitationItemProps {
     invitation: {
@@ -115,7 +115,7 @@ export default function InvitationItem({
                 <div className="flex items-center gap-1.5">
                     <User className="h-4 w-4" />
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRoleColor()}`}>
-                        {invitation.role}
+                        {t(`team.roles.${invitation.role}` as MessageKey)}
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
